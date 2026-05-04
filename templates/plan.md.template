@@ -1,0 +1,50 @@
+# Plan: <feature name>
+
+Started: <iso date>
+Status: <draft | active | landed | archived>
+
+## Goal
+
+<One paragraph. What this feature delivers, in user-facing terms.>
+
+## Anchors in system.md
+
+> Reference the parts of system.md this work touches or depends on. If a needed concept isn't in system.md, that's a flag — propose it before planning further.
+
+- Glossary terms: <list>
+- Bounded contexts: <list>
+- Invariants depended on: <list>
+- Invariants potentially affected: <list>
+
+## Approach
+
+<What we're building, at a level a reviewer can engage with. Not implementation detail.>
+
+## Sessions expected
+
+<Rough breakdown into sessions if multi-session. Updated as the work progresses.>
+
+- [ ] <Session 1 goal>
+- [ ] <Session 2 goal>
+
+## Out of scope
+
+<What we are deliberately NOT doing. Especially adjacent things that could tempt scope creep.>
+
+## Open questions
+
+<Things to resolve as the work proceeds. Move to "Decisions made" once resolved.>
+
+- <Question>
+
+## Decisions made
+
+<Resolved questions, with brief reasoning. ADR-worthy decisions get their own file in `docs/decisions/`.>
+
+- <Decision>: <reasoning>
+
+## On completion
+
+When this plan lands:
+- Run `lexicon:crystallize` to absorb learnings into system.md
+- Move this folder to `docs/plans/_archive/<feature>/`

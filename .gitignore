@@ -1,0 +1,11 @@
+# macOS
+.DS_Store
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Claude Code local state (per-user, not part of plugin distribution)
+.claude/
