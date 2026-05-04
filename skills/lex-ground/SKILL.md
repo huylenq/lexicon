@@ -9,6 +9,8 @@ This skill makes sure work is grounded in the project's shared model *before* co
 
 If you haven't loaded `lex-overview` yet this session, read it first. It defines the project shape, the rules, and how `lex-ground` / `lex-retro` / `lex-crystallize` fit together.
 
+`lex-ground` is purely **behavioral** — it reads files and produces a scope declaration in conversation. It does not write anything to disk. The agent's context window holds the grounding for the rest of the session; that's enough.
+
 ## No `lexicon/system.md`? Defer to `lex-bootstrap`
 
 If `lexicon/system.md` doesn't exist, **stop and surface to the user**:
@@ -22,10 +24,6 @@ Don't try to bootstrap inline from this skill. The doc-audit and code-audit phas
 
 If the user picks (b), record the decision in a way the agent will remember (a `.lexicon-skip` marker file at the repo root works) so future sessions don't re-prompt. If (c), proceed with the user's task without grounding in `system.md`; this is a graceful fallback, not the intended flow.
 
-## Mint a session ID
-
-If `$LEXICON_SESSION_ID` isn't set, mint one: a short timestamped string like `2026-05-04-1430-ab12`. Write it to `lexicon/plans/_scratch/.session-id` so subsequent skill invocations find it. Reuse the same ID for the rest of this session.
-
 ## The grounding ritual
 
 Run before any substantive code change:
@@ -38,80 +36,33 @@ If `lexicon/views/` exists, also read the view(s) matching the bounded context o
 
 ### 2. Read `lexicon/calibration.md` if it exists
 
-Project-specific notes about what counts as significant. Overrides the default sense of when to escalate proposals.
+Project-specific notes about what counts as significant — overrides the default sense of when drift is worth flagging in retros.
 
-### 3. Check for in-flight work
+### 3. Declare scope (in conversation)
 
-Read every file in `lexicon/plans/_active/`. Each one declares another session's scope. If any of them touch:
-- The same files you're about to touch, or
-- The same bounded context you're about to work in, or
-- An invariant you're about to depend on,
+State, in chat, what you're about to do — using vocabulary from `system.md`. Cover:
 
-**stop and surface the overlap to the user before proceeding.** Don't try to merge or coordinate automatically — just announce it.
+- **Task** — one paragraph, in the user's words.
+- **Bounded context** — which context from `system.md` this work lives in. If a Domain View exists for it, name the view file. If unclear, say so explicitly.
+- **Vocabulary in play** — the glossary terms (from `system.md` or the owning view) you expect to use, and how they apply here.
+- **Invariants you're depending on** — restate the relevant invariants in your own words, so misreadings surface now rather than after the diff.
+- **Files likely to change** — short list with one-line "why" each.
+- **Out of scope** — what this task is explicitly NOT doing, especially adjacent things that could tempt scope creep.
 
-### 4. Declare your own scope
+Be honest. If you don't know which bounded context the work lives in, say so — that's a real signal, not a failure.
 
-Write a file at `lexicon/plans/_active/<session-id>.md`:
+This declaration is for the conversation only. Don't write it to a file. The session retro (`lex-retro`) will summarize what was actually declared vs what shipped, using this exchange as input.
 
-```markdown
-# Active session: <session-id>
-Started: <iso timestamp>
+### 4. Check vocabulary completeness
 
-## Task
-<One-paragraph description of what you're about to do, in the user's words.>
-
-## Bounded context
-<Which context from system.md this work lives in. If a Domain View exists for it (`lexicon/views/<slug>.md`), name the view file. If unclear, say so explicitly — that's a real signal.>
-
-## Vocabulary in play
-- <Term from glossary (system.md or owning view)>: <how it applies here>
-- <Term from glossary>: <how it applies here>
-
-## Invariants you're depending on
-- <Invariant from system.md, restated in your own words>
-
-## Files likely to change
-- <path> — <why>
-- <path> — <why>
-
-## Out of scope
-<What this task is explicitly NOT doing, especially adjacent things that could tempt scope creep.>
-```
-
-Be honest. If you don't know which bounded context the work lives in, say so — that's a real signal.
-
-### 5. Check vocabulary completeness
-
-For each significant noun or verb in the task description that *isn't* in `lexicon/system.md`'s glossary, flag it:
+For each significant noun or verb in the task description that *isn't* in `lexicon/system.md`'s glossary (or the relevant view's), flag it:
 
 > Heads up — the task uses the term "X" which isn't in the glossary. Want to:
-> (a) add it to the glossary now,
-> (b) propose a synonym for an existing term, or
-> (c) note it for the session-end retro to consider?
+> (a) note it for the session-end retro to consider,
+> (b) add it to the glossary now (via `lex-crystallize` after the work lands), or
+> (c) propose it's a synonym for an existing term?
 
-Default to (c) for low-stakes work, (a) for anything touching a bounded-context boundary or invariant.
-
-### 6. Open a scratchpad
-
-Create `lexicon/plans/_scratch/<session-id>.md`:
-
-```markdown
-# Scratch: <session-id>
-
-## Concepts encountered
-<New terms or refinements of existing terms that come up during the session.>
-
-## Assumptions made
-<Decisions taken without explicit user confirmation; flag for retro review.>
-
-## Boundary touches
-<Times the work touched or crossed a boundary defined in system.md.>
-
-## Surprises
-<Things that contradicted system.md or required re-reading code to understand.>
-```
-
-Write into this throughout the session. The `lex-retro` skill reads it at the end.
+Default to (a) for low-stakes work, (b) for anything touching a bounded-context boundary or invariant.
 
 ## When to skip the full ritual
 
@@ -121,7 +72,7 @@ Genuinely mechanical work doesn't need full grounding:
 - Log message wording tweaks
 - Renaming a local variable for clarity within a single function
 
-For these, run a minimal version: still mint a session ID, still write a one-line `_active/` file ("trivial: <description>"), still open a scratchpad. Skip steps 1, 5, and the full scope declaration. The `lex-retro` skill needs the session ID to exist.
+For these, briefly acknowledge ("trivial: <description>") and proceed. `lex-retro` may still run at the end and produce a one-line log; that's fine.
 
 If you're tempted to call something "trivial" but it touches a file mentioned in `system.md`, it's not trivial. Run the full grounding.
 
@@ -130,6 +81,7 @@ If you're tempted to call something "trivial" but it touches a file mentioned in
 - It is not a planning skill. It declares *where in the model* the work lives, not *what* to do.
 - It is not a code-review skill. It runs before code, not after.
 - It is not a substitute for asking clarifying questions. If intent is genuinely ambiguous, ask.
+- It is not a coordination mechanism. If multiple sessions are running on the same repo, this skill doesn't try to detect or prevent overlap — that's a git problem.
 
 ## On honesty about uncertainty
 

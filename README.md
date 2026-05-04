@@ -18,12 +18,12 @@ Lexicon adds five skills to Claude Code:
 | Skill | Fires when | Does |
 |---|---|---|
 | `lex-bootstrap` | Once, at adoption time | Scans existing docs and code, drafts a first-cut `system.md`, migrates ADR-shaped content, sets up `lexicon/` structure, produces a triage report |
-| `lex-ground` | Before substantive coding work | Reads `lexicon/system.md`, declares scope (terms, invariants, bounded context), checks for in-flight work by other agents, opens a scratchpad |
-| `lex-retro` | At every natural stopping point | Always logs; only escalates a proposal when vocabulary, invariants, or boundaries shifted |
-| `lex-crystallize` | When a multi-session feature is complete | Reviews cumulative changes and proposes a coherent diff to `system.md` |
-| `lex-audit` | Periodically (quarterly, on demand) | Re-validates `system.md` against current code; flags stale glossary, dead invariants, undeclared contexts, hygiene rot. Produces a triage list, never edits `system.md` directly |
+| `lex-ground` | Before substantive coding work | Reads `lexicon/system.md`, declares scope (terms, invariants, bounded context) **in conversation**, surfaces vocabulary gaps. No file writes. |
+| `lex-retro` | At every natural stopping point | Always logs to `lexicon/retros/`; structural-drift flags land inline in the same log when triggers fire |
+| `lex-crystallize` | **You trigger it** ("crystallize", "update lexicon", "feature X is done") | Reads retros since last crystallization, cross-checks against git, proposes a coherent diff to `system.md` inline in chat, applies it directly on your yes |
+| `lex-audit` | Periodically (quarterly, on demand) | Re-validates `system.md` against current code; flags stale glossary, dead invariants, undeclared contexts, hygiene rot. Writes a triage report to `lexicon/audits/`; never edits `system.md` directly |
 
-The skills coordinate through a `lexicon/` folder structure that the plugin manages. Concurrent agents are made safe by sharding everything per-session and treating `system.md` as a write-protected merge point.
+Cold-layer edits (`system.md`, views) go through `lex-crystallize` — propose, agree, apply. There's no separate proposal file or merge queue: the proposal happens in chat and the edit happens immediately.
 
 ## Why
 
@@ -67,10 +67,12 @@ The first time you do substantive work in a project, `lex-ground` will detect th
 lexicon/
   system.md                # drafted from existing docs + code, with TODO markers
   decisions/               # ADRs (migrated from any ADR-shaped existing docs)
-  plans/                   # _active, _scratch, _proposals, _retros, _archive
+  retros/                  # session logs, populated by lex-retro
+  audits/                  # audit reports, populated by lex-audit
+  plans/_archive/          # archived plan folders
 ```
 
-Plus a **triage report** under `lexicon/plans/_proposals/bootstrap-<date>.md` listing drift flags, vocabulary inconsistencies, and recommended file moves for the human to review.
+Plus a **triage report** at `lexicon/bootstrap.md` listing drift flags, vocabulary inconsistencies, and recommended file moves for the human to review.
 
 The drafted `system.md` is intentionally a first cut — invariants and "why"s are in your head, not the code, so plan for a focused distillation session afterward where you walk through the TODO markers with the agent.
 
@@ -81,26 +83,17 @@ If you don't want to use lexicon on a particular project, decline the bootstrap 
 ```
 lexicon/
   system.md                # cold layer: glossary, invariants, bounded contexts, "why"s
+  views/                   # optional: per-context cold-layer slices
   decisions/               # ADRs, append-only
   calibration.md           # project-specific notes on what counts as "significant"
+  retros/                  # always-written session logs (timestamp-named)
+  audits/                  # audit reports
+  bootstrap.md             # one-shot adoption report (created by lex-bootstrap)
+  .last-crystallized       # marker: lex-crystallize reads retros newer than this
   plans/
-    _active/               # soft locks declaring what each session is touching
-    _scratch/              # per-session ephemeral notes
-    _proposals/            # session-end diffs awaiting your merge
-    _retros/               # always-written session logs
-    _archive/              # landed plans and accepted crystallizations
     <feature>/             # in-flight materialized plans
+    _archive/              # archived plan folders
 ```
-
-## Concurrent sessions
-
-Run multiple Claude Code sessions on the same repo? Lexicon shards everything by session ID:
-
-- Each session writes its own `_active/<id>.md`, `_scratch/<id>.md`, `_retros/<id>.md`.
-- `lex-ground` checks sibling `_active/` files at session start and announces overlaps.
-- Proposals never write to `system.md` directly — they queue under `_proposals/` for human review.
-
-This doesn't *prevent* conflict (that's still a git problem), but it surfaces it at the cheapest moment.
 
 ## What this is not
 

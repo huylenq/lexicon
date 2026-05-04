@@ -1,11 +1,11 @@
 ---
 name: lex-retro
-description: "Run at every natural stopping point — task complete, tests pass and the user moves on, signals like 'looks good' / 'we're done' / 'thanks'. NOT optional based on perceived significance; run even on small or chatty sessions. The skill itself decides whether anything escalates to the human; most runs produce a silent log entry only. Skipping is how spec drift goes undetected and the cold doc rots. Read lex-overview first."
+description: "Run at every natural stopping point — task complete, tests pass and the user moves on, signals like 'looks good' / 'we're done' / 'thanks'. NOT optional based on perceived significance; run even on small or chatty sessions. Always writes a log entry to lexicon/retros/; structural-drift flags land inline in the log when triggers fire. Skipping is how spec drift goes undetected and the cold doc rots. Read lex-overview first."
 ---
 
 # Lexicon: retro
 
-This skill closes the loop on a coding session. It runs at every stopping point. The output is almost always silent — a log entry in `lexicon/plans/_retros/` that nobody will read unless something goes wrong later. Occasionally, when structural triggers fire, it produces a proposal for the human.
+This skill closes the loop on a coding session. It runs at every stopping point. The output is a log entry in `lexicon/retros/` — almost always read by no one, until `lex-crystallize` aggregates them later. When structural triggers fire, the flags go **inline in the same log entry** under a `## Structural drift` section; there is no separate proposal file.
 
 The point: **the question gets asked, every time.**
 
@@ -21,47 +21,33 @@ Run when:
 
 If unsure whether a stopping point has been reached, lean toward running. The cost of running unnecessarily is a small log file. The cost of skipping is silent drift.
 
-## Find the session ID
-
-Look for `$LEXICON_SESSION_ID` or read `lexicon/plans/_scratch/.session-id`. If neither exists, the `lex-ground` skill never ran for this session — note it in the retro ("session ran without grounding; consider whether the work was genuinely trivial"). Mint an ID now if needed.
-
 ## Gather inputs
 
 Read, in this order:
-1. `lexicon/plans/_active/<session-id>.md` — what the session declared it would do.
-2. `lexicon/plans/_scratch/<session-id>.md` — notes accumulated during the session.
-3. `lexicon/system.md` — the cold model.
-4. `lexicon/calibration.md` if it exists — project-specific significance overrides.
-5. The actual code diff for this session (use git: `git diff` against the session's start point if possible, otherwise summarize touched files).
-6. Other files in `lexicon/plans/_active/` — to be aware of concurrent sessions.
+1. `lexicon/system.md` — the cold model.
+2. Relevant `lexicon/views/*.md` — whichever the session was working in.
+3. `lexicon/calibration.md` if it exists — project-specific significance overrides.
+4. The actual code diff for this session (use git: `git diff` against the session's start point if known, otherwise summarize touched files from the conversation history).
+5. The conversation history itself — the scope declaration `lex-ground` produced is here, not in any file.
 
 ## Run the structural checks
 
 Run the six checks defined in `lex-overview` § Structural checks, applied **forward against this session's diff**: *did this session introduce anything that conflicts with `system.md`?*
 
-Each check that fires is a candidate for a proposal — except check 5 (Decisions), which becomes a candidate for an ADR (append to `lexicon/decisions/`, lighter than a proposal).
+Each check that fires is a candidate flag in the retro's `## Structural drift` section — except check 5 (Decisions), which becomes a candidate for an ADR (append to `lexicon/decisions/`, lighter than a drift flag and doesn't wait for crystallize).
 
-These are the **only** things that escalate to a proposal. Everything else stays silent.
-
-## Decide: silent retro or proposal?
-
-**Silent retro (the common case)**: None of checks 1–4 fired, or they fired but the answer was clearly already covered by `system.md`. Write the retro file and stop.
-
-**Proposal**: One or more structural checks fired with real signal. Write *both* the retro file *and* a proposal file.
-
-Be conservative on escalation. Borderline cases default to silent retro with a note about what was borderline — across multiple sessions, patterns will emerge that justify a proposal even if no single session did. Don't try to be perfectly precise per-session; the architecture handles eventual consistency.
+Be conservative on flagging. Borderline cases get a brief note under `## Notes for future sweeps` rather than a full drift flag — across multiple sessions, patterns will emerge that `lex-crystallize` can act on. Don't try to be perfectly precise per-session; the architecture handles eventual consistency.
 
 ## Write the retro file
 
-Always write `lexicon/plans/_retros/<session-id>.md`:
+Always write `lexicon/retros/<iso-timestamp>.md` (e.g. `2026-05-04T14-30-00.md`):
 
 ```markdown
-# Retro: <session-id>
-Ended: <iso timestamp>
-Outcome: <silent | proposal | adr | proposal+adr>
+# Retro: <iso timestamp>
+Outcome: <silent | drift-flagged | adr | drift+adr>
 
 ## What was declared
-<Copy task and scope from _active/<session-id>.md, briefly.>
+<Summarize the scope declaration from grounding, briefly. If lex-ground didn't run, note: "session ran without grounding".>
 
 ## What actually changed
 - <file>: <one-line summary>
@@ -75,51 +61,24 @@ Outcome: <silent | proposal | adr | proposal+adr>
 - Decisions: <none | recorded as ADR ...>
 - Scope match: <within scope | drifted: ...>
 
+## Structural drift
+<Only present if any of checks 1–4 fired with real signal. One block per flag:>
+
+### <Short label>
+- **What we observed**: <plain language. "We introduced a `ScanQueue` concept that isn't in the glossary, used it consistently across three files, and it sits between the Inference and Storage contexts.">
+- **Why it might matter**: <why this is worth surfacing to crystallize, not just letting code carry the meaning.>
+- **Suggested target(s)**: <lexicon/system.md and/or lexicon/views/<slug>.md>
+- **Confidence**: <low | medium | high>
+
 ## Notes for future sweeps
-<Anything that didn't justify a proposal alone but might be a pattern across sessions.>
+<Anything that didn't justify a drift flag alone but might be a pattern across sessions. lex-crystallize reads these.>
 ```
 
-Then delete `lexicon/plans/_active/<session-id>.md` (the soft lock — session is done).
-
-The scratchpad `lexicon/plans/_scratch/<session-id>.md` can be deleted or kept for one cycle in case the user wants to review. Deletion is fine; the retro captures what mattered.
-
-## Write the proposal file (only when warranted)
-
-If escalating, write `lexicon/plans/_proposals/<session-id>-<short-label>.md`:
-
-```markdown
-# Proposal: <short label>
-Session: <session-id>
-Ended: <iso timestamp>
-Targets: <lexicon/system.md and/or lexicon/views/<slug>.md — name each file explicitly>
-Touches: <sections of the target file(s) likely affected>
-
-## What we observed
-<The structural trigger, in plain language. "We introduced a `ScanQueue` concept that isn't in the glossary, used it consistently across three files, and it sits between the Inference and Storage contexts.">
-
-## Why it matters
-<Why this is worth updating system.md, not just letting code carry the meaning.>
-
-## Proposed change to system.md
-<A concrete diff or insertion. Don't apply it; just propose.>
-
-```diff
-- (existing relevant section)
-+ (proposed update)
-```
-
-## Confidence
-<low | medium | high>
-
-## Alternatives considered
-<If you considered other framings before settling on this one.>
-```
-
-Keep proposals **short**. The human reading a proposal should be able to evaluate it in under two minutes. If it's longer, the proposal is trying to do too much — split it.
+Keep the retro **short**. The drift section, if present, should be readable in under two minutes per flag. Long retros are a signal you're trying to crystallize inside a retro — don't. Crystallization is a separate skill, user-triggered.
 
 ## ADRs are lighter
 
-If the only thing that fired was check 5 (decisions), don't write a proposal — append an ADR to `lexicon/decisions/`:
+If the only thing that fired was check 5 (decisions), don't write a drift flag — append an ADR to `lexicon/decisions/`:
 
 ```markdown
 # ADR-<NNNN>: <Short title>
@@ -140,13 +99,14 @@ ADRs don't need user approval before being written — they're append-only histo
 
 ## Tell the user
 
-After writing files:
+After writing the retro:
 
-- For silent retros: one line. "Retro logged, no proposals."
-- For proposals: name them and where they live. "Wrote one proposal to `lexicon/plans/_proposals/...md` — it's about the new `ScanQueue` concept; review when you have a moment."
+- If silent (no drift flags, no ADR): one line. "Retro logged."
+- If drift flags: name them briefly. "Retro logged with one drift flag — new `ScanQueue` concept worth crystallizing later."
+- If ADR: name it. "Retro logged; recorded ADR-0042 for the queue-vs-stream choice."
 
-Don't dump proposal contents into chat. The proposal file is the artifact; chat is the pointer.
+Don't dump the retro contents into chat. The file is the artifact; chat is the pointer.
 
 ## On calibration
 
-You will sometimes flag noise and miss real changes. Expected. When the user rejects a proposal as noise, encourage them to add a one-line note to `lexicon/calibration.md`. When the user later notices a missed change, encourage the same. This is how the skill gets better over time without retraining.
+You will sometimes flag noise and sometimes miss real changes. Expected. When the user dismisses a flag as noise, encourage them to add a one-line note to `lexicon/calibration.md`. When the user later notices a missed change, encourage the same. This is how the skill gets better over time without retraining.

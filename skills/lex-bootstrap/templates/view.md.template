@@ -4,7 +4,7 @@
 >
 > Views are **optional**. Simple projects keep everything in `system.md`. A project with one view is fine. A project with eight is also fine. The pressure to split should come from `system.md` rotting, not from a target shape.
 >
-> Updates flow through proposals in `lexicon/plans/_proposals/`, same discipline as `system.md`.
+> Edits go through `lex-crystallize`, same discipline as `system.md`.
 
 ---
 

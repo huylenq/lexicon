@@ -1,136 +1,128 @@
 ---
 name: lex-crystallize
-description: "Run when a multi-session feature, plan, or epic is finished — code landed, tests passing, the work conceptually complete. The heavier counterpart to lex-retro: reviews cumulative changes against system.md, decides what to absorb into the cold doc, archives the plan. Trigger on phrases like 'we're done with X', 'feature X is shipped', 'wrap up the X work', or when an entry under lexicon/plans/<feature>/ reaches completion. Don't use for every session — that's lex-retro. Read lex-overview first."
+description: "Run when the user asks to update the cold layer — phrases like 'crystallize', 'update lexicon', 'sync lexicon', 'absorb the retros', 'feature X is done', 'we're shipping X'. User-triggered, not agent-triggered: don't volunteer this unprompted. Reads retros since the last crystallization, cross-checks against git diff, proposes a coherent diff to system.md (and views) inline in conversation, and applies it directly on the user's yes. Read lex-overview first."
 ---
 
 # Lexicon: crystallize
 
-`lex-retro` runs at every stopping point. **`lex-crystallize` runs at feature-completion**, which is rarer and warrants a deeper pass.
+`lex-retro` runs at every stopping point and logs drift flags. **`lex-crystallize` runs when you tell it to** — it absorbs accumulated retros into the cold layer.
 
-A feature usually spans multiple sessions. Each session's retro looks at one slice. When the whole feature is done, you need a *cumulative* view — what did this body of work, taken together, change about how the system should be understood?
+The agent doesn't reliably know when a body of work is "done" or when accumulated drift is worth absorbing. The user does. So this skill is **user-triggered**: it runs when the user says so, not when the agent guesses.
 
 If you haven't loaded `lex-overview` yet this session, read it first.
 
 ## When to run this
 
-Run when:
-- The user says a feature, epic, or plan is done.
-- A folder under `lexicon/plans/<feature>/` has all its tasks completed.
-- A native plan-mode plan has been fully executed and verified.
+Run when the user explicitly says one of:
+- "crystallize" / "crystallize the work" / "crystallize feature X"
+- "update lexicon" / "update system.md" / "absorb the retros" / "sync lexicon"
+- "we're done with X" / "feature X is shipped" / "wrap up X"
 
-Don't run for:
-- Single-session work (use `lex-retro`).
-- Work in progress (run `lex-retro` for each stopping point along the way).
-- Bug fixes, even big ones, unless they shifted the model.
+Don't volunteer this unprompted. If you suspect drift has accumulated, surface it as a question ("There are 12 retros since the last crystallization, several flagging the same `ScanQueue` term — want to crystallize?") and let the user decide. The user is the trigger.
 
-If unsure, ask: "Should I crystallize this, or just retro it?" The user knows whether the work was a feature or a session.
+If the user just wants to make a small targeted edit ("add `ScanQueue` to the glossary"), apply that directly without running the full crystallize ritual. This skill is for *aggregated* updates; one-line edits are just edits.
+
+### Period-scoped vs feature-scoped
+
+By default, crystallize considers **all retros newer than `.last-crystallized`** — period-scoped. This is the right mode for "update lexicon" / "absorb the retros."
+
+If the user names a specific feature ("crystallize feature X", "we're done with X"), run **feature-scoped**: filter retros whose scope declaration references that feature, and consider only those. Don't update `.last-crystallized` to "now" afterward — that would skip the non-feature retros from a later period-scoped run. Instead, leave the marker untouched and tell the user: "Crystallized feature X. <N> non-feature retros are still unaddressed — they'll show up in the next period-scoped crystallize."
+
+If the filter is ambiguous (the user says "crystallize the recent work" with no feature name), ask before guessing.
 
 ## Gather inputs
 
 Read:
-1. The plan folder (`lexicon/plans/<feature>/` if one exists) — original intent, scope, decisions made along the way.
-2. All retros and proposals from sessions that touched this work — find them by searching `_retros/` and `_proposals/` for references to the feature, or by date range.
-3. `lexicon/system.md` — current cold model.
-4. `lexicon/calibration.md` if it exists.
-5. `lexicon/decisions/` — recent ADRs that might overlap.
-6. The cumulative code diff for the feature (compare branch or tag-to-tag if available; otherwise reconstruct from the plan's file list).
 
-This is a bigger read than `lex-retro`. Take time on it.
+1. **The crystallization marker.** `lexicon/.last-crystallized` contains an ISO timestamp of the last successful crystallization. If absent, treat all retros as in-scope.
+2. **All retros newer than the marker.** Files in `lexicon/retros/` whose names sort after the marker timestamp. Pay particular attention to:
+   - `## Structural drift` sections (real flags worth absorbing).
+   - `## Notes for future sweeps` (sub-flag-threshold patterns that may have crossed the line cumulatively).
+3. **Cross-check with git.** Run `git log --since=<marker>` and `git diff <commit-at-marker>..HEAD` over the relevant code paths. Catches drift the retros missed (skipped retros, silent renames the structural checks didn't flag).
+4. `lexicon/system.md` — the current cold model.
+5. Relevant `lexicon/views/*.md` — whichever views the diff touches.
+6. `lexicon/decisions/` — recent ADRs that might overlap with what you're about to propose.
+7. `lexicon/calibration.md` if it exists.
 
-## Re-run structural checks at feature scope
+This is a bigger read than a retro. Take the time on it. Crystallization done badly is worse than crystallization skipped — a wrong glossary entry is harder to remove than a missing one is to add.
 
-Run the six checks defined in `lex-overview` § Structural checks, applied **forward against the feature's cumulative diff**: *did the feature as a whole shift the model?*
+## Run the structural checks at cumulative scope
+
+Run the six checks defined in `lex-overview` § Structural checks, applied **forward against the cumulative diff since the last crystallization**: *did the accumulated work shift the model?*
 
 The cumulative framing changes how each check lands:
 
-- **Vocabulary** — filter for terms that *stuck around and stabilized* across the feature. Terms that appeared in one session and got renamed by the next aren't worth glossarying.
-- **Vocabulary consistency** — look at coherence *across* all sessions. If terminology drifted within the feature, the feature itself surfaced a vocabulary problem worth fixing.
-- **Invariants** — features are often *defined by* an invariant change. Look for adds, removes, modifications across the whole diff, not per-session.
+- **Vocabulary** — filter for terms that *stuck around and stabilized* across multiple sessions. A term that appeared in one retro and got renamed by the next isn't worth glossarying.
+- **Vocabulary consistency** — look at coherence *across* all retros and the current code. If terminology drifted within the period, that's a vocabulary problem worth fixing.
+- **Invariants** — look for adds, removes, modifications across the whole diff, not per-session.
 - **Boundaries** — re-look at the bounded-context section with fresh eyes; cumulative boundary changes often hide in incremental session diffs.
-- **Decisions** — prefer a single ADR for the feature when scattered session-level decisions cohere into one story.
-- **Declared scope match (cumulative)** — did the feature deliver what it set out to, or did it become something else? If it became something else, that often reveals a model update.
+- **Decisions** — prefer a single ADR for a coherent decision arc when scattered session-level decisions cohere into one story.
+- **Declared scope match (cumulative)** — did the work as a whole stay where it said it would, or did it become something else? If it became something else, that often reveals a model update.
 
-## The crystallization step
+## Surface pre-existing inconsistencies
 
-The new behavior unique to this skill: **propose updates to the cold layer as a coherent diff, not as scattered points.**
+If `system.md` (or a view) already contains passages that look mutually inconsistent — a term defined two slightly different ways, an invariant that contradicts another, a boundary description out of step with the bounded-contexts list — **surface this to the user before proposing the new diff**. Don't smooth it over silently.
 
-A crystallization isn't a list of bullets. It's a small set of edits to `system.md` (and/or relevant Domain Views) that, taken together, leave the cold layer more accurate than before. Aim for the smallest possible diff that captures what shifted. If the diff is large, that's a signal the feature was bigger than expected, or the prior cold layer was significantly out of date.
+These usually come from previous incomplete edits, concurrent sessions that didn't reconcile, or older content that got partially updated. The right move is to name what you found and ask: "Should I reconcile this as part of the crystallization, or is it intentional?" Reconciling without asking is exactly the kind of silent edit lexicon exists to prevent.
 
-If the project uses Domain Views, a feature often touches one view primarily and `system.md` lightly (e.g., adding a new term to the relevant view's glossary plus updating cross-context invariants in `system.md` if the feature shifted a boundary). Target each file explicitly. A feature that touches *every* view is a sign that either the feature redrew context boundaries (which is itself worth crystallizing carefully) or the partition needs revisiting — surface that.
+## Propose the diff inline
 
-Write the crystallization proposal to `lexicon/plans/_proposals/crystallize-<feature>-<iso>.md`:
+Don't write a proposal file. Present the proposed changes **in conversation**, grouped by target file. Aim for the smallest possible diff that captures what shifted.
 
-```markdown
-# Crystallization: <feature name>
-Period: <start date> — <end date>
-Sessions involved: <session-ids>
-Targets: <lexicon/system.md and/or lexicon/views/<slug>.md — name each file explicitly>
+Use this shape in chat:
 
-## Summary of what shipped
-<2-3 sentences. What does the system do now that it didn't before?>
+> ## Crystallization proposal
+> Period: `<marker timestamp>` → now
+> Retros considered: `<N>` (`<list of timestamps or a range>`)
+> Targets: `<lexicon/system.md and/or lexicon/views/<slug>.md>`
+>
+> ### Summary
+> <2-3 sentences: what does the system do now that it didn't before, or what did we learn that wasn't captured?>
+>
+> ### Proposed edits
+> *(Group by target file. Show actual diff hunks where helpful. Cluster by category: glossary additions, glossary refinements, invariant changes, boundary changes, "why" notes.)*
+>
+> ```diff
+> --- a/lexicon/system.md
+> +++ b/lexicon/system.md
+> @@ glossary @@
+> +**ScanQueue**: ordered buffer holding inference jobs between intake and the worker pool. Distinct from `JobQueue` (which is per-worker) — see ADR-0042.
+> ```
+>
+> ### ADRs to add
+> - `ADR-NNNN: <title>` — <one-line summary, body to be written if you accept>
+>
+> ### Deliberately NOT changing
+> <Adjacent things you noticed but are excluding from this crystallization. These are visible-but-deferred — call them out so they're not silently lost.>
+>
+> ### Confidence: <low | medium | high>
+>
+> Apply this? (yes / revise / no)
 
-## Proposed updates to the cold layer
-> Group the proposed changes by target file. If the project uses Domain Views, most edits typically land in the view(s) for the affected context(s); cross-context shifts land in system.md.
+If the project uses Domain Views, name the targets explicitly. A crystallization that touches *every* view is a sign the partition needs revisiting — surface that as its own observation.
 
-### Glossary additions
-- **<Term>**: <definition>. <counter-example: "NOT to be confused with X">
+## Apply on yes
 
-### Glossary refinements
-- **<Existing term>**: <how the definition needs to change, and why>
+When the user says yes:
 
-### Invariant changes
-- Add: <new invariant, in plain language>
-- Modify: <existing invariant → revised version>
-- Remove: <invariant that no longer holds, and why it's OK that it doesn't>
+1. **Apply the diff to the named files** using Edit. Group changes by file; one Edit per logical hunk.
+2. **Append any new ADRs** to `lexicon/decisions/`.
+3. **If a feature plan was involved**, move `lexicon/plans/<feature>/` to `lexicon/plans/_archive/<feature>/` (ask first if the user didn't explicitly ask to wrap up the feature).
+4. **Update the marker.** Write the current ISO timestamp to `lexicon/.last-crystallized`.
+5. **Confirm in chat**: "Crystallized. <N> edits applied to <files>; <K> ADRs added; marker updated."
 
-### Boundary changes
-- <description of new or modified boundary>
+If the user says revise, iterate on the proposal in conversation. Don't apply partial diffs unilaterally.
 
-### "Why" notes worth recording
-- <reasoning that future-readers won't recover from code alone>
+If the user says no, **still update the marker** if they want future crystallizations to skip these retros — ask: "Skip these retros in future crystallizations? (yes updates the marker; no leaves them in scope)". This avoids re-proposing the same rejected edits next time.
 
-## ADRs to write or merge
-- <Either: "ADR-NNNN: <title>" with body, or: "Merge existing ADRs A, B, C into single ADR D">
+## On the "deliberately NOT changing" section
 
-## Plan archival
-The plan folder `lexicon/plans/<feature>/` should be:
-- [ ] archived to `lexicon/plans/_archive/<feature>/` (default)
-- [ ] kept (only if it has ongoing reference value)
-- [ ] deleted (only if it duplicates information now in system.md)
+This is one of the most useful parts of the proposal. Crystallization is tempting to use as a chance to fix everything you've noticed about `system.md`. Resist. Each crystallization should be tightly scoped to what the period actually shifted. Adjacent issues go in the "deliberately NOT changing" section so they're visible but not folded in — a future crystallization, an audit, or a deliberate spec-review session can address them.
 
-## Confidence
-<low | medium | high>
-
-## What this crystallization deliberately does NOT change
-<Sometimes a feature reveals that system.md is wrong about something *adjacent* to the feature. Note it here for a future pass; don't try to fix it now.>
-```
-
-## On the "deliberately not changing" section
-
-This is one of the most useful parts of the format. Crystallization is tempting to use as a chance to fix everything you've noticed about `system.md`. Resist. Each crystallization should be tightly scoped to the feature. Adjacent issues go in the "deliberately NOT changing" section so they're visible but not folded in — a future feature, or a deliberate spec-review session, can address them.
-
-Mixing scopes is how proposals become unreviewable.
-
-## Don't apply the diff
-
-The crystallization is a *proposal*. It does not edit `lexicon/system.md` directly. The user reviews, possibly asks for revisions, and explicitly accepts before the diff is applied.
-
-After the user accepts:
-- Apply the diff to `lexicon/system.md`.
-- Write any new ADRs to `lexicon/decisions/`.
-- Move the plan folder to `lexicon/plans/_archive/<feature>/` (or per the user's choice).
-- Move the crystallization proposal itself to `lexicon/plans/_archive/_crystallizations/<feature>-<iso>.md` for history.
-
-## Tell the user
-
-When the proposal is written, summarize in chat:
-
-> Crystallization for <feature> is at `lexicon/plans/_proposals/crystallize-<feature>-...md`. It proposes <N> glossary additions, <M> invariant changes, and recommends archiving the plan folder. Review when ready.
-
-Don't dump the diff into chat. The proposal file is the artifact; chat is the pointer.
+Mixing scopes is how cold-layer edits become unreviewable.
 
 ## On the relationship to retro
 
-If `lex-retro` ran properly during the feature, most of the work for crystallization is already done — you're aggregating across retros, not starting from scratch. If retros were *not* run (for whatever reason), crystallization has to do all the structural-check work on the full diff, which is harder and more error-prone. Surface that if you notice it: "I see only N retros for this feature though it spanned M sessions; the crystallization may miss things that proper retros would have caught."
+If retros ran consistently during the period, most of the work for crystallization is already done — you're aggregating across drift flags, not starting from scratch. If retros were *not* run (for whatever reason), crystallization has to do all the structural-check work on the full diff, which is harder and more error-prone. Surface that if you notice it: "I see N retros over the last <period>, but the git history shows M sessions of substantive work; the crystallization may miss things that retros would have caught."
 
-The system is designed to work even with imperfect retro coverage, but it works *best* when the cool-tier logs were faithfully written along the way.
+The system is designed to work even with imperfect retro coverage, but it works *best* when retros were faithfully written along the way.

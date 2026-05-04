@@ -107,10 +107,8 @@ Create:
 ```
 lexicon/
   decisions/
-  plans/_active/
-  plans/_scratch/
-  plans/_proposals/
-  plans/_retros/
+  retros/
+  audits/
   plans/_archive/
 ```
 
@@ -142,7 +140,7 @@ Auto-moving feature docs is a high-blast-radius action — they may have URLs, l
 
 ## Phase 8 — Write the triage report
 
-Write `lexicon/plans/_proposals/bootstrap-<iso-date>.md` with this shape:
+Write `lexicon/bootstrap.md` (top-level, single file) with this shape:
 
 ```markdown
 # Bootstrap report
@@ -152,7 +150,7 @@ Run on: <iso timestamp>
 - `lexicon/system.md` (drafted; <N> lines, <M> TODO markers)
 - `lexicon/views/` with <V> Domain Views: <list>  (or "no views; one `system.md` was sufficient")
 - `lexicon/decisions/` with <K> ADRs migrated from <sources>
-- `lexicon/plans/` directory structure
+- `lexicon/retros/`, `lexicon/audits/`, `lexicon/plans/_archive/` (empty, ready to populate)
 
 ## Doc audit summary
 - <N> existing docs scanned across <locations>
@@ -205,7 +203,7 @@ Expect this to take 30–90 minutes for a moderately documented project. The dra
 
 Summarize in chat, briefly:
 
-> Bootstrap complete. Drafted `lexicon/system.md` (<N> lines, <M> TODOs), migrated <K> ADRs, and set up the `lexicon/plans/` structure. Triage report at `lexicon/plans/_proposals/bootstrap-<iso>.md` — review when ready, especially the "drift flags" and "inconsistencies" sections. Recommended next step: a focused-distillation session to walk through `system.md` with `<!-- TODO -->` markers in mind.
+> Bootstrap complete. Drafted `lexicon/system.md` (<N> lines, <M> TODOs), migrated <K> ADRs, and set up the `lexicon/` structure. Triage report at `lexicon/bootstrap.md` — review when ready, especially the "drift flags" and "inconsistencies" sections. Recommended next step: a focused-distillation session to walk through `system.md` with `<!-- TODO -->` markers in mind.
 
 Don't dump the report content into chat. The file is the artifact; chat is the pointer.
 

@@ -26,13 +26,13 @@ lexicon/
     <context-slug>.md
   decisions/                        ← ADRs, append-only
   calibration.md                    ← project-specific notes on what counts as "significant"
+  retros/                           ← always-written session logs (timestamp-named)
+  audits/                           ← audit reports
+  bootstrap.md                      ← one-shot adoption triage report (created by lex-bootstrap)
+  .last-crystallized                ← ISO timestamp marker; lex-crystallize reads retros newer than this
   plans/
-    _active/                        ← soft locks declaring what each session is touching
-    _scratch/                       ← per-session ephemeral notes
-    _proposals/                     ← session-end diffs awaiting human merge
-    _retros/                        ← always-written session logs
-    _archive/                       ← landed plans and accepted crystallizations
     <feature>/                      ← in-flight materialized plans
+    _archive/                       ← archived plan folders
 ```
 
 If a project doesn't have this structure, the **`lex-bootstrap`** skill is the one-shot adoption pass that creates it. The user opts in per project — lexicon is not forced on every project.
@@ -55,11 +55,11 @@ Views are non-breaking: adding one later, or absorbing a view back into `system.
 
 ## The five skills
 
-- **`lex-bootstrap`** — Runs **once** at adoption time. Scans existing docs and code, drafts a first-cut `system.md`, migrates ADR-shaped content, sets up the directory structure, and produces a triage report. Trigger: "set up lexicon", "adopt lexicon", "bootstrap lexicon", or `lex-ground` deferring on a project with no `system.md`.
-- **`lex-ground`** — Runs at the start of substantive coding work. Reads `system.md`, declares scope (terms, invariants, bounded context), checks for in-flight work by other agents, opens a scratchpad. Trigger: any non-trivial task.
-- **`lex-retro`** — Runs at every natural stopping point. Always writes a log; only escalates to a proposal when structural triggers fire (vocabulary, invariants, boundaries). Trigger: completion signals like "looks good", "we're done", tests pass and user moves on.
-- **`lex-crystallize`** — Runs at feature completion (multi-session). Reviews the cumulative diff against `system.md` and proposes a coherent set of updates. Trigger: "feature X is done", "we're shipping X", a `lexicon/plans/<feature>/` reaching completion.
-- **`lex-audit`** — Runs periodically (quarterly, on demand, or before planning sessions). Re-validates `system.md` against current code to catch backward-flow drift — stale glossary, dead invariants, undeclared contexts, hygiene rot. Produces a triage list, never edits `system.md` directly. Trigger: "audit lexicon", "sanity-check the docs", "is `system.md` still accurate?".
+- **`lex-bootstrap`** — Runs **once** at adoption time. Scans existing docs and code, drafts a first-cut `system.md`, migrates ADR-shaped content, sets up the directory structure, and produces a triage report at `lexicon/bootstrap.md`. Trigger: "set up lexicon", "adopt lexicon", "bootstrap lexicon", or `lex-ground` deferring on a project with no `system.md`.
+- **`lex-ground`** — Runs at the start of substantive coding work. Reads `system.md` and relevant views, declares scope (terms, invariants, bounded context) **in conversation**, surfaces vocabulary gaps. No file writes — the agent's context window holds the grounding for the rest of the session. Trigger: any non-trivial task.
+- **`lex-retro`** — Runs at every natural stopping point. Always writes a log to `lexicon/retros/<timestamp>.md`, with structural-drift flags inline in the log when they fire. Trigger: completion signals like "looks good", "we're done", tests pass and user moves on.
+- **`lex-crystallize`** — **User-triggered.** Runs when the user explicitly asks to update the cold layer ("crystallize", "update lexicon", "absorb the retros", "feature X is done"). Reads retros since the last crystallization, cross-checks against git diff, proposes a coherent set of edits to `system.md` (and views) **inline in conversation**, and applies them directly on user approval. Updates `lexicon/.last-crystallized`.
+- **`lex-audit`** — Runs periodically (quarterly, on demand, or before planning sessions). Re-validates `system.md` against current code to catch backward-flow drift — stale glossary, dead invariants, undeclared contexts, hygiene rot. Writes a triage report to `lexicon/audits/audit-<iso>.md`; never edits `system.md` directly. Trigger: "audit lexicon", "sanity-check the docs", "is `system.md` still accurate?".
 
 ### Forward-flow vs backward-flow drift
 
@@ -75,20 +75,20 @@ The six checks:
 2. **Vocabulary consistency** — Was a glossary term used in a way that doesn't match its definition? **High priority** — this is the silent-renaming bug.
 3. **Invariants** — Did the work violate, refine, or contradict any invariant in `system.md`? Re-read each invariant and ask: would it still hold given the current code?
 4. **Boundaries** — Did the work cross a boundary in `system.md`'s bounded contexts? (New import edge, new call site, new shared state across a previously clean boundary.)
-5. **Decisions** — Were any non-obvious choices made — picking approach A over B for reasons future-readers wouldn't recover from the code alone? These warrant an ADR rather than a `system.md` proposal.
-6. **Declared scope match** — Did the actual work stay within the scope declared in `_active/<session-id>.md`? When it drifted, the *reason* often reveals a model gap.
+5. **Decisions** — Were any non-obvious choices made — picking approach A over B for reasons future-readers wouldn't recover from the code alone? These warrant an ADR rather than a glossary/invariant edit.
+6. **Declared scope match** — Did the actual work stay within the scope the agent grounded on? When it drifted, the *reason* often reveals a model gap.
 
 ### Per-skill direction
 
 Same checks, different application:
 
-- **`lex-retro`** runs them forward against one session's diff: *"did this session introduce anything that conflicts with `system.md`?"*
-- **`lex-crystallize`** runs them forward against a feature's cumulative diff: *"did the feature as a whole shift the model?"* Filter for terms that stuck across sessions, invariants that genuinely changed, boundaries that genuinely redrew.
+- **`lex-retro`** runs them forward against one session's diff: *"did this session introduce anything that conflicts with `system.md`?"* Flags land inline in the retro file.
+- **`lex-crystallize`** runs them forward against the cumulative diff since the last crystallization: *"did the accumulated work shift the model?"* Filter for terms that stuck across sessions, invariants that genuinely changed, boundaries that genuinely redrew.
 - **`lex-audit`** runs them backward against existing `system.md` claims: *"for each entry / invariant / boundary in `system.md`, does it still hold in current code?"* Audit also runs hygiene, calibration, and distillation-completion phases that have no forward-flow analogue — see `lex-audit` for those.
 
 ### Domain Views scoping
 
-If the project uses Domain Views (`lexicon/views/*.md`), each check is scoped: first against the view(s) covering the relevant bounded context, then against `system.md` for cross-cutting concerns. Flags on view-owned content target that view; flags on cross-cutting concerns target `system.md`. Name the target file(s) explicitly in any proposal.
+If the project uses Domain Views (`lexicon/views/*.md`), each check is scoped: first against the view(s) covering the relevant bounded context, then against `system.md` for cross-cutting concerns. Flags on view-owned content target that view; flags on cross-cutting concerns target `system.md`. Name the target file(s) explicitly when proposing edits.
 
 ## Rules of engagement
 
@@ -108,37 +108,25 @@ For any task that isn't strictly mechanical (typo fixes, dependency bumps, log t
 
 If `lexicon/system.md` contradicts the code or the user's request, **stop and surface it before proceeding**. Don't quietly work around it. Don't hallucinate that the doc is right.
 
-### 4. Announce before claiming
+### 4. Always retro
 
-When `lex-ground` writes `lexicon/plans/_active/<session-id>.md`, it's a soft lock — it announces what this session is touching. Other concurrent sessions read these to detect overlap. Don't skip this even for short sessions.
+At any natural stopping point, run `lex-retro`. Most retros log only the session summary; the structural-check section flags drift only when triggers actually fire. The point is the question gets asked every time, so structural drift is caught at the cheapest moment.
 
-### 5. Always retro
+### 5. Crystallize on the user's call
 
-At any natural stopping point, run `lex-retro`. Most retros are silent (a log entry only). The point is the question gets asked every time, so structural drift is caught at the cheapest moment.
+`lex-crystallize` is **user-triggered**, not agent-triggered. The agent doesn't reliably know when a body of work is "done" — the user does. When the user says "crystallize", "update lexicon", "absorb the retros", "feature X is done", or anything similar, run `lex-crystallize`. Don't volunteer to crystallize unprompted.
 
-### 6. Crystallize features, not sessions
+### 6. Cold-layer edits go through `lex-crystallize`
 
-When a multi-session feature is complete, run `lex-crystallize`. Only fires for features, not sessions. The user typically signals this with phrases like "feature X is done."
+Don't edit `lexicon/system.md` or `lexicon/views/*.md` as a drive-by side effect of unrelated work. Cold-layer changes are deliberate: propose the diff in conversation, get explicit approval, then apply. `lex-crystallize` is the skill that does this; outside of it, leave the cold layer alone. (Direct edits ARE fine when the user explicitly asks for them — e.g. "fix this typo in system.md".)
 
-### 7. `system.md` (and views) are write-protected
+### 7. ADRs are append-only
 
-Skills propose changes to `lexicon/system.md` and `lexicon/views/*.md` via files in `lexicon/plans/_proposals/`. They never edit these files directly. The user reviews and explicitly accepts proposals before the diff is applied. This is the serialization point that makes concurrent agents safe. A proposal can target one view, multiple views, `system.md`, or any combination — name the targets explicitly in the proposal header.
+Skills *can* append directly to `lexicon/decisions/` without going through crystallize. ADRs are history, not changes to the canonical model.
 
-### 8. ADRs are append-only
+### 8. Calibration over time
 
-Skills *can* append directly to `lexicon/decisions/` without a proposal step. ADRs are history, not changes to the canonical model.
-
-### 9. Concurrent-session awareness
-
-When multiple coding sessions are active in the same repo, each shards its files by session ID. The `lex-ground` skill reads sibling `_active/` files to detect overlap and surfaces it to the user. This doesn't prevent overlap — it announces it, so the user can decide.
-
-### 10. Calibration over time
-
-If `lexicon/calibration.md` exists, read it. It contains project-specific notes about what counts as significant — overrides for the skills' default sense. When the user rejects a proposal as noise or flags a missed change, encourage them to add a line to `calibration.md`.
-
-## Session ID
-
-Each session needs a unique ID for sharding files. The `lex-ground` skill mints one if `$LEXICON_SESSION_ID` isn't set, and writes it to `lexicon/plans/_scratch/.session-id` so subsequent skill invocations in the same session can find it. Use the same ID throughout a session.
+If `lexicon/calibration.md` exists, read it. It contains project-specific notes about what counts as significant — overrides for the skills' default sense. When the user rejects a flagged drift as noise or flags a missed change, encourage them to add a line to `calibration.md`.
 
 ## When this workflow doesn't apply
 
@@ -148,9 +136,9 @@ The workflow is opt-in per project. Small scripts, throwaway prototypes, and exp
 
 ## Honest limitations
 
-- **Concurrent code conflicts** are still a git problem, not a doc problem. Lexicon reduces the *probability* of conflict by making in-flight work visible, but it doesn't prevent two sessions from editing the same lines.
-- **The agent is a fallible filter.** Proposals will sometimes be noise; real changes will sometimes be missed. The aggregation pass (future skill) and `calibration.md` are the corrections, not the per-session judgment.
-- **Cold-layer rot is real.** If `system.md` isn't getting updated despite repeated proposals, the workflow degrades to ceremony. The *user* has to take crystallization seriously; no skill design fixes a doc that's never reviewed.
+- **The agent is a fallible filter.** Drift flags will sometimes be noise; real changes will sometimes be missed. `calibration.md` is the correction, not the per-session judgment.
+- **Cold-layer rot is real.** If `system.md` isn't getting updated despite repeated retros surfacing drift, the workflow degrades to ceremony. The *user* has to actually run `lex-crystallize` periodically; no skill design fixes a doc that's never reviewed.
+- **Concurrent agents.** If you run multiple sessions on the same repo, lexicon doesn't coordinate them — each session reads `system.md`, does its work, writes its retro. Conflicts (on retros, on crystallize-time edits) surface as ordinary git conflicts. Lexicon doesn't try to prevent this; it just stays out of the way.
 
 ## Templates
 

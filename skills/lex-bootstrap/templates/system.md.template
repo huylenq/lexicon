@@ -2,7 +2,7 @@
 
 > The cold layer. Things code can't express well: vocabulary, invariants, bounded contexts, and the "why"s.
 > Keep this under ~500 lines. If it grows past that, something here probably belongs in code or in an ADR.
-> Update via proposals in `lexicon/plans/_proposals/`, not by direct edits during work.
+> Edits go through `lex-crystallize`: propose in conversation, get the user's yes, apply. Don't drive-by-edit during unrelated work.
 
 ---
 

@@ -10,6 +10,48 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 While in 0.x, breaking project-shape changes bump the minor (0.x.0 → 0.(x+1).0); the major bump is reserved for a stability commitment at 1.0.
 
+## [0.5.0] - 2026-05-04
+
+### BREAKING
+
+- **Removed `_proposals/`, `_active/`, `_scratch/`.** The two-stage proposal flow and per-session file sharding are gone. The properties they protected (deliberate cold-layer review, multi-agent safety) turned out to be either already-provided-by-the-Edit-approval-loop or hypothetical-in-practice. See `CLAUDE.md` § "Why we removed proposals and session sharding" for the full reasoning.
+
+- **`retros/` promoted to top-level.** Was `lexicon/plans/_retros/`; now `lexicon/retros/`. With `_active/`, `_scratch/`, `_proposals/` gone, retros were the only thing left under `plans/` besides feature folders, and they're not feature-scoped — moving them up makes the structure honest.
+
+- **New top-level paths.** `lexicon/audits/` for audit reports (was `_proposals/audit-<iso>.md`). `lexicon/bootstrap.md` for the one-shot adoption report (was `_proposals/bootstrap-<iso>.md`). `lexicon/.last-crystallized` is a new marker file containing an ISO timestamp; `lex-crystallize` reads retros newer than this and updates it on successful application.
+
+  **Migration for existing projects:**
+  ```
+  git mv lexicon/plans/_retros lexicon/retros
+  mkdir lexicon/audits
+  # If you have an outstanding bootstrap report:
+  git mv lexicon/plans/_proposals/bootstrap-*.md lexicon/bootstrap.md
+  # Old audit reports:
+  git mv lexicon/plans/_proposals/audit-*.md lexicon/audits/
+  # Anything still in _proposals/ that you haven't acted on: triage manually.
+  rm -rf lexicon/plans/_active lexicon/plans/_scratch lexicon/plans/_proposals
+  # Optional: seed the marker so the first crystallize doesn't re-consider all retros.
+  date -u +%Y-%m-%dT%H:%M:%SZ > lexicon/.last-crystallized
+  ```
+
+### Changed
+
+- **`lex-crystallize` is now user-triggered with inline application.** Trigger broadens from "feature done" to any user-initiated update ("crystallize", "update lexicon", "absorb the retros", "feature X is done"). Reads retros newer than `.last-crystallized`, cross-checks against `git diff`, proposes the diff inline in chat, and applies on the user's yes — no proposal file. Still includes the "deliberately NOT changing" discipline. Adds a step to surface pre-existing inconsistencies in `system.md` rather than silently smoothing over them.
+
+- **`lex-ground` no longer writes files.** Grounding (scope declaration, vocabulary check) happens in conversation. The agent's context window holds it for the rest of the session. Lost: session ID minting, `_active/<id>.md` lock writes, sibling `_active/` overlap detection, `_scratch/<id>.md` notes. Gained: simplicity.
+
+- **`lex-retro` writes to `lexicon/retros/<iso-timestamp>.md`** (was `_retros/<session-id>.md`). Structural-drift flags land **inline** in the same file under a `## Structural drift` section, instead of triggering a separate proposal file.
+
+- **`lex-audit` hygiene checks updated.** Removed `_active/` orphan checks and `_proposals/` triage checks (those folders no longer exist). Added `.last-crystallized` cadence check (flag if marker is missing or > 60 days while retros show recent activity). Audit report path moves to `lexicon/audits/audit-<iso>.md`.
+
+- **`lex-overview` rules consolidated.** Removed rules 4 ("Announce before claiming"), 9 ("Concurrent-session awareness"), and the "Session ID" section. Added rule 5 ("Crystallize on the user's call") making the user-triggered property explicit. Rule 7 (was "system.md is write-protected") became rule 6 ("Cold-layer edits go through `lex-crystallize`") — same property, different mechanism.
+
+### Why ship 0.5.0
+
+The proposal flow was the single biggest piece of ceremony in the workflow, and it was paying daily cost for protections that turned out to be hypothetical in single-agent interactive use (the dominant mode). Cutting it now — before more projects adopt v0.4.x and accumulate `_proposals/` directories — keeps migration cheap. Per-session sharding came along because once `_active/` and `_scratch/` weren't holding up a coordination protocol, they were just session-ID-named files with no readers.
+
+Risk: if real concurrent-agent use turns out to need coordination, lexicon will need to bring something back. The bet is that git is sufficient and that the rare cases where it isn't are not common enough to justify a daily-cost mechanism.
+
 ## [0.4.0] - 2026-05-04
 
 ### BREAKING

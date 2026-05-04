@@ -17,7 +17,7 @@ If you haven't loaded `lex-overview` yet this session, read it first.
 - **Dead invariants.** Code silently violated one. No retro caught it because the violating session was small / split across sessions / didn't read that invariant carefully.
 - **Undeclared bounded contexts.** A new module appeared in its own clean seam, but `system.md`'s context list never grew. Each individual import looked local; cumulatively a new context emerged.
 - **Stale "why" notes.** The reasoning was true in 2024; the constraint was lifted in 2025; the note still reads as authoritative.
-- **Hygiene rot.** Crashed sessions left orphaned `_active/<id>.md` files. `_retros/` has 800 entries no one will read again. `_proposals/` has stuff from three months ago that was never triaged.
+- **Hygiene rot.** `lexicon/retros/` has 800 entries no one will read again. `lex-crystallize` hasn't run in months despite obvious code evolution.
 
 The architecture is eventually consistent in one direction only — it incorporates new truth, but doesn't expire old truth. That's this skill's job.
 
@@ -40,8 +40,7 @@ If unsure whether to run a full audit or a targeted check, ask: "Full audit, or 
 ## Pre-flight
 
 1. Confirm `lexicon/system.md` exists and is non-trivial. If it's still mostly TODO markers, the right answer is "the post-bootstrap distillation session never happened" — surface that and don't proceed with audit checks (they'd produce noise).
-2. Mint or read a session ID (same convention as the other skills). The audit run gets a session ID just like any other session, so its outputs land in the standard sharded locations.
-3. If a recent audit report exists under `lexicon/plans/_archive/_audits/`, read its tail — knowing what was flagged last time and what the user's response was changes how to weight similar flags this time.
+2. If a recent audit report exists under `lexicon/audits/`, read its tail — knowing what was flagged last time and what the user's response was changes how to weight similar flags this time.
 
 ## How audit relates to the six structural checks
 
@@ -103,15 +102,13 @@ Compare the bounded contexts named in `system.md` against the actual module/fold
 
 Use the project's import-tracing tooling where available (language-specific). Where not available, use `rg` for cross-module imports and approximate.
 
-## Phase 4 — Hygiene sweep of `lexicon/plans/`
+## Phase 4 — Hygiene sweep
 
 Mechanical, no judgment required:
 
-- **Orphaned `_active/<id>.md` files**: any `_active/` files where the corresponding `_retros/<id>.md` exists (session ended but lock wasn't removed) — recommend deleting the orphan.
-- **Doubly-orphaned**: `_active/` files older than ~30 days with no matching retro (session crashed, never closed) — flag for the user, don't auto-delete (might be a long-running session).
-- **Untriaged proposals**: anything in `_proposals/` older than ~30 days. List with file paths. Long-untriaged proposals usually mean either the user lost track or they were silently rejected — both worth a nudge.
-- **Retro volume**: count `_retros/` entries. If it's > 500, surface that retro rotation policy hasn't been adopted and the cool tier is approaching unwieldy. Suggest archiving older retros into a dated subfolder (e.g. `_retros/2026-Q1/`).
-- **Crystallization archive**: if `_archive/_crystallizations/` is empty but the project has clearly been doing feature work for months, that's a strong signal `lex-crystallize` is being skipped. Flag it.
+- **Retro volume**: count `lexicon/retros/` entries. If it's > 500, surface that retro rotation policy hasn't been adopted and the log directory is approaching unwieldy. Suggest archiving older retros into a dated subfolder (e.g. `retros/2026-Q1/`).
+- **Crystallization cadence**: read `lexicon/.last-crystallized`. If it's missing, or older than ~60 days while `lexicon/retros/` shows substantive recent activity, that's a strong signal `lex-crystallize` is being skipped. Flag it — the cold layer is going stale by neglect, not by drift.
+- **Stale audit reports**: anything in `lexicon/audits/` older than ~90 days that wasn't acted on (no corresponding `system.md` edits afterward). List with file paths and the user can decide to triage or archive.
 
 ## Phase 5 — Calibration coherence
 
@@ -131,23 +128,22 @@ Sanity check: how many `<!-- TODO -->` markers remain in `system.md` AND across 
 - **3–10 remaining**: surface; some sections are still placeholder content. Each one weakens the rest of the workflow.
 - **>10 remaining**: very likely the post-bootstrap distillation session was skipped. Surface as a high-priority recommendation: "before audit's other findings are useful, run the distillation session."
 
-## Phase 7 — Cross-check recent rejected proposals
+## Phase 7 — Cross-check recent retros against `system.md`
 
-Look in `_archive/` (or wherever rejected/landed proposals end up) for patterns:
+Look at the last ~20 retros under `lexicon/retros/`:
 
-- A type of proposal that gets rejected three or more times for similar reasons → that's a calibration entry waiting to be written.
-- A proposal that was *accepted* but `system.md` doesn't show the change → either the diff wasn't applied or it was applied to the wrong section. Flag.
+- A drift flag for the same concept appearing 3+ times across retros without a corresponding `system.md` edit → either calibration (the user is rejecting it as noise; encourage a calibration line) or neglect (the user agrees but never crystallized; flag for the next crystallize). The audit can't tell which; surface the pattern and let the user say.
+- Conversely, a `system.md` term that no retro has touched in months *and* doesn't appear in recent code: candidate for the dead-glossary check in Phase 1.
 
-This phase is low-priority; skip if proposal volume is small.
+This phase is low-priority; skip if retro volume is small.
 
 ## Phase 8 — Write the audit report
 
-Write `lexicon/plans/_proposals/audit-<iso-date>.md`. Structure:
+Write `lexicon/audits/audit-<iso-date>.md`. Structure:
 
 ```markdown
 # Audit report
 Run on: <iso timestamp>
-Session: <session-id>
 Scope: <full | targeted: glossary/invariants/hygiene/...>
 Time since last audit: <N days, or "first audit">
 
@@ -183,11 +179,9 @@ Time since last audit: <N days, or "first audit">
 - ...
 
 ## Hygiene
-- Orphaned `_active/` (with matching retro): <list> — safe to delete
-- Doubly-orphaned `_active/` (no retro, > 30 days): <list> — confirm before deleting
-- Untriaged `_proposals/` (> 30 days old): <list>
-- `_retros/` count: <N> — <"healthy" | "consider rotation">
-- `_archive/_crystallizations/` count: <N> over <project age> — <"healthy cadence" | "lex-crystallize appears underused">
+- `lexicon/retros/` count: <N> — <"healthy" | "consider rotation">
+- Last crystallization: <iso timestamp from .last-crystallized, or "never"> — <"healthy cadence" | "lex-crystallize appears underused">
+- Stale audit reports (> 90 days, not acted on): <list>
 
 ## Calibration coherence
 - Rules: <count>
@@ -214,7 +208,7 @@ Keep it scannable. The user should be able to read this in under 10 minutes and 
 
 Brief summary in chat:
 
-> Audit complete. Wrote report at `lexicon/plans/_proposals/audit-<iso>.md`. Findings: <one-line health summary>; <highest-priority flag>. <Optional: "Nothing high-priority — mostly hygiene." | "One possibly-stale invariant worth attention." | "Distillation never completed; recommend doing that first.">
+> Audit complete. Wrote report at `lexicon/audits/audit-<iso>.md`. Findings: <one-line health summary>; <highest-priority flag>. <Optional: "Nothing high-priority — mostly hygiene." | "One possibly-stale invariant worth attention." | "Distillation never completed; recommend doing that first.">
 
 Don't dump the full report into chat. The file is the artifact; chat is the pointer. Resist the urge to walk through every flag in conversation — that defeats the triage-list shape.
 
@@ -230,17 +224,17 @@ A full audit is the default, but the user can ask for narrower runs: "audit just
 
 `lex-audit` produces a *triage list*. It does not apply changes. The user reviews and either:
 
-- Accepts a finding → applies the corresponding change manually or via a follow-up session (which would itself ground via `lex-ground` and produce its own retro for the change).
+- Accepts a finding → applies the corresponding change manually, or runs `lex-crystallize` to absorb it (audit findings are valid input to crystallize, even though crystallize is normally driven by retros).
 - Rejects a finding as noise → ideally adds a line to `calibration.md` so future audits don't re-flag it.
-- Defers a finding → leaves the proposal under `_proposals/` (or moves it to a holding folder).
+- Defers a finding → leaves the report in place; the next audit will see it as "previous unaddressed".
 
-Once the report has been triaged, move it to `lexicon/plans/_archive/_audits/audit-<iso>.md` so the next audit can reference it.
+The audit report stays at `lexicon/audits/audit-<iso>.md`. Old reports accumulate there; if they pile up, the user can move triaged ones to `lexicon/plans/_archive/_audits/`.
 
 ## What this skill is NOT
 
 - **Not a fixer.** Audit doesn't edit `system.md` or refactor code. It surfaces evidence; humans decide.
-- **Not a substitute for crystallization.** Crystallize is feature-scoped and forward-flow; audit is project-scoped and backward-flow. They cover different gaps.
-- **Not a per-session ritual.** Running this every session is wasted tokens and proposal-queue spam. Quarterly or on-demand is the right cadence for most projects.
+- **Not a substitute for crystallization.** Crystallize is forward-flow (absorb new truth); audit is backward-flow (expire stale truth). They cover different gaps.
+- **Not a per-session ritual.** Running this every session is wasted tokens. Quarterly or on-demand is the right cadence for most projects.
 - **Not a replacement for the post-bootstrap distillation session.** If TODO markers dominate `system.md`, audit's other findings are noise — the distillation session has to happen first.
 
 ## On honesty about findings

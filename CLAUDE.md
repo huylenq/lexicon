@@ -15,9 +15,10 @@ Working with a coding agent over long sessions, the same problems repeat:
 1. **Silent vocabulary drift.** The agent renames concepts mid-session and you don't notice until something breaks.
 2. **Architectural rule violations.** The agent fixes a bug in module A by reaching into module B, violating an unwritten boundary.
 3. **Conversational opacity.** By turn 40, decisions made on turn 12 are lost.
-4. **Multi-agent collisions.** Parallel agents step on each other because nothing tells them what's in flight.
 
 Lexicon's bet: **a small, living document captures the invariant parts of the system** (vocabulary, bounded contexts, "why"s), and a workflow forces both human and agent to ground in it before work and update it deliberately when learning happens.
+
+(v0.1.0 also tried to address multi-agent collisions through per-session sharding and `_active/` soft locks. v0.5.0 dropped that mechanism — see "Why we removed proposals and session sharding" below. Concurrent-agent coordination, if it matters for a given project, is now a git problem; lexicon stays out of it.)
 
 The DDD heritage matters. The single most load-bearing element is **ubiquitous language** — the same nouns appear in `system.md`, in conversation, and in code. Everything else (invariants, contexts, ADRs) rests on having the words right.
 
@@ -27,19 +28,20 @@ The DDD heritage matters. The single most load-bearing element is **ubiquitous l
 
 This vocabulary recurs throughout the design. Internalize it before changing things.
 
-- **Cold layer** — `lexicon/system.md`. Glossary, invariants, bounded contexts, "why"s. Evolves at the speed of *learning*, not the speed of typing. Small (under ~500 lines). Write-protected: changes only via reviewed proposals.
+- **Cold layer** — `lexicon/system.md` (and optional views). Glossary, invariants, bounded contexts, "why"s. Evolves at the speed of *learning*, not the speed of typing. Small (under ~500 lines). Edits go through `lex-crystallize`: propose in conversation, get the user's yes, apply.
 - **Hot layer** — per-feature plans in `lexicon/plans/<feature>/`. Born when work starts, absorbed (crystallized) or discarded when work lands.
 - **Code** — the executable spec. Evolves freely.
 
-Three temperatures of session artifacts, distinguished by who reads them:
+Two temperatures of session artifacts, distinguished by who reads them:
 
 | Temperature | Where | When read | Volume |
 |---|---|---|---|
-| Cold | `system.md`, `decisions/` | Every session start | Small, slow-growing |
-| Warm | `_proposals/` | When the user chooses to triage | Trickle |
-| Cool | `_retros/`, `_scratch/` | Almost never; archive | High volume, ignored |
+| Cold | `system.md`, `views/`, `decisions/` | Every session start | Small, slow-growing |
+| Cool | `retros/` | Aggregated by `lex-crystallize` when the user triggers it; otherwise unread | High volume |
 
-The cool tier exists deliberately. It's there to **make the question get asked** ("did anything material happen this session?") without demanding human attention. Don't be tempted to delete or downsize it — its uselessness *is* its value.
+The cool tier exists deliberately. It's there to **make the question get asked** ("did anything material happen this session?") without demanding human attention. Don't be tempted to delete or downsize it — its uselessness in any single session *is* its value, and `lex-crystallize` does read it when the user runs it.
+
+(v0.1.0–v0.4.0 had a third "warm" tier — `_proposals/` — for diffs awaiting human merge, plus `_active/` and `_scratch/` per-session shards. v0.5.0 collapsed all of that. See "Why we removed proposals and session sharding" below.)
 
 ---
 
@@ -91,13 +93,25 @@ Earlier draft embedded the workflow rules in each skill's body. Rejected because
 
 If the cold doc tries to mirror code, it rots — code moves faster. If it stays too abstract, it's useless to the agent. The cold doc has to capture *the things code can't express well*: intent/why, invariants, conceptual model, boundaries/seams. Code captures everything else.
 
-The agent will, by default, want to write everything into one place. The folder structure (`_active/`, `_scratch/`, `_proposals/`, `_retros/`, `_archive/`, `<feature>/`) exists to **mechanically separate** these things so the cold doc can stay cold. Don't collapse this structure unless you have a strong reason — every directory exists to absorb a specific kind of content that would otherwise pollute `system.md`.
+The agent will, by default, want to write everything into one place. The folder structure (`retros/`, `audits/`, `<feature>/`, `_archive/`) exists to **mechanically separate** these things so the cold doc can stay cold. Don't collapse this structure unless you have a strong reason — every directory exists to absorb a specific kind of content that would otherwise pollute `system.md`.
 
-### Why proposals, not direct writes
+### Why we removed proposals and session sharding (v0.5.0)
 
-`system.md` is treated as write-protected: skills produce **proposals** in `lexicon/plans/_proposals/`, never edit the file directly. This is the serialization point that makes concurrent agents safe — multiple sessions can fan out freely, and conflicts surface at merge time rather than at write time.
+v0.1.0–v0.4.0 treated `system.md` as write-protected and routed every proposed edit through `lexicon/plans/_proposals/<file>.md`, with the user as the merge coordinator. The stated property was: *deliberate review of cold-doc changes, with parallel agents made safe by the staging area as a serialization point.*
 
-The user is the merge coordinator. This is a feature, not a bug — it forces deliberate review of the cold doc, which is the moment that mental-model alignment actually happens.
+In real interactive use, this turned out to be ceremony for ceremony's sake:
+
+- **The deliberate-review property is already there in the Edit-approval loop.** When `lex-crystallize` proposes a diff in chat and applies via Edit, the user sees the exact change before it lands. The proposal *file* added a round-trip without adding a guarantee.
+- **The serialization-point property only mattered for parallel agents,** and parallel agents on the same repo are rare in practice. When they do happen, git already gives you conflict detection and merge resolution; lexicon's staging area was duplicating git's job, less reliably.
+- **The two-stage flow created its own failure mode.** Proposals would pile up in `_proposals/` because there was no event forcing the user to triage them. `lex-audit` ended up flagging "stale proposals" — a bug introduced by the mechanism that was supposed to fix things.
+
+v0.5.0 collapses this: `lex-crystallize` proposes inline in conversation, applies on the user's yes, updates `lexicon/.last-crystallized`. No `_proposals/`. No two-stage flow. Bootstrap and audit reports are still files (because the user works through them over multiple days), but they live at `lexicon/bootstrap.md` and `lexicon/audits/audit-<iso>.md` — they're persistent triage lists, not merge queues.
+
+Per-session sharding (`_active/<id>.md`, `_scratch/<id>.md`) went with it. The agent's context window holds the per-session scope declaration; `lex-ground` doesn't write files anymore. Concurrent-agent coordination is downgraded to "git, like every other shared file in the repo." This is honest about what lexicon could actually do for that problem.
+
+The property that *was* worth preserving: cold-layer edits are deliberate. That's now encoded as Rule 6 in `lex-overview` (don't drive-by-edit `system.md`; route through `lex-crystallize`) plus the explicit propose-then-apply discipline in the `lex-crystallize` body. Same property, no file artifact.
+
+If you find yourself wanting to bring proposals back: ask whether the failure mode you're trying to address is real or hypothetical. If it's real, name the failure first, then design the minimum mechanism that addresses it. The 0.4.0 proposal flow was designed for a *hypothetical* multi-agent collision and paid daily ceremony cost in exchange.
 
 ### Why structural triggers, not "significance" judgment
 
@@ -114,23 +128,21 @@ Most sessions produce silent retros (a log entry only). It would be tempting to 
 
 The trivial-fast-path in `ground` is a deliberate compromise (skip the heavy steps for genuinely mechanical work) but the retro itself always runs.
 
-### Why per-session sharding, not coordination
+### Why crystallize is user-triggered, not agent-triggered (v0.5.0)
 
-Multi-agent concurrency: each session shards files by session ID (`_active/<id>.md`, `_scratch/<id>.md`, `_retros/<id>.md`). No locks, no coordination protocol. Rejected the lock-based approach because hard locks deadlock or get bypassed.
+v0.1.0–v0.4.0 had `lex-crystallize` fire on agent-detected "feature done" cues. The agent doesn't reliably know when work is done — it knows when *a session* is done. Feature-completion is a user judgment call.
 
-Instead, sharding eliminates write collisions, and the `ground` skill checks sibling `_active/` files at session start to *announce* overlap rather than prevent it. Conflicts surface to the human at the cheapest moment (planning) rather than the most expensive (merge).
+v0.5.0 makes this explicit: crystallize runs only when the user says so ("crystallize", "update lexicon", "feature X is done"). The trigger broadens too — it's no longer feature-scoped, just "user wants to absorb accumulated retros into the cold layer." Aggregate the retros newer than `lexicon/.last-crystallized`, propose, apply, update the marker.
 
-This doesn't solve concurrent code conflicts — that's still a git problem.
+This pairs naturally with the dropped Stop-hook idea: there's no good "session end" or "feature end" signal the agent can detect, so don't pretend there is. The user is the source of that signal. Make the trigger explicit and stop trying to guess.
 
-### Why no Stop hook in v0.1.0
+### Why no Stop hook
 
 A `Stop` hook was drafted and considered. Rejected after recognizing that Claude Code's `Stop` event fires on every agent→user turn, not at session end. A hook there would nudge the agent to run retro between every exchange, which is catastrophic noise.
 
-There is no event in Claude Code today that means "session is ending" — sessions end when the user closes the terminal, which has no hook. The pushy skill descriptions are the only enforcement mechanism in v0.1.0.
+There is no event in Claude Code today that means "session is ending" — sessions end when the user closes the terminal, which has no hook. The pushy skill descriptions are the only enforcement mechanism for retros, and `lex-crystallize` is user-triggered by design (see above), so no hook is needed for it either.
 
-If a future Claude Code version adds a true session-end event (or a way to detect "the user said something completion-shaped" via hook context), revisit this. The right hook check would be: "did `_active/<id>.md` exist for this session and does `_retros/<id>.md` not exist?" — that signal is mechanical and hard to game.
-
-Until then, **don't add a hook**. The skill-only approach has the right shape; reaching for a hook prematurely is a way to make the system more complex without making it more reliable.
+If a future Claude Code version adds a true session-end event, retros could move to a hook. **Crystallize should stay user-triggered regardless** — the signal "I'm ready to absorb this" is a human judgment call, not a session-state event.
 
 ### Why the skill folder names are short
 
@@ -151,11 +163,11 @@ If you rename a skill folder, also update:
 
 These are easy targets for "simplification" that would actually break the system. Don't remove without reading the reasoning above.
 
-- **The `_retros/` directory.** Almost never read. Looks like noise. Is the mechanism that makes "the question gets asked every time" enforceable.
-- **The `_active/` soft locks.** Don't prevent overlap — they announce it. Removing them would silently restore the multi-agent collision problem.
+- **The `retros/` directory.** Almost never read in any single session. Looks like noise. Is the mechanism that makes "the question gets asked every time" enforceable, *and* the input `lex-crystallize` aggregates over.
+- **The `lexicon/.last-crystallized` marker.** Trivial file (one ISO timestamp), critical role: it's how `lex-crystallize` knows which retros to consider. Without it, every crystallization either re-considers the entire history or asks the user "since when?" — both worse.
 - **The `calibration.md` file.** Optional in any given project, but the *concept* is critical: the project-specific override for what counts as significant. Without it, the skills can't learn from rejection patterns.
-- **The two-stage proposal flow** (skill writes to `_proposals/`, user accepts, then the diff applies). Direct writes to `system.md` would feel faster but break the serialization-point property.
-- **The "deliberately not changing" section in crystallization proposals.** Looks like padding. Is the discipline that keeps each crystallization tightly scoped.
+- **The "deliberately not changing" section in `lex-crystallize` proposals.** Looks like padding. Is the discipline that keeps each crystallization tightly scoped — without it, a crystallization becomes a chance to fix everything noticed about `system.md`, and the proposal becomes unreviewable.
+- **The user-as-trigger property of `lex-crystallize`.** It's tempting to make the agent volunteer crystallizations when retros pile up. Don't. The premise of v0.5.0 is that the agent isn't a reliable judge of "done" — making it a judge again undoes the simplification.
 
 ---
 
@@ -169,30 +181,30 @@ These are the things v0.1.0 doesn't answer. Future iterations should grapple wit
 
 `lex-bootstrap` already mitigates this somewhat — its triage report is explicitly a list for the human to act on, not an autonomous diff. But there's no enforcement that the user actually runs the distillation session. Open question whether the right move is more pushy ("system.md still has 14 unresolved TODOs — run the distillation session before more substantive work?"), or whether that crosses into nagging.
 
-### What's the right rotation policy for `_retros/`?
+### What's the right rotation policy for `retros/`?
 
-Always-write means high volume over time. After a year, `_retros/` could have thousands of files. Options:
-- Rotate monthly into subdirectories (`_retros/2026-05/`).
+Always-write means high volume over time. After a year, `retros/` could have thousands of files. Options:
+- Rotate monthly into subdirectories (`retros/2026-05/`).
 - Auto-archive retros older than N days into a single compressed file.
 - Periodic agent pass that summarizes old retros and deletes them.
 
-v0.1.0 punts. Watch for pain.
+v0.5.0 punts. `lex-audit` flags volume > 500 as "consider rotation," but doesn't act. Watch for pain.
 
 ### How do you crystallize when retros weren't run?
 
-The crystallize skill explicitly handles this case ("I see only N retros for this feature though it spanned M sessions") but the handling is graceful degradation, not a real fix. In a world where retros are inconsistent, crystallization quality drops a lot. This argues for stronger retro enforcement — but see the Stop-hook discussion for why that's hard.
+The crystallize skill explicitly handles this case ("I see N retros over the last period, but git shows M sessions of substantive work") and now leans more heavily on git diff as a cross-check, which mitigates the gap. Still not a real fix in a world where retros are inconsistent — surfacing the gap to the user is what the skill does.
 
 ### Plan-mode interaction
 
-Native plan mode and `lexicon/plans/<feature>/` are meant to compose: native plan mode for the interactive draft stage, materialization to `_active/<feature>/` when the plan is substantial enough to outlive the session. v0.1.0 has no `materialize-plan` skill. The user does it manually if they want it.
+Native plan mode and `lexicon/plans/<feature>/` are meant to compose: native plan mode for the interactive draft stage, materialization to `lexicon/plans/<feature>/` when the plan is substantial enough to outlive the session. v0.5.0 has no `materialize-plan` skill. The user does it manually if they want it.
 
-The materialization skill is the obvious next addition. The hard part is the *threshold* — when is a plan worth persisting? "More than X files touched" is too mechanical. "Crosses a system.md boundary" is closer. Worth thinking about before adding.
+The materialization skill is the obvious next addition. The hard part is the *threshold* — when is a plan worth persisting? "More than X files touched" is too mechanical. "Crosses a `system.md` boundary" is closer. Worth thinking about before adding.
 
-### Aggregation across sessions
+### Stale `system.md` when crystallize never runs
 
-The proposal flow is per-session. Patterns across multiple sessions ("three sessions touched the *Storage* boundary in passing — should we revisit the boundary definition?") are exactly the kind of signal that warrants a model update, but no skill surfaces this in v0.1.0.
+User-triggered crystallize has the inverse failure mode of agent-triggered: if the user never says "crystallize," the cold layer stops absorbing retros, drift accumulates silently, and the workflow degrades to ceremony-around-a-frozen-doc. `lex-audit` partially addresses this (Phase 4 flags stale `.last-crystallized`), but the audit itself is also user-triggered.
 
-A periodic aggregation skill that sweeps recent retros and surfaces patterns would close this gap. It's a clean fit for the architecture — it reads the cool tier, surfaces warm-tier proposals — but adding it before there's enough retro volume to aggregate is premature.
+If audits + crystallize both go neglected, lexicon has no recourse. The right answer is probably *some* nudge — pushy retros that say "this is the 12th retro since the last crystallization, want to crystallize now?" — without crossing into agent-volunteers-crystallize territory. That nudge isn't designed yet.
 
 ---
 
@@ -253,5 +265,8 @@ This plugin emerged from a long design conversation with the author about how to
    - Embedded rules per skill (triplication).
    - Stop hook for retro enforcement (wrong granularity in Claude Code).
 6. The plugin was bundled with three skills + an overview, sharded session conventions, and a write-protected `system.md`.
+7. **v0.5.0 reversal**: the proposal-file flow and per-session sharding (`_proposals/`, `_active/`, `_scratch/`) were removed. The properties they protected — deliberate cold-layer review, multi-agent safety — turned out to be either already-provided-by-the-Edit-loop (review) or hypothetical-in-practice (multi-agent). `lex-crystallize` became user-triggered with inline application; `lex-ground` lost its file writes; concurrent-agent coordination was downgraded to "git, like every other shared file." See "Why we removed proposals and session sharding" above for the full reasoning.
 
 If you find yourself wanting to revert one of those rejected defaults, re-read why it was rejected. If the reason still holds, don't revert. If the reason has changed (new Claude Code feature, new evidence from real use), document the change in CHANGELOG and adjust.
+
+The same applies in reverse for v0.5.0 reversals — if you're tempted to bring proposals or session sharding back, name the concrete failure mode you're addressing first. The original justifications were defensible-on-paper but didn't survive contact with how lexicon actually gets used.
