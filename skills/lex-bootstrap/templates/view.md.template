@@ -1,55 +1,33 @@
 # View: <context name>
 
-> A **Domain View** — a system slice scoped to one bounded context. Same shape as `system.md`, but partitioned. Use this when `system.md` would otherwise overflow ~500 lines, OR when a context has enough self-contained vocabulary that loading it independently of the rest is genuinely useful (progressive loading).
->
-> Views are **optional**. Simple projects keep everything in `system.md`. A project with one view is fine. A project with eight is also fine. The pressure to split should come from `system.md` rotting, not from a target shape.
->
-> Edits go through `lex-crystallize`, same discipline as `system.md`.
-
----
-
 ## Scope
 
-<One paragraph: what's INSIDE this view's boundary, what's OUTSIDE. The most important section in this file — if scope is fuzzy, the view will accumulate cross-cutting content and stop being progressively-loadable. Be ruthless: if a topic touches multiple contexts equally, it belongs in `system.md` cross-cutting glossary, not here.>
+<One paragraph: what's INSIDE this view's boundary, what's OUTSIDE.>
 
 ## Glossary (terms owned by this view)
-
-> **Ownership rule** (the discipline that makes views work): every term has exactly *one* owning view (or `system.md` if genuinely cross-cutting). Other views *use* this term but never *redefine* it. `lex-audit` flags any term defined in >1 view.
->
-> If a term you'd put here is also load-bearing in another view, it probably belongs in `system.md` cross-cutting glossary instead. When in doubt, ask "does this term make sense without the rest of this view's context?" — if yes, it's cross-cutting.
 
 - **<Term>**: <definition>. NOT to be confused with <similar term in another view>.
 - **<Term>**: <definition>.
 
 ## References (terms used here but owned elsewhere)
 
-> *Optional.* Use only when load-order matters — a reader skimming this view alone might hit an undefined term. Pointer-only; never redefine.
-
 - **<Term>** — owned by `lexicon/system.md` Glossary (or `lexicon/views/<other-view>.md`).
 - **<Term>** — owned by `lexicon/views/<other-view>.md`.
 
 ## Invariants
-
-> Properties that must hold *within this context*. Cross-context invariants live in `system.md`. If you find an invariant being asserted here that other contexts also depend on, promote it to `system.md`.
 
 - **<Invariant name>**: <plain-language statement>. <Why it matters; what breaks if violated.>
 - **<Invariant name>**: <...>
 
 ## Architecture seams
 
-> *Optional.* Internal boundaries within this context. Skip if the context is small enough that internal seams aren't a load-bearing concept.
-
 - <Description of an internal seam>
 - <Description of an internal seam>
 
 ## Decisions worth knowing
 
-> Pointers to ADRs scoped to this view. Brief here; full reasoning lives in the ADR. If an ADR feels equally relevant to multiple views, it probably belongs at the `system.md` level instead.
-
 - <ADR-NNNN: short title> — <one-line summary>
 
 ## Things deliberately not specified
-
-> *Optional.* Things readers might *expect* this view to cover but it doesn't, and the answer is "we haven't decided" or "it lives elsewhere intentionally."
 
 - <Topic>: <why it's not specified, or where it lives instead>

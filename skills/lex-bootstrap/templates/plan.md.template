@@ -9,8 +9,6 @@ Status: <draft | active | landed | archived>
 
 ## Anchors in system.md
 
-> Reference the parts of system.md this work touches or depends on. If a needed concept isn't in system.md, that's a flag — propose it before planning further.
-
 - Glossary terms: <list>
 - Bounded contexts: <list>
 - Invariants depended on: <list>
@@ -18,33 +16,21 @@ Status: <draft | active | landed | archived>
 
 ## Approach
 
-<What we're building, at a level a reviewer can engage with. Not implementation detail.>
+<What we're building, at a level a reviewer can engage with.>
 
 ## Sessions expected
-
-<Rough breakdown into sessions if multi-session. Updated as the work progresses.>
 
 - [ ] <Session 1 goal>
 - [ ] <Session 2 goal>
 
 ## Out of scope
 
-<What we are deliberately NOT doing. Especially adjacent things that could tempt scope creep.>
+<What we are deliberately NOT doing.>
 
 ## Open questions
-
-<Things to resolve as the work proceeds. Move to "Decisions made" once resolved.>
 
 - <Question>
 
 ## Decisions made
 
-<Resolved questions, with brief reasoning. ADR-worthy decisions get their own file in `lexicon/decisions/`.>
-
 - <Decision>: <reasoning>
-
-## On completion
-
-When this plan lands:
-- Run `lexicon:crystallize` to absorb learnings into system.md
-- Move this folder to `lexicon/plans/_archive/<feature>/`

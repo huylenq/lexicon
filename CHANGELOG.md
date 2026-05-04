@@ -10,6 +10,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 While in 0.x, breaking project-shape changes bump the minor (0.x.0 → 0.(x+1).0); the major bump is reserved for a stability commitment at 1.0.
 
+## [0.6.0] - 2026-05-04
+
+### Added
+
+- **Design system as a first-class citizen of the cold layer.** When the project has a UI surface, design vocabulary — tokens, component names, layout primitives, interaction patterns, and accessibility invariants — is ubiquitous language for the UI and lives in the same `system.md`. No new skill bundle; the existing six structural checks pick up design drift naturally (hex literal outside the token file, new component file, raw `<button>` where `<Button>` exists, a11y invariant touched, etc.). When the design surface gets rich, the `## Design system` section promotes to a Domain View at `lexicon/views/design-system.md` via the existing partition mechanism.
+
+### Changed
+
+- **`system.md.template`**: new `## Design system` section (tokens, component vocabulary, layout primitives, interaction patterns, a11y invariants). Backend-only projects delete the section during bootstrap distillation.
+- **`lex-overview`**: new "Design-system signals" subsection under § Structural checks, naming the design analog for each of the six checks. New core-idea sentence noting design vocabulary as ubiquitous language. Rule 6 extended with the canonical anti-pattern ("just one more shade of blue" is a cold-layer edit).
+- **`lex-bootstrap`**: Phase 1 (doc audit) adds design-system docs to the conventional locations. Phase 2 (code audit) adds theme/token files, component library directories, Storybook config, and a11y tooling to the codebase scan. Phase 4 (drafting) gets explicit guidance for filling the design-system section, and explicit "delete if backend-only" guidance. Phase 4b (Domain Views) names design-system-as-a-view as a particularly clean partition. Phase 8 triage report adds a "Design system findings" block.
+- **`lex-audit`**: Phase 1 (Glossary validation) extended with token-name and component-name classification using the same healthy/drifted/dead/mismatch shape. Phase 2 (Invariants) recommends running existing a11y tooling (ESLint `jsx-a11y`, axe-core, Storybook a11y addon, Playwright a11y) and folding output as evidence rather than re-deriving by hand.
+- **`lex-retro` and `lex-crystallize`** unchanged — they consume the structural checks defined in `lex-overview`, so the design-system signals inherit automatically.
+
+- **Templates trimmed of meta-instructional blockquotes.** The four templates (`system.md`, `view.md`, `plan.md`) carried multi-paragraph blockquote prefaces explaining when/how to use each section ("The ubiquitous language…", `*Optional.*`, "On completion…"). These rendered into the user's actual cold-layer files where they served no audience — the agent reads `lex-overview` every session, and the human had already internalized the rules. Trim kept headings and `< >` placeholder scaffolding; dropped blockquotes, `*Optional.*` labels (once a section is in a rendered file it's not optional — delete it if it doesn't apply), and workflow notes. Every removal cross-checked against the SKILL.md bodies. `adr.md.template` was already clean and is unchanged.
+
+### Why ship 0.6.0
+
+Two surfaces converged: (1) the user observed that design systems are ubiquitous language for UI projects and asked how lexicon could absorb that capability, and (2) reviewing the templates with that lens surfaced the unrelated meta-blockquote pathology. The design-system extension is structural (new template content, new signals subsection in overview, scan extensions in bootstrap and audit) but adds no new skills, no new file conventions, and no behavior change for backend-only projects. The template trim is independent but ships in the same revision because both touch template files and shipping them separately would re-rev the same set of files twice.
+
+Risk on the design-system side: if real frontend-heavy projects don't trigger the lexicon skills (because trigger language doesn't fire on "fix the spacing" / "update the button styles"), the extension is in vain. Watch for this in real use; the fix would be sharper triggering language in `lex-ground` and `lex-retro`, not a separate skill family.
+
+Risk on the trim side: the stripped guidance was, in some cases, redundant with the SKILL.md bodies but not load-bearing-redundant — a user looking at only the rendered template lost a small amount of context. The bet is that the SKILL.md guidance fires reliably enough that this loss is theoretical.
+
 ## [0.5.0] - 2026-05-04
 
 ### BREAKING
