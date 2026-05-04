@@ -40,6 +40,7 @@ Walk the repo for documentation surface area. Look in (these are conventional lo
 - `decisions/`, `adr/`, `docs/adr/`, `rfcs/`
 - `wiki/`, `notes/`, `internal/`
 - `README.md` (skim, but don't migrate — READMEs are reference, not cold-layer)
+- Design-system docs: `DESIGN_SYSTEM.md`, `design-tokens.md`, brand/style guides, accessibility guidelines, Storybook MDX docs, Figma-export READMEs
 
 Bucket every file you find:
 
@@ -61,6 +62,7 @@ Without trying to be exhaustive, surface the project's structural shape:
 - **High-frequency identifiers** — class, type, struct, and top-level function names that appear across many files. These are glossary candidates.
 - **Public surface** — exported types, public APIs, entrypoints. The vocabulary at this surface tends to be the most load-bearing.
 - **Cross-module dependencies** — which modules import which. Hints at whether the seams are clean (low cross-talk) or already tangled (lots of cross-talk).
+- **Design-system surface** (UI projects only): theme/token files (`tailwind.config.{js,ts}`, `theme.{css,ts}`, `tokens/`, `*.tokens.{json,css}`, CSS custom-property declarations); component library directories (`components/`, `ui/`, `design-system/`); Storybook config (`.storybook/`); a11y tooling (`eslint-plugin-jsx-a11y`, `axe-core`, `jest-axe`, Storybook a11y addon, Playwright a11y). Absence of all these means the project is backend-only — skip the design-system parts of later phases.
 
 Use whatever tools fit (rg, ast-grep, ctags, the project's language tooling). Don't over-invest — a 30-minute scan that surfaces 80% of the structure is the right depth. Deep static analysis is out of scope; that's the user's job during distillation.
 
@@ -83,6 +85,7 @@ Fill in the draft using the cross-referenced material from Phase 3:
 - **Invariants**: extract from existing doc prose where it asserts "must", "always", "never". Mark each as `<!-- TODO: confirm still holds -->` — old invariants are often subtly stale.
 - **Bounded contexts**: provisional, drawn from top-level module structure. Name them; describe each in one sentence; mark the boundaries between them. Heavily TODO-tagged.
 - **Why notes**: extract any "we chose X because" or "this exists because" prose verbatim into a "Rationale" section, with attribution to the source doc.
+- **Design system** (only if Phase 2 found design-system signals): fill the `## Design system` section. Reference the canonical token files by path — don't duplicate values. List the high-frequency components (those imported in many places are real vocabulary). Capture interaction-pattern rules from any design docs found. A11y invariants almost always need `<!-- TODO: confirm with design owner -->` — they're rarely fully writable from code alone. If the project is backend-only, **delete the section** rather than leaving it as TODO scaffolding.
 
 Be honest about what's a guess. The drafted `system.md` should read like an honest first cut, not a confident model. Sections that are mostly TODO are *more useful* than sections that confidently invent content.
 
@@ -95,6 +98,7 @@ If the project has 3+ substantial bounded contexts each carrying their own self-
 - **Yes, create views** when: bounded contexts have >5 owned terms each; the would-be `system.md` is heading past 500 lines; the project has long architectural history with rich per-context detail.
 - **No, stay with one `system.md`** when: contexts are still settling; vocabulary is small; project is small or new. Views are non-breaking — promoting later is a routine refactor.
 - **Mixed** is normal: create views for the 2–4 richest contexts; let smaller contexts live as one-paragraph entries in `system.md`'s bounded-contexts index. Not every context needs a view.
+- **Design system as a view**: a particularly clean partition when the UI surface is rich (deep token system, large component library, formal a11y program). Promote the `## Design system` section to `lexicon/views/design-system.md` and leave a one-line pointer in `system.md`. The view owns tokens, component vocabulary, layout primitives, interaction patterns, and a11y invariants — same shape as any other view's glossary + invariants.
 
 If creating views: copy `${SKILL_DIR}/templates/view.md.template` to `lexicon/views/<context-slug>.md` for each chosen context. Slim `system.md` to be the holistic index — cross-cutting glossary (terms genuinely owned by no single context), bounded-contexts index pointing at view files, cross-context invariants, cross-context architecture seams, ADR pointers. Each view carries the local glossary, local invariants, internal seams, and scoped ADR pointers.
 
@@ -179,6 +183,13 @@ Run on: <iso timestamp>
 ## Rationale ("why" notes) extracted verbatim
 - From <source>: "<quoted prose>"
 - ...
+
+## Design system findings (omit if backend-only)
+- Token sources detected: <paths to theme/config/tokens files>
+- Component library at: <path>
+- a11y tooling detected: <list, or "none">
+- Drafted into: <`system.md` § Design system | `lexicon/views/design-system.md`>
+- TODOs needing design-owner confirmation: <count> (most often a11y invariants)
 
 ## Recommended file moves (NOT done — needs your call)
 - Active feature doc `docs/feature-X.md` → `lexicon/plans/feature-X/spec.md`?

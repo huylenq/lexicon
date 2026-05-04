@@ -15,6 +15,8 @@ Code is the executable spec — it evolves freely, always true to itself. Above 
 
 The whole system rests on **ubiquitous language** in the DDD sense: the same nouns and verbs appear in `system.md`, in conversation, and in code. When all three layers use the same vocabulary, mental-model alignment between human and agent is enforced by repetition rather than by remembering.
 
+When the project has a UI surface, design vocabulary — tokens, component names, layout primitives, accessibility contracts — counts as ubiquitous language too. It lives in the same cold doc (a `## Design system` section in `system.md`, or — once it grows — a `lexicon/views/design-system.md` view). The structural checks below don't split for it.
+
 ## Project shape
 
 A project using lexicon has:
@@ -90,6 +92,19 @@ Same checks, different application:
 
 If the project uses Domain Views (`lexicon/views/*.md`), each check is scoped: first against the view(s) covering the relevant bounded context, then against `system.md` for cross-cutting concerns. Flags on view-owned content target that view; flags on cross-cutting concerns target `system.md`. Name the target file(s) explicitly when proposing edits.
 
+### Design-system signals
+
+When the project has a UI surface, the same six checks pick up design-system drift naturally — design vocabulary is ubiquitous language for the UI, no separate machinery needed.
+
+- **Vocabulary** — new component file, new token entry in the theme/config, new layout primitive name, new interaction pattern.
+- **Vocabulary consistency** — hex / px / rem literal outside the token file; raw `<button>` where `<Button>` exists; component imported from a path that bypasses the design-system root.
+- **Invariants** — accessibility contracts (visible focus, color contrast, keyboard navigation, label-input pairing). Most are validatable via linters or axe-core; surface the violation when tooling flags it.
+- **Boundaries** — design-system seam: interactive primitives only via wrapper components; styling only via tokens, not inline values.
+- **Decisions** — "drawer over modal because…" — same shape as code decisions.
+- **Scope match** — grounding said "small UI tweak" but the diff added a new token or component — scope drift.
+
+If `system.md` has no `## Design system` section and no `lexicon/views/design-system.md`, these signals are no-ops — backend-only projects skip naturally.
+
 ## Rules of engagement
 
 These apply whenever a project has `lexicon/system.md`.
@@ -119,6 +134,8 @@ At any natural stopping point, run `lex-retro`. Most retros log only the session
 ### 6. Cold-layer edits go through `lex-crystallize`
 
 Don't edit `lexicon/system.md` or `lexicon/views/*.md` as a drive-by side effect of unrelated work. Cold-layer changes are deliberate: propose the diff in conversation, get explicit approval, then apply. `lex-crystallize` is the skill that does this; outside of it, leave the cold layer alone. (Direct edits ARE fine when the user explicitly asks for them — e.g. "fix this typo in system.md".)
+
+This applies to the design-system section too. Adding "just one more shade of blue" to the token list, or naming a new component inline, is a cold-layer edit — route through `lex-crystallize` like any other vocabulary addition.
 
 ### 7. ADRs are append-only
 

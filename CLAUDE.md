@@ -95,6 +95,30 @@ If the cold doc tries to mirror code, it rots — code moves faster. If it stays
 
 The agent will, by default, want to write everything into one place. The folder structure (`retros/`, `audits/`, `<feature>/`, `_archive/`) exists to **mechanically separate** these things so the cold doc can stay cold. Don't collapse this structure unless you have a strong reason — every directory exists to absorb a specific kind of content that would otherwise pollute `system.md`.
 
+### Why design vocabulary extends `system.md` rather than forking a new skill bundle (v0.6.0)
+
+Design systems and DDD's ubiquitous language are the same primitive applied to different surfaces — both are "the same nouns must appear in code, in conversation, and in the cold doc, or alignment drifts." The failure modes rhyme exactly: silent renaming (`Card` becomes `Tile` becomes `Panel`), invariants that quietly erode (the focus-state contract, the no-cross-context-shared-state rule), boundary leaks (raw `<button>` escaping the wrapper component, module A reaching into module B). When the underlying primitive is the same, splitting the workflow doubles the ceremony for no extra reach.
+
+The concrete moves in v0.6.0:
+
+- A `## Design system` section in `system.md.template` covering tokens, component vocabulary, layout primitives, interaction patterns, and a11y invariants. References canonical sources (theme, tokens, config) by path; doesn't duplicate values. Backend-only projects delete the section.
+- When the design surface gets rich, the section promotes to `lexicon/views/design-system.md` — the existing Domain View mechanism, no new file conventions.
+- The six structural checks gain design-system signals (hex literal outside the token file; new component file; raw HTML escaping the wrapper layer; a11y invariant touched). No new checks. The signals subsection in `lex-overview` § Structural checks names them per check; retro/crystallize/audit inherit through the existing per-skill direction logic.
+- `lex-bootstrap` extends Phase 1, 2, 4, 4b, 8 with design-system surface scanning; `lex-audit` extends Phase 1 and 2 with token/component validation and a11y-tooling integration.
+- `lex-retro` and `lex-crystallize` get **no** body changes — they consume the structural checks defined in `lex-overview`, so the inheritance is automatic.
+
+If you find yourself wanting to fork (a `lex-design-*` skill family, or a separate `design.md`): name the concrete failure mode that motivates it. The likely real one is "design-only sessions never engage lexicon at all because the trigger language doesn't fire." If that turns out to be a recurring pattern in real use, the fix is sharper triggering language in the existing skills, not a parallel bundle.
+
+The pathology to watch: design tokens being treated as values rather than vocabulary, leading to a `## Design system` section that lists every hex code. The cold doc captures **intent and invariants**; the canonical token files own values. When the section starts duplicating the theme file, that's drift in the wrong direction — surface it during audit.
+
+### Why template files were trimmed of meta-instructional blockquotes (v0.6.0)
+
+The four templates (`system.md`, `view.md`, `plan.md`, `adr.md`) shipped with multi-paragraph blockquote prefaces explaining when/how to use each section: "The ubiquitous language…", "Properties that must hold across the system…", `*Optional.*`, "On completion, run lex-crystallize…", and so on. These rendered into the user's actual `lexicon/system.md`, where they served no audience: the agent reads `lex-overview` (which contains the same rules canonically) every session per Rule 1, and the human had already internalized them by the time they were re-reading the populated file. After the user filled in real content, the blockquotes became vestigial noise readers had to skip past — the worst kind, because they look authoritative enough to demand attention before being dismissed.
+
+The trim discipline: keep section headings and `< >` placeholder examples (those get replaced by user content); drop blockquote prefaces, `*Optional.*` labels (once a section is in the rendered file, it's not "optional" — if it doesn't apply, you delete the section, same as anyone treats `## Bounded contexts` for a single-context project), ownership-rule restatements, "on completion" workflow notes, and ~500-line maintenance reminders. Every removal was cross-checked against the SKILL.md bodies; nothing unique to the templates was lost.
+
+If you're tempted to add explanatory prose to a template "so the user knows what to put there": that's a sign the SKILL.md body is under-explaining. Fix the SKILL.md, not the template.
+
 ### Why we removed proposals and session sharding (v0.5.0)
 
 v0.1.0–v0.4.0 treated `system.md` as write-protected and routed every proposed edit through `lexicon/plans/_proposals/<file>.md`, with the user as the merge coordinator. The stated property was: *deliberate review of cold-doc changes, with parallel agents made safe by the staging area as a serialization point.*

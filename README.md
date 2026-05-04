@@ -9,7 +9,7 @@ Rationale:
 
 > Code is the executable spec. Above the code, a small **cold-layer doc** captures what code can't express well: vocabulary, invariants, bounded contexts, and the "why"s. Lexicon makes sure the human and the agent stay aligned on that doc — through grounding before work, retros at every stopping point, and crystallization when a feature lands.
 
-Inspired by domain-driven design's [ubiquitous language](https://martinfowler.com/bliki/UbiquitousLanguage.html). Built for the messy reality of working with coding agents on real codebases.
+Inspired by domain-driven design's [ubiquitous language](https://martinfowler.com/bliki/UbiquitousLanguage.html). Built for the messy reality of working with coding agents on real codebases. When the project has a UI surface, the same discipline extends to design vocabulary — tokens, component names, layout primitives, and accessibility contracts live in the same cold doc, with no separate workflow.
 
 ## What it does
 
@@ -104,7 +104,7 @@ lexicon/
 
 ## Status
 
-v0.1.0 — early. The shape is plausible but unproven on real projects. Issues and PRs welcome.
+v0.6.0 — early. The shape is plausible but unproven on real projects. Issues and PRs welcome.
 
 For the design rationale, rejected alternatives, and open questions, see [`CLAUDE.md`](./CLAUDE.md). For version history, see [`CHANGELOG.md`](./CHANGELOG.md).
 

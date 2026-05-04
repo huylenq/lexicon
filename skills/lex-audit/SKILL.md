@@ -60,6 +60,8 @@ For each entry in `system.md`'s glossary AND each entry in every `lexicon/views/
 
 Don't auto-delete entries. The classification is the artifact; the human decides.
 
+If the cold layer includes a design system (a `## Design system` section in `system.md` or a `lexicon/views/design-system.md` view), validate token names and component names with the same classification, with one adjustment: tokens live as CSS custom properties, theme-config keys, or named exports from a tokens module — search the canonical token source files first. Tokens declared in the cold layer but absent from the canonical source are *dead*. Component names should map to a real component file.
+
 ## Phase 1b — UL ownership validation (only when views are in use)
 
 Skip if `lexicon/views/` doesn't exist.
@@ -91,6 +93,8 @@ For each invariant in `system.md`:
   - *Untestable*: the invariant is so abstract that you can't validate it from code alone. Note this; suggest the invariant either needs to be made more concrete or moved to a "principles" section that's not subject to code validation.
 
 This is the highest-stakes phase. Be conservative — flag with evidence, don't assert.
+
+For accessibility invariants in a design-system section, prefer running existing tooling (ESLint `jsx-a11y`, `axe-core`, Storybook a11y addon, Playwright a11y) over re-deriving by hand. Tooling output folds into this phase as evidence — if a linter flags a violation that a stated invariant would catch, that's a real "violated" classification, not a borderline one.
 
 ## Phase 3 — Bounded context validation
 
