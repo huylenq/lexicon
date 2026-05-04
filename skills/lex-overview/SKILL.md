@@ -1,11 +1,11 @@
 ---
 name: lex-overview
-description: "Read this skill at the start of any session in a project that has a docs/system.md file, OR whenever any other lexicon skill (lex-bootstrap, lex-ground, lex-retro, lex-crystallize) is about to run, OR when the user asks about the lexicon workflow. This skill defines the rules of the document-mediated workflow that the other lexicon skills implement. Other lexicon skills assume this content is in context — load this first. Skipping it means the other skills won't know how the pieces fit together."
+description: "Read this skill at the start of any session in a project that has a docs/system.md file, OR whenever any other lexicon skill (lex-bootstrap, lex-ground, lex-retro, lex-crystallize, lex-audit) is about to run, OR when the user asks about the lexicon workflow. This skill defines the rules of the document-mediated workflow that the other lexicon skills implement. Other lexicon skills assume this content is in context — load this first. Skipping it means the other skills won't know how the pieces fit together."
 ---
 
 # Lexicon: workflow overview
 
-This skill is the **rulebook** for the lexicon workflow. One adoption-time skill (`lex-bootstrap`) and three operational skills (`lex-ground`, `lex-retro`, `lex-crystallize`) implement specific moments in the loop; this skill explains how they fit together.
+This skill is the **rulebook** for the lexicon workflow. Five skills implement specific moments in the loop — one adoption-time (`lex-bootstrap`), three operational (`lex-ground`, `lex-retro`, `lex-crystallize`), and one periodic-maintenance (`lex-audit`); this skill explains how they fit together.
 
 If you're loading this in response to one of the other skills, you only need the **Project shape** and **Rules of engagement** sections — skim and proceed.
 
@@ -35,12 +35,17 @@ docs/
 
 If a project doesn't have this structure, the **`lex-bootstrap`** skill is the one-shot adoption pass that creates it. The user opts in per project — lexicon is not forced on every project.
 
-## The four skills
+## The five skills
 
 - **`lex-bootstrap`** — Runs **once** at adoption time. Scans existing docs and code, drafts a first-cut `system.md`, migrates ADR-shaped content, sets up the directory structure, and produces a triage report. Trigger: "set up lexicon", "adopt lexicon", "bootstrap lexicon", or `lex-ground` deferring on a project with no `system.md`.
 - **`lex-ground`** — Runs at the start of substantive coding work. Reads `system.md`, declares scope (terms, invariants, bounded context), checks for in-flight work by other agents, opens a scratchpad. Trigger: any non-trivial task.
 - **`lex-retro`** — Runs at every natural stopping point. Always writes a log; only escalates to a proposal when structural triggers fire (vocabulary, invariants, boundaries). Trigger: completion signals like "looks good", "we're done", tests pass and user moves on.
 - **`lex-crystallize`** — Runs at feature completion (multi-session). Reviews the cumulative diff against `system.md` and proposes a coherent set of updates. Trigger: "feature X is done", "we're shipping X", a `docs/plans/<feature>/` reaching completion.
+- **`lex-audit`** — Runs periodically (quarterly, on demand, or before planning sessions). Re-validates `system.md` against current code to catch backward-flow drift — stale glossary, dead invariants, undeclared contexts, hygiene rot. Produces a triage list, never edits `system.md` directly. Trigger: "audit lexicon", "sanity-check the docs", "is `system.md` still accurate?".
+
+### Forward-flow vs backward-flow drift
+
+A subtle but important distinction. `lex-retro` and `lex-crystallize` catch **forward-flow drift** — new work introducing inconsistency, surfaced at the cheapest moment. They are blind to **backward-flow drift** — `system.md` claims things that *used to be true*. A term that got renamed in code six sessions ago, an invariant that's quietly violated, a context boundary that's leaked. `lex-audit` exists specifically for that asymmetry: the architecture is eventually consistent in the forward direction only, and audit closes the loop.
 
 ## Rules of engagement
 

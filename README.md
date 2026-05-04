@@ -8,7 +8,7 @@ Inspired by domain-driven design's [ubiquitous language](https://martinfowler.co
 
 ## What it does
 
-Lexicon adds four skills to Claude Code:
+Lexicon adds five skills to Claude Code:
 
 | Skill | Fires when | Does |
 |---|---|---|
@@ -16,6 +16,7 @@ Lexicon adds four skills to Claude Code:
 | `lex-ground` | Before substantive coding work | Reads `docs/system.md`, declares scope (terms, invariants, bounded context), checks for in-flight work by other agents, opens a scratchpad |
 | `lex-retro` | At every natural stopping point | Always logs; only escalates a proposal when vocabulary, invariants, or boundaries shifted |
 | `lex-crystallize` | When a multi-session feature is complete | Reviews cumulative changes and proposes a coherent diff to `system.md` |
+| `lex-audit` | Periodically (quarterly, on demand) | Re-validates `system.md` against current code; flags stale glossary, dead invariants, undeclared contexts, hygiene rot. Produces a triage list, never edits `system.md` directly |
 
 The skills coordinate through a `docs/` folder structure that the plugin manages. Concurrent agents are made safe by sharding everything per-session and treating `system.md` as a write-protected merge point.
 
@@ -51,7 +52,7 @@ git clone https://github.com/huylenq/lexicon
 claude --plugin-dir ./lexicon
 ```
 
-The skills are flat-named (`lex-overview`, `lex-bootstrap`, `lex-ground`, `lex-retro`, `lex-crystallize`) so the same names work in both modes — Claude Code's plugin namespace prefix isn't applied when installed via `npx skills`.
+The skills are flat-named (`lex-overview`, `lex-bootstrap`, `lex-ground`, `lex-retro`, `lex-crystallize`, `lex-audit`) so the same names work in both modes — Claude Code's plugin namespace prefix isn't applied when installed via `npx skills`.
 
 ## First use in a project
 

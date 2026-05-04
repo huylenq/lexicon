@@ -8,6 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **Minor** — skill behavior changes meaningfully (escalation rules, scope of checks, new skills).
 - **Patch** — skill description tuning, prose edits, bug fixes in templates.
 
+## [0.3.0] - 2026-05-04
+
+### Added
+- `lex-audit` — periodic-maintenance skill. The complementary refresh pass to `lex-bootstrap`'s adoption pass: bootstrap absorbs initial truth; audit catches drift accumulated since. Specifically catches **backward-flow drift** that `lex-retro` and `lex-crystallize` are structurally blind to — `system.md` claims things that *used to be true* (stale glossary entries, dead invariants, undeclared bounded contexts, hygiene rot in `docs/plans/`). Read-mostly: produces a triage report under `docs/plans/_proposals/audit-<iso>.md` with calibrated flags (high-priority definition mismatches, possibly-violated invariants distinguishing "stale doc" from "code regression", boundary leakage, orphaned `_active/` files, untriaged proposals, retro-volume warnings, calibration coherence). Never unilaterally edits `system.md` or deletes plan/retro files. Supports targeted mode for narrower checks ("audit just the glossary").
+
+### Why ship audit now (vs deferring further)
+
+v0.2.0's notes said audit was deferred until real usage data on drift patterns. We're shipping it earlier on the bet that **its absence is itself the design risk**: without audit, projects that adopt lexicon and then go quiet for a few months silently accumulate exactly the kind of rot the workflow exists to prevent. The structural checks in audit are derived from the same primitives as `lex-retro` (vocabulary/invariants/boundaries), just applied at project scope and in the backward direction, so the design isn't speculative — it inverts the existing model. Calibration of the checks (what fraction of flags turn out to be noise) still depends on real usage, but that's a tunable not a structural unknown.
+
 ## [0.2.0] - 2026-05-04
 
 ### Added
@@ -39,7 +48,7 @@ Skills use a flat `lex-*` prefix (`lex-overview`, `lex-ground`, `lex-retro`, `le
 - **Stop hook for retro enforcement.** Considered but dropped — Claude Code's `Stop` event fires on every agent→user turn, not at session end, so a hook there would be excessively noisy. The pushy skill descriptions are the only enforcement mechanism in v0.1.0. See `CLAUDE.md` for the reasoning and what a future session-end signal would need.
 - **Materialize-plan skill.** Native plan mode and `docs/plans/<feature>/` are meant to compose, but the right shape needs real-world signal before committing.
 - **Periodic-aggregation pass.** A skill that sweeps multiple retros to find patterns across sessions. Worth adding once proposal volume justifies it.
-- **Lex-audit skill.** Periodic sanity check that re-validates `system.md` against the current codebase (stale glossary entries, dead invariants, undeclared boundaries, hygiene rot in `docs/plans/`). The complementary refresh pass to `lex-bootstrap`'s adoption pass. Deferred to v0.3.0+ — value scales with how long projects have been on lexicon, so we want real data on what kinds of drift actually accumulate before designing the checks.
+- ~~**Lex-audit skill.**~~ Shipped in v0.3.0 — see above.
 
 ### Known unknowns
 - Triggering accuracy of skill descriptions on real projects.
