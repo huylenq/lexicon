@@ -39,7 +39,7 @@ Status: <draft | active | landed | archived>
 
 ## Decisions made
 
-<Resolved questions, with brief reasoning. ADR-worthy decisions get their own file in `docs/decisions/`.>
+<Resolved questions, with brief reasoning. ADR-worthy decisions get their own file in `lexicon/decisions/`.>
 
 - <Decision>: <reasoning>
 
@@ -47,4 +47,4 @@ Status: <draft | active | landed | archived>
 
 When this plan lands:
 - Run `lexicon:crystallize` to absorb learnings into system.md
-- Move this folder to `docs/plans/_archive/<feature>/`
+- Move this folder to `lexicon/plans/_archive/<feature>/`

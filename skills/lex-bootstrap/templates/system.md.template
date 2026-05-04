@@ -2,7 +2,7 @@
 
 > The cold layer. Things code can't express well: vocabulary, invariants, bounded contexts, and the "why"s.
 > Keep this under ~500 lines. If it grows past that, something here probably belongs in code or in an ADR.
-> Update via proposals in `docs/plans/_proposals/`, not by direct edits during work.
+> Update via proposals in `lexicon/plans/_proposals/`, not by direct edits during work.
 
 ---
 
@@ -50,7 +50,7 @@
 
 ## Decisions worth knowing
 
-> Pointers to ADRs in `docs/decisions/` that explain choices a reader of `system.md` would want to know the reasoning for. Brief here; full reasoning lives in the ADR.
+> Pointers to ADRs in `lexicon/decisions/` that explain choices a reader of `system.md` would want to know the reasoning for. Brief here; full reasoning lives in the ADR.
 
 - <ADR-NNNN: short title> — <one-line summary of what it's about>
 

@@ -1,6 +1,6 @@
 ---
 name: lex-crystallize
-description: "Use this skill when a multi-session feature, plan, or epic is finished — code is landed, tests pass, the work is conceptually complete. This is the heavier counterpart to lex-retro: it reviews the cumulative changes from a feature against system.md, decides what to absorb into the cold doc, and archives the plan. Trigger when the user says things like 'we're done with X', 'feature X is shipped', 'wrap up the X work', or when an entry in docs/plans/<feature>/ has reached completion. Don't use this for every session — use lex-retro for that. Use this when a coherent piece of work crosses the finish line. This is one of three lexicon skills — read lex-overview if you haven't already this session."
+description: "Run when a multi-session feature, plan, or epic is finished — code landed, tests passing, the work conceptually complete. The heavier counterpart to lex-retro: reviews cumulative changes against system.md, decides what to absorb into the cold doc, archives the plan. Trigger on phrases like 'we're done with X', 'feature X is shipped', 'wrap up the X work', or when an entry under lexicon/plans/<feature>/ reaches completion. Don't use for every session — that's lex-retro. Read lex-overview first."
 ---
 
 # Lexicon: crystallize
@@ -15,7 +15,7 @@ If you haven't loaded `lex-overview` yet this session, read it first.
 
 Run when:
 - The user says a feature, epic, or plan is done.
-- A folder under `docs/plans/<feature>/` has all its tasks completed.
+- A folder under `lexicon/plans/<feature>/` has all its tasks completed.
 - A native plan-mode plan has been fully executed and verified.
 
 Don't run for:
@@ -28,43 +28,49 @@ If unsure, ask: "Should I crystallize this, or just retro it?" The user knows wh
 ## Gather inputs
 
 Read:
-1. The plan folder (`docs/plans/<feature>/` if one exists) — original intent, scope, decisions made along the way.
+1. The plan folder (`lexicon/plans/<feature>/` if one exists) — original intent, scope, decisions made along the way.
 2. All retros and proposals from sessions that touched this work — find them by searching `_retros/` and `_proposals/` for references to the feature, or by date range.
-3. `docs/system.md` — current cold model.
-4. `docs/calibration.md` if it exists.
-5. `docs/decisions/` — recent ADRs that might overlap.
+3. `lexicon/system.md` — current cold model.
+4. `lexicon/calibration.md` if it exists.
+5. `lexicon/decisions/` — recent ADRs that might overlap.
 6. The cumulative code diff for the feature (compare branch or tag-to-tag if available; otherwise reconstruct from the plan's file list).
 
 This is a bigger read than `lex-retro`. Take time on it.
 
 ## Re-run structural checks at feature scope
 
-The same six checks from `lex-retro`, but now applied to the **cumulative** result:
+Run the six checks defined in `lex-overview` § Structural checks, applied **forward against the feature's cumulative diff**: *did the feature as a whole shift the model?*
 
-- **Vocabulary**: Are there new terms that have *stuck around and stabilized* across the feature? (Terms that appeared in one session and got renamed by the next aren't worth glossarying.)
-- **Vocabulary consistency**: Across all sessions, did terminology stay coherent? If not, the feature itself surfaced a vocabulary problem worth fixing.
-- **Invariants**: Did the feature add, remove, or modify any invariant? Often a feature is *defined by* an invariant change.
-- **Boundaries**: Did the feature cross or redraw any context boundary? Re-look at the bounded-context section of `system.md` with fresh eyes.
-- **Decisions**: Are there decisions that span sessions and deserve a single ADR rather than scattered notes?
-- **Declared scope match (cumulative)**: Did the feature deliver what it set out to, or did it become something else? If it became something else, that often reveals a model update.
+The cumulative framing changes how each check lands:
+
+- **Vocabulary** — filter for terms that *stuck around and stabilized* across the feature. Terms that appeared in one session and got renamed by the next aren't worth glossarying.
+- **Vocabulary consistency** — look at coherence *across* all sessions. If terminology drifted within the feature, the feature itself surfaced a vocabulary problem worth fixing.
+- **Invariants** — features are often *defined by* an invariant change. Look for adds, removes, modifications across the whole diff, not per-session.
+- **Boundaries** — re-look at the bounded-context section with fresh eyes; cumulative boundary changes often hide in incremental session diffs.
+- **Decisions** — prefer a single ADR for the feature when scattered session-level decisions cohere into one story.
+- **Declared scope match (cumulative)** — did the feature deliver what it set out to, or did it become something else? If it became something else, that often reveals a model update.
 
 ## The crystallization step
 
-The new behavior unique to this skill: **propose updates to `system.md` as a coherent diff, not as scattered points.**
+The new behavior unique to this skill: **propose updates to the cold layer as a coherent diff, not as scattered points.**
 
-A crystallization isn't a list of bullets. It's a small set of edits to `system.md` that, taken together, leave the cold doc more accurate than before. Aim for the smallest possible diff that captures what shifted. If the diff is large, that's a signal the feature was bigger than expected, or the prior `system.md` was significantly out of date.
+A crystallization isn't a list of bullets. It's a small set of edits to `system.md` (and/or relevant Domain Views) that, taken together, leave the cold layer more accurate than before. Aim for the smallest possible diff that captures what shifted. If the diff is large, that's a signal the feature was bigger than expected, or the prior cold layer was significantly out of date.
 
-Write the crystallization proposal to `docs/plans/_proposals/crystallize-<feature>-<iso>.md`:
+If the project uses Domain Views, a feature often touches one view primarily and `system.md` lightly (e.g., adding a new term to the relevant view's glossary plus updating cross-context invariants in `system.md` if the feature shifted a boundary). Target each file explicitly. A feature that touches *every* view is a sign that either the feature redrew context boundaries (which is itself worth crystallizing carefully) or the partition needs revisiting — surface that.
+
+Write the crystallization proposal to `lexicon/plans/_proposals/crystallize-<feature>-<iso>.md`:
 
 ```markdown
 # Crystallization: <feature name>
 Period: <start date> — <end date>
 Sessions involved: <session-ids>
+Targets: <lexicon/system.md and/or lexicon/views/<slug>.md — name each file explicitly>
 
 ## Summary of what shipped
 <2-3 sentences. What does the system do now that it didn't before?>
 
-## Proposed updates to system.md
+## Proposed updates to the cold layer
+> Group the proposed changes by target file. If the project uses Domain Views, most edits typically land in the view(s) for the affected context(s); cross-context shifts land in system.md.
 
 ### Glossary additions
 - **<Term>**: <definition>. <counter-example: "NOT to be confused with X">
@@ -87,8 +93,8 @@ Sessions involved: <session-ids>
 - <Either: "ADR-NNNN: <title>" with body, or: "Merge existing ADRs A, B, C into single ADR D">
 
 ## Plan archival
-The plan folder `docs/plans/<feature>/` should be:
-- [ ] archived to `docs/plans/_archive/<feature>/` (default)
+The plan folder `lexicon/plans/<feature>/` should be:
+- [ ] archived to `lexicon/plans/_archive/<feature>/` (default)
 - [ ] kept (only if it has ongoing reference value)
 - [ ] deleted (only if it duplicates information now in system.md)
 
@@ -107,19 +113,19 @@ Mixing scopes is how proposals become unreviewable.
 
 ## Don't apply the diff
 
-The crystallization is a *proposal*. It does not edit `docs/system.md` directly. The user reviews, possibly asks for revisions, and explicitly accepts before the diff is applied.
+The crystallization is a *proposal*. It does not edit `lexicon/system.md` directly. The user reviews, possibly asks for revisions, and explicitly accepts before the diff is applied.
 
 After the user accepts:
-- Apply the diff to `docs/system.md`.
-- Write any new ADRs to `docs/decisions/`.
-- Move the plan folder to `docs/plans/_archive/<feature>/` (or per the user's choice).
-- Move the crystallization proposal itself to `docs/plans/_archive/_crystallizations/<feature>-<iso>.md` for history.
+- Apply the diff to `lexicon/system.md`.
+- Write any new ADRs to `lexicon/decisions/`.
+- Move the plan folder to `lexicon/plans/_archive/<feature>/` (or per the user's choice).
+- Move the crystallization proposal itself to `lexicon/plans/_archive/_crystallizations/<feature>-<iso>.md` for history.
 
 ## Tell the user
 
 When the proposal is written, summarize in chat:
 
-> Crystallization for <feature> is at `docs/plans/_proposals/crystallize-<feature>-...md`. It proposes <N> glossary additions, <M> invariant changes, and recommends archiving the plan folder. Review when ready.
+> Crystallization for <feature> is at `lexicon/plans/_proposals/crystallize-<feature>-...md`. It proposes <N> glossary additions, <M> invariant changes, and recommends archiving the plan folder. Review when ready.
 
 Don't dump the diff into chat. The proposal file is the artifact; chat is the pointer.
 

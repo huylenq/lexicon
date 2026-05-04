@@ -1,6 +1,6 @@
 ---
 name: lex-audit
-description: "Use this skill on demand to sanity-check a lexicon-using project — re-validate that docs/system.md still matches reality. The complementary refresh pass to lex-bootstrap's adoption pass: bootstrap absorbs initial truth, audit catches drift that accumulated since. Trigger when the user says 'audit lexicon', 'sanity-check the docs', 'is system.md still accurate?', 'lexicon hasn't been touched in a while, refresh it', 'check for drift', or before a planning session/major release. Also reasonable to run quarterly or after a large merge. This skill catches drift that continuous lex-retro/lex-crystallize cannot — namely backward-flow drift, where system.md claims things that *used to be true*: stale glossary entries, dead invariants, undeclared bounded contexts, and hygiene rot in docs/plans/. Read-mostly: it produces an audit report (a triage list for the human) and never unilaterally edits system.md or deletes plan/retro files. This is one of five lexicon skills — read lex-overview if you haven't already this session."
+description: "Run on demand to sanity-check a lexicon-using project — re-validate that lexicon/system.md still matches reality. Trigger on 'audit lexicon', 'sanity-check the docs', 'is system.md still accurate?', 'check for drift', before a planning session or major release, or quarterly. Catches backward-flow drift (stale glossary, dead invariants, undeclared contexts, hygiene rot) that lex-retro and lex-crystallize cannot. Read-mostly: produces a triage report, never edits system.md or deletes plan files. Read lex-overview first."
 ---
 
 # Lexicon: audit
@@ -31,21 +31,25 @@ Run when:
 
 Don't run when:
 
-- `docs/system.md` doesn't exist — that's `lex-bootstrap` territory.
-- The project hasn't done substantive work since the last audit (check the audit report timestamps under `docs/plans/_archive/_audits/` if any). Audits cost tokens; running back-to-back rarely produces new signal.
+- `lexicon/system.md` doesn't exist — that's `lex-bootstrap` territory.
+- The project hasn't done substantive work since the last audit (check the audit report timestamps under `lexicon/plans/_archive/_audits/` if any). Audits cost tokens; running back-to-back rarely produces new signal.
 - The user is mid-task and just wants to ground for it — that's `lex-ground`, much lighter weight.
 
 If unsure whether to run a full audit or a targeted check, ask: "Full audit, or just check [glossary / invariants / hygiene]?" Targeted checks are valid — see the **Targeted-mode** section near the end.
 
 ## Pre-flight
 
-1. Confirm `docs/system.md` exists and is non-trivial. If it's still mostly TODO markers, the right answer is "the post-bootstrap distillation session never happened" — surface that and don't proceed with audit checks (they'd produce noise).
+1. Confirm `lexicon/system.md` exists and is non-trivial. If it's still mostly TODO markers, the right answer is "the post-bootstrap distillation session never happened" — surface that and don't proceed with audit checks (they'd produce noise).
 2. Mint or read a session ID (same convention as the other skills). The audit run gets a session ID just like any other session, so its outputs land in the standard sharded locations.
-3. If a recent audit report exists under `docs/plans/_archive/_audits/`, read its tail — knowing what was flagged last time and what the user's response was changes how to weight similar flags this time.
+3. If a recent audit report exists under `lexicon/plans/_archive/_audits/`, read its tail — knowing what was flagged last time and what the user's response was changes how to weight similar flags this time.
+
+## How audit relates to the six structural checks
+
+Phases 1–3 below are the **backward-flow inversion** of structural checks 1, 2, 3, and 4 from `lex-overview` § Structural checks. Where retro/crystallize ask "did the diff introduce something that conflicts with `system.md`?", audit walks each existing claim in `system.md` and asks "does this still hold in current code?". Phases 4–7 are audit-specific procedure (hygiene, calibration, distillation, proposal cross-checks) with no forward-flow analogue.
 
 ## Phase 1 — Glossary validation
 
-For each entry in `system.md`'s glossary:
+For each entry in `system.md`'s glossary AND each entry in every `lexicon/views/*.md` Glossary:
 
 - **Literal grep first.** Search the codebase for the term as identifier (class, type, function, constant) and as string literal.
 - **If literal grep finds nothing**, don't immediately flag. Try variants: plural, related forms (e.g. `Worker` → `WorkerPool`, `enqueueWorker`), kebab/snake/camel transformations. The concept may still be present under a slightly different surface.
@@ -56,6 +60,21 @@ For each entry in `system.md`'s glossary:
   - *Definition mismatch*: term is present but used in code in a way that contradicts the glossary definition — flag as **high priority**, this is the silent-renaming bug surfacing late.
 
 Don't auto-delete entries. The classification is the artifact; the human decides.
+
+## Phase 1b — UL ownership validation (only when views are in use)
+
+Skip if `lexicon/views/` doesn't exist.
+
+The ownership rule says every term has *exactly one* owning location. When views drift out of sync, the same term gets defined twice — once in each view that touches it — and the definitions slowly diverge. This phase mechanically detects that.
+
+For each term defined in a view (search for `**<Term>**:` definition syntax in the Glossary section of each view) and in `system.md`:
+
+- Build a map: term → list of files where it's defined (not just referenced).
+- **Term defined in exactly one location**: healthy.
+- **Term defined in >1 location**: ownership-rule violation. Flag with all locations and the definitions side-by-side. Recommend a single owning location (typically the view for the term's primary context, or `system.md`'s cross-cutting glossary if the term genuinely spans 3+ contexts).
+- **Term referenced in a view's `## References` section but not defined anywhere**: dangling reference; the original owning location was deleted or renamed. Flag.
+
+This is a high-value check for view-using projects. It's mechanical (no judgment about meaning), runs fast, and catches the single failure mode views are most prone to.
 
 ## Phase 2 — Invariant validation
 
@@ -84,7 +103,7 @@ Compare the bounded contexts named in `system.md` against the actual module/fold
 
 Use the project's import-tracing tooling where available (language-specific). Where not available, use `rg` for cross-module imports and approximate.
 
-## Phase 4 — Hygiene sweep of `docs/plans/`
+## Phase 4 — Hygiene sweep of `lexicon/plans/`
 
 Mechanical, no judgment required:
 
@@ -96,7 +115,7 @@ Mechanical, no judgment required:
 
 ## Phase 5 — Calibration coherence
 
-If `docs/calibration.md` exists:
+If `lexicon/calibration.md` exists:
 
 - Read each rule. For each, ask: did recent retros (last ~20) seem to honor this rule, or are they still flagging the things this rule says to ignore?
 - If a rule appears to be ignored: either the rule is being missed (improve its wording), or `lex-retro`'s structural checks are catching them anyway (the rule is now redundant). Flag for review.
@@ -106,10 +125,10 @@ If `calibration.md` doesn't exist but the project has > 30 retros, that itself i
 
 ## Phase 6 — Distillation completion check
 
-Sanity check: how many `<!-- TODO -->` markers remain in `system.md`?
+Sanity check: how many `<!-- TODO -->` markers remain in `system.md` AND across `lexicon/views/*.md`?
 
-- **0–2 remaining**: healthy, post-bootstrap distillation happened.
-- **3–10 remaining**: surface; some sections of `system.md` are still placeholder content. Each one weakens the rest of the workflow.
+- **0–2 remaining (across all cold-layer files)**: healthy, post-bootstrap distillation happened.
+- **3–10 remaining**: surface; some sections are still placeholder content. Each one weakens the rest of the workflow.
 - **>10 remaining**: very likely the post-bootstrap distillation session was skipped. Surface as a high-priority recommendation: "before audit's other findings are useful, run the distillation session."
 
 ## Phase 7 — Cross-check recent rejected proposals
@@ -123,7 +142,7 @@ This phase is low-priority; skip if proposal volume is small.
 
 ## Phase 8 — Write the audit report
 
-Write `docs/plans/_proposals/audit-<iso-date>.md`. Structure:
+Write `lexicon/plans/_proposals/audit-<iso-date>.md`. Structure:
 
 ```markdown
 # Audit report
@@ -136,10 +155,16 @@ Time since last audit: <N days, or "first audit">
 <2-3 sentences. Health-grade impression: "system.md is in good shape; minor hygiene rot only" / "moderate drift in glossary; one likely-stale invariant; distillation never completed" / etc.>
 
 ## Glossary findings
-- *Healthy*: <count> entries
-- *Drifted name*: <Term> — appears in code as <other identifier>; rename glossary or code?
-- *Dead*: <Term> — no code presence found, even in related forms; remove from glossary?
-- *Definition mismatch* (high priority): <Term> — glossary says X, code uses as Y
+- *Healthy*: <count> entries (across system.md and all views)
+- *Drifted name*: <Term> (defined in <file>) — appears in code as <other identifier>; rename glossary or code?
+- *Dead*: <Term> (defined in <file>) — no code presence found, even in related forms; remove from glossary?
+- *Definition mismatch* (high priority): <Term> (defined in <file>) — glossary says X, code uses as Y
+- ...
+
+## UL ownership findings (only when views are in use)
+- *Single-owner terms*: <count> healthy
+- *Multi-owner violations* (high priority): <Term> defined in <file-A> AND <file-B>; <one-line on whether definitions differ>; recommend owner: <file>
+- *Dangling references*: <Term> referenced in <view's References section> but not defined anywhere
 - ...
 
 ## Invariant findings
@@ -189,7 +214,7 @@ Keep it scannable. The user should be able to read this in under 10 minutes and 
 
 Brief summary in chat:
 
-> Audit complete. Wrote report at `docs/plans/_proposals/audit-<iso>.md`. Findings: <one-line health summary>; <highest-priority flag>. <Optional: "Nothing high-priority — mostly hygiene." | "One possibly-stale invariant worth attention." | "Distillation never completed; recommend doing that first.">
+> Audit complete. Wrote report at `lexicon/plans/_proposals/audit-<iso>.md`. Findings: <one-line health summary>; <highest-priority flag>. <Optional: "Nothing high-priority — mostly hygiene." | "One possibly-stale invariant worth attention." | "Distillation never completed; recommend doing that first.">
 
 Don't dump the full report into chat. The file is the artifact; chat is the pointer. Resist the urge to walk through every flag in conversation — that defeats the triage-list shape.
 
@@ -209,7 +234,7 @@ A full audit is the default, but the user can ask for narrower runs: "audit just
 - Rejects a finding as noise → ideally adds a line to `calibration.md` so future audits don't re-flag it.
 - Defers a finding → leaves the proposal under `_proposals/` (or moves it to a holding folder).
 
-Once the report has been triaged, move it to `docs/plans/_archive/_audits/audit-<iso>.md` so the next audit can reference it.
+Once the report has been triaged, move it to `lexicon/plans/_archive/_audits/audit-<iso>.md` so the next audit can reference it.
 
 ## What this skill is NOT
 

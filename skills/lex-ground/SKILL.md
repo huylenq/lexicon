@@ -1,6 +1,6 @@
 ---
 name: lex-ground
-description: "Use this skill at the start of any substantive coding work in a project that has (or should have) a docs/system.md file. Run it before writing or modifying code, before drafting plans, whenever a task involves the project's domain concepts. Trigger this even for tasks that feel small, unless they're purely mechanical (typo fixes, dependency bumps, log message tweaks). Skipping this skill is the most common failure mode that causes silent vocabulary drift and architectural inconsistency. This is one of three lexicon skills — read lex-overview if you haven't already this session."
+description: "Run at the start of any substantive coding work in a project that has (or should have) lexicon/system.md. Invoke before writing or modifying code, before drafting plans, on any task that touches the project's domain concepts — even small ones, unless they're purely mechanical (typo fixes, dependency bumps, log tweaks). Skipping is the most common cause of silent vocabulary drift and architectural inconsistency. Read lex-overview first."
 ---
 
 # Lexicon: ground
@@ -9,9 +9,9 @@ This skill makes sure work is grounded in the project's shared model *before* co
 
 If you haven't loaded `lex-overview` yet this session, read it first. It defines the project shape, the rules, and how `lex-ground` / `lex-retro` / `lex-crystallize` fit together.
 
-## No `docs/system.md`? Defer to `lex-bootstrap`
+## No `lexicon/system.md`? Defer to `lex-bootstrap`
 
-If `docs/system.md` doesn't exist, **stop and surface to the user**:
+If `lexicon/system.md` doesn't exist, **stop and surface to the user**:
 
 > "This project doesn't have lexicon docs yet. Bootstrapping is a one-shot setup — it scans existing docs and code, drafts a first-cut `system.md`, migrates ADR-shaped content, and produces a triage list. That's a different skill (`lex-bootstrap`) because it warrants a focused pass rather than getting squeezed into the start of an unrelated task. Want to:
 > (a) run `lex-bootstrap` now and come back to the original task after,
@@ -24,23 +24,25 @@ If the user picks (b), record the decision in a way the agent will remember (a `
 
 ## Mint a session ID
 
-If `$LEXICON_SESSION_ID` isn't set, mint one: a short timestamped string like `2026-05-04-1430-ab12`. Write it to `docs/plans/_scratch/.session-id` so subsequent skill invocations find it. Reuse the same ID for the rest of this session.
+If `$LEXICON_SESSION_ID` isn't set, mint one: a short timestamped string like `2026-05-04-1430-ab12`. Write it to `lexicon/plans/_scratch/.session-id` so subsequent skill invocations find it. Reuse the same ID for the rest of this session.
 
 ## The grounding ritual
 
 Run before any substantive code change:
 
-### 1. Read `docs/system.md` end to end
+### 1. Read `lexicon/system.md` end to end (and relevant Domain Views)
 
-Don't skim. The whole point of this layer is to be small enough to read every session. If it's grown past ~500 lines, surface that to the user.
+Don't skim. The whole point of this layer is to be small enough to read every session. If it's grown past ~500 lines, surface that to the user — or check whether the project should be using Domain Views (`lexicon/views/*.md`) for partitioning.
 
-### 2. Read `docs/calibration.md` if it exists
+If `lexicon/views/` exists, also read the view(s) matching the bounded context of the work being done. The bounded-contexts index in `system.md` points at the relevant view files. **Don't load every view eagerly** — that defeats the partitioning. Identify the relevant context(s) (from the task description, the files about to change, or by asking the user) and load only those views. When in doubt about context, ask before guessing.
+
+### 2. Read `lexicon/calibration.md` if it exists
 
 Project-specific notes about what counts as significant. Overrides the default sense of when to escalate proposals.
 
 ### 3. Check for in-flight work
 
-Read every file in `docs/plans/_active/`. Each one declares another session's scope. If any of them touch:
+Read every file in `lexicon/plans/_active/`. Each one declares another session's scope. If any of them touch:
 - The same files you're about to touch, or
 - The same bounded context you're about to work in, or
 - An invariant you're about to depend on,
@@ -49,7 +51,7 @@ Read every file in `docs/plans/_active/`. Each one declares another session's sc
 
 ### 4. Declare your own scope
 
-Write a file at `docs/plans/_active/<session-id>.md`:
+Write a file at `lexicon/plans/_active/<session-id>.md`:
 
 ```markdown
 # Active session: <session-id>
@@ -59,10 +61,10 @@ Started: <iso timestamp>
 <One-paragraph description of what you're about to do, in the user's words.>
 
 ## Bounded context
-<Which context from system.md this work lives in. If unclear, name that explicitly.>
+<Which context from system.md this work lives in. If a Domain View exists for it (`lexicon/views/<slug>.md`), name the view file. If unclear, say so explicitly — that's a real signal.>
 
 ## Vocabulary in play
-- <Term from glossary>: <how it applies here>
+- <Term from glossary (system.md or owning view)>: <how it applies here>
 - <Term from glossary>: <how it applies here>
 
 ## Invariants you're depending on
@@ -80,7 +82,7 @@ Be honest. If you don't know which bounded context the work lives in, say so —
 
 ### 5. Check vocabulary completeness
 
-For each significant noun or verb in the task description that *isn't* in `docs/system.md`'s glossary, flag it:
+For each significant noun or verb in the task description that *isn't* in `lexicon/system.md`'s glossary, flag it:
 
 > Heads up — the task uses the term "X" which isn't in the glossary. Want to:
 > (a) add it to the glossary now,
@@ -91,7 +93,7 @@ Default to (c) for low-stakes work, (a) for anything touching a bounded-context 
 
 ### 6. Open a scratchpad
 
-Create `docs/plans/_scratch/<session-id>.md`:
+Create `lexicon/plans/_scratch/<session-id>.md`:
 
 ```markdown
 # Scratch: <session-id>

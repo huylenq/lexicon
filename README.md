@@ -1,6 +1,11 @@
 # lexicon
 
-A document-mediated workflow for coding agents. A Claude Code plugin.
+Plain text / documentation is the medium of alignment (not a spec-driven development workflow, this is not it). The main pains lexicon aimed to solve are:
+
+- Cognitive / mental models gaps and drifts between human and agents.
+- An ideal surface for attention-level that needs human.
+
+Rationale:
 
 > Code is the executable spec. Above the code, a small **cold-layer doc** captures what code can't express well: vocabulary, invariants, bounded contexts, and the "why"s. Lexicon makes sure the human and the agent stay aligned on that doc — through grounding before work, retros at every stopping point, and crystallization when a feature lands.
 
@@ -12,13 +17,13 @@ Lexicon adds five skills to Claude Code:
 
 | Skill | Fires when | Does |
 |---|---|---|
-| `lex-bootstrap` | Once, at adoption time | Scans existing docs and code, drafts a first-cut `system.md`, migrates ADR-shaped content, sets up `docs/` structure, produces a triage report |
-| `lex-ground` | Before substantive coding work | Reads `docs/system.md`, declares scope (terms, invariants, bounded context), checks for in-flight work by other agents, opens a scratchpad |
+| `lex-bootstrap` | Once, at adoption time | Scans existing docs and code, drafts a first-cut `system.md`, migrates ADR-shaped content, sets up `lexicon/` structure, produces a triage report |
+| `lex-ground` | Before substantive coding work | Reads `lexicon/system.md`, declares scope (terms, invariants, bounded context), checks for in-flight work by other agents, opens a scratchpad |
 | `lex-retro` | At every natural stopping point | Always logs; only escalates a proposal when vocabulary, invariants, or boundaries shifted |
 | `lex-crystallize` | When a multi-session feature is complete | Reviews cumulative changes and proposes a coherent diff to `system.md` |
 | `lex-audit` | Periodically (quarterly, on demand) | Re-validates `system.md` against current code; flags stale glossary, dead invariants, undeclared contexts, hygiene rot. Produces a triage list, never edits `system.md` directly |
 
-The skills coordinate through a `docs/` folder structure that the plugin manages. Concurrent agents are made safe by sharding everything per-session and treating `system.md` as a write-protected merge point.
+The skills coordinate through a `lexicon/` folder structure that the plugin manages. Concurrent agents are made safe by sharding everything per-session and treating `system.md` as a write-protected merge point.
 
 ## Why
 
@@ -56,16 +61,16 @@ The skills are flat-named (`lex-overview`, `lex-bootstrap`, `lex-ground`, `lex-r
 
 ## First use in a project
 
-The first time you do substantive work in a project, `lex-ground` will detect there's no `docs/system.md` and prompt you to run `lex-bootstrap` — the dedicated, one-shot adoption pass. Run it (either by saying "set up lexicon" or by accepting the prompt), and you'll get:
+The first time you do substantive work in a project, `lex-ground` will detect there's no `lexicon/system.md` and prompt you to run `lex-bootstrap` — the dedicated, one-shot adoption pass. Run it (either by saying "set up lexicon" or by accepting the prompt), and you'll get:
 
 ```
-docs/
+lexicon/
   system.md                # drafted from existing docs + code, with TODO markers
   decisions/               # ADRs (migrated from any ADR-shaped existing docs)
   plans/                   # _active, _scratch, _proposals, _retros, _archive
 ```
 
-Plus a **triage report** under `docs/plans/_proposals/bootstrap-<date>.md` listing drift flags, vocabulary inconsistencies, and recommended file moves for the human to review.
+Plus a **triage report** under `lexicon/plans/_proposals/bootstrap-<date>.md` listing drift flags, vocabulary inconsistencies, and recommended file moves for the human to review.
 
 The drafted `system.md` is intentionally a first cut — invariants and "why"s are in your head, not the code, so plan for a focused distillation session afterward where you walk through the TODO markers with the agent.
 
@@ -74,7 +79,7 @@ If you don't want to use lexicon on a particular project, decline the bootstrap 
 ## Project shape
 
 ```
-docs/
+lexicon/
   system.md                # cold layer: glossary, invariants, bounded contexts, "why"s
   decisions/               # ADRs, append-only
   calibration.md           # project-specific notes on what counts as "significant"

@@ -4,9 +4,35 @@ All notable changes to lexicon will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) with the following convention:
 
-- **Major** — the project shape changes (breaks existing `docs/` structures).
+- **Major** — the project shape changes (breaks existing `lexicon/` structures).
 - **Minor** — skill behavior changes meaningfully (escalation rules, scope of checks, new skills).
 - **Patch** — skill description tuning, prose edits, bug fixes in templates.
+
+While in 0.x, breaking project-shape changes bump the minor (0.x.0 → 0.(x+1).0); the major bump is reserved for a stability commitment at 1.0.
+
+## [0.4.0] - 2026-05-04
+
+### BREAKING
+
+- **Renamed `docs/` → `lexicon/`** as the lexicon-owned root folder. This avoids colliding with projects that already use `docs/` for runbooks, API references, onboarding guides, etc. — lexicon's structure now lives in its own clearly-named directory and never claims a generic name. All paths inside the tree are unchanged: `lexicon/system.md`, `lexicon/views/`, `lexicon/decisions/`, `lexicon/calibration.md`, `lexicon/plans/{_active,_scratch,_proposals,_retros,_archive,<feature>}/`.
+
+  **Migration for existing projects:** `git mv docs lexicon`, then update any external references (tooling, links, scripts) that hard-coded the old path. No file *contents* need to change — the folder rename is the entire migration.
+
+  **Why this is breaking despite small surface area:** project-shape changes break automation, links, and muscle memory. The CLAUDE.md convention explicitly classes folder renames as a major-equivalent event.
+
+### Changed
+
+- **Skill descriptions trimmed.** All six descriptions now sit between 58–76 words (previously 60–250). The redundant trailing `Read lex-overview if you haven't already this session.` was tightened to `Read lex-overview first.`, and the boilerplate `This is one of N lexicon skills` line was removed entirely (the count had drifted across versions — `lex-ground` and `lex-retro` still claimed "one of three" — and `lex-overview` is the canonical source for the skill list anyway).
+
+- **Structural checks consolidated into `lex-overview`.** The six checks (vocabulary, vocabulary consistency, invariants, boundaries, decisions, declared-scope match) used to be restated in `lex-retro` and `lex-crystallize` and inverted in `lex-audit`'s phase headings. They now have a single canonical definition under `lex-overview` § Structural checks, with a `### Per-skill direction` block explaining how each consuming skill applies them (forward against a session diff for retro, forward against a cumulative feature diff for crystallize, backward against existing claims for audit). `lex-retro` and `lex-crystallize` reference the canonical list and only carry their direction-specific framing; `lex-audit` keeps its audit-specific procedural phases (literal grep, healthy/drifted/dead/mismatch classification, hygiene sweep) and adds a one-paragraph cross-reference noting that phases 1–3 invert checks 1–4.
+
+- **CLAUDE.md.** Removed the "chicken-and-egg" framing about lexicon needing to dogfood itself — lexicon is a skill bundle, not a domain codebase, so the cold-doc shape doesn't apply. Updated the project-shape-change note and the provenance section to reflect the `docs/` → `lexicon/` rename. Convention bullet now references `lexicon/`.
+
+### Why ship 0.4.0 now (vs bundling with 0.5)
+
+The path collision and the description bloat were both surfaced by the same review pass on v0.3.0's skills. They're independent — the rename is a shape change, the trim is description tuning — but they share a triggering cause (the pass exposing what real review catches that internal iteration didn't), and they both touch every skill file. Shipping them together avoids two consecutive revs of the same set of files.
+
+The structural-checks consolidation is the riskier change of the three, because it relies on `lex-overview` being reliably loaded before retro/crystallize/audit fire. If that assumption holds in real use, the consolidation removes ~60 lines of restated content; if it doesn't, retro and crystallize are missing a checklist they depend on. The fallback if it fails: re-inline the six checks into each skill body as the v0.1.0 design did. This is the open question to watch most closely after this release.
 
 ## [0.3.0] - 2026-05-04
 

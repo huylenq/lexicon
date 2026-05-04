@@ -1,6 +1,6 @@
 ---
 name: lex-bootstrap
-description: "Use this skill at adoption time when a project is being set up to use lexicon for the first time. This is the dedicated, one-shot replacement for the bootstrap step that used to live inside lex-ground — run it once per project, not per session. Trigger when the user says 'set up lexicon', 'adopt lexicon', 'bootstrap lexicon', 'migrate this project to lexicon', or when lex-ground detects no docs/system.md and the project clearly has substantive existing docs (docs/, ARCHITECTURE.md, DESIGN.md, RFCs, ADR folders) or non-trivial code. Unlike lex-ground's old bootstrap subroutine — which only scanned code — this skill reads existing docs AND code, distills a first-cut system.md from the intersection, migrates ADR-shaped content into docs/decisions/, and produces a triage list for the user. It does NOT try to fully complete the distillation autonomously; the cold doc's authority comes from human review, and this skill's job is to lower the cost of getting there. This is one of four lexicon skills — read lex-overview if you haven't already this session."
+description: "Run once at adoption time, when a project is being set up to use lexicon for the first time. Trigger when the user says 'set up lexicon', 'adopt lexicon', 'bootstrap lexicon', 'migrate to lexicon', or when lex-ground finds no lexicon/system.md and the project has substantive existing docs (ARCHITECTURE.md, RFCs, ADR folders) or non-trivial code. Reads existing docs and code, drafts a first-cut system.md, migrates ADR-shaped content, produces a triage list. Read lex-overview first."
 ---
 
 # Lexicon: bootstrap
@@ -14,22 +14,22 @@ If you haven't loaded `lex-overview` yet this session, read it first.
 Run when:
 
 - The user says they want to adopt lexicon for this project ("set up lexicon", "bootstrap lexicon", "migrate to lexicon", "adopt the lexicon workflow").
-- `lex-ground` fires on a project with no `docs/system.md` and surfaces "this project should bootstrap first".
+- `lex-ground` fires on a project with no `lexicon/system.md` and surfaces "this project should bootstrap first".
 - The user is starting a new project and wants the lexicon structure in place from day one (in this case, the doc-audit phases mostly no-op — that's fine).
 
 Don't run when:
 
-- A `docs/system.md` already exists and is current — that's not bootstrap, that's `lex-audit` (sanity check) territory.
-- A `docs/system.md` exists but seems out of date — also `lex-audit`, not this skill. Re-bootstrapping over a real `system.md` would clobber human-curated content. Refuse.
+- A `lexicon/system.md` already exists and is current — that's not bootstrap, that's `lex-audit` (sanity check) territory.
+- A `lexicon/system.md` exists but seems out of date — also `lex-audit`, not this skill. Re-bootstrapping over a real `system.md` would clobber human-curated content. Refuse.
 - The project is a throwaway script or single-file prototype — lexicon is not free, and very small projects don't benefit. Surface this honestly: "This project looks small enough that lexicon may be overhead. Want me to bootstrap anyway?"
 
 ## Pre-flight checks
 
 Before doing anything destructive, confirm:
 
-1. `docs/system.md` does **not** exist. If it does, stop and surface — the user should consider `lex-audit` (when that skill exists) or hand-edit, not re-bootstrap.
-2. The user has explicitly opted in. This skill creates a `docs/` structure and writes a draft `system.md`. Don't run it speculatively.
-3. The repo is in a clean-ish git state, or the user accepts that bootstrap will create unstaged changes. If the working tree has a lot of uncommitted churn, surface it: "Bootstrap will add a `docs/` tree and possibly move ADR-shaped files. You have N uncommitted files — want to commit those first, or proceed?"
+1. `lexicon/system.md` does **not** exist. If it does, stop and surface — the user should consider `lex-audit` (when that skill exists) or hand-edit, not re-bootstrap.
+2. The user has explicitly opted in. This skill creates a `lexicon/` structure and writes a draft `system.md`. Don't run it speculatively.
+3. The repo is in a clean-ish git state, or the user accepts that bootstrap will create unstaged changes. If the working tree has a lot of uncommitted churn, surface it: "Bootstrap will add a `lexicon/` tree and possibly move ADR-shaped files. You have N uncommitted files — want to commit those first, or proceed?"
 
 ## Phase 1 — Audit existing docs
 
@@ -46,8 +46,8 @@ Bucket every file you find:
 | Bucket | Cue | Where it goes |
 |---|---|---|
 | **Cold-layer candidate** | Glossary fragments, "principles", architectural invariants, "why X over Y" reasoning, conceptual model descriptions | Distillation source for `system.md` |
-| **ADR-like** | "We chose X because Y" prose, decision records, RFCs with a clear decision | Migrate to `docs/decisions/` (Phase 6) |
-| **Hot/feature docs** | Active feature specs, in-flight plans, "next quarter" docs | Move to `docs/plans/<feature>/` if active, `docs/plans/_archive/` if done |
+| **ADR-like** | "We chose X because Y" prose, decision records, RFCs with a clear decision | Migrate to `lexicon/decisions/` (Phase 6) |
+| **Hot/feature docs** | Active feature specs, in-flight plans, "next quarter" docs | Move to `lexicon/plans/<feature>/` if active, `lexicon/plans/_archive/` if done |
 | **Reference / runbook** | API docs, deployment guides, onboarding, "how to run X" | **Leave alone.** Not lexicon's domain. Don't touch. |
 | **Stale** | "TODO: clean up" from years ago, abandoned drafts | Surface for the user to decide. Don't auto-delete. |
 
@@ -75,7 +75,7 @@ This is the **highest-signal extraction zone**, the thing `lex-ground`'s old cod
 
 ## Phase 4 — Draft `system.md`
 
-Copy `${SKILL_DIR}/templates/system.md.template` (i.e. `templates/system.md.template` next to this `SKILL.md`) to `docs/system.md`. Resolve `${SKILL_DIR}` based on install mode: `${CLAUDE_PLUGIN_ROOT}/skills/lex-bootstrap/templates/...` for plugin installs, `~/.claude/skills/lex-bootstrap/templates/...` (or project `.claude/skills/lex-bootstrap/templates/...`) for `npx skills` installs. If neither resolves, fall back to drafting `system.md` from scratch using the structure described in `lex-overview`.
+Copy `${SKILL_DIR}/templates/system.md.template` (i.e. `templates/system.md.template` next to this `SKILL.md`) to `lexicon/system.md`. Resolve `${SKILL_DIR}` based on install mode: `${CLAUDE_PLUGIN_ROOT}/skills/lex-bootstrap/templates/...` for plugin installs, `~/.claude/skills/lex-bootstrap/templates/...` (or project `.claude/skills/lex-bootstrap/templates/...`) for `npx skills` installs. If neither resolves, fall back to drafting `system.md` from scratch using the structure described in `lex-overview`.
 
 Fill in the draft using the cross-referenced material from Phase 3:
 
@@ -86,14 +86,26 @@ Fill in the draft using the cross-referenced material from Phase 3:
 
 Be honest about what's a guess. The drafted `system.md` should read like an honest first cut, not a confident model. Sections that are mostly TODO are *more useful* than sections that confidently invent content.
 
-If the draft would exceed ~500 lines, **stop and stage it differently** — either narrow scope (skip whole categories) or surface to the user that the project is unusually large and may need multiple `system.md` slices. Don't ship a 1500-line bootstrapped doc; that's already broken.
+If the draft would exceed ~500 lines, **stop and consider Domain Views** (see Phase 4b) before forcing a 500-line `system.md`. Views are the lexicon-supported way to partition the cold layer when one file is genuinely insufficient. Don't ship a 1500-line bootstrapped doc; that's already broken.
+
+## Phase 4b — Decide whether to create Domain Views (optional)
+
+If the project has 3+ substantial bounded contexts each carrying their own self-contained vocabulary and invariants, consider creating Domain Views during bootstrap rather than forcing everything into one `system.md`. Heuristics:
+
+- **Yes, create views** when: bounded contexts have >5 owned terms each; the would-be `system.md` is heading past 500 lines; the project has long architectural history with rich per-context detail.
+- **No, stay with one `system.md`** when: contexts are still settling; vocabulary is small; project is small or new. Views are non-breaking — promoting later is a routine refactor.
+- **Mixed** is normal: create views for the 2–4 richest contexts; let smaller contexts live as one-paragraph entries in `system.md`'s bounded-contexts index. Not every context needs a view.
+
+If creating views: copy `${SKILL_DIR}/templates/view.md.template` to `lexicon/views/<context-slug>.md` for each chosen context. Slim `system.md` to be the holistic index — cross-cutting glossary (terms genuinely owned by no single context), bounded-contexts index pointing at view files, cross-context invariants, cross-context architecture seams, ADR pointers. Each view carries the local glossary, local invariants, internal seams, and scoped ADR pointers.
+
+**Ownership rule**: every term has exactly *one* owning location (one view OR `system.md`'s cross-cutting glossary). Other views may *use* a term but never *redefine* it. The bootstrap is the moment to set this discipline cleanly — once views drift apart with redundant definitions, recovery is painful.
 
 ## Phase 5 — Set up the directory structure
 
 Create:
 
 ```
-docs/
+lexicon/
   decisions/
   plans/_active/
   plans/_scratch/
@@ -102,13 +114,15 @@ docs/
   plans/_archive/
 ```
 
-Be defensive — if `docs/decisions/` already exists from a prior workflow, leave it alone (Phase 6 will populate it). If `docs/plans/` exists with non-lexicon content, surface to the user before merging — don't silently restructure their existing plans folder.
+Plus `lexicon/views/` if Phase 4b decided to use Domain Views.
+
+Be defensive — if `lexicon/decisions/` already exists from a prior workflow, leave it alone (Phase 6 will populate it). If `lexicon/plans/` exists with non-lexicon content, surface to the user before merging — don't silently restructure their existing plans folder.
 
 ## Phase 6 — Migrate ADR-shaped content
 
 For each file from Phase 1's "ADR-like" bucket:
 
-- If it's already in roughly ADR format (context, decision, consequences) → copy to `docs/decisions/ADR-<NNNN>-<short-title>.md` with a renumbered ID. Preserve original date in the body.
+- If it's already in roughly ADR format (context, decision, consequences) → copy to `lexicon/decisions/ADR-<NNNN>-<short-title>.md` with a renumbered ID. Preserve original date in the body.
 - If it's prose with embedded decisions → don't try to auto-extract. Add to triage report: "this doc contains decisions but isn't in ADR shape; user should extract manually or leave as reference."
 - If it's an RFC with a clear "decision" or "outcome" section → extract the decision portion as an ADR; leave the original RFC alone (often it has discussion value beyond the decision itself).
 
@@ -120,24 +134,25 @@ ADRs are append-only — once migrated, they stay there. Don't edit existing ADR
 
 For files in the "hot/feature docs" and "stale" buckets, **do not auto-move**. Instead, recommend in the triage report:
 
-- For active feature docs: "move `docs/feature-X-spec.md` to `docs/plans/<feature-X>/spec.md`?"
-- For done feature docs: "archive `docs/old-redesign-plan.md` to `docs/plans/_archive/old-redesign/`?"
+- For active feature docs: "move `docs/feature-X-spec.md` to `lexicon/plans/<feature-X>/spec.md`?"
+- For done feature docs: "archive `docs/old-redesign-plan.md` to `lexicon/plans/_archive/old-redesign/`?"
 - For stale: "this looks abandoned (last touched 2 years ago, references removed APIs) — archive or delete?"
 
 Auto-moving feature docs is a high-blast-radius action — they may have URLs, links, or be cited elsewhere. Let the user choose.
 
 ## Phase 8 — Write the triage report
 
-Write `docs/plans/_proposals/bootstrap-<iso-date>.md` with this shape:
+Write `lexicon/plans/_proposals/bootstrap-<iso-date>.md` with this shape:
 
 ```markdown
 # Bootstrap report
 Run on: <iso timestamp>
 
 ## What was created
-- `docs/system.md` (drafted; <N> lines, <M> TODO markers)
-- `docs/decisions/` with <K> ADRs migrated from <sources>
-- `docs/plans/` directory structure
+- `lexicon/system.md` (drafted; <N> lines, <M> TODO markers)
+- `lexicon/views/` with <V> Domain Views: <list>  (or "no views; one `system.md` was sufficient")
+- `lexicon/decisions/` with <K> ADRs migrated from <sources>
+- `lexicon/plans/` directory structure
 
 ## Doc audit summary
 - <N> existing docs scanned across <locations>
@@ -168,8 +183,8 @@ Run on: <iso timestamp>
 - ...
 
 ## Recommended file moves (NOT done — needs your call)
-- Active feature doc `docs/feature-X.md` → `docs/plans/feature-X/spec.md`?
-- Done feature doc `docs/old-thing.md` → `docs/plans/_archive/old-thing/`?
+- Active feature doc `docs/feature-X.md` → `lexicon/plans/feature-X/spec.md`?
+- Done feature doc `docs/old-thing.md` → `lexicon/plans/_archive/old-thing/`?
 - ...
 
 ## Possibly stale (your call)
@@ -177,7 +192,7 @@ Run on: <iso timestamp>
 - ...
 
 ## Next step
-Run a focused-distillation session (no other task mixed in) where you walk through `docs/system.md` with the agent and:
+Run a focused-distillation session (no other task mixed in) where you walk through `lexicon/system.md` with the agent and:
 1. Confirm or revise each `<!-- TODO -->` marker.
 2. Cull glossary entries that aren't really domain vocabulary.
 3. Validate or remove each invariant.
@@ -190,7 +205,7 @@ Expect this to take 30–90 minutes for a moderately documented project. The dra
 
 Summarize in chat, briefly:
 
-> Bootstrap complete. Drafted `docs/system.md` (<N> lines, <M> TODOs), migrated <K> ADRs, and set up the `docs/plans/` structure. Triage report at `docs/plans/_proposals/bootstrap-<iso>.md` — review when ready, especially the "drift flags" and "inconsistencies" sections. Recommended next step: a focused-distillation session to walk through `system.md` with `<!-- TODO -->` markers in mind.
+> Bootstrap complete. Drafted `lexicon/system.md` (<N> lines, <M> TODOs), migrated <K> ADRs, and set up the `lexicon/plans/` structure. Triage report at `lexicon/plans/_proposals/bootstrap-<iso>.md` — review when ready, especially the "drift flags" and "inconsistencies" sections. Recommended next step: a focused-distillation session to walk through `system.md` with `<!-- TODO -->` markers in mind.
 
 Don't dump the report content into chat. The file is the artifact; chat is the pointer.
 

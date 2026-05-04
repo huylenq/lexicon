@@ -4,7 +4,7 @@ This file is for a future Claude Code session opening this repo to work on lexic
 
 If you're an agent reading this: read it before proposing changes to skill descriptions, escalation rules, or the project-shape conventions. The current shape is the result of several rounds of pushback on plausible-but-wrong defaults; understanding *why* those defaults were rejected matters more than the surface decisions.
 
-This is also a chicken-and-egg situation: lexicon is a workflow for managing codebases via a `docs/system.md`, and lexicon itself doesn't (yet) have one. Once v0.1.0 has real use, the right move is probably to dogfood — make this repo a lexicon-managed project and let the plugin manage its own evolution. Until then, this file plays the role `system.md` would play.
+Lexicon is a skill bundle, not a domain codebase, so the cold-doc shape (`lexicon/system.md` + bounded contexts + invariants) doesn't apply here — the artifact being maintained is a coherent set of skill descriptions and bodies, not a running system with executable invariants. This file plays the role `system.md` would play for a coding project: capturing the design rationale that's hard to recover from the skill files alone.
 
 ---
 
@@ -27,8 +27,8 @@ The DDD heritage matters. The single most load-bearing element is **ubiquitous l
 
 This vocabulary recurs throughout the design. Internalize it before changing things.
 
-- **Cold layer** — `docs/system.md`. Glossary, invariants, bounded contexts, "why"s. Evolves at the speed of *learning*, not the speed of typing. Small (under ~500 lines). Write-protected: changes only via reviewed proposals.
-- **Hot layer** — per-feature plans in `docs/plans/<feature>/`. Born when work starts, absorbed (crystallized) or discarded when work lands.
+- **Cold layer** — `lexicon/system.md`. Glossary, invariants, bounded contexts, "why"s. Evolves at the speed of *learning*, not the speed of typing. Small (under ~500 lines). Write-protected: changes only via reviewed proposals.
+- **Hot layer** — per-feature plans in `lexicon/plans/<feature>/`. Born when work starts, absorbed (crystallized) or discarded when work lands.
 - **Code** — the executable spec. Evolves freely.
 
 Three temperatures of session artifacts, distinguished by who reads them:
@@ -95,7 +95,7 @@ The agent will, by default, want to write everything into one place. The folder 
 
 ### Why proposals, not direct writes
 
-`system.md` is treated as write-protected: skills produce **proposals** in `docs/plans/_proposals/`, never edit the file directly. This is the serialization point that makes concurrent agents safe — multiple sessions can fan out freely, and conflicts surface at merge time rather than at write time.
+`system.md` is treated as write-protected: skills produce **proposals** in `lexicon/plans/_proposals/`, never edit the file directly. This is the serialization point that makes concurrent agents safe — multiple sessions can fan out freely, and conflicts surface at merge time rather than at write time.
 
 The user is the merge coordinator. This is a feature, not a bug — it forces deliberate review of the cold doc, which is the moment that mental-model alignment actually happens.
 
@@ -184,7 +184,7 @@ The crystallize skill explicitly handles this case ("I see only N retros for thi
 
 ### Plan-mode interaction
 
-Native plan mode and `docs/plans/<feature>/` are meant to compose: native plan mode for the interactive draft stage, materialization to `_active/<feature>/` when the plan is substantial enough to outlive the session. v0.1.0 has no `materialize-plan` skill. The user does it manually if they want it.
+Native plan mode and `lexicon/plans/<feature>/` are meant to compose: native plan mode for the interactive draft stage, materialization to `_active/<feature>/` when the plan is substantial enough to outlive the session. v0.1.0 has no `materialize-plan` skill. The user does it manually if they want it.
 
 The materialization skill is the obvious next addition. The hard part is the *threshold* — when is a plan worth persisting? "More than X files touched" is too mechanical. "Crosses a system.md boundary" is closer. Worth thinking about before adding.
 
@@ -208,9 +208,9 @@ Cheap edits, in increasing order of risk:
 
 4. **Adding a skill** (minor). Most likely candidates: `materialize-plan`, `aggregate-retros`. Each one should be justified by a concrete recurring failure in real use, not by "it would be nice if..."
 
-5. **Project-shape changes** (major). Renaming directories, restructuring `docs/`, changing the file conventions. These break existing lexicon-managed projects and should be very rare. Bump major version, document migration steps.
+5. **Project-shape changes** (major). Renaming directories, restructuring `lexicon/`, changing the file conventions. These break existing lexicon-managed projects and should be very rare. Bump major version, document migration steps.
 
-When in doubt about whether something is patch/minor/major, ask: "would an existing lexicon user need to do anything to upgrade?" If no → patch. If yes-but-easy → minor. If their existing `docs/` folder breaks → major.
+When in doubt about whether something is patch/minor/major, ask: "would an existing lexicon user need to do anything to upgrade?" If no → patch. If yes-but-easy → minor. If their existing `lexicon/` folder breaks → major.
 
 ---
 
@@ -246,7 +246,7 @@ This plugin emerged from a long design conversation with the author about how to
 1. The user described the problem space (mental model alignment, validatable specs, document as medium).
 2. We landed on the cold/hot/code three-layer model.
 3. Domain-driven design's ubiquitous language was named as the load-bearing primitive.
-4. Implementation was anchored to Claude Code's existing primitives (skills, the `docs/` convention, no new infrastructure).
+4. Implementation was anchored to Claude Code's existing primitives (skills, a project-local doc convention — originally `docs/`, later renamed to `lexicon/` to avoid colliding with projects' existing docs trees, no new infrastructure).
 5. Several plausible-but-wrong defaults were rejected through critique:
    - Slash commands as the primary trigger (too opt-in).
    - Significance judgment for retro escalation (agent is a bad judge).
