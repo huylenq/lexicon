@@ -1,6 +1,6 @@
 ---
-name: retro
-description: "Use this skill at every natural stopping point in a coding session — when a task is complete, tests pass and the user is moving on, or the user signals satisfaction ('looks good', 'ok that's done', 'thanks'). This is NOT optional based on perceived significance. Run it even if the session was 'just chatting' or felt small. The skill itself decides whether anything needs to escalate to the human; most sessions produce a silent log entry and nothing more. Skipping this skill is how spec drift goes undetected and the cold doc rots. This is one of three lexicon skills — read lexicon:overview if you haven't already this session."
+name: lex-retro
+description: "Use this skill at every natural stopping point in a coding session — when a task is complete, tests pass and the user is moving on, or the user signals satisfaction ('looks good', 'ok that's done', 'thanks'). This is NOT optional based on perceived significance. Run it even if the session was 'just chatting' or felt small. The skill itself decides whether anything needs to escalate to the human; most sessions produce a silent log entry and nothing more. Skipping this skill is how spec drift goes undetected and the cold doc rots. This is one of three lexicon skills — read lex-overview if you haven't already this session."
 ---
 
 # Lexicon: retro
@@ -9,7 +9,7 @@ This skill closes the loop on a coding session. It runs at every stopping point.
 
 The point: **the question gets asked, every time.**
 
-If you haven't loaded `lexicon:overview` yet this session, read it first.
+If you haven't loaded `lex-overview` yet this session, read it first.
 
 ## Recognize the trigger
 
@@ -23,7 +23,7 @@ If unsure whether a stopping point has been reached, lean toward running. The co
 
 ## Find the session ID
 
-Look for `$LEXICON_SESSION_ID` or read `docs/plans/_scratch/.session-id`. If neither exists, the `ground` skill never ran for this session — note it in the retro ("session ran without grounding; consider whether the work was genuinely trivial"). Mint an ID now if needed.
+Look for `$LEXICON_SESSION_ID` or read `docs/plans/_scratch/.session-id`. If neither exists, the `lex-ground` skill never ran for this session — note it in the retro ("session ran without grounding; consider whether the work was genuinely trivial"). Mint an ID now if needed.
 
 ## Gather inputs
 

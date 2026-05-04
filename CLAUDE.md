@@ -45,14 +45,30 @@ The cool tier exists deliberately. It's there to **make the question get asked**
 
 ## Design decisions and their reasoning
 
-### Why three skills, not one
+### Why four skills, not one
 
-Could be a single `lexicon` skill that branches internally. Rejected because skill descriptions are the trigger mechanism — separate skills give the agent three different sets of contextual cues to fire on. `ground` triggers on "starting work" cues; `retro` triggers on "stopping point" cues; `crystallize` triggers on "feature done" cues. Conflating them would weaken triggering.
+Could be a single `lexicon` skill that branches internally. Rejected because skill descriptions are the trigger mechanism — separate skills give the agent four different sets of contextual cues to fire on. `bootstrap` triggers on "set up lexicon" cues; `ground` triggers on "starting work" cues; `retro` triggers on "stopping point" cues; `crystallize` triggers on "feature done" cues. Conflating them would weaken triggering.
+
+(v0.1.0 shipped with three: bootstrap was a subroutine inside `ground`. v0.2.0 split it out — see the dedicated rationale below.)
+
+### Why `lex-bootstrap` is its own skill, not a subroutine of `lex-ground`
+
+In v0.1.0, "first time in a project" was handled inline at the top of `lex-ground`'s body. The migration question for projects with existing docs surfaced the gap: the inline subroutine could only afford a *codebase* scan, not a full doc audit. That meant for any project with substantive existing documentation (architecture docs, design notes, RFCs, ADR folders), the drafted `system.md` would systematically miss exactly the highest-value cold-layer content.
+
+Splitting bootstrap out lets the dedicated skill spend tokens on:
+- Reading existing docs and bucketing them.
+- Cross-referencing doc vocabulary against code identifiers (the strongest signal for real ubiquitous-language candidates).
+- Migrating ADR-shaped existing docs.
+- Producing a structured triage report rather than a fait-accompli draft.
+
+This work doesn't fit inside a per-task grounding step — both because it's heavyweight and because the user's mental moment is different (adoption is a deliberate decision, not a drive-by side effect of starting a task). Triggering cues are different too: "set up lexicon" / "adopt lexicon" / "migrate to lexicon" vs the per-task triggers `ground` fires on.
+
+The natural counterpart — a periodic `lex-audit` skill that re-validates `system.md` against current code (stale glossary, dead invariants, hygiene rot) — is deferred. Both `bootstrap` and `audit` are "non-task reconciliation between `system.md` and reality" at project scope, but they're different enough in inputs (existing docs vs current code), outputs (initial draft vs incremental flags), and timing (one-shot vs periodic) that unifying them under a single `lex-reconcile` would weaken triggering on both. Add `audit` once there's real usage data on what kinds of drift accumulate.
 
 ### Why an `overview` skill, not embedded rules
 
 Earlier draft embedded the workflow rules in each skill's body. Rejected because:
-- Triplication: the rules would appear in three SKILL.md files, drifting over time.
+- Quadruplication: the rules would appear in four SKILL.md files, drifting over time.
 - Context bloat: each skill firing would inject the full ruleset.
 
 `overview` is loaded once per session (cross-referenced from the other skills' first instructions) and stays in context for everything that follows. It's a soft contract — if `overview` doesn't load reliably in practice, the fallback is to inline the most critical rules into each skill's body.
@@ -104,12 +120,16 @@ Until then, **don't add a hook**. The skill-only approach has the right shape; r
 
 ### Why the skill folder names are short
 
-Skill folder names drive the slash-command form (`lexicon:NAME`). Considered long names (`ground-in-vocabulary`, `session-retro`) for self-description. Picked short (`ground`, `retro`, `crystallize`) for command ergonomics — the user types these. The descriptions inside the SKILL.md files carry the self-description weight.
+Skill folder names drive the slash-command form. Considered long names (`ground-in-vocabulary`, `session-retro`) for self-description. Picked the short `lex-` prefixed names (`lex-overview`, `lex-bootstrap`, `lex-ground`, `lex-retro`, `lex-crystallize`) for command ergonomics — the user types these — while still encoding the lexicon provenance and avoiding collisions with generic vocabulary in `~/.claude/skills/`.
+
+The prefix-rather-than-namespace decision matters because `npx skills` (vercel-labs/skills) is a common alternate install path that does **not** apply Claude Code's plugin namespace. Under `npx skills`, what would be `lexicon:ground` in marketplace mode just becomes `ground` — too generic, and a likely collision. Picking `lex-ground` as the actual skill name (in YAML frontmatter and folder name) sidesteps this entirely: the same flat names work in both install modes.
 
 If you rename a skill folder, also update:
-- The cross-references in the *other* skills' SKILL.md files (they reference each other by namespaced name).
+- The `name:` frontmatter inside that skill's `SKILL.md` (must match the folder name).
+- The cross-references in the *other* skills' SKILL.md files (they reference each other by name).
 - README.md.
-- This file's table of contents.
+- CHANGELOG.md.
+- This file's references.
 
 ---
 
@@ -131,9 +151,9 @@ These are the things v0.1.0 doesn't answer. Future iterations should grapple wit
 
 ### How much human authorship does `system.md` actually need?
 
-The bootstrap step in `ground` has the agent draft `system.md` from a codebase scan. The drafted invariants and "why"s are necessarily best-guess. The user is supposed to refine them in a focused session. In practice, will users do that? If they don't, the cold doc starts wrong and the rest of the workflow rests on shaky foundations.
+`lex-bootstrap` drafts `system.md` from existing docs + code, with TODO markers on anything best-guess. The user is supposed to follow up with a focused-distillation session that walks through every TODO. In practice, will users do that? If they don't, the cold doc starts wrong and the rest of the workflow rests on shaky foundations.
 
-Possible mitigation: the bootstrap skill could be more aggressive about flagging "I drafted this but it needs your real input" and refusing to mark sections complete until the user has touched them.
+`lex-bootstrap` already mitigates this somewhat — its triage report is explicitly a list for the human to act on, not an autonomous diff. But there's no enforcement that the user actually runs the distillation session. Open question whether the right move is more pushy ("system.md still has 14 unresolved TODOs — run the distillation session before more substantive work?"), or whether that crosses into nagging.
 
 ### What's the right rotation policy for `_retros/`?
 
@@ -187,7 +207,7 @@ These are conventions the current files follow. Keep them when editing.
 - **Imperative mood** for instructions ("Read X", "Write Y to Z").
 - **Honest hedging** about uncertainty ("If unclear, surface this to the user — that's a real signal, not a failure").
 - **Counter-examples** for behavior that's tempting but wrong ("If you're tempted to call something 'trivial' but it touches a file mentioned in `system.md`, it's not trivial").
-- **Cross-references by namespaced name** (`lexicon:retro`, not just `retro`) when one skill mentions another.
+- **Cross-references by full skill name** (`lex-retro`, not just `retro`) when one skill mentions another. Using the full prefixed name keeps references unambiguous regardless of install mode.
 - **No bullet-point soup.** Prose where possible. Lists only where the items are genuinely parallel.
 - **Pushy descriptions** in the YAML frontmatter, but **measured prose** in the body. The frontmatter has to compete for trigger; the body has to be clear.
 
@@ -198,7 +218,7 @@ These are conventions the current files follow. Keep them when editing.
 If you're a future agent helping iterate on lexicon:
 
 - **Read this file first.** Then `README.md` (user-facing pitch) and `CHANGELOG.md` (what's shipped).
-- **Then read the SKILL.md files** in this order: `overview`, `ground`, `retro`, `crystallize`. Each builds on the previous.
+- **Then read the SKILL.md files** in this order: `lex-overview`, `lex-bootstrap`, `lex-ground`, `lex-retro`, `lex-crystallize`. Each builds on the previous.
 - **Don't edit a SKILL.md without reading the whole skill.** The files are short by design; partial reads lead to inconsistent edits.
 - **For triggering-accuracy work:** don't speculate from the description alone. The user should test the skill on real projects and report back what worked and what didn't. The `skill-creator` skill (in `/mnt/skills/examples/`) has an evaluation flow for more rigorous testing.
 - **When the user disagrees with a draft, push back if you have reasoning, then defer.** The pattern in the original design conversation was: the user critiques, the agent thinks through whether the critique lands, agrees or disagrees with reasoning, and adjusts. Don't just acquiesce — that loses the design rigor.

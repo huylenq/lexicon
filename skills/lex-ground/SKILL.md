@@ -1,36 +1,26 @@
 ---
-name: ground
-description: "Use this skill at the start of any substantive coding work in a project that has (or should have) a docs/system.md file. Run it before writing or modifying code, before drafting plans, whenever a task involves the project's domain concepts. Trigger this even for tasks that feel small, unless they're purely mechanical (typo fixes, dependency bumps, log message tweaks). Skipping this skill is the most common failure mode that causes silent vocabulary drift and architectural inconsistency. This is one of three lexicon skills — read lexicon:overview if you haven't already this session."
+name: lex-ground
+description: "Use this skill at the start of any substantive coding work in a project that has (or should have) a docs/system.md file. Run it before writing or modifying code, before drafting plans, whenever a task involves the project's domain concepts. Trigger this even for tasks that feel small, unless they're purely mechanical (typo fixes, dependency bumps, log message tweaks). Skipping this skill is the most common failure mode that causes silent vocabulary drift and architectural inconsistency. This is one of three lexicon skills — read lex-overview if you haven't already this session."
 ---
 
 # Lexicon: ground
 
 This skill makes sure work is grounded in the project's shared model *before* code is written. It is the entry point into the lexicon workflow.
 
-If you haven't loaded `lexicon:overview` yet this session, read it first. It defines the project shape, the rules, and how `ground`/`retro`/`crystallize` fit together.
+If you haven't loaded `lex-overview` yet this session, read it first. It defines the project shape, the rules, and how `lex-ground` / `lex-retro` / `lex-crystallize` fit together.
 
-## Bootstrap (first time in a project)
+## No `docs/system.md`? Defer to `lex-bootstrap`
 
-If `docs/system.md` doesn't exist, **stop and offer to bootstrap** before doing the user's task:
+If `docs/system.md` doesn't exist, **stop and surface to the user**:
 
-> "This project doesn't have lexicon docs yet. I can set up the structure (`docs/system.md`, `docs/decisions/`, `docs/plans/...`) and draft a first cut of `system.md` from the codebase. The drafted `system.md` will need real review from you — invariants and 'why's are in your head, not the code. Want to proceed?"
+> "This project doesn't have lexicon docs yet. Bootstrapping is a one-shot setup — it scans existing docs and code, drafts a first-cut `system.md`, migrates ADR-shaped content, and produces a triage list. That's a different skill (`lex-bootstrap`) because it warrants a focused pass rather than getting squeezed into the start of an unrelated task. Want to:
+> (a) run `lex-bootstrap` now and come back to the original task after,
+> (b) skip lexicon for this session and not be asked again, or
+> (c) work without lexicon just for now (still ask next session)?"
 
-If yes:
+Don't try to bootstrap inline from this skill. The doc-audit and code-audit phases are too heavyweight to fold into a per-task grounding step, and shortcutting them produces a `system.md` that misses everything sitting in existing `docs/` content. Defer to `lex-bootstrap`.
 
-1. Create the directory structure:
-   ```
-   docs/
-     decisions/
-     plans/_active/
-     plans/_scratch/
-     plans/_proposals/
-     plans/_retros/
-     plans/_archive/
-   ```
-2. Copy `${CLAUDE_PLUGIN_ROOT}/templates/system.md.template` to `docs/system.md` and fill it in from a quick scan of the codebase (key types, modules, top-level concepts). Mark sections that need user input with `<!-- TODO: confirm with user -->`.
-3. Tell the user which sections need their input, and ask whether to continue with the original task now or focus on `system.md` first.
-
-If no, work normally for this session. Don't ask again.
+If the user picks (b), record the decision in a way the agent will remember (a `.lexicon-skip` marker file at the repo root works) so future sessions don't re-prompt. If (c), proceed with the user's task without grounding in `system.md`; this is a graceful fallback, not the intended flow.
 
 ## Mint a session ID
 
@@ -119,7 +109,7 @@ Create `docs/plans/_scratch/<session-id>.md`:
 <Things that contradicted system.md or required re-reading code to understand.>
 ```
 
-Write into this throughout the session. The `retro` skill reads it at the end.
+Write into this throughout the session. The `lex-retro` skill reads it at the end.
 
 ## When to skip the full ritual
 
@@ -129,7 +119,7 @@ Genuinely mechanical work doesn't need full grounding:
 - Log message wording tweaks
 - Renaming a local variable for clarity within a single function
 
-For these, run a minimal version: still mint a session ID, still write a one-line `_active/` file ("trivial: <description>"), still open a scratchpad. Skip steps 1, 5, and the full scope declaration. The `retro` skill needs the session ID to exist.
+For these, run a minimal version: still mint a session ID, still write a one-line `_active/` file ("trivial: <description>"), still open a scratchpad. Skip steps 1, 5, and the full scope declaration. The `lex-retro` skill needs the session ID to exist.
 
 If you're tempted to call something "trivial" but it touches a file mentioned in `system.md`, it's not trivial. Run the full grounding.
 

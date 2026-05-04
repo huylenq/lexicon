@@ -1,15 +1,15 @@
 ---
-name: crystallize
-description: "Use this skill when a multi-session feature, plan, or epic is finished — code is landed, tests pass, the work is conceptually complete. This is the heavier counterpart to lexicon:retro: it reviews the cumulative changes from a feature against system.md, decides what to absorb into the cold doc, and archives the plan. Trigger when the user says things like 'we're done with X', 'feature X is shipped', 'wrap up the X work', or when an entry in docs/plans/<feature>/ has reached completion. Don't use this for every session — use lexicon:retro for that. Use this when a coherent piece of work crosses the finish line. This is one of three lexicon skills — read lexicon:overview if you haven't already this session."
+name: lex-crystallize
+description: "Use this skill when a multi-session feature, plan, or epic is finished — code is landed, tests pass, the work is conceptually complete. This is the heavier counterpart to lex-retro: it reviews the cumulative changes from a feature against system.md, decides what to absorb into the cold doc, and archives the plan. Trigger when the user says things like 'we're done with X', 'feature X is shipped', 'wrap up the X work', or when an entry in docs/plans/<feature>/ has reached completion. Don't use this for every session — use lex-retro for that. Use this when a coherent piece of work crosses the finish line. This is one of three lexicon skills — read lex-overview if you haven't already this session."
 ---
 
 # Lexicon: crystallize
 
-`lexicon:retro` runs at every stopping point. **`lexicon:crystallize` runs at feature-completion**, which is rarer and warrants a deeper pass.
+`lex-retro` runs at every stopping point. **`lex-crystallize` runs at feature-completion**, which is rarer and warrants a deeper pass.
 
 A feature usually spans multiple sessions. Each session's retro looks at one slice. When the whole feature is done, you need a *cumulative* view — what did this body of work, taken together, change about how the system should be understood?
 
-If you haven't loaded `lexicon:overview` yet this session, read it first.
+If you haven't loaded `lex-overview` yet this session, read it first.
 
 ## When to run this
 
@@ -19,8 +19,8 @@ Run when:
 - A native plan-mode plan has been fully executed and verified.
 
 Don't run for:
-- Single-session work (use `lexicon:retro`).
-- Work in progress (run `lexicon:retro` for each stopping point along the way).
+- Single-session work (use `lex-retro`).
+- Work in progress (run `lex-retro` for each stopping point along the way).
 - Bug fixes, even big ones, unless they shifted the model.
 
 If unsure, ask: "Should I crystallize this, or just retro it?" The user knows whether the work was a feature or a session.
@@ -35,11 +35,11 @@ Read:
 5. `docs/decisions/` — recent ADRs that might overlap.
 6. The cumulative code diff for the feature (compare branch or tag-to-tag if available; otherwise reconstruct from the plan's file list).
 
-This is a bigger read than `retro`. Take time on it.
+This is a bigger read than `lex-retro`. Take time on it.
 
 ## Re-run structural checks at feature scope
 
-The same six checks from `retro`, but now applied to the **cumulative** result:
+The same six checks from `lex-retro`, but now applied to the **cumulative** result:
 
 - **Vocabulary**: Are there new terms that have *stuck around and stabilized* across the feature? (Terms that appeared in one session and got renamed by the next aren't worth glossarying.)
 - **Vocabulary consistency**: Across all sessions, did terminology stay coherent? If not, the feature itself surfaced a vocabulary problem worth fixing.
@@ -125,6 +125,6 @@ Don't dump the diff into chat. The proposal file is the artifact; chat is the po
 
 ## On the relationship to retro
 
-If `lexicon:retro` ran properly during the feature, most of the work for crystallization is already done — you're aggregating across retros, not starting from scratch. If retros were *not* run (for whatever reason), crystallization has to do all the structural-check work on the full diff, which is harder and more error-prone. Surface that if you notice it: "I see only N retros for this feature though it spanned M sessions; the crystallization may miss things that proper retros would have caught."
+If `lex-retro` ran properly during the feature, most of the work for crystallization is already done — you're aggregating across retros, not starting from scratch. If retros were *not* run (for whatever reason), crystallization has to do all the structural-check work on the full diff, which is harder and more error-prone. Surface that if you notice it: "I see only N retros for this feature though it spanned M sessions; the crystallization may miss things that proper retros would have caught."
 
 The system is designed to work even with imperfect retro coverage, but it works *best* when the cool-tier logs were faithfully written along the way.
