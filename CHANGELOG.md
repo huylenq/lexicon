@@ -10,6 +10,42 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 While in 0.x, breaking project-shape changes bump the minor (0.x.0 → 0.(x+1).0); the major bump is reserved for a stability commitment at 1.0.
 
+## [0.7.0] - 2026-05-05
+
+### BREAKING
+
+- **Removed `lexicon/calibration.md`.** Project-level calibration was the wrong granularity — most "what counts as significant" is about the user, not the project, so per-project calibration meant the same lessons got re-learned every project. Replaced with **`~/src/lexicon/lexicon-prefs.md`** — a single user-level prefs file (path hardcoded while iterating; portability deferred). Sections cover Workflow, Style, Calibration, and Patterns. Loaded at session start by `lex-overview` and treated as a live override of skill defaults; periodically curated into the SKILL.md bodies themselves and pruned. Project-specific overrides, when genuinely needed, go in the project's `CLAUDE.md` — already always-loaded, no separate file needed.
+
+  **Migration for existing projects:**
+  ```
+  # If you have content in lexicon/calibration.md you want to keep:
+  # - User-level (style, significance, workflow) → move to ~/src/lexicon/lexicon-prefs.md
+  # - Genuinely project-specific → move into the project's CLAUDE.md
+  rm lexicon/calibration.md
+  ```
+
+### Added
+
+- **`lex-feedback` channel via existing skills (no new skill).** When the user says **"for lexicon: <X>"** (or "for lexicon, <X>" / "for lexicon — <X>") during a session, the active skill appends an entry to `lexicon-prefs.md` in the relevant section. The phrasing is deliberately distinct from generic "remember that" — `lex-retro` and `lex-crystallize` only intercept the explicit `for lexicon` form, so the agent doesn't conflate prefs with project memory or the user's PKM.
+
+- **`lex-crystallize` suggests prefs entries on repeated rejections.** When the cumulative pass sees the same kind of flag rejected 3+ times across retros without absorption, it offers a Calibration entry for `lexicon-prefs.md`. Single yes/no, no nagging.
+
+- **`lex-audit` Phase 5 became "Prefs coherence".** Reads `lexicon-prefs.md`, checks whether recent retros honor the entries, suggests new entries for repeated noise patterns, and flags prefs entries old enough to absorb into a SKILL.md (the curation nudge). Replaces the old project-level `calibration.md` coherence check.
+
+### Changed
+
+- **`lex-overview` adds Rule 8: "Load `lexicon-prefs.md` and respect 'for lexicon: …' feedback".** Replaces the old "Calibration over time" rule. Treats prefs entries as live overrides of skill defaults; documents the trigger phrasing and the `CLAUDE.md` escape hatch for genuinely-project-specific overrides.
+
+- **`lex-ground`, `lex-retro`, `lex-crystallize` read prefs instead of `calibration.md`.** Behavior is otherwise the same — Calibration section of `lexicon-prefs.md` plays the role formerly played by per-project `calibration.md`.
+
+### Why ship 0.7.0
+
+Three failure modes of `lexicon/calibration.md` showed up the moment we tried to use it: (1) most calibration is about the user, not the project, so per-project files meant relearning the same lessons every time; (2) "significance" was too narrow an axis — actual feedback the user wants to give is wider (workflow, style, patterns); (3) writing to a separate file mid-session has enough activation energy that it just doesn't happen. Lifting the file to user-level, broadening the axes, and making the trigger inline (`for lexicon: <X>`) addresses all three.
+
+Risk: the path is hardcoded to `~/src/lexicon/lexicon-prefs.md`, which breaks portability for anyone else installing lexicon as a plugin. Acceptable while the prefs format itself is still settling — once stable, the path will move under `${CLAUDE_PLUGIN_ROOT}` or `~/.claude/`.
+
+Open thread: the curation step (absorbing prefs entries into SKILL.md and pruning) is manual and depends on the user actually running it. `lex-audit` Phase 5 nudges, but doesn't enforce. If prefs pile up unaddressed, behavior diverges from the canonical skill bodies. Watch for this.
+
 ## [0.6.0] - 2026-05-04
 
 ### Added

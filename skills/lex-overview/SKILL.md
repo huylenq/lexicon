@@ -27,7 +27,6 @@ lexicon/
   views/                            ← optional: Domain Views (cold-layer slices, see below)
     <context-slug>.md
   decisions/                        ← ADRs, append-only
-  calibration.md                    ← project-specific notes on what counts as "significant"
   retros/                           ← always-written session logs (timestamp-named)
   audits/                           ← audit reports
   bootstrap.md                      ← one-shot adoption triage report (created by lex-bootstrap)
@@ -86,7 +85,7 @@ Same checks, different application:
 
 - **`lex-retro`** runs them forward against one session's diff: *"did this session introduce anything that conflicts with `system.md`?"* Flags land inline in the retro file.
 - **`lex-crystallize`** runs them forward against the cumulative diff since the last crystallization: *"did the accumulated work shift the model?"* Filter for terms that stuck across sessions, invariants that genuinely changed, boundaries that genuinely redrew.
-- **`lex-audit`** runs them backward against existing `system.md` claims: *"for each entry / invariant / boundary in `system.md`, does it still hold in current code?"* Audit also runs hygiene, calibration, and distillation-completion phases that have no forward-flow analogue — see `lex-audit` for those.
+- **`lex-audit`** runs them backward against existing `system.md` claims: *"for each entry / invariant / boundary in `system.md`, does it still hold in current code?"* Audit also runs hygiene and distillation-completion phases that have no forward-flow analogue — see `lex-audit` for those.
 
 ### Domain Views scoping
 
@@ -141,9 +140,13 @@ This applies to the design-system section too. Adding "just one more shade of bl
 
 Skills *can* append directly to `lexicon/decisions/` without going through crystallize. ADRs are history, not changes to the canonical model.
 
-### 8. Calibration over time
+### 8. Load `lexicon-prefs.md` and respect "for lexicon: …" feedback
 
-If `lexicon/calibration.md` exists, read it. It contains project-specific notes about what counts as significant — overrides for the skills' default sense. When the user rejects a flagged drift as noise or flags a missed change, encourage them to add a line to `calibration.md`.
+At session start (when this skill loads), also load `~/src/lexicon/lexicon-prefs.md` if it exists. The path is hardcoded for now while lexicon iterates. The file holds the user's personal overrides for skill behavior — workflow preferences, style, significance calibration, patterns about how the user works. Treat its entries as **live overrides** of skill defaults: a rule there takes precedence over a default rule here or in another skill body, until a future curation absorbs it back into the skill itself.
+
+When the user says **"for lexicon: <X>"** (or "for lexicon, <X>" / "for lexicon — <X>") during a session, append an entry to the relevant section of `lexicon-prefs.md`. This is the explicit feedback channel into the lexicon skill layer; it is distinct from generic "remember that" (which goes to project memory or the user's PKM, not here). Don't intercept the generic phrasing.
+
+Project-specific overrides (the role formerly played by `lexicon/calibration.md`) now live in the project's `CLAUDE.md`, which is the natural home for them. Don't create a new `calibration.md`.
 
 ## When this workflow doesn't apply
 
@@ -153,7 +156,7 @@ The workflow is opt-in per project. Small scripts, throwaway prototypes, and exp
 
 ## Honest limitations
 
-- **The agent is a fallible filter.** Drift flags will sometimes be noise; real changes will sometimes be missed. `calibration.md` is the correction, not the per-session judgment.
+- **The agent is a fallible filter.** Drift flags will sometimes be noise; real changes will sometimes be missed. `lexicon-prefs.md` (Calibration section) is where corrections accumulate, not the per-session judgment.
 - **Cold-layer rot is real.** If `system.md` isn't getting updated despite repeated retros surfacing drift, the workflow degrades to ceremony. The *user* has to actually run `lex-crystallize` periodically; no skill design fixes a doc that's never reviewed.
 - **Concurrent agents.** If you run multiple sessions on the same repo, lexicon doesn't coordinate them — each session reads `system.md`, does its work, writes its retro. Conflicts (on retros, on crystallize-time edits) surface as ordinary git conflicts. Lexicon doesn't try to prevent this; it just stays out of the way.
 

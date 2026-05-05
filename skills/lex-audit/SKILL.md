@@ -44,7 +44,7 @@ If unsure whether to run a full audit or a targeted check, ask: "Full audit, or 
 
 ## How audit relates to the six structural checks
 
-Phases 1–3 below are the **backward-flow inversion** of structural checks 1, 2, 3, and 4 from `lex-overview` § Structural checks. Where retro/crystallize ask "did the diff introduce something that conflicts with `system.md`?", audit walks each existing claim in `system.md` and asks "does this still hold in current code?". Phases 4–7 are audit-specific procedure (hygiene, calibration, distillation, proposal cross-checks) with no forward-flow analogue.
+Phases 1–3 below are the **backward-flow inversion** of structural checks 1, 2, 3, and 4 from `lex-overview` § Structural checks. Where retro/crystallize ask "did the diff introduce something that conflicts with `system.md`?", audit walks each existing claim in `system.md` and asks "does this still hold in current code?". Phases 4–6 are audit-specific procedure (hygiene, distillation, retro cross-checks) with no forward-flow analogue.
 
 ## Phase 1 — Glossary validation
 
@@ -114,15 +114,15 @@ Mechanical, no judgment required:
 - **Crystallization cadence**: read `lexicon/.last-crystallized`. If it's missing, or older than ~60 days while `lexicon/retros/` shows substantive recent activity, that's a strong signal `lex-crystallize` is being skipped. Flag it — the cold layer is going stale by neglect, not by drift.
 - **Stale audit reports**: anything in `lexicon/audits/` older than ~90 days that wasn't acted on (no corresponding `system.md` edits afterward). List with file paths and the user can decide to triage or archive.
 
-## Phase 5 — Calibration coherence
+## Phase 5 — Prefs coherence
 
-If `lexicon/calibration.md` exists:
+Check `~/src/lexicon/lexicon-prefs.md` (Calibration section especially) against recent retros:
 
-- Read each rule. For each, ask: did recent retros (last ~20) seem to honor this rule, or are they still flagging the things this rule says to ignore?
-- If a rule appears to be ignored: either the rule is being missed (improve its wording), or `lex-retro`'s structural checks are catching them anyway (the rule is now redundant). Flag for review.
-- If recent retros flag the same kind of noise repeatedly with no calibration entry covering it: recommend adding a calibration line.
+- For each Calibration entry, ask: did recent retros (last ~20) honor it, or are they still flagging things the entry says to ignore? If ignored, either the entry's wording is too narrow or the retro skill is missing the rule — flag for review.
+- If recent retros flag the same kind of noise repeatedly with no Calibration entry covering it: recommend adding one (suggest the wording).
+- Watch for prefs entries that are old enough to have stabilized but never got curated into a `SKILL.md`. Surface as: "<N> prefs entries are >90 days old; consider absorbing into the skill bodies and pruning here."
 
-If `calibration.md` doesn't exist but the project has > 30 retros, that itself is a flag — calibration is supposed to grow over time, and an empty calibration in a mature project usually means the user has been silently rejecting noise without writing it down.
+If `lexicon-prefs.md` doesn't exist but the project ecosystem has > 30 retros across recent activity, that itself is a flag — prefs are supposed to grow over time, and an empty prefs file usually means the user has been silently rejecting noise without writing it down.
 
 ## Phase 6 — Distillation completion check
 
@@ -136,7 +136,7 @@ Sanity check: how many `<!-- TODO -->` markers remain in `system.md` AND across 
 
 Look at the last ~20 retros under `lexicon/retros/`:
 
-- A drift flag for the same concept appearing 3+ times across retros without a corresponding `system.md` edit → either calibration (the user is rejecting it as noise; encourage a calibration line) or neglect (the user agrees but never crystallized; flag for the next crystallize). The audit can't tell which; surface the pattern and let the user say.
+- A drift flag for the same concept appearing 3+ times across retros without a corresponding `system.md` edit → either calibration (the user is rejecting it as noise; suggest a Calibration entry in `lexicon-prefs.md`) or neglect (the user agrees but never crystallized; flag for the next crystallize). The audit can't tell which; surface the pattern and let the user say.
 - Conversely, a `system.md` term that no retro has touched in months *and* doesn't appear in recent code: candidate for the dead-glossary check in Phase 1.
 
 This phase is low-priority; skip if retro volume is small.
@@ -187,11 +187,12 @@ Time since last audit: <N days, or "first audit">
 - Last crystallization: <iso timestamp from .last-crystallized, or "never"> — <"healthy cadence" | "lex-crystallize appears underused">
 - Stale audit reports (> 90 days, not acted on): <list>
 
-## Calibration coherence
-- Rules: <count>
-- Rules that look honored: <count>
-- Rules that look ignored or redundant: <list with rationale>
-- Repeated noise patterns lacking calibration: <list>
+## Prefs coherence
+- `lexicon-prefs.md` Calibration entries: <count>
+- Entries that look honored: <count>
+- Entries that look ignored or redundant: <list with rationale>
+- Repeated noise patterns with no covering entry: <list with suggested wording>
+- Prefs entries old enough to absorb into SKILL.md: <list>
 
 ## Distillation status
 - TODO markers in system.md: <count>
@@ -229,7 +230,7 @@ A full audit is the default, but the user can ask for narrower runs: "audit just
 `lex-audit` produces a *triage list*. It does not apply changes. The user reviews and either:
 
 - Accepts a finding → applies the corresponding change manually, or runs `lex-crystallize` to absorb it (audit findings are valid input to crystallize, even though crystallize is normally driven by retros).
-- Rejects a finding as noise → ideally adds a line to `calibration.md` so future audits don't re-flag it.
+- Rejects a finding as noise → ideally adds a Calibration entry to `~/src/lexicon/lexicon-prefs.md` so future audits don't re-flag it.
 - Defers a finding → leaves the report in place; the next audit will see it as "previous unaddressed".
 
 The audit report stays at `lexicon/audits/audit-<iso>.md`. Old reports accumulate there; if they pile up, the user can move triaged ones to `lexicon/plans/_archive/_audits/`.
@@ -245,6 +246,6 @@ The audit report stays at `lexicon/audits/audit-<iso>.md`. Old reports accumulat
 
 The temptation is to make the audit report look thorough by flagging everything ambiguous. Resist. **A short report with three real flags is more useful than a long report with thirty borderline ones.** The user has a finite review budget; consume it with high-confidence findings, not exhaustive ones.
 
-When you are unsure whether something is a real flag, default to listing it under "Items deliberately not flagged" with a one-line note. That section is itself a useful artifact — it shows what was considered and dismissed, which builds calibration over time.
+When you are unsure whether something is a real flag, default to listing it under "Items deliberately not flagged" with a one-line note. That section is itself a useful artifact — it shows what was considered and dismissed, which builds the user's prefs intuition over time.
 
 The single most important thing this skill produces is **calibration of attention**. Anyone can grep-and-flag. The value is choosing the three to five things that actually matter for this audit cycle, and naming them clearly enough that the user can act.

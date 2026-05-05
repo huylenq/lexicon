@@ -26,7 +26,7 @@ If unsure whether a stopping point has been reached, lean toward running. The co
 Read, in this order:
 1. `lexicon/system.md` — the cold model.
 2. Relevant `lexicon/views/*.md` — whichever the session was working in.
-3. `lexicon/calibration.md` if it exists — project-specific significance overrides.
+3. `~/src/lexicon/lexicon-prefs.md` — personal overrides (Calibration section especially, for what to flag vs skip). Loaded by `lex-overview` already; re-check if this session might have added entries.
 4. The actual code diff for this session (use git: `git diff` against the session's start point if known, otherwise summarize touched files from the conversation history).
 5. The conversation history itself — the scope declaration `lex-ground` produced is here, not in any file.
 
@@ -107,6 +107,10 @@ After writing the retro:
 
 Don't dump the retro contents into chat. The file is the artifact; chat is the pointer.
 
-## On calibration
+## Capturing feedback into `lexicon-prefs.md`
 
-You will sometimes flag noise and sometimes miss real changes. Expected. When the user dismisses a flag as noise, encourage them to add a one-line note to `lexicon/calibration.md`. When the user later notices a missed change, encourage the same. This is how the skill gets better over time without retraining.
+When the user says **"for lexicon: <X>"** during the session (or any session this skill closes out), append the entry to `~/src/lexicon/lexicon-prefs.md` as part of the retro. Pick the section that fits (Workflow / Style / Calibration / Patterns) and append a dated entry. Don't add a heavyweight schema — short label, the rule, optional one-line context. After appending, mention in the chat summary: "Logged a prefs entry under <section>: <label>."
+
+If a strong feedback signal showed up in the session but the user *didn't* use the explicit phrasing — they just corrected a behavior, or a flag got rejected for a reason that sounds general — ask once at retro time: "Want me to log that as a `for-lexicon` entry?" Single yes/no, no follow-up if they decline. Don't pile this on top of every retro; only when the signal is clear.
+
+You will sometimes flag noise and sometimes miss real changes. Expected. The Calibration section of `lexicon-prefs.md` is where those corrections accumulate. This is how the skill gets better over time without retraining.

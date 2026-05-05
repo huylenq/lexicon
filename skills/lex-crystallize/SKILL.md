@@ -42,7 +42,7 @@ Read:
 4. `lexicon/system.md` — the current cold model.
 5. Relevant `lexicon/views/*.md` — whichever views the diff touches.
 6. `lexicon/decisions/` — recent ADRs that might overlap with what you're about to propose.
-7. `lexicon/calibration.md` if it exists.
+7. `~/src/lexicon/lexicon-prefs.md` — personal overrides. The Calibration section especially can change which retro flags are worth absorbing vs leaving as known-noise.
 
 This is a bigger read than a retro. Take the time on it. Crystallization done badly is worse than crystallization skipped — a wrong glossary entry is harder to remove than a missing one is to add.
 
@@ -120,6 +120,12 @@ If the user says no, **still update the marker** if they want future crystalliza
 This is one of the most useful parts of the proposal. Crystallization is tempting to use as a chance to fix everything you've noticed about `system.md`. Resist. Each crystallization should be tightly scoped to what the period actually shifted. Adjacent issues go in the "deliberately NOT changing" section so they're visible but not folded in — a future crystallization, an audit, or a deliberate spec-review session can address them.
 
 Mixing scopes is how cold-layer edits become unreviewable.
+
+## Suggesting prefs entries
+
+If during the cumulative pass you notice the same kind of flag rejected repeatedly across retros (e.g., the same term flagged 3+ times and never absorbed into the glossary, the same kind of structural concern dismissed every time), surface it as a candidate for `lexicon-prefs.md` Calibration section: "I see <pattern> flagged <N> times across retros, all dismissed. Want me to add a prefs entry so retros stop flagging it?" Single yes/no. Don't pile prefs suggestions on top of every crystallization — only when the rejection pattern is clear.
+
+This is the slower of the two feedback channels (the faster one is `lex-retro` capturing explicit `for lexicon: <X>` statements). It catches the cases where the user hasn't named the pattern themselves but the data is screaming it.
 
 ## On the relationship to retro
 

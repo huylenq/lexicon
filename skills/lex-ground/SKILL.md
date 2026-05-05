@@ -34,9 +34,9 @@ Don't skim. The whole point of this layer is to be small enough to read every se
 
 If `lexicon/views/` exists, also read the view(s) matching the bounded context of the work being done. The bounded-contexts index in `system.md` points at the relevant view files. **Don't load every view eagerly** — that defeats the partitioning. Identify the relevant context(s) (from the task description, the files about to change, or by asking the user) and load only those views. When in doubt about context, ask before guessing.
 
-### 2. Read `lexicon/calibration.md` if it exists
+### 2. Read `~/src/lexicon/lexicon-prefs.md` if it exists
 
-Project-specific notes about what counts as significant — overrides the default sense of when drift is worth flagging in retros.
+The user's personal overrides for lexicon skill behavior — workflow, style, significance calibration, patterns about how they work. Loaded at session start by `lex-overview`; mentioned here as a reminder that grounding should respect prefs entries. Project-specific overrides (the old `lexicon/calibration.md` role) live in the project's `CLAUDE.md` and are loaded by Claude Code automatically.
 
 ### 3. Declare scope (in conversation)
 

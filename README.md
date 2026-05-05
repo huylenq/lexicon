@@ -85,7 +85,6 @@ lexicon/
   system.md                # cold layer: glossary, invariants, bounded contexts, "why"s
   views/                   # optional: per-context cold-layer slices
   decisions/               # ADRs, append-only
-  calibration.md           # project-specific notes on what counts as "significant"
   retros/                  # always-written session logs (timestamp-named)
   audits/                  # audit reports
   bootstrap.md             # one-shot adoption report (created by lex-bootstrap)

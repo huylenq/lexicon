@@ -152,6 +152,29 @@ Most sessions produce silent retros (a log entry only). It would be tempting to 
 
 The trivial-fast-path in `ground` is a deliberate compromise (skip the heavy steps for genuinely mechanical work) but the retro itself always runs.
 
+### Why prefs are user-level, not project-level (v0.7.0)
+
+v0.1.0–v0.6.0 had `lexicon/calibration.md` per project — a place to record overrides for "what counts as significant," populated by appending lines when the user rejected a flag as noise. The file was supposed to grow over time as the skills learned the project's quirks.
+
+In practice, three things went wrong:
+
+- **Same lessons, every project.** Most calibration is about *the user's* perspective — their tolerance for chatter, their idea of "important," their style preferences — not about the project's content. Those lessons should propagate from project A to project B, but `lexicon/calibration.md` is per-project, so they don't.
+- **Narrow axis.** Calibration was framed as significance-only. The actual feedback the user wants to give is wider — workflow preferences, presentation style, patterns about how they think — and a "significance" file isn't the right shape for any of that.
+- **Nobody writes it.** Even when the user *did* reject a flag, going to a separate file and writing a line is enough activation energy that it just doesn't happen. The file stays empty.
+
+v0.7.0 replaces this with `~/src/lexicon/lexicon-prefs.md` (path hardcoded for now while iterating; portability deferred):
+
+- **User-level**, so lessons accumulate across projects.
+- **Section-shaped, not single-axis** — Workflow, Style, Calibration, Patterns. Free prose under each, no rigid format.
+- **Captured by an explicit trigger phrase** — "for lexicon: <X>" — so the user can dump feedback mid-session without context-switching to a separate file. Skills append on their behalf.
+- **Acts as both live override and curation buffer.** Skills read it at session start (entries take effect immediately). Periodically, stabilized entries get absorbed into the SKILL.md files themselves (a deliberate human curation step), then pruned from the prefs file. The file should stay small over time; pile-up is a curation-overdue signal that `lex-audit` can flag.
+
+The trigger phrasing matters: **"for lexicon: <X>"** is distinct from generic "remember that" (which goes to project memory or the user's PKM). Skills do not intercept the generic phrasing. This was the user's own concern — they wanted explicit routing because they manage multiple memory systems and didn't want the agent guessing.
+
+Project-specific overrides — the cases where calibration *is* genuinely about the project's content, not the user — go into the project's `CLAUDE.md` instead. That's already a per-project, always-loaded file in the user's workflow; it's the natural home, and it removes the need for a `lexicon/calibration.md`.
+
+The "no separate `lex-feedback` skill" decision was deliberate: lexicon already has five skills and the taxonomy is hard to remember. Folding the feedback-capture behavior into `lex-retro` (explicit trigger) and `lex-crystallize` (suggest entries on repeated rejections) keeps the surface area flat. If feedback-capture grows complex enough to need its own skill, revisit.
+
 ### Why crystallize is user-triggered, not agent-triggered (v0.5.0)
 
 v0.1.0–v0.4.0 had `lex-crystallize` fire on agent-detected "feature done" cues. The agent doesn't reliably know when work is done — it knows when *a session* is done. Feature-completion is a user judgment call.
@@ -189,7 +212,7 @@ These are easy targets for "simplification" that would actually break the system
 
 - **The `retros/` directory.** Almost never read in any single session. Looks like noise. Is the mechanism that makes "the question gets asked every time" enforceable, *and* the input `lex-crystallize` aggregates over.
 - **The `lexicon/.last-crystallized` marker.** Trivial file (one ISO timestamp), critical role: it's how `lex-crystallize` knows which retros to consider. Without it, every crystallization either re-considers the entire history or asks the user "since when?" — both worse.
-- **The `calibration.md` file.** Optional in any given project, but the *concept* is critical: the project-specific override for what counts as significant. Without it, the skills can't learn from rejection patterns.
+- **`lexicon-prefs.md`.** The user-level prefs file (currently hardcoded at `~/src/lexicon/lexicon-prefs.md`). It's the only mechanism that makes lexicon adapt to the user across projects. Without it, the same lessons get re-learned every project. v0.7.0 promoted this from per-project `calibration.md` to a single user-level file — see "Why prefs are user-level, not project-level" below.
 - **The "deliberately not changing" section in `lex-crystallize` proposals.** Looks like padding. Is the discipline that keeps each crystallization tightly scoped — without it, a crystallization becomes a chance to fix everything noticed about `system.md`, and the proposal becomes unreviewable.
 - **The user-as-trigger property of `lex-crystallize`.** It's tempting to make the agent volunteer crystallizations when retros pile up. Don't. The premise of v0.5.0 is that the agent isn't a reliable judge of "done" — making it a judge again undoes the simplification.
 
