@@ -10,6 +10,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 While in 0.x, breaking project-shape changes bump the minor (0.x.0 → 0.(x+1).0); the major bump is reserved for a stability commitment at 1.0.
 
+## [0.8.0] - 2026-05-12
+
+### Added
+
+- **`lex-bootstrap` runs the distillation interview in-session by default.** Previously, bootstrap drafted `system.md` with TODO markers and a triage report, then told the user to come back later for a "focused-distillation session." In practice, "later" usually never came, and the cold doc started life half-formed — the open question CLAUDE.md had flagged as "will users actually do that?" The answer was no, not reliably. v0.8.0 folds the interview into the skill body as Phase 8: after draft + ADR migration, the skill walks the user through inconsistencies → drift flags → glossary/invariant/context TODOs → why-notes → design-system items → file moves, in batches of 5–10 items each. The triage report (now Phase 9) reflects post-distillation state — resolved/culled/revised/deferred counts — instead of a homework list. Pause/resume is supported: "pause" at any batch boundary records position in `lexicon/bootstrap.md`, and re-triggering bootstrap with "continue distillation" picks up from there. This is the one legitimate case of re-running bootstrap on a populated project.
+- **Surfaces & regions as a first-class tier of design vocabulary.** Real use of v0.6.0 (Eir's design-system view) surfaced a gap: the existing tiers (tokens, components, layout primitives, interaction patterns, a11y invariants) didn't cover the *named layout zones inside a specific surface* — the "right sidebar of the composer view" / "header strip of the run page" tier. Without names, teammates and agents can't refer to these regions precisely; without precise references, retros can't flag drift in them. v0.8.0 adds the tier explicitly:
+  - **Surface** = a top-level rendered view: a route, a screen, a window, a TUI pane, a print layout. Generalizes beyond web — Flutter screens, SwiftUI navigation stacks, Compose composables, terminal panes all qualify.
+  - **Region** = a named layout zone inside a surface (sidebar, toolbar, canvas, hero, banner). Earns a name when the team refers to it as a discrete piece, regardless of whether it's been factored into its own component file.
+  - **Implementation tag** = metadata, not a gate: `*Component*: <import>` (extracted) or `*Inline*: <file>:<lineStart>–<lineEnd>` (still inline). Naming follows conceptual status; extraction is a separate decision.
+
+### Changed
+
+- **`lex-overview`**: § core idea and § Design-system signals both expanded. Surfaces/regions named alongside tokens/components/primitives. The Vocabulary signal now flags inline-but-named regions as drift; Vocabulary consistency adds the "same region called by two different names" case; Boundaries adds "regions stay scoped to their owning surface."
+- **`lex-bootstrap`**: Phase 2 (codebase audit) gains a "Surfaces & regions" scan — route registries, screen managers, semantic containers, `{/* Name */}` comment heuristics, repeated visual patterns. Phase 4 (drafting) gets explicit guidance for filling the surfaces/regions content with implementation tags. Phase 4b (view promotion) adds "multiple top-level surfaces with named regions" as a signal favoring a design-system view. Triage report (now Phase 9) adds Surfaces / Regions / Notable inline regions / Cross-cutting patterns lines.
+- **`lex-audit`**: Phase 1 design-system validation extended with region validation — *Component*-tagged regions resolve to a real file; *Inline*-tagged regions resolve to a meaningful block at the cited line range; common drift modes (extracted-but-tag-still-says-inline, deleted, line-shifted) are classified separately so the human can pick the right fix.
+- **`system.md.template`**: new `### Surfaces & regions` subsection inside `## Design system` showing both `*Component*` and `*Inline*` tag examples.
+- **`lex-retro` and `lex-crystallize`**: no body changes — they consume the structural-check definitions in `lex-overview`, so the new region-aware Vocabulary/Boundaries checks apply automatically.
+
+### Why ship 0.8.0
+
+The gap surfaced concretely on Eir during a `lex-bootstrap`-style design-system content gathering: the agent (correctly per v0.7.0 conventions) listed tokens, primitives, and extracted components — but had no scaffolding to ask "what are the named layout zones of the composer page that the team refers to in conversation?" The user's complaint was direct ("I have no idea how to call the right sidebar"). Worse, when the agent did try to invent a rule, it landed on "inline `<div>`s don't earn names" — which collapsed two orthogonal axes (conceptual identity vs implementation status) and would have hidden meaningful regions like Eir's inline `Header strip` and `Spec panel`.
+
+Two-axis vocabulary capture (conceptual identity = naming gate; implementation status = metadata tag) addresses this. The naming covers both extracted and inline pieces; the tag tells the agent where to grep. A future extraction is now a tag update, not a vocabulary change — which is the right shape because the *concept* didn't move, only its file home did.
+
+The framing generalizes beyond web by design. Surface/region is the abstraction; the platform-specific signals (`<aside>` vs SwiftUI `Sidebar` vs Flutter `Drawer` vs terminal pane) are flagged as examples, not as the definition. Backend-only projects skip the entire design-system section (already true since v0.6.0); UI-bearing projects get one more tier of vocabulary support.
+
+Risk: the surfaces/regions section can bloat — every styled `<div>` is technically a region candidate. The conversational-referent rule ("a region earns a name when the team refers to it as a discrete piece") is the trim discipline; without it, the section tends toward the size of the rendered tree itself. `lex-audit` Phase 1's region validation is the maintenance backstop — when a *Component*-tagged region's import goes dead, the audit flags it.
+
 ## [0.7.0] - 2026-05-05
 
 ### BREAKING

@@ -60,7 +60,15 @@ For each entry in `system.md`'s glossary AND each entry in every `lexicon/views/
 
 Don't auto-delete entries. The classification is the artifact; the human decides.
 
-If the cold layer includes a design system (a `## Design system` section in `system.md` or a `lexicon/views/design-system.md` view), validate token names and component names with the same classification, with one adjustment: tokens live as CSS custom properties, theme-config keys, or named exports from a tokens module — search the canonical token source files first. Tokens declared in the cold layer but absent from the canonical source are *dead*. Component names should map to a real component file.
+If the cold layer includes a design system (a `## Design system` section in `system.md` or a `lexicon/views/design-system.md` view), validate token names and component names with the same classification, with one adjustment: tokens live as CSS custom properties, theme-config keys, or named exports from a tokens module (or framework equivalents — Flutter `ThemeData`, SwiftUI extensions, terminal palette files) — search the canonical token source files first. Tokens declared in the cold layer but absent from the canonical source are *dead*. Component names should map to a real component file.
+
+**Region validation** (when the design-system content includes a `## Surfaces & regions` section): each region entry carries an implementation tag — `*Component*: <import>` or `*Inline*: <file>:<lineStart>–<lineEnd>`. Validate by:
+
+- *Component*-tagged: the import path resolves to a real file. If renamed/moved → *drifted name*; if deleted → *dead region*.
+- *Inline*-tagged: the file exists and the cited line range still contains a meaningful block matching the region's described role. Common drift modes: (a) the inline block was extracted into its own component (the tag should now be *Component*) — flag for tag update, not deletion; (b) the inline block was deleted or refactored away → *dead region*; (c) the line range shifted ±20 lines but the block is still recognizable → *stale line citation* (low priority, easy fix).
+- *Surface mismatch*: a region listed under one surface that's actually used in two — flag as either misnamed or as a candidate for promotion to a cross-cutting pattern / primitive.
+
+Region validation is the design-system equivalent of the bounded-context check — it's about whether the named pieces still exist where the doc says.
 
 ## Phase 1b — UL ownership validation (only when views are in use)
 

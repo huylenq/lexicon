@@ -111,6 +111,26 @@ If you find yourself wanting to fork (a `lex-design-*` skill family, or a separa
 
 The pathology to watch: design tokens being treated as values rather than vocabulary, leading to a `## Design system` section that lists every hex code. The cold doc captures **intent and invariants**; the canonical token files own values. When the section starts duplicating the theme file, that's drift in the wrong direction — surface it during audit.
 
+### Why design vocabulary gained a surfaces/regions tier (v0.8.0)
+
+v0.6.0 named "tokens, component names, layout primitives, interaction patterns, and accessibility invariants" as the design-system tiers. Real use on Eir (running a bootstrap-style design-system extraction after the cold layer was already adopted) exposed a missing tier: the **named layout zones inside a specific surface** — the "right sidebar of the composer view," the "header strip of the run page," the "progress tracker rail." The user's complaint was concrete: "I have no idea how to call the right sidebar in the composer view." Without names for these zones, neither the team nor the agent can refer to them precisely; without precise references, retros can't flag drift in them and crystallize can't absorb them.
+
+The first attempt at filling the gap landed on a wrong rule: "inline `<div>`s don't earn names." This collapsed two orthogonal axes — *conceptual identity* (does the team think of this as a thing?) and *implementation status* (has it been factored out into its own component?). The collapse hid meaningful regions whose code happened to be inline (Eir's "header strip" was a 14-line JSX block at `compose-page.tsx:973–987`; the team referred to it; nobody had extracted it yet — it deserved a name).
+
+v0.8.0 separates the axes:
+- **Conceptual identity is the naming gate.** A region earns a name when the team refers to it as a discrete piece, full stop.
+- **Implementation status is metadata, recorded as a tag** — `*Component*: <import>` for extracted artifacts, `*Inline*: <file>:<lineStart>–<lineEnd>` for inline blocks. The tag tells the agent where to grep; it doesn't gate the naming.
+
+A future extraction is then a tag update (`*Inline*` → `*Component*`), not a vocabulary change. That's the right shape because the *concept* didn't move, only its file home did. `lex-audit`'s region validation specifically distinguishes "extracted-but-tag-still-says-inline" (tag drift, easy fix) from "deleted" (real dead-region candidate) so the human picks the right action.
+
+The same primitive applied at a different scale matters here. A surface (route/screen/window/pane) is a bounded context for layout vocabulary; the regions inside it are its glossary terms. v0.6.0 had already committed to "design vocabulary is ubiquitous language" — surfaces/regions is just that idea pushed one level down, into the named structure of each surface.
+
+The generalization beyond web was deliberate. Surface/region is the abstraction; the per-platform signals (`<aside>` / `<main>` for web, SwiftUI `Sidebar` / `ToolbarItem` for iOS, Flutter `Drawer` / `AppBar`, terminal panes, print sections) are examples of where to look, not the definition. The cold layer holds the names; the platform decides what the rendered manifestation looks like. Backend-only projects continue to skip the entire design-system section, unchanged since v0.6.0.
+
+The pathology to watch: surfaces/regions sections that bloat into the size of the rendered tree itself. The conversational-referent rule ("the team refers to it as a discrete piece") is the trim discipline. If a region only got a name because the agent saw an `<aside>` and felt obligated to list it, that's bloat — surface it during audit. If the team has been saying "the X" for weeks and the cold doc doesn't have an entry for it, that's drift — surface it during retro/crystallize.
+
+If you find yourself wanting to add yet another design tier (motion vocabulary, content-tone vocabulary, empty-state vocabulary, etc.): name a real failure mode that the existing five tiers can't capture. v0.8.0 paid the cost of one more tier because regions had a concrete recurring failure (untalkaboutable layout zones); subsequent additions need the same evidence. Tier inflation defeats the cold-doc-stays-small property.
+
 ### Why template files were trimmed of meta-instructional blockquotes (v0.6.0)
 
 The four templates (`system.md`, `view.md`, `plan.md`, `adr.md`) shipped with multi-paragraph blockquote prefaces explaining when/how to use each section: "The ubiquitous language…", "Properties that must hold across the system…", `*Optional.*`, "On completion, run lex-crystallize…", and so on. These rendered into the user's actual `lexicon/system.md`, where they served no audience: the agent reads `lex-overview` (which contains the same rules canonically) every session per Rule 1, and the human had already internalized them by the time they were re-reading the populated file. After the user filled in real content, the blockquotes became vestigial noise readers had to skip past — the worst kind, because they look authoritative enough to demand attention before being dismissed.

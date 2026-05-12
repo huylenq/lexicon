@@ -15,7 +15,9 @@ Code is the executable spec — it evolves freely, always true to itself. Above 
 
 The whole system rests on **ubiquitous language** in the DDD sense: the same nouns and verbs appear in `system.md`, in conversation, and in code. When all three layers use the same vocabulary, mental-model alignment between human and agent is enforced by repetition rather than by remembering.
 
-When the project has a UI surface, design vocabulary — tokens, component names, layout primitives, accessibility contracts — counts as ubiquitous language too. It lives in the same cold doc (a `## Design system` section in `system.md`, or — once it grows — a `lexicon/views/design-system.md` view). The structural checks below don't split for it.
+When the project has a UI surface — web pages, desktop windows, mobile screens, CLI/TUI panes, print layouts, voice-skill turns, anything rendered for a human — design vocabulary counts as ubiquitous language too. Not just tokens and reusable components, but also **surfaces** (named top-level views/screens/windows) and the **regions** within them (sidebars, toolbars, canvases, hero blocks, banners), plus interaction patterns and accessibility contracts. It lives in the same cold doc (a `## Design system` section in `system.md`, or — once it grows — a `lexicon/views/design-system.md` view). The structural checks below don't split for it.
+
+Regions in particular need a small framing: **a region earns a name when the team refers to it as a discrete piece, regardless of whether it's been factored into its own component file.** Implementation status — extracted artifact vs inline block at file:line — is metadata, not a gate on naming. Naming the inline ones is exactly what lets the team and the agent talk about them precisely.
 
 ## Project shape
 
@@ -95,10 +97,10 @@ If the project uses Domain Views (`lexicon/views/*.md`), each check is scoped: f
 
 When the project has a UI surface, the same six checks pick up design-system drift naturally — design vocabulary is ubiquitous language for the UI, no separate machinery needed.
 
-- **Vocabulary** — new component file, new token entry in the theme/config, new layout primitive name, new interaction pattern.
-- **Vocabulary consistency** — hex / px / rem literal outside the token file; raw `<button>` where `<Button>` exists; component imported from a path that bypasses the design-system root.
+- **Vocabulary** — new component file, new token entry in the theme/config, new layout primitive, new interaction pattern, **a new named region inside a surface (extracted *or* inline)**. An inline region introduced without a name in the cold doc is just as much vocabulary drift as an unnamed extracted component — the conversational referent exists either way.
+- **Vocabulary consistency** — hex / px / rem literal outside the token file; raw `<button>` where `<Button>` exists; component imported from a path that bypasses the design-system root; **the same region called by two different names across files**.
 - **Invariants** — accessibility contracts (visible focus, color contrast, keyboard navigation, label-input pairing). Most are validatable via linters or axe-core; surface the violation when tooling flags it.
-- **Boundaries** — design-system seam: interactive primitives only via wrapper components; styling only via tokens, not inline values.
+- **Boundaries** — design-system seam: interactive primitives only via wrapper components; styling only via tokens, not inline values; **named regions stay scoped to their owning surface (a region referenced from a second surface is either misnamed or being promoted to a primitive — both worth flagging)**.
 - **Decisions** — "drawer over modal because…" — same shape as code decisions.
 - **Scope match** — grounding said "small UI tweak" but the diff added a new token or component — scope drift.
 

@@ -51,6 +51,12 @@
 
 - **<Primitive>**: <when to use>.
 
+### Surfaces & regions
+
+- **<Surface name>** (`<route / screen-id / window>`):
+  - **<Region name>** — *Component*: `<Import>` (`<path>`). <One-line role.>
+  - **<Region name>** — *Inline*: `<file>:<lineStart>–<lineEnd>`. <One-line role.>
+
 ### Interaction patterns
 
 - **<Pattern>**: use for <case>; never for <case>.
