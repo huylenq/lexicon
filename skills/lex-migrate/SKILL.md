@@ -1,0 +1,223 @@
+---
+name: lex-migrate
+description: "Convert a v0.x markdown lexicon to v0.1 YAML. Trigger when the user says 'migrate lexicon', 'convert lexicon to YAML', 'upgrade lexicon to v0.1', or when lex-ground / lex-bootstrap detects a markdown-era cold layer (lexicon/system.md, lexicon/views/*.md, lexicon/decisions/*.md) and the project should be on the structured format. One-shot, forward-only. Surfaces unconverted artifacts as a triage report. Read lex-overview first."
+---
+
+# Lexicon: migrate
+
+This skill converts the v0.x markdown cold layer (`lexicon/system.md`, `lexicon/views/*.md`, `lexicon/decisions/*.md`) into the v0.1 YAML schema (`lexicon/system.yaml`, `lexicon/contexts/*.yaml`, `lexicon/decisions/*.yaml`, `lexicon/surfaces/*.yaml`).
+
+It is **one-shot**, **forward-only**, and **mechanical** — the agent does not improvise interpretations of the markdown. Anything that doesn't map cleanly is preserved as-is and listed in the migration report for the user to handle.
+
+If you haven't loaded `lex-overview` yet this session, read it first — the schema you're targeting is defined there.
+
+## When to run this
+
+Run when:
+
+- The user says they want to migrate ("migrate lexicon", "convert lexicon to YAML", "upgrade to v0.1").
+- `lex-ground` or `lex-bootstrap` detects `lexicon/system.md` and surfaces "this project is on the markdown layout; want to migrate first?" and the user agrees.
+
+Don't run when:
+
+- `lexicon/system.yaml` already exists — the migration has already happened. Refuse and surface.
+- There's nothing to migrate (no `system.md`, no `views/`, no `decisions/`) — the project either doesn't use lexicon or was started fresh on v0.1. Refer to `lex-bootstrap`.
+- The user wants to keep using markdown — that's a fine choice, but it means staying on v0.x of the skills. Don't half-migrate.
+
+## Pre-flight checks
+
+1. Confirm `lexicon/system.md` exists and `lexicon/system.yaml` does not. If both exist, stop — the project is in an inconsistent state and the user has to resolve which is canonical before migration can proceed.
+2. Confirm the user has explicitly asked or agreed. Migration creates new files and the user should understand what's happening.
+3. Recommend committing first. The migration is mechanical and reversible via `git checkout`, but a clean starting commit makes review easier.
+
+## Phase 1 — Inventory the markdown lexicon
+
+Walk `lexicon/` and bucket every file:
+
+| Source | Target |
+|---|---|
+| `lexicon/system.md` | `lexicon/system.yaml` + zero-or-more `lexicon/contexts/*.yaml` |
+| `lexicon/views/<slug>.md` | `lexicon/contexts/<slug>.yaml` |
+| `lexicon/views/design-system.md` | `lexicon/contexts/design-system.yaml` + `lexicon/surfaces/*.yaml` for any surfaces named inside |
+| `lexicon/decisions/ADR-<NNNN>-<slug>.md` | `lexicon/decisions/ADR-<NNNN>-<slug>.yaml` |
+| `lexicon/retros/*.md` | **unchanged** (retros remain markdown for now) |
+| `lexicon/audits/*.md` | **unchanged** (audits remain markdown for now) |
+| `lexicon/bootstrap.md` | **unchanged** (triage report stays markdown) |
+| `lexicon/plans/**` | **unchanged** |
+| `lexicon/.last-crystallized` | **unchanged** |
+
+Anything else (custom files, sub-directories not listed above) is logged in the migration report; don't touch it.
+
+## Phase 2 — Parse `system.md`
+
+The v0.x system.md template's section structure was reasonably consistent:
+
+| Markdown section | Maps to YAML |
+|---|---|
+| `# System: <name>` | `name:` |
+| `## Purpose` | `purpose:` |
+| `## Glossary` | `crossCuttingTerms:` (each `- **Term**: definition` entry becomes one term) |
+| `## Bounded contexts` | `contexts:` index. Each `### <Context name>` subsection becomes a `bounded-context` file (Phase 3). |
+| `### Boundary rules` (under Bounded contexts) | `boundaryRules:` on whichever context the rule belongs to, or cross-cutting if it spans many |
+| `## Invariants` | `crossCuttingInvariants:` |
+| `## Architecture seams` | seams on relevant contexts; cross-cutting only if they truly span everything |
+| `## Design system` | becomes `lexicon/contexts/design-system.yaml`, plus `lexicon/surfaces/*.yaml` for the `### Surfaces & regions` subsection (Phase 4) |
+| `## Decisions worth knowing` | parsed for ADR cross-references; the section itself doesn't survive (decisions live in their own files) |
+| `## Things deliberately not specified` | `deliberateOmissions:` |
+
+### Parsing glossary entries
+
+The convention was `- **<Term>**: <definition>` (sometimes with trailing "NOT to be confused with X."). Extract each:
+
+- `id:` is the kebab-case slug of `<Term>`.
+- `name:` is `<Term>` as written.
+- `definition:` is the prose after the colon, with any "NOT to be confused with X" clause split out into `disambiguatesFrom: [<slug-of-X>]`.
+
+### Parsing invariant entries
+
+Same shape — `- **<Invariant name>**: <statement>. <Why it matters; what breaks if it's violated.>`. Split the body on the first sentence boundary if the markdown intermixes statement and rationale; otherwise leave the whole body in `statement:` and the user can split during the triage.
+
+### Code anchors
+
+The v0.x markdown didn't have a stable code-anchor format. If you find ad-hoc patterns like `(see src/foo.ts:42)` inside a definition, extract them as `symbols:` entries. Don't infer anchors from raw grep — only convert what was explicitly written.
+
+## Phase 3 — Parse each `views/<slug>.md`
+
+The v0.x view template mirrors the system.md shape but scoped:
+
+| Markdown section | Maps to YAML |
+|---|---|
+| `# View: <Context name>` | `name:` |
+| `## Scope` | `purpose:` |
+| `## Glossary (terms owned by this view)` | `terms:` |
+| `## References (terms used here but owned elsewhere)` | **discarded** — references are inferred at read-time from `disambiguatesFrom` and other refs; no need to list. Log discarded references in the migration report so the user can verify nothing important was lost. |
+| `## Invariants` | `invariants:` |
+| `## Architecture seams` | `seams:` |
+| `## Decisions worth knowing` | parsed for cross-references; section discarded |
+| `## Things deliberately not specified` | **discarded** — only `system.yaml` carries the project-wide deliberate-omissions list. View-scoped omissions are usually really invariants stated negatively; surface them in the report for the user to decide. |
+
+Emit `lexicon/contexts/<slug>.yaml`. Filename slug matches `id:`.
+
+## Phase 4 — Parse the design-system view
+
+The v0.x `lexicon/views/design-system.md` (or the `## Design system` section in system.md if no separate view existed) has subsections:
+
+| Subsection | Maps to |
+|---|---|
+| `### Tokens (canonical sources)` | Cross-cutting terms in `design-system.yaml`, one term per token category, with `symbols:` pointing at the canonical source file path. *Don't* parse individual hex codes — the canonical source owns values. |
+| `### Component vocabulary` | Cross-cutting terms in `design-system.yaml`. |
+| `### Layout primitives` | Same. |
+| `### Surfaces & regions` | Each `**<Surface name>** (<route>):` heading becomes a `lexicon/surfaces/<slug>.yaml` file with the regions parsed from the bullets. The region implementation tag (`*Component*: <import>` or `*Inline*: <file>:<lineStart>–<lineEnd>`) maps directly to the `implementation:` sum type. |
+| `### Interaction patterns` | Cross-cutting terms. |
+| `### Accessibility invariants` | Invariants in `design-system.yaml`, `validationMode: linter` where the original implies tooling, else `principle`. |
+
+If the project's design system is small (lives only as a section in system.md, no separate view, < 5 components total), don't create a `contexts/design-system.yaml` — let those entries stay as `crossCuttingTerms` in `system.yaml`. Surface this choice in the migration report.
+
+## Phase 5 — Convert ADRs
+
+For each `lexicon/decisions/ADR-<NNNN>-<slug>.md`:
+
+| Markdown line/section | Maps to |
+|---|---|
+| `# ADR-<NNNN>: <title>` | `id:` (the `ADR-<NNNN>` part), `title:` |
+| `Date: <iso>` | `date:` |
+| `Status: <proposed/accepted/superseded by ADR-MMMM>` | `status:` enum, plus `supersededBy:` if the status names a superseder |
+| `## Context` | `context:` |
+| `## Decision` | `decision:` |
+| `## Consequences` | `consequences:` |
+| `## Alternatives considered` | `alternatives:` |
+
+`affects:` is not in the v0.x format — leave empty and surface in the migration report as "ADR-NNNN has no `affects:` set; recommend filling during next audit or crystallize."
+
+After all ADRs are converted, do a second pass to set bidirectional supersession: if ADR-A says it supersedes ADR-B (extracted from prose), set `supersededBy: ADR-A` on ADR-B. If the prose says "superseded by ADR-X" but ADR-X exists, set `supersedes: [ADR-Y]` on ADR-X. Surface any one-sided supersession (A says it supersedes B, but B's prose doesn't acknowledge) for user review.
+
+## Phase 6 — Detect inferred contexts
+
+Some v0.x projects kept all bounded contexts as subsections of `system.md` rather than as separate `views/*.md` files. After Phase 2, if `system.yaml` has more than one bounded context defined inline and any of those contexts owns ≥3 entries (terms / invariants / seams / rules combined), promote it to its own `lexicon/contexts/<slug>.yaml` (same emission logic as Phase 3, source is the relevant `system.md` subsection rather than a view file).
+
+Contexts that stay small remain as one-line index entries in `system.yaml`'s `contexts:` list with no separate file.
+
+## Phase 7 — Validate the emitted YAML
+
+After all files are emitted, parse them yourself and check:
+
+- Every `disambiguatesFrom:` / `affects:` / `supersedes:` / `supersededBy:` ref resolves to an existing entity.
+- Every term ID is unique within its owning file.
+- Every ADR ID is unique across `lexicon/decisions/`.
+- Every `surfaces/<slug>.yaml`'s `id:` matches its filename.
+- Schema version on every file is `"0.1"`.
+
+Dangling refs and validation failures go in the migration report; the user resolves them, not the agent.
+
+## Phase 8 — Park the markdown originals
+
+Don't delete the markdown files. Move them to `lexicon/_pre-migrate-archive/` so the user can:
+
+- Compare YAML against original markdown.
+- Recover anything the migration discarded (cross-context References sections, deliberate-omissions per view).
+- Git-history-check what the migration did.
+
+Once the user has accepted the migration and is on YAML in real use, they can `rm -rf lexicon/_pre-migrate-archive/` themselves. Don't delete on their behalf — that's data loss.
+
+## Phase 9 — Write the migration report
+
+Write `lexicon/migrate.md` (note: distinct from `bootstrap.md`):
+
+```markdown
+# Migration report
+Migrated on: <iso timestamp>
+From: v0.x markdown
+To: v0.1 YAML
+
+## What was emitted
+- `lexicon/system.yaml` (<N> cross-cutting terms, <I> cross-cutting invariants, <C> contexts indexed)
+- `lexicon/contexts/` with <K> context files: <list>
+- `lexicon/decisions/` with <A> ADRs converted
+- `lexicon/surfaces/` with <S> surface files (or "no surfaces; backend-only or no Design system section in source")
+
+## Archived originals
+- Moved to `lexicon/_pre-migrate-archive/`
+- Feel free to delete after verifying the YAML matches your intent
+
+## Validation findings
+- Dangling refs: <N> (listed below)
+- Duplicate IDs: <N>
+- One-sided supersession: <N>
+
+## Items needing follow-up
+- ADRs missing `affects:` (all <A> of them, since v0.x didn't carry this field)
+- View-scoped "deliberately not specified" entries discarded (<N> items, listed below for user to re-add if real invariants)
+- Cross-context References sections discarded (<N> items — pure metadata, but listed below so you can verify)
+- <Any other parsing ambiguities you encountered>
+
+## Untouched files
+- `lexicon/retros/`, `lexicon/audits/`, `lexicon/plans/`, `lexicon/bootstrap.md`, `lexicon/.last-crystallized` — left as-is
+- Custom files: <list, if any>
+
+## Next steps
+1. Open the project in lexicon-viewer (or any YAML editor) and spot-check the emitted YAML.
+2. Resolve any dangling refs and duplicate IDs.
+3. Run `lex-audit` for a backward-flow check against current code.
+4. If everything looks right, delete `lexicon/_pre-migrate-archive/`.
+```
+
+## Phase 10 — Tell the user
+
+One-line chat summary:
+
+> Migration complete. Emitted <N> YAML files across system / contexts / decisions / surfaces. Originals archived in `lexicon/_pre-migrate-archive/`. <V> validation issues to review. Report at `lexicon/migrate.md`.
+
+Don't dump the report content into chat. The file is the artifact; chat is the pointer.
+
+## What this skill is NOT
+
+- **Not a redesign.** It preserves the structure of the v0.x markdown as faithfully as possible. If the markdown was wrong, it stays wrong in YAML form — the user fixes it later via `lex-crystallize` or `lex-audit`.
+- **Not an audit.** It doesn't check the cold layer against the code. That's `lex-audit`'s job; run it after migration if you want backward-flow validation.
+- **Not lossy by silent choice.** Anything that can't be cleanly mapped (View References sections, view-scoped deliberate omissions, ad-hoc cross-references in prose) is preserved in the archive *and* listed in the migration report. The user makes the call.
+- **Not bidirectional.** This is forward-only — markdown → YAML. There's no `lex-unmigrate`. If you want to go back to markdown, that's `git revert`.
+
+## On honesty about the conversion
+
+The v0.x markdown was prose; v0.1 YAML is structured. Some markdown nuance — the way a paragraph hedges, the rhetorical structure of a "Why" section, the choice of bullet vs sentence — doesn't survive the conversion. That's the trade. The user gets stable IDs, typed refs, code anchors, and a graph in exchange for a slight flattening of the prose voice. The prose payload fields (`definition`, `statement`, `rationale`, etc.) carry as much voice as they can; some of the wrapping rhetoric is lost. Tell the user this in chat once after migration if they seem surprised:
+
+> The conversion preserves the content but flattens some of the prose wrapping (rhetorical headers, transitional sentences). Spot-check the YAML against `_pre-migrate-archive/` if a specific entry feels thinner than the original.

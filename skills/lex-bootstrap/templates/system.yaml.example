@@ -1,0 +1,51 @@
+# lexicon/system.yaml — the cold-layer root file.
+# Holds: cross-cutting terms/invariants, the contexts index, deliberate
+# omissions. Per-context entries live in lexicon/contexts/<slug>.yaml.
+# Soft ceiling: ~500 lines.
+
+schemaVersion: "0.1"
+kind: system
+id: <project-slug>
+name: <Project name>
+
+purpose: |
+  One paragraph: what this system does, for whom.
+
+# Index of bounded contexts. Each slug either matches a file under
+# lexicon/contexts/<slug>.yaml (when the context owns ≥3 entries) or is
+# index-only (small contexts that don't merit their own file yet).
+contexts:
+  - <context-slug>
+  - <other-context-slug>
+
+# Only terms that genuinely span ≥3 contexts. Otherwise put them in the
+# owning context's file.
+crossCuttingTerms:
+  - id: <term-slug>
+    name: <Display name>
+    definition: |
+      A short definition. Honest about what the term means; honest about
+      what it does not mean.
+    disambiguatesFrom:
+      - <ref-slug-or-context/slug>
+    symbols:
+      - file: src/foo.ts
+        lineStart: 42
+        lineEnd: 58
+        symbol: ClassName
+
+# Only invariants that genuinely span ≥3 contexts.
+crossCuttingInvariants:
+  - id: <invariant-slug>
+    name: <Display name>
+    statement: |
+      The property that must hold across the system.
+    rationale: |
+      Why it matters; what breaks when it's violated.
+
+# Topics deliberately not in the model, with reasons. Anti-content: marks
+# the boundary by naming what's intentionally outside.
+deliberateOmissions:
+  - topic: <Short topic>
+    reason: |
+      Why this is intentionally not specified.

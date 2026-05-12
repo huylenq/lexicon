@@ -10,6 +10,43 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 While in 0.x, breaking project-shape changes bump the minor (0.x.0 → 0.(x+1).0); the major bump is reserved for a stability commitment at 1.0.
 
+## [0.9.0] - 2026-05-12
+
+### Changed
+
+- **Cold layer is now structured YAML, not markdown.** `lexicon/system.md` and `lexicon/views/<slug>.md` are replaced by `lexicon/system.yaml` and `lexicon/contexts/<slug>.yaml`. ADRs move from `lexicon/decisions/ADR-<NNNN>-<slug>.md` to `…<slug>.yaml`. A new `lexicon/surfaces/<slug>.yaml` holds UI surfaces and their regions. Retros, audits, plans, and the triage reports (`bootstrap.md`, `migrate.md`) stay markdown — only the canonical cold layer is structured.
+  - **Schema v0.1** is declared on every file (`schemaVersion: "0.1"`) and specified normatively in `lex-overview` (new **Schema specification** section). IDs are kebab-case slugs scoped within their owning context; refs use `<context>/<slug>` for qualification.
+  - The structured form makes the graph machine-readable: typed refs (`disambiguatesFrom`, `affects`, `supersedes`), code anchors (`symbols`, `constrainsCode`, `Region.implementation`), and ownership checks become mechanical instead of regex-heuristic. The companion `lexicon-viewer` (in this repo, under `viewer/`) reads the schema and renders the graph.
+
+- **`lex-overview` rewritten.** Project shape, schema spec (inline, normative), rules of engagement updated for YAML files. New Rule 8 names the slug-vs-name distinction explicitly: display names mutate freely, slugs are stable and rename-as-refactor goes through `lex-crystallize`.
+
+- **`lex-bootstrap` rewritten** to emit YAML files per the schema. Phase 4 mints IDs and emits structured records instead of filling a markdown template with TODO placeholders. **Honest emission** replaces the v0.8.0 TODO-marker discipline: gaps are listed in `bootstrap.md`, not encoded as `<!-- TODO -->` strings in prose fields. Phase 6 ADR migration writes YAML. Templates dir replaces `*.md.template` files with annotated `*.yaml.example` files; `plan.md.template` stays for now (plans remain markdown).
+
+- **`lex-crystallize` rewritten** to propose **typed mutation sets** instead of markdown diffs. Mutations are `create / update / rename / move / deprecate / delete / add-anchor / set-status`, grouped by target file. The v0.x "deliberately NOT changing" discipline is dropped — typed mutations are mechanically scope-bounded, so untouched entities don't need to be enumerated. Rename ops cascade reference updates across all `lexicon/` files in a single Edit pass.
+
+### Added
+
+- **`lex-migrate` skill** — one-shot, forward-only conversion of a v0.x markdown lexicon to v0.1 YAML. Parses `system.md`, `views/*.md`, `decisions/*.md`, emits the corresponding YAML files, archives the originals under `lexicon/_pre-migrate-archive/`, and writes a migration report at `lexicon/migrate.md`. Mechanical — does not improvise interpretations. Anything that can't be cleanly mapped (cross-context References sections, view-scoped deliberate omissions, ad-hoc cross-references in prose) is preserved in the archive and listed in the report for the user to handle.
+
+### Transitional state
+
+- **`lex-ground`, `lex-retro`, `lex-audit` are not yet rewritten** for YAML. The schema spec in `lex-overview` is the source of truth, and these skills' next operational pass will read/write YAML natively. Until then their bodies may still reference `system.md` internally; treat that as known-stale phrasing, not authoritative.
+- **Retros and audit reports remain markdown** by design — they're event records, and the rendered prose carries the per-session voice. A future structured-retro evolution is plausible but not in scope for v0.9.
+
+### Migration
+
+- v0.x projects: run `lex-migrate` once, then proceed normally on YAML. The originals are archived, not deleted; verify the conversion, then drop the archive.
+- New projects: `lex-bootstrap` emits YAML directly. No markdown intermediate.
+
+### Why ship 0.9.0
+
+The cold layer was always intended to be the **invariant, machine-readable** slice of the project's vocabulary, but v0.x encoded it as markdown — readable for humans, brittle for tools. Two costs accumulated:
+
+1. Every consumer (audit, viewer, future LSP integration) had to re-parse markdown heuristically, with subtly different rules.
+2. References between entities (`NOT to be confused with X`, "see ADR-0042") were free-text, so renames silently broke them and ownership couldn't be enforced.
+
+YAML with stable slugs and typed refs collapses both: one parser, one canonical structure, mechanical reference cascade. The cost is that some prose voice flattens at conversion; the gain is everything downstream becomes typed.
+
 ## [0.8.1] - 2026-05-12
 
 ### Changed

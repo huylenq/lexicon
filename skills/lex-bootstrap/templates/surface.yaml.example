@@ -1,0 +1,41 @@
+# lexicon/surfaces/<slug>.yaml — one UI surface and its named regions.
+# A region earns a name when the team refers to it as a discrete piece,
+# regardless of whether it's been factored into a component file.
+# Implementation status is metadata (the implementation: sum type), not a
+# gate on naming.
+
+schemaVersion: "0.1"
+kind: surface
+id: <surface-slug>
+name: <Display name>
+
+# Optional: the route, screen id, or window identifier that anchors this
+# surface in the running app. Examples: "/compose", "ComposeView",
+# "MainWindow", "PrintLayout.invoice".
+route: <route-or-id>
+
+body: |
+  Optional prose: what this surface is for, when it appears, who navigates
+  to it.
+
+regions:
+  # Region with an extracted component file:
+  - id: <region-slug>
+    name: <Display name>
+    role: |
+      One-line description of the region's role.
+    implementation:
+      kind: component
+      import: "@/ui/Sidebar"
+      file: src/ui/Sidebar.tsx       # optional but recommended
+
+  # Region that's still an inline block:
+  - id: <other-region-slug>
+    name: <Display name>
+    role: |
+      One-line description.
+    implementation:
+      kind: inline
+      file: src/pages/compose.tsx
+      lineStart: 973
+      lineEnd: 987

@@ -1,6 +1,6 @@
 ---
 name: lex-crystallize
-description: "Run when the user asks to update the cold layer — phrases like 'crystallize', 'update lexicon', 'sync lexicon', 'absorb the retros', 'feature X is done', 'we're shipping X'. User-triggered, not agent-triggered: don't volunteer this unprompted. Reads retros since the last crystallization, cross-checks against git diff, proposes a coherent diff to system.md (and views) inline in conversation, and applies it directly on the user's yes. Read lex-overview first."
+description: "Run when the user asks to update the cold layer — phrases like 'crystallize', 'update lexicon', 'sync lexicon', 'absorb the retros', 'feature X is done', 'we're shipping X'. User-triggered, not agent-triggered: don't volunteer this unprompted. Reads retros since the last crystallization, cross-checks against git diff, proposes a typed mutation set over the cold-layer YAML files inline in conversation, and applies it directly on the user's yes. Read lex-overview first."
 ---
 
 # Lexicon: crystallize
@@ -9,13 +9,13 @@ description: "Run when the user asks to update the cold layer — phrases like '
 
 The agent doesn't reliably know when a body of work is "done" or when accumulated drift is worth absorbing. The user does. So this skill is **user-triggered**: it runs when the user says so, not when the agent guesses.
 
-If you haven't loaded `lex-overview` yet this session, read it first.
+If you haven't loaded `lex-overview` yet this session, read it first — the schema and the typed-mutation vocabulary below assume it.
 
 ## When to run this
 
 Run when the user explicitly says one of:
 - "crystallize" / "crystallize the work" / "crystallize feature X"
-- "update lexicon" / "update system.md" / "absorb the retros" / "sync lexicon"
+- "update lexicon" / "absorb the retros" / "sync lexicon"
 - "we're done with X" / "feature X is shipped" / "wrap up X"
 
 Don't volunteer this unprompted. If you suspect drift has accumulated, surface it as a question ("There are 12 retros since the last crystallization, several flagging the same `ScanQueue` term — want to crystallize?") and let the user decide. The user is the trigger.
@@ -39,10 +39,9 @@ Read:
    - `## Structural drift` sections (real flags worth absorbing).
    - `## Notes for future sweeps` (sub-flag-threshold patterns that may have crossed the line cumulatively).
 3. **Cross-check with git.** Run `git log --since=<marker>` and `git diff <commit-at-marker>..HEAD` over the relevant code paths. Catches drift the retros missed (skipped retros, silent renames the structural checks didn't flag).
-4. `lexicon/system.md` — the current cold model.
-5. Relevant `lexicon/views/*.md` — whichever views the diff touches.
-6. `lexicon/decisions/` — recent ADRs that might overlap with what you're about to propose.
-7. `~/src/lexicon/lexicon-prefs.md` — personal overrides. The Calibration section especially can change which retro flags are worth absorbing vs leaving as known-noise.
+4. **The cold layer.** `lexicon/system.yaml` plus whichever `lexicon/contexts/*.yaml` and `lexicon/surfaces/*.yaml` files the diff touches. Don't load every file — read what's relevant to the diff.
+5. **`lexicon/decisions/`** — recent ADRs that might overlap with what you're about to propose.
+6. **`~/src/lexicon/lexicon-prefs.md`** — personal overrides. The Calibration section especially can change which retro flags are worth absorbing vs leaving as known-noise.
 
 This is a bigger read than a retro. Take the time on it. Crystallization done badly is worse than crystallization skipped — a wrong glossary entry is harder to remove than a missing one is to add.
 
@@ -55,71 +54,98 @@ The cumulative framing changes how each check lands:
 - **Vocabulary** — filter for terms that *stuck around and stabilized* across multiple sessions. A term that appeared in one retro and got renamed by the next isn't worth glossarying.
 - **Vocabulary consistency** — look at coherence *across* all retros and the current code. If terminology drifted within the period, that's a vocabulary problem worth fixing.
 - **Invariants** — look for adds, removes, modifications across the whole diff, not per-session.
-- **Boundaries** — re-look at the bounded-context section with fresh eyes; cumulative boundary changes often hide in incremental session diffs.
+- **Boundaries** — re-look at the bounded-contexts model with fresh eyes; cumulative boundary changes often hide in incremental session diffs.
 - **Decisions** — prefer a single ADR for a coherent decision arc when scattered session-level decisions cohere into one story.
 - **Declared scope match (cumulative)** — did the work as a whole stay where it said it would, or did it become something else? If it became something else, that often reveals a model update.
 
 ## Surface pre-existing inconsistencies
 
-If `system.md` (or a view) already contains passages that look mutually inconsistent — a term defined two slightly different ways, an invariant that contradicts another, a boundary description out of step with the bounded-contexts list — **surface this to the user before proposing the new diff**. Don't smooth it over silently.
+If the existing cold layer already contains entries that look mutually inconsistent — a term defined two slightly different ways across contexts, an invariant that contradicts another, an ADR `affects:` set that points at deleted entities — **surface this to the user before proposing the new mutation set**. Don't smooth it over silently.
 
 These usually come from previous incomplete edits, concurrent sessions that didn't reconcile, or older content that got partially updated. The right move is to name what you found and ask: "Should I reconcile this as part of the crystallization, or is it intentional?" Reconciling without asking is exactly the kind of silent edit lexicon exists to prevent.
 
-## Propose the diff inline
+## Propose the mutation set inline
 
-Don't write a proposal file. Present the proposed changes **in conversation**, grouped by target file. Aim for the smallest possible diff that captures what shifted.
+Don't write a proposal file. Present the proposed changes **in conversation** as a typed mutation set, grouped by target file. The user reviews structured operations; the file edits follow on yes.
 
-Use this shape in chat:
+### Mutation vocabulary
+
+Use these operation kinds when describing changes:
+
+| Op | Shape | Example |
+|---|---|---|
+| `create` | New entity in a file | `create term inference/scan-queue` |
+| `update` | Field-level change to an existing entity | `update term inference/worker.definition` (prose diff shown) |
+| `rename` | Slug change with reference cascade | `rename term inference/worker → inference/run-worker` (affects <K> refs in <F> files) |
+| `move` | Re-ownership across contexts | `move term inference/worker → billing/worker` |
+| `deprecate` | Soft-delete via `status: deprecated` | `deprecate term inference/old-queue` |
+| `delete` | Hard removal (rare; for mistakes) | `delete term inference/typo-name` |
+| `add-anchor` | Add a `symbols` or `constrainsCode` entry | `add-anchor term inference/worker += src/worker.ts#Worker` |
+| `set-status` | ADR transition | `set-status decision/ADR-0007 = superseded` (and supersededBy on the older one) |
+
+For each `update`, show the **prose diff** in the chat — the human-readable change to definition / statement / rationale / body. For structural ops (rename / move / deprecate / status transition), the description and target are enough; the reference cascade is mechanical.
+
+### Proposal shape in chat
 
 > ## Crystallization proposal
 > Period: `<marker timestamp>` → now
 > Retros considered: `<N>` (`<list of timestamps or a range>`)
-> Targets: `<lexicon/system.md and/or lexicon/views/<slug>.md>`
+> Targets: `<comma-separated list of YAML files>`
 >
 > ### Summary
 > <2-3 sentences: what does the system do now that it didn't before, or what did we learn that wasn't captured?>
 >
-> ### Proposed edits
-> *(Group by target file. Show actual diff hunks where helpful. Cluster by category: glossary additions, glossary refinements, invariant changes, boundary changes, "why" notes.)*
+> ### Mutations
 >
-> ```diff
-> --- a/lexicon/system.md
-> +++ b/lexicon/system.md
-> @@ glossary @@
-> +**ScanQueue**: ordered buffer holding inference jobs between intake and the worker pool. Distinct from `JobQueue` (which is per-worker) — see ADR-0042.
-> ```
+> **`lexicon/contexts/inference.yaml`**
+> - `create` term `scan-queue`
+>   ```
+>   definition: ordered buffer holding inference jobs between intake and the worker pool. Distinct from job-queue (per-worker).
+>   disambiguatesFrom: [inference/job-queue]
+>   symbols:
+>     - file: src/inference/scan_queue.ts
+>     - symbol: ScanQueue
+>   ```
+> - `update` term `worker`, field `definition`
+>   ```diff
+>   - definition: a process that pulls jobs from the queue and runs the model.
+>   + definition: a worker process that pulls jobs from scan-queue and runs the model. Holds a per-worker job-queue while running.
+>   ```
+> - `rename` term `inference/worker` → `inference/run-worker`  *(cascades: 3 refs in inference.yaml, 1 in billing.yaml)*
 >
-> ### ADRs to add
-> - `ADR-NNNN: <title>` — <one-line summary, body to be written if you accept>
->
-> ### Deliberately NOT changing
-> <Adjacent things you noticed but are excluding from this crystallization. These are visible-but-deferred — call them out so they're not silently lost.>
+> **`lexicon/decisions/`**
+> - `create` ADR-0042 "Introduce scan-queue between intake and workers"
+>   - `affects:` [inference/scan-queue, inference/worker, inference/intake]
+>   - body to be written after approval if you accept
 >
 > ### Confidence: <low | medium | high>
 >
 > Apply this? (yes / revise / no)
 
-If the project uses Domain Views, name the targets explicitly. A crystallization that touches *every* view is a sign the partition needs revisiting — surface that as its own observation.
+Per-mutation rendering should make the *structural intent* obvious; prose diffs show *what the human cares about*. Don't dump the full YAML for every change — show only what's mutating, and let the user trust the cascade for mechanical reference updates.
+
+If the project has many context files and the mutation set spans more than half of them, that's a sign the period saw a model shift, not just incremental drift. Surface it: "this crystallization touches <N> of <M> contexts — does the partitioning still feel right, or has the model moved?"
 
 ## Apply on yes
 
 When the user says yes:
 
-1. **Apply the diff to the named files** using Edit. Group changes by file; one Edit per logical hunk.
-2. **Append any new ADRs** to `lexicon/decisions/`.
-3. **If a feature plan was involved**, move `lexicon/plans/<feature>/` to `lexicon/plans/_archive/<feature>/` (ask first if the user didn't explicitly ask to wrap up the feature).
-4. **Update the marker.** Write the current ISO timestamp to `lexicon/.last-crystallized`.
-5. **Confirm in chat**: "Crystallized. <N> edits applied to <files>; <K> ADRs added; marker updated."
+1. **Apply each mutation** to its target file using Edit. Single Edit per mutation where possible.
+2. **For rename / move operations**, cascade reference updates across all files in `lexicon/`. Don't ask per-file — that's what the cascade declaration in the proposal was for. If a cascade can't be performed mechanically (ambiguous ref), surface the specific case and ask.
+3. **Append new ADRs** to `lexicon/decisions/` as fresh YAML files (`ADR-<NNNN>-<slug>.yaml`). Use the next available NNNN.
+4. **If a feature plan was involved**, move `lexicon/plans/<feature>/` to `lexicon/plans/_archive/<feature>/` (ask first if the user didn't explicitly ask to wrap up the feature).
+5. **Update the marker.** Write the current ISO timestamp to `lexicon/.last-crystallized`.
+6. **Confirm in chat**: "Crystallized. <N> mutations applied across <F> files; <K> ADRs added; <R> reference cascades. Marker updated."
 
-If the user says revise, iterate on the proposal in conversation. Don't apply partial diffs unilaterally.
+If the user says **revise**, iterate on the proposal in conversation. Don't apply partial mutation sets unilaterally.
 
-If the user says no, **still update the marker** if they want future crystallizations to skip these retros — ask: "Skip these retros in future crystallizations? (yes updates the marker; no leaves them in scope)". This avoids re-proposing the same rejected edits next time.
+If the user says **no**, **still update the marker** if they want future crystallizations to skip these retros — ask: "Skip these retros in future crystallizations? (yes updates the marker; no leaves them in scope)". This avoids re-proposing the same rejected mutations next time.
 
-## On the "deliberately NOT changing" section
+## Tight scope is structural, not editorial
 
-This is one of the most useful parts of the proposal. Crystallization is tempting to use as a chance to fix everything you've noticed about `system.md`. Resist. Each crystallization should be tightly scoped to what the period actually shifted. Adjacent issues go in the "deliberately NOT changing" section so they're visible but not folded in — a future crystallization, an audit, or a deliberate spec-review session can address them.
+In the markdown era this skill had a "deliberately NOT changing" section to keep proposals reviewable. The structured mutation set replaces that mechanism: every touched entity appears as a typed op, every untouched entity is mechanically absent. The reviewer reads the *list of mutations* and knows everything else is unchanged. If they want to see the whole graph state after applying, they have the viewer.
 
-Mixing scopes is how cold-layer edits become unreviewable.
+That said, **still keep crystallization tightly scoped to what the period actually shifted**. Don't pile adjacent observations into the mutation set "while we're at it." A crystallization that touches every context file is a different kind of operation than one that touches three terms in one context — surface the difference honestly in the Summary block rather than hiding it in mutation count.
 
 ## Suggesting prefs entries
 

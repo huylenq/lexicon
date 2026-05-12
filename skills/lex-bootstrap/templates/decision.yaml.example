@@ -1,0 +1,38 @@
+# lexicon/decisions/ADR-<NNNN>-<slug>.yaml — one ADR. Append-only.
+# Mutation on an existing ADR file is allowed only for status transitions
+# (accepted → superseded) and goes through lex-crystallize.
+
+schemaVersion: "0.1"
+kind: decision
+id: ADR-<NNNN>
+title: <Short title — fits on one line>
+date: <YYYY-MM-DD>
+status: accepted               # proposed | accepted | superseded
+
+# Optional. Set when this ADR replaces an earlier one. The earlier ADR's
+# supersededBy: must be set in the same crystallize operation.
+supersedes:
+  - ADR-<MMMM>
+
+# Optional. Set when a later ADR replaces this one.
+supersededBy: ADR-<MMMM>
+
+# Optional but encouraged: entities this decision touches. Lets the viewer
+# and audit cross-reference "decisions affecting this term."
+affects:
+  - <term-ref>
+  - <invariant-ref>
+  - <context-ref>
+
+context: |
+  What problem we were facing. Enough background that a reader six months
+  from now can reconstruct the situation.
+
+decision: |
+  What we chose. Be specific.
+
+consequences: |
+  What this enables. What it forecloses. Trade-offs accepted.
+
+alternatives: |
+  Briefly: what else was on the table, and why it wasn't picked.

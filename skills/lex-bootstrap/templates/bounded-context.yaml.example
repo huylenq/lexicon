@@ -1,0 +1,58 @@
+# lexicon/contexts/<slug>.yaml — one bounded context's owned vocabulary.
+# Holds: terms, invariants, seams, boundary rules owned by this context.
+# Cross-cutting entries (≥3 contexts) live in lexicon/system.yaml instead.
+
+schemaVersion: "0.1"
+kind: bounded-context
+id: <context-slug>            # must match this file's filename slug
+name: <Display name>
+
+purpose: |
+  One paragraph: what this context is for, what it owns conceptually.
+
+# Optional: directory globs or paths in the codebase that this context owns.
+# Used by audit to verify the context-to-code mapping.
+modules:
+  - src/<module>/**
+
+terms:
+  - id: <term-slug>
+    name: <Display name>
+    definition: |
+      Short definition.
+    disambiguatesFrom:
+      - <ref>
+    symbols:
+      - file: src/<module>/foo.ts
+        symbol: ClassName
+
+invariants:
+  - id: <invariant-slug>
+    name: <Display name>
+    statement: |
+      The property that must hold.
+    rationale: |
+      Why it matters; what breaks if violated.
+    validationMode: code        # OR: linter, principle
+    constrainsCode:
+      - file: src/<module>/foo.ts
+        lineStart: 100
+        lineEnd: 140
+        symbol: relevantFunction
+
+seams:
+  - id: <seam-slug>
+    name: <Display name>
+    description: |
+      A structural joint between modules or contexts. Distinct from a
+      boundary rule — a seam is structural, a rule is normative.
+    participants:
+      - <other-context-slug>
+
+boundaryRules:
+  - id: <rule-slug>
+    rule: |
+      A directional normative rule.
+      Example: "Inference never writes to the training store."
+    from: <this-context>
+    to: <other-context>
