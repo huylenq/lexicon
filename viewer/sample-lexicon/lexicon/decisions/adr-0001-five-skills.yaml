@@ -1,0 +1,25 @@
+schemaVersion: "0.1"
+kind: decision
+id: ADR-0001
+title: Five skills, not one
+date: "2026-04-15"
+status: accepted
+affects:
+  - cold-layer/term
+  - cold-layer/bounded-context
+context: >
+  Lexicon could ship as a single `lexicon` skill that branches internally on
+  intent. Considered. Rejected.
+decision: >
+  Five skills — lex-overview (rules), lex-bootstrap (adoption), lex-ground
+  (per-task grounding), lex-retro (session stopping point), lex-crystallize
+  (cold-layer absorption), lex-audit (periodic backward-flow check).
+consequences: >
+  Each skill has its own trigger cues — bootstrap triggers on "set up"
+  cues, ground on "starting work", retro on "stopping point", crystallize
+  on user-driven "absorb the retros", audit on "is system.md still
+  accurate?". Triggering is sharper than a single skill could achieve.
+alternatives: >
+  Single skill with mode flags. Rejected because skill descriptions are
+  the trigger mechanism — separate skills give the agent different sets of
+  contextual cues to fire on. Conflating any of them weakens triggering.

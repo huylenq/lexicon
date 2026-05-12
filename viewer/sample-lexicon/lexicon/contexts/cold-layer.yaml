@@ -1,0 +1,101 @@
+schemaVersion: "0.1"
+kind: bounded-context
+id: cold-layer
+name: Cold Layer
+purpose: >
+  The slow-evolving store of project vocabulary, invariants, bounded contexts
+  and decisions — what the code cannot express well on its own.
+modules:
+  - skills/lex-overview/**
+  - skills/lex-bootstrap/**
+  - skills/lex-crystallize/**
+  - skills/lex-audit/**
+terms:
+  - id: term
+    name: Term
+    definition: >
+      A glossary entry — the atom of the ubiquitous language. Identified by a
+      stable slug; carries a display name, a definition, optional
+      disambiguations, and optional code anchors.
+    disambiguatesFrom:
+      - design-system/component
+    symbols:
+      - file: skills/lex-overview/SKILL.md
+        lineStart: 76
+        lineEnd: 78
+        symbol: "Vocabulary check"
+  - id: invariant
+    name: Invariant
+    definition: >
+      A property that must hold across the system (or a context). Carries a
+      statement, a rationale, and optionally code that constrains it.
+    symbols:
+      - file: skills/lex-overview/SKILL.md
+        lineStart: 79
+        lineEnd: 79
+  - id: bounded-context
+    name: Bounded Context
+    definition: >
+      A DDD primitive made first-class in lexicon. A region of the model
+      within which terms have a single, consistent meaning. Owns Terms,
+      Invariants, Seams and Boundary Rules.
+    symbols:
+      - file: skills/lex-overview/SKILL.md
+        lineStart: 80
+        lineEnd: 80
+  - id: boundary-rule
+    name: Boundary Rule
+    definition: >
+      A directed normative rule between two bounded contexts, e.g. "Inference
+      never writes to the training store."
+  - id: architecture-seam
+    name: Architecture Seam
+    definition: >
+      A structural joint between modules or contexts. Distinct from a Boundary
+      Rule — a seam is structural, a rule is normative.
+  - id: deliberate-omission
+    name: Deliberate Omission
+    definition: >
+      A topic deliberately not specified, and why. Makes boundaries explicit
+      by naming what is intentionally outside the model.
+invariants:
+  - id: small-cold-doc
+    name: Cold doc stays small
+    statement: >
+      The cold layer's holistic entry point stays under ~500 lines. Beyond
+      that, partition into Domain Views.
+    rationale: >
+      The cold doc rots if it tries to mirror code. The size bound forces
+      compression and keeps the layer cold.
+    validationMode: linter
+  - id: term-ownership
+    name: Exactly-one ownership for Terms
+    statement: >
+      Every Term has exactly one owning location — a single bounded context
+      or the system's cross-cutting glossary.
+    rationale: >
+      Without ownership, the same term gets defined twice with slowly
+      diverging meanings. This is the single failure mode views are most
+      prone to.
+    validationMode: code
+    constrainsCode:
+      - file: skills/lex-audit/SKILL.md
+        lineStart: 73
+        lineEnd: 87
+        symbol: "Phase 1b — UL ownership validation"
+seams:
+  - id: cold-hot-seam
+    name: Cold ↔ Hot seam
+    description: >
+      Plans (hot layer) reference Terms, BoundedContexts and Invariants
+      (cold layer) via typed anchors. Cold layer never references plans.
+    participants:
+      - cold-layer
+      - hot-layer
+boundaryRules:
+  - id: no-drive-by-edits
+    rule: >
+      Cold-layer edits do not happen as drive-by side effects of unrelated
+      work. They route through lex-crystallize with explicit human review.
+    from: hot-layer
+    to: cold-layer

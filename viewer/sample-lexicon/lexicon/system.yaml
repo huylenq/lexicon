@@ -1,0 +1,55 @@
+schemaVersion: "0.1"
+kind: system
+id: lexicon
+name: Lexicon
+purpose: >
+  A small workflow of skills that keeps the cold-layer model of a software
+  project (vocabulary, invariants, bounded contexts, decisions) aligned with
+  the running code, across long human↔agent sessions.
+contexts:
+  - cold-layer
+  - hot-layer
+  - session-artifacts
+  - design-system
+crossCuttingTerms:
+  - id: ubiquitous-language
+    name: Ubiquitous Language
+    definition: >
+      The same nouns and verbs appear in system.md, in conversation, and in
+      code. The single load-bearing primitive — when all three layers use the
+      same vocabulary, mental-model alignment is enforced by repetition rather
+      than by remembering.
+  - id: cold-layer
+    name: Cold layer
+    definition: >
+      The structured store of vocabulary, invariants, bounded contexts and
+      decisions. Evolves at the speed of learning, not the speed of typing.
+  - id: hot-layer
+    name: Hot layer
+    definition: >
+      Per-feature plans, born when work starts and absorbed (crystallized) or
+      discarded when work lands.
+crossCuttingInvariants:
+  - id: ownership-one
+    name: Exactly-one ownership
+    statement: >
+      Every Term has exactly one owning location — a single bounded context
+      or the system's cross-cutting glossary.
+    rationale: >
+      Without ownership, views drift independently and the same term gets
+      redefined in two places with quietly diverging meanings.
+  - id: adr-append-only
+    name: ADRs are append-only
+    statement: Decisions are history. They are not edited; they are superseded.
+    rationale: >
+      An ADR captures the situation at a point in time. Mutating it loses the
+      record of what was thought then versus what is thought now.
+deliberateOmissions:
+  - topic: Concurrent-agent coordination
+    reason: >
+      Multi-agent collisions on the same repo are handled by git, like any
+      other shared file. Lexicon stays out of git's job.
+  - topic: Significance scoring
+    reason: >
+      The agent is the worst possible judge of "is this significant?".
+      Structural triggers replace subjective scoring.

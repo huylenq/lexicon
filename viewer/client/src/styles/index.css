@@ -1,0 +1,139 @@
+@import "tailwindcss";
+
+@theme {
+  /* palette */
+  --color-ink: #0e1014;
+  --color-ink-2: #14171d;
+  --color-ink-3: #1d212a;
+  --color-ink-4: #2a2f3a;
+  --color-rule: #353b48;
+  --color-vellum: #e8e2d5;
+  --color-vellum-2: #c9c2b3;
+  --color-vellum-3: #8e8878;
+  --color-oxide: #b8472d;
+  --color-oxide-2: #d76647;
+  --color-saffron: #d9a566;
+
+  /* fonts */
+  --font-display: "Fraunces", ui-serif, Georgia, serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --font-sans: "Fraunces", ui-serif, Georgia, serif;
+
+  /* type scale */
+  --text-display: 4.5rem;
+  --text-h1: 2.75rem;
+  --text-h2: 1.875rem;
+  --text-h3: 1.25rem;
+  --text-body: 1rem;
+  --text-small: 0.8125rem;
+  --text-micro: 0.6875rem;
+
+  /* radii (sharp on purpose) */
+  --radius-card: 0;
+  --radius-pill: 2px;
+}
+
+@layer base {
+  html, body {
+    background: var(--color-ink);
+    color: var(--color-vellum);
+    font-family: var(--font-display);
+    font-feature-settings: "ss01", "ss02", "kern", "liga";
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    font-variation-settings: "opsz" 14, "SOFT" 30;
+  }
+  ::selection {
+    background: var(--color-oxide);
+    color: var(--color-ink);
+  }
+  *:focus-visible {
+    outline: 1px solid var(--color-oxide-2);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  .mono { font-family: var(--font-mono); }
+  .display { font-family: var(--font-display); font-variation-settings: "opsz" 144, "SOFT" 80; letter-spacing: -0.02em; }
+  .display-tight { font-variation-settings: "opsz" 144, "SOFT" 40; letter-spacing: -0.025em; line-height: 0.95; }
+  .smallcap { font-family: var(--font-mono); font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.18em; color: var(--color-vellum-3); }
+  .rule { border-color: var(--color-rule); }
+
+  /* Inline reference pill: a typeset cross-reference, not a generic link. */
+  .ref-link {
+    background-image: linear-gradient(var(--color-oxide-2), var(--color-oxide-2));
+    background-size: 100% 1px;
+    background-repeat: no-repeat;
+    background-position: 0 100%;
+    text-decoration: none;
+    color: inherit;
+    padding-bottom: 1px;
+    transition: background-size 120ms ease;
+  }
+  .ref-link:hover {
+    background-color: rgba(184, 71, 45, 0.12);
+    background-size: 100% 100%;
+  }
+
+  /* index-card surface */
+  .card {
+    background: var(--color-ink-2);
+    border: 1px solid var(--color-rule);
+  }
+  .card-inset {
+    background: var(--color-ink-3);
+    border: 1px solid var(--color-rule);
+  }
+
+  /* drafting hairline */
+  .hr-rule {
+    height: 1px;
+    background: var(--color-rule);
+    border: 0;
+  }
+
+  /* the oxide focus rule used on the active sidebar item */
+  .active-rule {
+    position: relative;
+  }
+  .active-rule::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 0; bottom: 0; width: 2px;
+    background: var(--color-oxide);
+  }
+
+  /* prose body */
+  .prose-body {
+    font-family: var(--font-display);
+    font-variation-settings: "opsz" 14, "SOFT" 30;
+    line-height: 1.55;
+    color: var(--color-vellum);
+    max-width: 62ch;
+  }
+  .prose-body p + p { margin-top: 0.85em; }
+
+  /* monaco peek decorations */
+  .peek-highlight-line {
+    background: linear-gradient(90deg, rgba(184, 71, 45, 0.15), rgba(184, 71, 45, 0));
+  }
+  .peek-highlight-gutter {
+    background: var(--color-oxide);
+    width: 2px !important;
+    margin-left: 4px;
+  }
+
+  /* grain overlay for atmosphere — opt-in via .grain on container */
+  .grain::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.04;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.6'/></svg>");
+  }
+}

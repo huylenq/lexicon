@@ -1,0 +1,50 @@
+schemaVersion: "0.1"
+kind: surface
+id: skill-bundle
+name: Skill Bundle
+route: skills/
+body: >
+  The on-disk layout of the lexicon plugin itself — five SKILL.md files
+  plus an overview, each carrying YAML frontmatter (trigger description)
+  and a body (operational instructions).
+regions:
+  - id: overview-rulebook
+    name: Overview Rulebook
+    role: Cross-cutting rules the other skills assume in context.
+    implementation:
+      kind: inline
+      file: skills/lex-overview/SKILL.md
+      lineStart: 1
+      lineEnd: 167
+  - id: structural-checks-spec
+    name: Structural-checks spec
+    role: The six checks the retro/crystallize/audit skills share.
+    implementation:
+      kind: inline
+      file: skills/lex-overview/SKILL.md
+      lineStart: 71
+      lineEnd: 107
+  - id: bootstrap-skill
+    name: Bootstrap Skill
+    role: One-shot adoption pass; drafts system.md and a triage report.
+    implementation:
+      kind: inline
+      file: skills/lex-bootstrap/SKILL.md
+      lineStart: 1
+      lineEnd: 50
+  - id: crystallize-skill
+    name: Crystallize Skill
+    role: User-triggered absorption of retros into the cold layer.
+    implementation:
+      kind: inline
+      file: skills/lex-crystallize/SKILL.md
+      lineStart: 1
+      lineEnd: 50
+  - id: audit-skill
+    name: Audit Skill
+    role: Periodic backward-flow validation of system.md against code.
+    implementation:
+      kind: inline
+      file: skills/lex-audit/SKILL.md
+      lineStart: 1
+      lineEnd: 50

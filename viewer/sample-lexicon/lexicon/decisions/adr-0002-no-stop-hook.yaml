@@ -1,0 +1,23 @@
+schemaVersion: "0.1"
+kind: decision
+id: ADR-0002
+title: No Stop hook for retro
+date: "2026-04-20"
+status: accepted
+affects:
+  - session-artifacts/retro
+context: >
+  A Claude Code Stop hook was drafted as the enforcement mechanism for
+  retros. The hope was that retros would fire deterministically at session
+  end without depending on the agent noticing.
+decision: >
+  No Stop hook. The skill description's pushiness is the only enforcement
+  mechanism, and it is enough.
+consequences: >
+  Retros depend on the agent recognizing a natural stopping point. Some
+  sessions will miss the retro. That is acceptable — the audit catches
+  the backward-flow drift retros miss.
+alternatives: >
+  Wire a Stop hook anyway. Rejected after recognizing Claude Code's Stop
+  event fires on every agent→user turn, not at session end. A hook there
+  would nudge retro between every exchange — catastrophic noise.

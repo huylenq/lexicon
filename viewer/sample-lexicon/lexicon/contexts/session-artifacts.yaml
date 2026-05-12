@@ -1,0 +1,52 @@
+schemaVersion: "0.1"
+kind: bounded-context
+id: session-artifacts
+name: Session Artifacts
+purpose: >
+  The cool tier — per-session logs, audit reports, bootstrap reports, the
+  user-level prefs file. Records, not aggregates with mutable state.
+modules:
+  - skills/lex-retro/**
+  - skills/lex-audit/**
+terms:
+  - id: retro
+    name: Retro
+    definition: >
+      An always-written session log. Carries a session summary and zero or
+      more structural-check flags. Aggregated by lex-crystallize.
+    symbols:
+      - file: skills/lex-retro/SKILL.md
+        lineStart: 1
+        lineEnd: 30
+  - id: audit-report
+    name: Audit Report
+    definition: >
+      A per-phase backward-flow validation of system.md against current code.
+      Read-mostly: never edits system.md, only triages.
+    symbols:
+      - file: skills/lex-audit/SKILL.md
+        lineStart: 1
+        lineEnd: 50
+  - id: crystallization-marker
+    name: Crystallization Marker
+    definition: >
+      An ISO timestamp at lexicon/.last-crystallized. Lex-crystallize reads
+      retros newer than this. Trivial file, load-bearing role.
+  - id: prefs
+    name: Prefs
+    definition: >
+      User-level preferences file at ~/src/lexicon/lexicon-prefs.md. Sectioned
+      Workflow / Style / Calibration / Patterns. The only mechanism that lets
+      lexicon adapt to the user across projects.
+    symbols:
+      - file: lexicon-prefs.md
+invariants:
+  - id: retro-always-runs
+    name: Retro always runs
+    statement: >
+      Most retros log only a session summary. Conditional execution is
+      rejected — the point is that the question gets asked every time.
+    rationale: >
+      Skipping retro for "obviously trivial" sessions imports the same
+      significance-judgment failure mode the structural checks were designed
+      to avoid.
