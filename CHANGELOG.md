@@ -10,6 +10,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 While in 0.x, breaking project-shape changes bump the minor (0.x.0 → 0.(x+1).0); the major bump is reserved for a stability commitment at 1.0.
 
+## [0.8.1] - 2026-05-12
+
+### Changed
+
+- **`lex-bootstrap` Phase 2: UI detection is now a judgment question, not a checklist.** The prior phrasing keyed off web-app idioms — `tailwind.config`, `routes/`, `.storybook/`, `jsx-a11y` — and concluded "backend-only" when those were absent. Real failure mode: an Obsidian plugin bootstrapped on 2026-05-12 came out with no design-system section despite having four `ItemView` surfaces, ~30 React/TSX components, and a `src/styles/` tree, because it inherits tokens from the host (Obsidian's CSS custom properties) and registers surfaces through the host's view-class API instead of a route table. The skill saw none of its expected signals and silently omitted the section.
+  - Phase 2 now opens with a **UI detection** bullet: *does this code put anything in front of a human?* — answered by whatever signal exists (rendering-purpose files, dependency list, README prose, screenshots, file/dir names), with explicit callout that host-embedded UIs (Obsidian / VS Code / Figma / browser-extension / Logseq plugins) are the dominant false negative.
+  - The existing **Design-system surface** and **Surfaces & regions** bullets keep their framework-specific examples, but the framing is reworked from "if these are absent, skip" to "these are eye-prompts for finding signal, not gates." Surfaces & regions now explicitly covers host-embedded view registrations (`ItemView`, `WebviewViewProvider`, etc.) and leads with the conceptual question *"what does the user navigate between?"* instead of a route-detection grep.
+  - Phase 4's design-system gate updates from "only if Phase 2 found design-system signals" to "only if Phase 2's UI detection said yes." Host-embedded UIs get explicit guidance for the Tokens subsection (one-line pointer at the host's design system, not duplication).
+  - Phase 9 report header: "omit if backend-only" → "omit if UI-free" for terminology consistency.
+
+- **`lex-bootstrap` Phase 8: distillation is now one decision per conversational turn, batching forbidden.** Prior phrasing told the agent to walk through TODOs "in 5–8 batches" and explicitly accepted "abbreviated answers (`1c, 2-3 cull, 4 rewrite: …, 5-7 confirm`)." Real failure mode: a Dany bootstrap on 2026-05-12 surfaced four items in a single message with shortcode syntax; the user pushed back that this defeats the point of running the interview in-session — multi-decision batching optimizes for agent throughput, not cold-doc quality.
+  - Phase 8 now opens with an explicit non-negotiable rule: never bundle multiple distillation decisions into a single message. Per-item flow is state → context → ask → wait → apply → confirm → next item *in a new turn*.
+  - Added an Anti-patterns subsection naming the failure modes ("Here are 4 batches, answer with shortcodes 1A 2Y…" / "Quick confirms on items 1–5 since they're all similar?" / listing upcoming items as preview).
+  - Phase 9 distillation-status line and Phase 10 user-facing message reworked from "after batch <N>: <name>" to "mid-<category>: <N> of <T> items resolved, next pending: <description>" so pause-and-resume captures progress in items, not batches.
+  - "What this skill is NOT" gets an explicit line: *multi-decision batching is forbidden; the user's attention is the scarce resource, not the agent's tokens.*
+
+### Why ship 0.8.1
+
+Two prose-shape fixes that share a lesson: **don't let the skill optimize for the agent's convenience at the user's expense.**
+
+The UI-detection change pushed back on enumerate-then-gate as a project-recognition strategy — the list always leaks, and LLMs are bad at exhaustive enumeration. Define the *question* and trust the agent to answer.
+
+The Phase-8 change pushed back on batched-shortcode prompting as an interview style — it appears to save time but actually evicts the user's engagement, which is the whole point of running the interview in-session. Define the *rule* (one decision per turn) and trust the conversation to take what it takes.
+
+Both are patches to phrasing, not new capabilities. The framework-specific examples stay, but as signal-prompts rather than gates; the queue ordering stays, but as priority rather than batching boundaries.
+
 ## [0.8.0] - 2026-05-12
 
 ### Added

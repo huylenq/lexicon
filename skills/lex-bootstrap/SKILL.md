@@ -1,6 +1,6 @@
 ---
 name: lex-bootstrap
-description: "Run once at adoption time, when a project is being set up to use lexicon for the first time. Trigger when the user says 'set up lexicon', 'adopt lexicon', 'bootstrap lexicon', 'migrate to lexicon', or when lex-ground finds no lexicon/system.md and the project has substantive existing docs (ARCHITECTURE.md, RFCs, ADR folders) or non-trivial code. Reads existing docs and code, drafts a first-cut system.md, migrates ADR-shaped content, then interviews the user batch-style to resolve TODOs, drift flags, and inconsistencies before producing the final triage list. Read lex-overview first."
+description: "Run once at adoption time, when a project is being set up to use lexicon for the first time. Trigger when the user says 'set up lexicon', 'adopt lexicon', 'bootstrap lexicon', 'migrate to lexicon', or when lex-ground finds no lexicon/system.md and the project has substantive existing docs (ARCHITECTURE.md, RFCs, ADR folders) or non-trivial code. Reads existing docs and code, drafts a first-cut system.md, migrates ADR-shaped content, then interviews the user one decision at a time to resolve TODOs, drift flags, and inconsistencies before producing the final triage list. Read lex-overview first."
 ---
 
 # Lexicon: bootstrap
@@ -62,8 +62,9 @@ Without trying to be exhaustive, surface the project's structural shape:
 - **High-frequency identifiers** — class, type, struct, and top-level function names that appear across many files. These are glossary candidates.
 - **Public surface** — exported types, public APIs, entrypoints. The vocabulary at this surface tends to be the most load-bearing.
 - **Cross-module dependencies** — which modules import which. Hints at whether the seams are clean (low cross-talk) or already tangled (lots of cross-talk).
-- **Design-system surface** (UI projects only): theme/token files (`tailwind.config.{js,ts}`, `theme.{css,ts}`, `tokens/`, `*.tokens.{json,css}`, CSS custom-property declarations, or framework equivalents — Flutter `ThemeData`, SwiftUI `Color` extensions, Compose `MaterialTheme`, terminal `colors.json`, etc.); component library directories (`components/`, `ui/`, `design-system/`, `widgets/`, framework equivalents); rendering/preview tooling (`.storybook/`, MDX/Ladle/Histoire configs); a11y tooling (`eslint-plugin-jsx-a11y`, `axe-core`, `jest-axe`, Storybook a11y addon, Playwright a11y, platform-native equivalents). Absence of all these means the project is backend-only — skip the design-system parts of later phases.
-- **Surfaces & regions** (UI projects only): top-level surface registry — route definitions (React Router, Next.js `app/`, SvelteKit `routes/`, Flutter `Navigator`, SwiftUI `NavigationStack`), screen/window managers, TUI screen IDs, print-layout templates. Inside each surface, scan the rendered tree for **named regions** that are *not* extracted into their own component file: `{/* Name */}`-style comments preceding inline blocks (a strong author-intent signal), semantic containers (`<aside>` / `<main>` / `<header>` / `<dialog>` / framework equivalents like SwiftUI `Sidebar`/`ToolbarItem` / Flutter `Drawer`/`AppBar`), inline-defined sub-components rendering self-contained pieces, and repeated visual clusters (banner / chip / badge patterns appearing 3+ times across files). Cross-reference with the route component file to identify candidate region names and their inline `<file>:<lineStart>–<lineEnd>` ranges.
+- **UI detection** — before doing the UI-specific scans below, decide whether this project has a UI at all. The question is **judgment, not a checklist**: *does this code put anything in front of a human?* Weigh whatever signal you can find — rendering-purpose files (JSX/TSX, Vue/Svelte components, SwiftUI `View`, `@Composable`, Flutter `Widget`, HTML templates, any CSS/SCSS at all), screenshots in the repo, README prose describing what the user sees, dependency lists naming rendering libraries (React, Vue, lit, `ink`, `rich`, `bubbletea`, …), file/dir names containing `view`/`screen`/`window`/`panel`/`widget`/`component`. Any one of these usually settles it. **Host-embedded UIs are the most common false negative**: Obsidian plugins, VS Code extensions, Figma plugins, browser extensions, Logseq plugins typically inherit tokens, theming, and surface registration from the host — so absence of `tailwind.config`, your own `routes/`, or Storybook does **not** mean backend-only. If there's a rendered tree at all (React/Vue/Svelte/native/template), there's a UI. If the project is genuinely UI-free (pure library, server with no rendered surface, CLI that only emits structured data), skip the next two bullets and the design-system parts of later phases. Edge case: a CLI that invests in layout (colored output, tables, prompts via `ink`/`rich`/`bubbletea` or hand-rolled ANSI) counts as a UI; one that just dumps JSON doesn't. Don't enumerate frameworks looking for membership in a known list — the list always leaks; ask what the code is *for*.
+- **Design-system surface** (only if UI detection said yes): look for theme/token files (`tailwind.config.{js,ts}`, `theme.{css,ts}`, `tokens/`, `*.tokens.{json,css}`, CSS custom-property declarations, or framework equivalents — Flutter `ThemeData`, SwiftUI `Color` extensions, Compose `MaterialTheme`, terminal `colors.json`, etc.); component library directories (`components/`, `ui/`, `design-system/`, `widgets/`, framework equivalents); rendering/preview tooling (`.storybook/`, MDX/Ladle/Histoire configs); a11y tooling (`eslint-plugin-jsx-a11y`, `axe-core`, `jest-axe`, Storybook a11y addon, Playwright a11y, platform-native equivalents). **These examples are eye-prompts for finding signal, not gates** — a host-embedded UI may have *none* of these yet still need a real design-system section (it inherits the host's tokens and registers surfaces through the host's API, but its own region/component vocabulary still belongs in the cold doc). Name what you find; TODO what's clearly relevant but absent; skip what genuinely doesn't apply.
+- **Surfaces & regions** (only if UI detection said yes): the top-level surface registry. Ask *"what does the user navigate between?"* — that's the surface list, regardless of how the surfaces are wired. Look for route definitions (React Router, Next.js `app/`, SvelteKit `routes/`, Flutter `Navigator`, SwiftUI `NavigationStack`), screen/window managers, TUI screen IDs, print-layout templates, or **host-embedded view registrations** (Obsidian `ItemView`, VS Code `WebviewViewProvider`/`TreeDataProvider`, browser-extension panel registrations, etc.) when the host owns navigation. Inside each surface, scan the rendered tree for **named regions** that are *not* extracted into their own component file: `{/* Name */}`-style comments preceding inline blocks (a strong author-intent signal), semantic containers (`<aside>` / `<main>` / `<header>` / `<dialog>` / framework equivalents like SwiftUI `Sidebar`/`ToolbarItem` / Flutter `Drawer`/`AppBar`), inline-defined sub-components rendering self-contained pieces, and repeated visual clusters (banner / chip / badge patterns appearing 3+ times across files). Cross-reference with the surface's entry-point file to identify candidate region names and their inline `<file>:<lineStart>–<lineEnd>` ranges.
 
 Use whatever tools fit (rg, ast-grep, ctags, the project's language tooling). Don't over-invest — a 30-minute scan that surfaces 80% of the structure is the right depth. Deep static analysis is out of scope; that's the user's job during distillation.
 
@@ -86,7 +87,7 @@ Fill in the draft using the cross-referenced material from Phase 3:
 - **Invariants**: extract from existing doc prose where it asserts "must", "always", "never". Mark each as `<!-- TODO: confirm still holds -->` — old invariants are often subtly stale.
 - **Bounded contexts**: provisional, drawn from top-level module structure. Name them; describe each in one sentence; mark the boundaries between them. Heavily TODO-tagged.
 - **Why notes**: extract any "we chose X because" or "this exists because" prose verbatim into a "Rationale" section, with attribution to the source doc.
-- **Design system** (only if Phase 2 found design-system signals): fill the `## Design system` section. Reference the canonical token files by path — don't duplicate values. List the high-frequency components (those imported in many places are real vocabulary). Capture interaction-pattern rules from any design docs found. **List the surfaces (top-level screens/views/windows) and the named regions inside each. Tag each region as `*Component*: <import path>` (extracted) or `*Inline*: <file>:<lineStart>–<lineEnd>` (inline JSX/markup with conceptual identity). A region earns an entry whether or not it's been extracted; implementation status is metadata, not a gate. Surface boundaries (route paths, screen IDs) own the regions; cross-cutting visual patterns the team refers to (banner family, chip family, etc.) live as a separate "patterns" subsection.** A11y invariants almost always need `<!-- TODO: confirm with design owner -->` — they're rarely fully writable from code alone. If the project is backend-only, **delete the section** rather than leaving it as TODO scaffolding.
+- **Design system** (only if Phase 2's UI detection said yes): fill the `## Design system` section. Reference the canonical token files by path — don't duplicate values. List the high-frequency components (those imported in many places are real vocabulary). Capture interaction-pattern rules from any design docs found. **List the surfaces (top-level screens/views/windows) and the named regions inside each. Tag each region as `*Component*: <import path>` (extracted) or `*Inline*: <file>:<lineStart>–<lineEnd>` (inline JSX/markup with conceptual identity). A region earns an entry whether or not it's been extracted; implementation status is metadata, not a gate. Surface boundaries (route paths, screen IDs) own the regions; cross-cutting visual patterns the team refers to (banner family, chip family, etc.) live as a separate "patterns" subsection.** A11y invariants almost always need `<!-- TODO: confirm with design owner -->` — they're rarely fully writable from code alone. For host-embedded UIs that inherit tokens from the host: name the surfaces and regions as usual, but write the Tokens subsection as a one-liner pointing at the host (e.g. "Inherits from Obsidian's CSS custom properties — `--background-primary`, `--text-normal`, etc.") rather than enumerating someone else's design system. If the project is UI-free, **delete the section** rather than leaving it as TODO scaffolding.
 
 Be honest about what's a guess. The drafted `system.md` should read like an honest first cut, not a confident model. Sections that are mostly TODO are *more useful* than sections that confidently invent content.
 
@@ -143,56 +144,76 @@ For files in the "hot/feature docs" and "stale" buckets, **do not auto-move**. I
 
 Auto-moving feature docs is a high-blast-radius action — they may have URLs, links, or be cited elsewhere. Let the user choose.
 
-## Phase 8 — Interactive distillation
+## Phase 8 — Interactive distillation (one decision at a time)
 
 The draft `system.md` is on disk but unverified — TODO markers, provisional invariants, guessed contexts. Earlier versions of this skill stopped here and left a triage report telling the user to come back later. In practice, "later" usually never came, and the cold doc started life half-formed.
 
-**Dive into the distillation in the same conversation, by default.** No "want to do this now?" preamble — open with what's about to happen and start. The user can stop at any batch boundary with "pause" / "enough for now" / "save the rest for later", and state-on-pause is preserved.
+**Dive into the distillation in the same conversation, by default.** No "want to do this now?" preamble — open with what's about to happen and start. The user can stop at any item boundary with "pause" / "enough for now" / "save the rest for later", and state-on-pause is preserved.
+
+### The non-negotiable rule: one decision per turn
+
+**Never bundle multiple distillation decisions into a single message.** No "Batch 1 of 4" framing. No "answer with shortcodes like 1A 2Y 3B 4C." Each decision is its own conversational turn — present one item, ask one question, wait, apply the edit, then move to the next. The point of running the interview in-session is that the user actually thinks about each item; multi-decision shortcodes optimize for *speed of agent throughput*, not *quality of cold-layer doc*. Speed defeats the purpose.
+
+This rule overrides any temptation to "be efficient." Even when several items look trivial, one-at-a-time pacing surfaces follow-up nuances ("oh, while we're on that, also…") that disappear under bulk-confirm syntax. The cold doc gets one careful pass per term; don't squander it.
 
 ### Opening
 
-One sentence to frame, then start:
+One sentence to frame, then start with the first item:
 
-> Drafted system.md has \<N\> TODOs, \<D\> drift flags, and \<I\> inconsistencies. Walking through these now in 5–8 batches — say 'pause' at any batch break to save state and resume later. Starting with inconsistencies, since those are the highest-cost to leave latent.
+> Drafted system.md has \<N\> TODOs, \<D\> drift flags, and \<I\> inconsistencies. Walking through them one at a time — say 'pause' at any point to save state and resume later. Starting with inconsistencies, since those are the highest-cost to leave latent.
 
-### Batches, in order
+Then go directly into item 1. No table-of-contents preview of upcoming items.
 
-1. **Inconsistencies** (same term, different definitions across docs/code). Present each: "term X is defined as Y in doc A, as Z in doc B, used as W in code. Canonical form? Or genuinely multiple concepts that need distinct names?"
-2. **Drift flags** (term in docs, missing or renamed in code). "Doc says X; code uses X'. Dead vocabulary, doc bug, or code bug?"
-3. **Glossary TODOs** — section-by-section, 5–10 entries per batch. "Confirm / cull / rewrite (default: confirm)" — but encourage culling. Bootstrap over-includes; the focused distillation is where over-inclusion gets corrected.
-4. **Invariant TODOs** — "still holds / revise / remove" per item. When removing, note in conversation whether the invariant *was* real and stopped holding (worth an ADR) or was never real (drift).
-5. **Bounded-context TODOs** — bigger questions, expect more per-item conversation. "Does this seam match how you actually think about the system? A and B: one context or two? What owns term X?"
-6. **Why-notes / rationale** — confirm attributions, prompt for any "why" notes that weren't recoverable from existing docs but the user can articulate now.
-7. **Design-system TODOs** (UI projects only) — token names, component vocabulary, surface/region names, a11y invariants. If the user isn't the design owner, mark items for forwarding rather than guessing.
-8. **File moves** — confirm or decline each recommended move from Phase 7. Apply the accepted ones with `git mv` so history is preserved.
+### Queue order
 
-### Per-batch flow
+The skill processes the distillation queue in this priority — but you only present one item at a time, in this order:
 
-1. State what's in the batch in one line ("Glossary TODOs in the Pricing context — 7 entries").
-2. Present the items as a compact numbered list, each with the relevant context (source doc, code location, current draft text).
-3. Ask for a batch-style response. For confirm/cull/rewrite items, accept abbreviated answers ("1c, 2-3 cull, 4 rewrite: …, 5-7 confirm"). Parse them, ask follow-ups only on the rewrite/free-response items.
-4. Apply edits to `lexicon/system.md` (and views, if applicable) in a single Edit call per batch where the shape allows. Larger restructurings can take multiple calls.
-5. One-line summary of what changed, then move to the next batch. No long recaps — the diffs are visible.
+1. **Inconsistencies** (same term, different definitions across docs/code) — highest priority because they corrupt vocabulary downstream.
+2. **Drift flags** (term in docs, missing or renamed in code).
+3. **Glossary TODOs** — one entry at a time. Encourage culling; bootstrap over-includes.
+4. **Invariant TODOs** — note in conversation whether a removed invariant *was* real and stopped holding (worth an ADR) or was never real (drift).
+5. **Bounded-context TODOs** — these often take the most conversation per item; that's expected.
+6. **Why-notes / rationale** — confirm attributions; prompt for any "why" notes the user can articulate now.
+7. **Design-system TODOs** (UI projects only) — token names, component vocabulary, surface/region names, a11y invariants. Mark for forwarding if the user isn't the design owner.
+8. **File moves** — confirm or decline each recommended move from Phase 7. Apply accepted ones with `git mv`.
+
+### Per-item flow
+
+For each item, in this order:
+
+1. **State the item** in one line — what category it's from, what the current draft says, the source(s).
+2. **Give just enough context** to decide — the conflicting definitions, the code reference, the candidate fix. 2–4 short lines is usually right. Don't preview the next item.
+3. **Ask one question.** For glossary entries: "confirm / cull / rewrite?" For invariants: "still holds / revise / remove?" For inconsistencies: "canonical form? or distinct concepts?" Free-form answers welcome.
+4. **Wait for the user's answer.** Do not present a second item in the same message.
+5. **Apply the edit** to `lexicon/system.md` (or views/ADRs as appropriate). Single Edit call per item where possible.
+6. **One-line confirmation** of what changed, then move to the next item *in a new turn*.
+
+### Anti-patterns to avoid
+
+- ❌ "Here are 4 batches, answer with shortcodes 1A 2Y…" — this is the failure mode this rule fixes.
+- ❌ "Quick confirms on items 1–5 since they're all similar?" — even similar items deserve individual attention.
+- ❌ Listing several upcoming items as a preview — encourages the user to pre-decide without engaging.
+- ✅ One item, one ask, one answer, one edit, then ask the next.
 
 ### Pacing
 
-Don't bulldoze. A glossary batch might be 5 minutes; a bounded-context conversation can be 30+ minutes for a complex system. Let it take what it takes.
+Don't bulldoze. A simple glossary entry might be 30 seconds; a bounded-context decision can be 15+ minutes for a complex system. Let each item take what it takes.
 
-If the user gives low-effort answers ("ok", "fine", "sure") across multiple batches, surface it once: "Quick confirms across the last few batches — actually reviewing, or want to pause and come back fresher?" Then accept their answer either way; don't moralize.
+If the user gives genuinely low-effort answers ("ok", "fine", "sure") across many items in a row, surface it once: "These have been quick confirms — actually reviewing, or want to pause and come back fresher?" Then accept their answer either way; don't moralize.
 
 ### What the user cannot easily punt
 
-Inconsistencies are the highest-value finding. If the user wants to skip them, surface the cost: "These will silently corrupt vocabulary going forward — every retro and ground from now on inherits the ambiguity. Want to push through, or accept that cost?" Push once, then accept their decision and continue.
+Inconsistencies are the highest-value finding. If the user wants to skip one, surface the cost: "Leaving this ambiguous will silently corrupt vocabulary going forward — every retro and ground from now on inherits it. Push through, or accept that cost?" Push once per inconsistency, then accept their decision and move to the next item.
 
 ### State on pause
 
 If the user pauses mid-distillation:
 
-1. Save whatever edits have already been applied (they already are — each batch commits its own edits).
-2. Record where we stopped in `lexicon/bootstrap.md`'s "Distillation status" section: which batches completed, which remain, with item counts.
+1. Save whatever edits have already been applied (they already are — each item commits its own edit).
+2. Record where we stopped in `lexicon/bootstrap.md`'s "Distillation status" section: how many items in each category were resolved vs. remain, plus a one-line note on the next pending item.
 3. Tell the user how to resume: re-trigger lex-bootstrap with "continue distillation" or run `lex-audit` later — both will read `lexicon/bootstrap.md` and pick up the unresolved items.
 
-If lex-bootstrap is re-triggered on a project where `lexicon/system.md` already exists *and* `lexicon/bootstrap.md` shows distillation paused, **do not re-bootstrap** — jump straight to Phase 8 and resume from the recorded position. This is the only legitimate case of re-running lex-bootstrap on a populated project.
+If lex-bootstrap is re-triggered on a project where `lexicon/system.md` already exists *and* `lexicon/bootstrap.md` shows distillation paused, **do not re-bootstrap** — jump straight to Phase 8 and resume from the recorded position, still one item at a time. This is the only legitimate case of re-running lex-bootstrap on a populated project.
 
 ## Phase 9 — Write the triage report
 
@@ -201,7 +222,7 @@ Write `lexicon/bootstrap.md` *after* Phase 8 completes (or pauses) — it reflec
 ```markdown
 # Bootstrap report
 Run on: <iso timestamp>
-Distillation status: <complete | paused after batch <N>: <batch name>>
+Distillation status: <complete | paused mid-<category>: <N> of <T> items resolved, next pending: "<one-line description>">
 
 ## What was created
 - `lexicon/system.md` (<N> lines after distillation; <M> TODOs remaining)
@@ -227,7 +248,7 @@ Distillation status: <complete | paused after batch <N>: <batch name>>
 
 (If distillation is "complete", this section reads "None.")
 
-## Design system findings (omit if backend-only)
+## Design system findings (omit if UI-free)
 - Token sources detected: <paths to theme/config/tokens files>
 - Component library at: <path>
 - a11y tooling detected: <list, or "none">
@@ -253,13 +274,13 @@ One-line chat summary, distillation-aware:
 
 If distillation paused:
 
-> Bootstrap paused after the <batch-name> batch. system.md has <N> lines, <M> TODOs remaining, plus <U> deferred inconsistencies/drift flags. Report at `lexicon/bootstrap.md` — resume by re-triggering lex-bootstrap with "continue distillation".
+> Bootstrap paused mid-<category> after resolving <N> items. system.md has <L> lines, <M> TODOs remaining, plus <U> deferred. Next pending: "<one-line description>". Report at `lexicon/bootstrap.md` — resume by re-triggering lex-bootstrap with "continue distillation".
 
 Don't dump the report content into chat. The file is the artifact; chat is the pointer.
 
 ## What this skill is NOT
 
-- **Not a single mechanical pass.** It produces a draft *and runs the distillation interview to resolve it.* The interview is part of the skill, not homework — unless the user explicitly pauses or punts it, in which case the deferred items are recorded so a follow-up run can pick them up.
+- **Not a single mechanical pass.** It produces a draft *and runs the distillation interview to resolve it, one decision per conversational turn.* The interview is part of the skill, not homework — unless the user explicitly pauses or punts it, in which case the deferred items are recorded so a follow-up run can pick them up. Multi-decision batching is explicitly forbidden (see Phase 8); the user's attention is the scarce resource, not the agent's tokens.
 - **Not a periodic refresh.** For projects already on lexicon where `system.md` is drifting, that's `lex-audit` territory. Re-running bootstrap on a populated `system.md` is only legitimate when `lexicon/bootstrap.md` shows distillation paused and the user wants to resume.
 - **Not a documentation generator.** It extracts and structures what's already there, then asks the user to resolve what's ambiguous. It doesn't invent content — TODO markers (and the interview that resolves them) are honest signals, not failures.
 
