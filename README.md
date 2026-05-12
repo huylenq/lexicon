@@ -9,7 +9,7 @@ Rationale:
 
 > Code is the executable spec. Above the code, a small **cold-layer doc** captures what code can't express well: vocabulary, invariants, bounded contexts, and the "why"s. Lexicon makes sure the human and the agent stay aligned on that doc — through grounding before work, retros at every stopping point, and crystallization when a feature lands.
 
-Inspired by domain-driven design's [ubiquitous language](https://martinfowler.com/bliki/UbiquitousLanguage.html). Built for the messy reality of working with coding agents on real codebases. When the project has a UI surface, the same discipline extends to design vocabulary — tokens, component names, layout primitives, and accessibility contracts live in the same cold doc, with no separate workflow.
+Inspired by domain-driven design's [ubiquitous language](https://martinfowler.com/bliki/UbiquitousLanguage.html). Built for the messy reality of working with coding agents on real codebases. When the project has a UI surface, the same discipline extends to design vocabulary — tokens, component names, layout primitives, named layout zones (surfaces & regions), and accessibility contracts live in the same cold doc, with no separate workflow.
 
 ## What it does
 
@@ -17,7 +17,7 @@ Lexicon adds five skills to Claude Code:
 
 | Skill | Fires when | Does |
 |---|---|---|
-| `lex-bootstrap` | Once, at adoption time | Scans existing docs and code, drafts a first-cut `system.md`, migrates ADR-shaped content, sets up `lexicon/` structure, produces a triage report |
+| `lex-bootstrap` | Once, at adoption time | Scans existing docs and code, drafts a first-cut `system.md`, migrates ADR-shaped content, sets up `lexicon/` structure, then interviews you batch-style to resolve TODOs / drift flags / inconsistencies before writing the triage report |
 | `lex-ground` | Before substantive coding work | Reads `lexicon/system.md`, declares scope (terms, invariants, bounded context) **in conversation**, surfaces vocabulary gaps. No file writes. |
 | `lex-retro` | At every natural stopping point | Always logs to `lexicon/retros/`; structural-drift flags land inline in the same log when triggers fire |
 | `lex-crystallize` | **You trigger it** ("crystallize", "update lexicon", "feature X is done") | Reads retros since last crystallization, cross-checks against git, proposes a coherent diff to `system.md` inline in chat, applies it directly on your yes |
@@ -72,9 +72,7 @@ lexicon/
   plans/_archive/          # archived plan folders
 ```
 
-Plus a **triage report** at `lexicon/bootstrap.md` listing drift flags, vocabulary inconsistencies, and recommended file moves for the human to review.
-
-The drafted `system.md` is intentionally a first cut — invariants and "why"s are in your head, not the code, so plan for a focused distillation session afterward where you walk through the TODO markers with the agent.
+After writing the draft, the skill immediately interviews you batch-style to resolve the TODO markers, drift flags, and inconsistencies — no separate "focused distillation session" to schedule later. You can say "pause" at any batch break to stop and resume another time. The final **triage report** at `lexicon/bootstrap.md` reflects what was resolved vs. deferred.
 
 If you don't want to use lexicon on a particular project, decline the bootstrap prompt. The agent won't ask again that session (and `lex-ground` describes a marker-file approach for skipping across sessions too).
 
@@ -103,7 +101,7 @@ lexicon/
 
 ## Status
 
-v0.6.0 — early. The shape is plausible but unproven on real projects. Issues and PRs welcome.
+v0.8.0 — early. The shape is plausible but unproven on real projects. Issues and PRs welcome.
 
 For the design rationale, rejected alternatives, and open questions, see [`CLAUDE.md`](./CLAUDE.md). For version history, see [`CHANGELOG.md`](./CHANGELOG.md).
 
