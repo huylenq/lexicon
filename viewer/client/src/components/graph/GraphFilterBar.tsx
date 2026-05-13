@@ -19,6 +19,8 @@ interface Props {
   onToggleContext: (id: string) => void;
   edges: Set<EdgeKind>;
   onToggleEdge: (k: EdgeKind) => void;
+  layoutPanelOpen: boolean;
+  onToggleLayoutPanel: () => void;
   search: string;
   onSearchChange: (s: string) => void;
   searchRef?: React.RefObject<HTMLInputElement>;
@@ -69,6 +71,10 @@ export default function GraphFilterBar(props: Props) {
           </Chip>
         ))}
       </FilterGroup>
+
+      <Chip active={props.layoutPanelOpen} onClick={props.onToggleLayoutPanel}>
+        Layout {props.layoutPanelOpen ? "▴" : "▾"}
+      </Chip>
 
       <div className="ml-auto flex items-center gap-2">
         <span className="smallcap">Find</span>

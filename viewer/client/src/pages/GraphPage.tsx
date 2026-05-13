@@ -2,11 +2,21 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import type { EntityKind, LexiconResponse } from "@/lib/types";
 import { buildModel, LENSES, type EdgeKind, type Lens } from "@/lib/graph/build-graph";
-import { layoutModel, type LayoutResult } from "@/lib/graph/layout";
+import {
+  layoutModel,
+  DEFAULT_BUNDLE_TENSION,
+  DEFAULT_ASTAR_CELL_SIZE,
+  DEFAULT_ASTAR_TURN_PENALTY,
+  DEFAULT_ASTAR_REUSE_FACTOR,
+  type AffectsRouting,
+  type LayoutResult,
+} from "@/lib/graph/layout";
 import { FILTERABLE_KINDS } from "@/lib/kinds";
 import GraphCanvas from "@/components/graph/GraphCanvas";
 import GraphFilterBar from "@/components/graph/GraphFilterBar";
 import GraphDetailRail from "@/components/graph/GraphDetailRail";
+import LayoutOptionsPanel from "@/components/graph/LayoutOptionsPanel";
+import { ResizeHandle, usePersistedWidth } from "@/lib/resize";
 
 const DEFAULT_KINDS: EntityKind[] = FILTERABLE_KINDS.map(k => k.id);
 const DEFAULT_EDGES: EdgeKind[] = ["disambiguates", "affects", "supersedes"];
@@ -39,6 +49,15 @@ export default function GraphPage({
   const [kinds, setKinds] = useState<Set<EntityKind>>(new Set(DEFAULT_KINDS));
   const [edges, setEdges] = useState<Set<EdgeKind>>(new Set(DEFAULT_EDGES));
   const [contextFilter, setContextFilter] = useState<Set<string>>(new Set());
+  const [affectsRouting, setAffectsRouting] = useState<AffectsRouting>("bundle");
+  const [affectsFocusOnly, setAffectsFocusOnly] = useState(false);
+  const [bundleTension, setBundleTension] = useState(DEFAULT_BUNDLE_TENSION);
+  const [astarParams, setAstarParams] = useState({
+    cellSize: DEFAULT_ASTAR_CELL_SIZE,
+    turnPenalty: DEFAULT_ASTAR_TURN_PENALTY,
+    reuseFactor: DEFAULT_ASTAR_REUSE_FACTOR,
+  });
+  const [layoutPanelOpen, setLayoutPanelOpen] = useState(false);
   const [search, setSearch] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -52,7 +71,13 @@ export default function GraphPage({
   const [layoutErr, setLayoutErr] = useState<string | null>(null);
   useEffect(() => {
     let cancelled = false;
-    layoutModel(model)
+    layoutModel(model, {
+      affectsRouting,
+      bundleTension,
+      astarCellSize: astarParams.cellSize,
+      astarTurnPenalty: astarParams.turnPenalty,
+      astarReuseFactor: astarParams.reuseFactor,
+    })
       .then(r => {
         if (!cancelled) {
           setLayout(r);
@@ -65,7 +90,7 @@ export default function GraphPage({
     return () => {
       cancelled = true;
     };
-  }, [model]);
+  }, [model, affectsRouting, bundleTension, astarParams]);
 
   // Search: apply to layout result by dimming non-matching nodes (handled by parent style filter).
   // We translate "search match → select that node" so the canvas highlights neighbors.
@@ -123,11 +148,16 @@ export default function GraphPage({
 
   const selectedEntity = selectedId ? resp.graph.entities[selectedId] ?? null : null;
 
+  const railRef = useRef<HTMLElement>(null);
+  const rail = usePersistedWidth({
+    key: "lexicon.graphDetailRailWidth", defaultPx: 352 /* 22rem */, minPx: 240, maxFrac: 0.5,
+  });
+
   return (
     <div
       className="flex-1 min-h-0 grid"
       style={{
-        gridTemplateColumns: "minmax(0, 1fr) minmax(0, 22rem)",
+        gridTemplateColumns: `minmax(0, 1fr) ${rail.width}px`,
         gridTemplateRows: "auto 1fr",
       }}
     >
@@ -142,6 +172,8 @@ export default function GraphPage({
           onToggleContext={toggleContext}
           edges={edges}
           onToggleEdge={toggleEdge}
+          layoutPanelOpen={layoutPanelOpen}
+          onToggleLayoutPanel={() => setLayoutPanelOpen(b => !b)}
           search={search}
           onSearchChange={setSearch}
           searchRef={searchRef}
@@ -161,6 +193,7 @@ export default function GraphPage({
             selectedId={selectedId}
             onSelect={setSelectedId}
             onActivate={fqid => navigate(`/p/${id}/${fqid}`)}
+            affectsFocusOnly={affectsFocusOnly}
           />
         )}
         {layout && layout.nodes.length === 0 && (
@@ -170,13 +203,48 @@ export default function GraphPage({
         )}
       </main>
 
-      <aside className="border-l rule min-w-0 min-h-0">
-        <GraphDetailRail
-          entity={selectedEntity}
-          graph={resp.graph}
-          projectId={id}
-          onClose={() => setSelectedId(null)}
+      <aside ref={railRef} className="relative border-l rule min-w-0 min-h-0 flex flex-col">
+        <ResizeHandle
+          side="left"
+          panelRef={railRef}
+          onResize={rail.setLive}
+          onCommit={rail.commit}
         />
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <GraphDetailRail
+            entity={selectedEntity}
+            graph={resp.graph}
+            projectId={id}
+            onClose={() => setSelectedId(null)}
+          />
+        </div>
+        {layoutPanelOpen && (
+          <div
+            className="border-t rule shrink-0 flex flex-col min-h-0"
+            style={{ maxHeight: "60%" }}
+          >
+            <div className="px-4 py-2 border-b rule flex items-center justify-between">
+              <span className="smallcap">Layout</span>
+              <button
+                onClick={() => setLayoutPanelOpen(false)}
+                className="mono text-micro text-vellum-3 hover:text-vellum"
+                aria-label="Close layout panel"
+              >
+                ✕
+              </button>
+            </div>
+            <LayoutOptionsPanel
+              affectsRouting={affectsRouting}
+              onAffectsRoutingChange={setAffectsRouting}
+              bundleTension={bundleTension}
+              onBundleTensionChange={setBundleTension}
+              astarParams={astarParams}
+              onAstarParamsChange={setAstarParams}
+              affectsFocusOnly={affectsFocusOnly}
+              onToggleAffectsFocusOnly={() => setAffectsFocusOnly(b => !b)}
+            />
+          </div>
+        )}
       </aside>
     </div>
   );

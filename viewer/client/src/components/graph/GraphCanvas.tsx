@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { LayoutResult } from "@/lib/graph/layout";
+import { clamp, type LayoutResult } from "@/lib/graph/layout";
 import GraphNode from "./GraphNode";
 import GraphEdge, { ArrowDefs } from "./GraphEdge";
 
@@ -8,6 +8,7 @@ interface Props {
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   onActivate: (id: string) => void; // double-click → navigate to detail
+  affectsFocusOnly?: boolean;
 }
 
 interface Viewport {
@@ -16,7 +17,7 @@ interface Viewport {
   scale: number;
 }
 
-export default function GraphCanvas({ layout, selectedId, onSelect, onActivate }: Props) {
+export default function GraphCanvas({ layout, selectedId, onSelect, onActivate, affectsFocusOnly = false }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<{ w: number; h: number }>({ w: 800, h: 600 });
   const [viewport, setViewport] = useState<Viewport>({ x: 0, y: 0, scale: 1 });
@@ -106,11 +107,12 @@ export default function GraphCanvas({ layout, selectedId, onSelect, onActivate }
     setIsPanning(true);
   };
   const onMouseMove = (e: React.MouseEvent) => {
-    if (!isPanning || !panOrigin.current) return;
-    const dx = e.clientX - panOrigin.current.x;
-    const dy = e.clientY - panOrigin.current.y;
+    const origin = panOrigin.current;
+    if (!isPanning || !origin) return;
+    const dx = e.clientX - origin.x;
+    const dy = e.clientY - origin.y;
     if (Math.abs(dx) + Math.abs(dy) > 3) didPan.current = true;
-    setViewport(v => ({ ...v, x: panOrigin.current!.vx + dx, y: panOrigin.current!.vy + dy }));
+    setViewport(v => ({ ...v, x: origin.vx + dx, y: origin.vy + dy }));
   };
   const onMouseUp = () => {
     panOrigin.current = null;
@@ -159,16 +161,12 @@ export default function GraphCanvas({ layout, selectedId, onSelect, onActivate }
             />
           ))}
           {layout.edges.map(e => {
-            // Bundled `affects` edges (HEB curves through cluster centers) are
-            // legible at rest — show always; the bundle structure carries the
-            // "ADR-X reaches into context Y" gestalt. ELK-routed orthogonal
-            // `affects` edges on the decisions lens (bundled=false) stay
-            // noisy when shown together, so keep the old hide-unless-focused
-            // behavior for them. CSS transition smooths the in/out so brief
-            // hover crossings don't flicker.
-            const isAffects = e.kind === "affects";
+            // Edges are visible by default; Edges filter chip is the primary
+            // opt-out. The `affectsFocusOnly` toggle re-applies the old
+            // "show only on focus" behavior to `affects` specifically — useful
+            // on dense lenses where the saffron cables become wallpaper.
             const focused = isEdgeFocused(e.source, e.target);
-            const hidden = isAffects && !e.bundled && !focused;
+            const hidden = e.kind === "affects" && affectsFocusOnly && !focused;
             return (
               <GraphEdge
                 key={e.id}
@@ -206,10 +204,6 @@ function ZoomBadge({ scale }: { scale: number }) {
       {(scale * 100).toFixed(0)}%
     </div>
   );
-}
-
-function clamp(n: number, lo: number, hi: number) {
-  return Math.max(lo, Math.min(hi, n));
 }
 
 function buildAdjacency(layout: LayoutResult): Map<string, Set<string>> {

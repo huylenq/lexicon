@@ -36,7 +36,7 @@ const STYLE: Record<
   disambiguates: { stroke: "var(--color-oxide)", opacity: 1 },
   seam:          { stroke: "var(--color-vellum-3)", dasharray: "6 4", opacity: 0.8 },
   "boundary-rule": { stroke: "var(--color-vellum-3)", dasharray: "2 3", opacity: 0.8, markerEnd: "url(#arrow-vellum)" },
-  affects:       { stroke: "var(--color-saffron)", dasharray: "1 4", opacity: 0.55, markerEnd: "url(#arrow-saffron)" },
+  affects:       { stroke: "var(--color-saffron)", dasharray: "12 3", opacity: 0.45, markerEnd: "url(#arrow-saffron)" },
   supersedes:    { stroke: "var(--color-vellum-2)", opacity: 0.7, markerEnd: "url(#arrow-vellum)" },
   contains:      { stroke: "var(--color-rule)", opacity: 0.4 },
 };

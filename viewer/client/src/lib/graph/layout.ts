@@ -30,6 +30,15 @@ export interface LayoutResult {
   height: number;
 }
 
+// Geometry helpers shared across the post-ELK routers.
+function center(n: { x: number; y: number; width: number; height: number }) {
+  return { x: n.x + n.width / 2, y: n.y + n.height / 2 };
+}
+
+export function clamp(n: number, lo: number, hi: number) {
+  return Math.max(lo, Math.min(hi, n));
+}
+
 const BASE_OPTS = {
   "elk.algorithm": "layered",
   "elk.layered.spacing.nodeNodeBetweenLayers": "48",
@@ -76,7 +85,41 @@ function lensOpts(lens: Lens, hasCrossClusterEdges: boolean): Record<string, str
   }
 }
 
-export async function layoutModel(model: GraphModel): Promise<LayoutResult> {
+export type AffectsRouting = "bundle" | "elbow" | "astar" | "straight";
+
+export interface LayoutOptions {
+  // How withheld `affects` edges (those not laid out by ELK) are routed:
+  //   * "bundle"   — HEB curves through parent-cluster chain (default).
+  //   * "elbow"    — orthogonal HVH/VHV polyline with one shared midline.
+  //   * "astar"    — orthogonal A* path through canvas whitespace.
+  //   * "straight" — direct line clipped to node rectangles.
+  affectsRouting?: AffectsRouting;
+  // Bundle HEB: pull strength of interior control points toward the straight
+  // baseline. 1 = full bundle through cluster centers; 0 = straight line.
+  bundleTension?: number;
+  // A* grid resolution in canvas px. Smaller = finer paths, more compute.
+  astarCellSize?: number;
+  // A* extra cost when a path step changes direction.
+  astarTurnPenalty?: number;
+  // A* lower bound on the reuse multiplier. Lower = aggressive bundling
+  // (parallel edges share corridors); higher = independent paths.
+  astarReuseFactor?: number;
+}
+
+export const DEFAULT_BUNDLE_TENSION = 0.85;
+export const DEFAULT_ASTAR_CELL_SIZE = 12;
+export const DEFAULT_ASTAR_TURN_PENALTY = 3.0;
+export const DEFAULT_ASTAR_REUSE_FACTOR = 0.3;
+
+export async function layoutModel(
+  model: GraphModel,
+  opts: LayoutOptions = {},
+): Promise<LayoutResult> {
+  const affectsRouting: AffectsRouting = opts.affectsRouting ?? "bundle";
+  const bundleTension = opts.bundleTension ?? DEFAULT_BUNDLE_TENSION;
+  const astarCellSize = opts.astarCellSize ?? DEFAULT_ASTAR_CELL_SIZE;
+  const astarTurnPenalty = opts.astarTurnPenalty ?? DEFAULT_ASTAR_TURN_PENALTY;
+  const astarReuseFactor = opts.astarReuseFactor ?? DEFAULT_ASTAR_REUSE_FACTOR;
   // Build ELK tree: top-level nodes hold their children. Edges go on the root.
   const byId = new Map<string, GraphNode>();
   for (const n of model.nodes) byId.set(n.id, n);
@@ -248,6 +291,40 @@ export async function layoutModel(model: GraphModel): Promise<LayoutResult> {
     edges.push({ ...e, points: [] });
   }
 
+  // Batch pre-pass: A* router for affects edges. Runs before the per-edge
+  // fallback so the grid + channel-reuse map are shared across all edges.
+  // Edges this pass routes (sets e.points) are skipped by the loop below.
+  if (affectsRouting === "astar") {
+    const gridW = (result as ElkNode).width ?? 800;
+    const gridH = (result as ElkNode).height ?? 600;
+    const affectsEdges = edges
+      .filter(e => e.kind === "affects" && e.points.length === 0)
+      .sort((p, q) => (p.source + ">" + p.target).localeCompare(q.source + ">" + q.target));
+    astarRouteAffects(affectsEdges, nodes, gridW, gridH, byIdPos, {
+      cellSize: astarCellSize,
+      turnPenalty: astarTurnPenalty,
+      reuseFactor: astarReuseFactor,
+    });
+  }
+
+  // Parent-chain memo. Many `affects` edges share a source ADR, so its chain
+  // gets reused across edges within one layout pass.
+  const chainCache = new Map<string, string[]>();
+  const chainOf = (startId: string): string[] => {
+    const cached = chainCache.get(startId);
+    if (cached) return cached;
+    const path: string[] = [];
+    const guard = new Set<string>();
+    let cur: string | undefined = startId;
+    while (cur && !guard.has(cur)) {
+      guard.add(cur);
+      path.push(cur);
+      cur = byIdPos.get(cur)?.parent;
+    }
+    chainCache.set(startId, path);
+    return path;
+  };
+
   // fallback for edges without ELK sections.
   //   * `affects` edges (withheld from ELK on non-decisions lenses): route as a
   //     hierarchical-edge-bundling curve through the parent chains of the two
@@ -264,14 +341,14 @@ export async function layoutModel(model: GraphModel): Promise<LayoutResult> {
     const b = byIdPos.get(e.target);
     if (!a || !b) continue;
 
-    if (e.kind === "affects") {
-      const ctrl = bundleControlPoints(a, b, byIdPos);
+    if (e.kind === "affects" && affectsRouting === "bundle") {
+      const ctrl = bundleControlPoints(a, b, byIdPos, bundleTension, chainOf);
       if (ctrl.length < 2) continue;
       // Clip endpoints to the node rectangles, pointing toward the *next*
       // control point so the curve enters/exits perpendicular to the box
       // rather than diving toward the far endpoint.
-      const aCenter = { x: a.x + a.width / 2, y: a.y + a.height / 2 };
-      const bCenter = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+      const aCenter = center(a);
+      const bCenter = center(b);
       const next = ctrl[1];
       const prev = ctrl[ctrl.length - 2];
       ctrl[0] = rectExit(aCenter.x, aCenter.y, next.x, next.y, a.width / 2, a.height / 2);
@@ -281,20 +358,29 @@ export async function layoutModel(model: GraphModel): Promise<LayoutResult> {
       continue;
     }
 
-    const ax = a.x + a.width / 2;
-    const ay = a.y + a.height / 2;
-    const bx = b.x + b.width / 2;
-    const by = b.y + b.height / 2;
-    const dx = bx - ax;
-    const dy = by - ay;
+    if (e.kind === "affects" && affectsRouting === "elbow") {
+      const pts = elbowRoute(a, b);
+      if (pts) {
+        e.points = pts;
+        continue;
+      }
+      // else fall through to straight
+    }
+
+    // "astar" was handled by the batch pre-pass above; if it didn't set points
+    // (no path found), this edge falls through to the straight-line fallback.
+
+    const { x: ax, y: ay } = center(a);
+    const { x: bx, y: by } = center(b);
     const ahw = a.width / 2;
     const ahh = a.height / 2;
     const bhw = b.width / 2;
     const bhh = b.height / 2;
-    if (Math.abs(dx) <= ahw + bhw && Math.abs(dy) <= ahh + bhh) continue;
-    const start = rectExit(ax, ay, bx, by, ahw, ahh);
-    const end = rectExit(bx, by, ax, ay, bhw, bhh);
-    e.points = [start, end];
+    if (Math.abs(bx - ax) <= ahw + bhw && Math.abs(by - ay) <= ahh + bhh) continue;
+    e.points = [
+      rectExit(ax, ay, bx, by, ahw, ahh),
+      rectExit(bx, by, ax, ay, bhw, bhh),
+    ];
   }
 
   const rootW = (result as ElkNode).width ?? 800;
@@ -323,25 +409,11 @@ function bundleControlPoints(
   source: PositionedNode,
   target: PositionedNode,
   byId: Map<string, PositionedNode>,
+  tension: number,
+  chainOf: (id: string) => string[],
 ): { x: number; y: number }[] {
-  const center = (n: PositionedNode) => ({
-    x: n.x + n.width / 2,
-    y: n.y + n.height / 2,
-  });
-  const chain = (startId: string): string[] => {
-    const path: string[] = [];
-    let cur: string | undefined = startId;
-    const guard = new Set<string>();
-    while (cur && !guard.has(cur)) {
-      guard.add(cur);
-      path.push(cur);
-      cur = byId.get(cur)?.parent;
-    }
-    return path;
-  };
-
-  const srcChain = chain(source.id);
-  const tgtChain = chain(target.id);
+  const srcChain = chainOf(source.id);
+  const tgtChain = chainOf(target.id);
   const srcSet = new Set(srcChain);
   let lca: string | undefined;
   for (const id of tgtChain) {
@@ -371,7 +443,7 @@ function bundleControlPoints(
     .map(center);
 
   if (points.length < 3) return points;
-  const beta = 0.85;
+  const beta = tension;
   const start = points[0];
   const end = points[points.length - 1];
   for (let i = 1; i < points.length - 1; i++) {
@@ -384,6 +456,308 @@ function bundleControlPoints(
     };
   }
   return points;
+}
+
+// =========================================================================
+// A* orthogonal router for `affects` edges.
+//
+// Quantizes the canvas to a grid (CELL_SIZE px per cell), marks leaf-node
+// rectangles as blocked (clusters stay traversable so paths can enter/exit
+// contexts), then for each edge runs A* with a Manhattan heuristic, a turn
+// penalty, and a *channel-reuse discount* — cells already crossed by an
+// earlier edge become cheap, encouraging later edges to share corridors
+// instead of carving independent paths. The result is an orthogonal polyline
+// per edge, with parallel edges naturally bundling along shared lanes.
+//
+// Edges are processed in deterministic order (lex sort on source+target) so
+// channel-reuse outcomes are stable across runs.
+// =========================================================================
+
+// How much the reuse multiplier drops per prior crossing. With `reuseFactor`
+// as the floor, the effective step cost on a cell crossed N times is
+// `max(reuseFactor, 1 - REUSE_DISCOUNT_PER_HIT * N)`.
+const REUSE_DISCOUNT_PER_HIT = 0.15;
+
+interface AStarParams {
+  cellSize: number;
+  turnPenalty: number;
+  reuseFactor: number;
+}
+
+interface AStarGrid {
+  cols: number;
+  rows: number;
+  // blocked[r * cols + c] = true if no path may pass through (occupied by a
+  // leaf node that is neither the current source nor the current target).
+  blocked: Uint8Array;
+  // owner[r * cols + c] = id of the leaf-node rectangle covering this cell, or
+  // empty string. Used to relax blocking for the active source/target rect on
+  // a per-edge basis.
+  owner: string[];
+  // usage[r * cols + c] = how many already-routed edges cross this cell.
+  usage: Uint16Array;
+}
+
+function astarRouteAffects(
+  affectsEdges: PositionedEdge[],
+  nodes: PositionedNode[],
+  width: number,
+  height: number,
+  byId: Map<string, PositionedNode>,
+  params: AStarParams,
+): void {
+  if (affectsEdges.length === 0) return;
+  const cellSize = params.cellSize;
+  const cols = Math.ceil(width / cellSize) + 2;
+  const rows = Math.ceil(height / cellSize) + 2;
+  const grid: AStarGrid = {
+    cols,
+    rows,
+    blocked: new Uint8Array(cols * rows),
+    owner: new Array(cols * rows).fill(""),
+    usage: new Uint16Array(cols * rows),
+  };
+  // Mark leaf-node cells as blocked. Clusters (compound nodes that contain
+  // children) stay traversable.
+  for (const n of nodes) {
+    if (n.isCluster) continue;
+    const c0 = Math.max(0, Math.floor(n.x / cellSize));
+    const r0 = Math.max(0, Math.floor(n.y / cellSize));
+    const c1 = Math.min(cols - 1, Math.floor((n.x + n.width) / cellSize));
+    const r1 = Math.min(rows - 1, Math.floor((n.y + n.height) / cellSize));
+    for (let r = r0; r <= r1; r++) {
+      for (let c = c0; c <= c1; c++) {
+        const i = r * cols + c;
+        grid.blocked[i] = 1;
+        grid.owner[i] = n.id;
+      }
+    }
+  }
+
+  for (const edge of affectsEdges) {
+    const src = byId.get(edge.source);
+    const tgt = byId.get(edge.target);
+    if (!src || !tgt) continue;
+    const path = astarFind(grid, src, tgt, params);
+    if (!path) continue;
+    edge.points = path.canvasPoints;
+    for (const idx of path.cellIndices) grid.usage[idx]++;
+  }
+}
+
+// Pick which side of a rectangle to attach to, based on the dominant axis
+// toward the target. Returns the (x, y) of the attachment point on the rect
+// boundary plus the unit direction of departure (used to seed A*'s initial
+// direction so the first step isn't penalized as a "turn").
+function pickAttachment(
+  from: PositionedNode,
+  to: PositionedNode,
+): { x: number; y: number; dx: -1 | 0 | 1; dy: -1 | 0 | 1 } {
+  const { x: fx, y: fy } = center(from);
+  const { x: tx, y: ty } = center(to);
+  const dx = tx - fx;
+  const dy = ty - fy;
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    return dx > 0
+      ? { x: from.x + from.width, y: fy, dx: 1, dy: 0 }
+      : { x: from.x, y: fy, dx: -1, dy: 0 };
+  } else {
+    return dy > 0
+      ? { x: fx, y: from.y + from.height, dx: 0, dy: 1 }
+      : { x: fx, y: from.y, dx: 0, dy: -1 };
+  }
+}
+
+function astarFind(
+  grid: AStarGrid,
+  src: PositionedNode,
+  tgt: PositionedNode,
+  params: AStarParams,
+): { canvasPoints: { x: number; y: number }[]; cellIndices: number[] } | null {
+  const cellSize = params.cellSize;
+  const srcAtt = pickAttachment(src, tgt);
+  const tgtAtt = pickAttachment(tgt, src);
+  // Start cell sits just outside the source rectangle on the chosen side.
+  const startC = clamp(Math.floor((srcAtt.x + srcAtt.dx * cellSize) / cellSize), 0, grid.cols - 1);
+  const startR = clamp(Math.floor((srcAtt.y + srcAtt.dy * cellSize) / cellSize), 0, grid.rows - 1);
+  const endC = clamp(Math.floor((tgtAtt.x + tgtAtt.dx * cellSize) / cellSize), 0, grid.cols - 1);
+  const endR = clamp(Math.floor((tgtAtt.y + tgtAtt.dy * cellSize) / cellSize), 0, grid.rows - 1);
+
+  const startIdx = startR * grid.cols + startC;
+  const endIdx = endR * grid.cols + endC;
+
+  // Allow the path to enter/exit the source and target rectangles even though
+  // they're marked blocked — set up a per-edge allowance.
+  const allowedOwner = new Set([src.id, tgt.id]);
+  const passable = (c: number, r: number): boolean => {
+    if (c < 0 || c >= grid.cols || r < 0 || r >= grid.rows) return false;
+    const i = r * grid.cols + c;
+    if (!grid.blocked[i]) return true;
+    return allowedOwner.has(grid.owner[i]);
+  };
+
+  // A* state. Encode `(cell, direction)` as the search node — two paths to the
+  // same cell from different directions are distinct, because the turn penalty
+  // makes them have different costs going forward.
+  // Direction encoding: 0=east, 1=south, 2=west, 3=north.
+  const dirOf = (dx: number, dy: number) =>
+    dx === 1 ? 0 : dy === 1 ? 1 : dx === -1 ? 2 : 3;
+  type Node = { cell: number; dir: number; g: number; f: number; parent: Node | null };
+  const startDir = dirOf(srcAtt.dx, srcAtt.dy);
+  const open: Node[] = [{ cell: startIdx, dir: startDir, g: 0, f: heuristic(startC, startR, endC, endR), parent: null }];
+  const bestG = new Map<number, number>(); // (cell * 4 + dir) -> g
+  bestG.set(startIdx * 4 + startDir, 0);
+
+  const DIRS = [
+    [1, 0],  // east
+    [0, 1],  // south
+    [-1, 0], // west
+    [0, -1], // north
+  ];
+
+  let found: Node | null = null;
+  let iter = 0;
+  const ITER_CAP = grid.cols * grid.rows * 4;
+  while (open.length > 0 && iter++ < ITER_CAP) {
+    // Pop min-f. Linear scan is fine at this scale.
+    let minIdx = 0;
+    for (let i = 1; i < open.length; i++) if (open[i].f < open[minIdx].f) minIdx = i;
+    const cur = open[minIdx];
+    open[minIdx] = open[open.length - 1];
+    open.pop();
+    if (cur.cell === endIdx) {
+      found = cur;
+      break;
+    }
+    const cc = cur.cell % grid.cols;
+    const cr = Math.floor(cur.cell / grid.cols);
+    for (let d = 0; d < 4; d++) {
+      const [ddx, ddy] = DIRS[d];
+      const nc = cc + ddx;
+      const nr = cr + ddy;
+      if (!passable(nc, nr)) continue;
+      const ni = nr * grid.cols + nc;
+      const turn = d === cur.dir ? 0 : params.turnPenalty;
+      // Channel-reuse discount: each prior edge crossing this cell shaves the
+      // base step cost, down to params.reuseFactor. Encourages bundles.
+      const reuse = Math.max(params.reuseFactor, 1 - REUSE_DISCOUNT_PER_HIT * grid.usage[ni]);
+      const stepG = cur.g + reuse + turn;
+      const key = ni * 4 + d;
+      const prev = bestG.get(key);
+      if (prev !== undefined && prev <= stepG) continue;
+      bestG.set(key, stepG);
+      open.push({
+        cell: ni,
+        dir: d,
+        g: stepG,
+        f: stepG + heuristic(nc, nr, endC, endR),
+        parent: cur,
+      });
+    }
+  }
+
+  if (!found) return null;
+
+  // Reconstruct path of cell indices, then collapse to corner-only canvas
+  // points (collinear runs collapse to their endpoints).
+  const cellSeq: number[] = [];
+  for (let n: Node | null = found; n; n = n.parent) cellSeq.push(n.cell);
+  cellSeq.reverse();
+
+  const cellCenter = (idx: number) => ({
+    x: (idx % grid.cols + 0.5) * cellSize,
+    y: (Math.floor(idx / grid.cols) + 0.5) * cellSize,
+  });
+  const corners: { x: number; y: number }[] = [];
+  for (let i = 0; i < cellSeq.length; i++) {
+    const p = cellCenter(cellSeq[i]);
+    if (i === 0 || i === cellSeq.length - 1) {
+      corners.push(p);
+      continue;
+    }
+    // Keep only direction-change points.
+    const prev = cellCenter(cellSeq[i - 1]);
+    const next = cellCenter(cellSeq[i + 1]);
+    const sameDir =
+      (prev.x === p.x && p.x === next.x) || (prev.y === p.y && p.y === next.y);
+    if (!sameDir) corners.push(p);
+  }
+
+  // Prepend the actual source-rect attachment, append the target attachment;
+  // the cardinal-direction `srcAtt`/`tgtAtt` plus the perpendicular first
+  // grid cell gives a clean perpendicular exit/entry without an explicit stub.
+  const head = { x: srcAtt.x, y: srcAtt.y };
+  const tail = { x: tgtAtt.x, y: tgtAtt.y };
+  const finalPts = [head, ...corners, tail];
+
+  return { canvasPoints: finalPts, cellIndices: cellSeq };
+}
+
+function heuristic(c: number, r: number, ec: number, er: number): number {
+  return Math.abs(c - ec) + Math.abs(r - er);
+}
+
+// Orthogonal-elbow router. For two endpoints, emit a 4-point HVH or VHV
+// polyline: exit one rectangle perpendicular, traverse along a midline channel
+// in the dominant axis, descend perpendicular into the other rectangle.
+// Picks orientation by which separation is larger (HVH if mostly horizontal,
+// VHV otherwise). This is a cheap router — it does NOT avoid node bodies in
+// between; for that, the A* router is required. Returns null when the
+// rectangles overlap (no clean elbow).
+function elbowRoute(
+  a: PositionedNode,
+  b: PositionedNode,
+): { x: number; y: number }[] | null {
+  const { x: ax, y: ay } = center(a);
+  const { x: bx, y: by } = center(b);
+  const dx = bx - ax;
+  const dy = by - ay;
+  const ahw = a.width / 2;
+  const ahh = a.height / 2;
+  const bhw = b.width / 2;
+  const bhh = b.height / 2;
+  if (Math.abs(dx) <= ahw + bhw && Math.abs(dy) <= ahh + bhh) return null;
+
+  // Orientation: HVH (exit horizontally) if vertical gap is larger than
+  // horizontal — that gives a longer "spine" segment, which reads better.
+  // VHV otherwise.
+  const verticalDominant = Math.abs(dy) >= Math.abs(dx);
+  if (verticalDominant) {
+    // Exit a from top/bottom, run vertically to channelY, then horizontally,
+    // then vertically into b. The channel sits at the midpoint of the gap
+    // between the two rectangles — not the midpoint of the centers — so
+    // multiple edges with overlapping vertical extents share a channel
+    // naturally.
+    const aBottom = a.y + a.height;
+    const bTop = b.y;
+    const aTop = a.y;
+    const bBottom = b.y + b.height;
+    const channelY =
+      dy > 0 ? (aBottom + bTop) / 2 : (bBottom + aTop) / 2;
+    const exitAy = dy > 0 ? aBottom : aTop;
+    const enterBy = dy > 0 ? bTop : bBottom;
+    return [
+      { x: ax, y: exitAy },
+      { x: ax, y: channelY },
+      { x: bx, y: channelY },
+      { x: bx, y: enterBy },
+    ];
+  } else {
+    const aRight = a.x + a.width;
+    const bLeft = b.x;
+    const aLeft = a.x;
+    const bRight = b.x + b.width;
+    const channelX =
+      dx > 0 ? (aRight + bLeft) / 2 : (bRight + aLeft) / 2;
+    const exitAx = dx > 0 ? aRight : aLeft;
+    const enterBx = dx > 0 ? bLeft : bRight;
+    return [
+      { x: exitAx, y: ay },
+      { x: channelX, y: ay },
+      { x: channelX, y: by },
+      { x: enterBx, y: by },
+    ];
+  }
 }
 
 // Given a ray starting at (cx, cy) and pointing toward (tx, ty), return the
