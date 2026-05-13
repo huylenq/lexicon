@@ -4,11 +4,14 @@ Each plan file is scoped to a single Claude Code session. Pick one, hand off to 
 
 Plans are independent — they can ship in any order, except where a "Depends on" note says otherwise.
 
+## Shipped
+
+- **[Graph view](./_archive/graph-view/spec.md)** — Graph view as a peer to the detail view. Three lenses: ownership, decisions, surfaces. ELK.js layout + custom SVG. Shipped in `5dd7cac`; subsequent commits added the layout-options panel, Phosphor icon glyphs, blueprint/cyanotype theme pivot, and resize-handle extraction.
+
 ## Visualization paths
 
 | Plan | What it ships | Status |
 |---|---|---|
-| [Graph view](./graph-view/spec.md) | Graph view as a peer to the detail view. Three lenses: ownership, decisions, surfaces. ELK.js layout + custom SVG. | in progress |
 | [Drift indicators](./drift-indicators/spec.md) | Continuous code↔doc anchor validation. Status pills on code anchors; `/p/:id/drift` triage list; project-list health badges. | planned |
 | [Pending crystallization](./pending-crystallization/spec.md) | Surface the gap between retros (forward-flow drift) and the user pulling `lex-crystallize`. Three groupings: by entity, by retro, by check kind. | planned |
 | [Search palette](./search-palette/spec.md) | Cmd-K palette across all entity prose. In-memory inverted index, kind filters, recency boost. | planned |
