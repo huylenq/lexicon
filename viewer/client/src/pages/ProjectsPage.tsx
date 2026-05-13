@@ -36,8 +36,8 @@ export default function ProjectsPage() {
 
   return (
     <div className="relative min-h-screen grain">
-      {/* masthead */}
-      <header className="relative border-b rule px-12 pt-16 pb-12">
+      {/* masthead — doubles as the PWA titlebar when launched with WCO. */}
+      <header className="titlebar relative border-b rule px-12 pt-16 pb-12">
         <ThemeToggle className="absolute top-6 right-12" />
         <div className="smallcap mb-6">Sheet 1 · Rev. A · Local issue</div>
         <h1 className="display-tight text-display leading-none mb-4" style={{ fontWeight: 600 }}>

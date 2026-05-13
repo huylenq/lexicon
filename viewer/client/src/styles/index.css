@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+/* If --color-paper or its dark-mode counterpart changes, also update the
+   matching <meta name="theme-color"> in index.html and the manifest's
+   theme_color/background_color in vite.config.ts — neither can read CSS
+   vars. */
 @theme {
   --color-chrome:  #ece2cb;
   --color-paper:   #f0ead8;
@@ -495,5 +499,27 @@
   }
   .inspector-pull[data-active="true"] .inspector-pull-range {
     color: color-mix(in srgb, var(--color-paper) 70%, transparent);
+  }
+
+  /* Window Controls Overlay — env() padding clears macOS traffic lights
+     (left) and Windows min/max/close (right) when the app is installed. */
+  .titlebar {
+    -webkit-app-region: drag;
+            app-region: drag;
+  }
+  .titlebar :is(a, button, input, select, textarea, label, [role="button"], [tabindex], [contenteditable]) {
+    -webkit-app-region: no-drag;
+            app-region: no-drag;
+  }
+  .titlebar-nodrag {
+    -webkit-app-region: no-drag;
+            app-region: no-drag;
+  }
+  @media (display-mode: window-controls-overlay) {
+    .titlebar {
+      padding-left: max(env(titlebar-area-x, 0px), 0.75rem);
+      padding-right: calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw) + 0.75rem);
+      min-height: env(titlebar-area-height, 40px);
+    }
   }
 }

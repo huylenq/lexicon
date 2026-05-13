@@ -61,3 +61,6 @@ createRoot(document.getElementById("root")!).render(
     </BrowserRouter>
   </React.StrictMode>,
 );
+
+import { registerSW } from "virtual:pwa-register";
+registerSW();
