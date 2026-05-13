@@ -1,6 +1,7 @@
 import { Link, useLocation, useParams } from "react-router-dom";
 import type { EntityRef } from "@/lib/types";
 import { KIND_GLYPH } from "@/lib/kinds";
+import InlineCode from "./InlineCode";
 
 export default function RefLink({ to, className = "" }: { to: EntityRef; className?: string }) {
   const { projectId } = useParams();
@@ -14,7 +15,7 @@ export default function RefLink({ to, className = "" }: { to: EntityRef; classNa
       <span className="mono text-micro uppercase tracking-widest text-vellum-3">
         {KIND_GLYPH[to.kind]}
       </span>
-      <span>{to.name}</span>
+      <InlineCode text={to.name} />
     </Link>
   );
 }

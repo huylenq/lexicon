@@ -3,6 +3,7 @@ import type { EntityKind, EntityRef, ResolvedEntity, ResolvedGraph } from "@/lib
 import { KIND_LABEL } from "@/lib/kinds";
 import RefLink from "./RefLink";
 import CodeAnchorBadge from "./CodeAnchorBadge";
+import InlineCode from "./InlineCode";
 import { Marginalia, MarginaliaItem } from "./Marginalia";
 
 export default function EntityDetail({
@@ -30,7 +31,7 @@ function Header({ entity }: { entity: ResolvedEntity }) {
     <header className="mb-10">
       <div className="smallcap mb-3">{KIND_LABEL[entity.ref.kind]}</div>
       <h1 className="display-tight text-h1 leading-[0.95] mb-3">
-        {entity.title ?? entity.ref.name}
+        <InlineCode text={entity.title ?? entity.ref.name} />
       </h1>
       <div className="mono text-small text-vellum-3">{entity.ref.fqid}</div>
     </header>

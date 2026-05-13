@@ -135,17 +135,52 @@ After all ADRs are converted, do a second pass to set bidirectional supersession
 
 Some v0.x projects kept all bounded contexts as subsections of `system.md` rather than as separate `views/*.md` files. After Phase 2, if `system.yaml` has more than one bounded context defined inline and any of those contexts owns ≥3 entries (terms / invariants / seams / rules combined), promote it to its own `lexicon/contexts/<slug>.yaml` (same emission logic as Phase 3, source is the relevant `system.md` subsection rather than a view file).
 
-Contexts that stay small remain as one-line index entries in `system.yaml`'s `contexts:` list with no separate file.
+Contexts with no per-context detail (only a name and a one-paragraph purpose in the v0.x system.md) **still get a stub file** at `lexicon/contexts/<slug>.yaml`:
+
+```yaml
+schemaVersion: "0.1"
+kind: bounded-context
+id: <slug>
+name: <Display>
+purpose: |
+  <The one-paragraph purpose from v0.x system.md.>
+modules:
+  - <best-guess module globs if v0.x prose mentions them>
+```
+
+Stub files are cheap and they pull two important properties into the cold layer: (a) `system.yaml`'s `contexts:` index resolves cleanly with no dangling references, and (b) the viewer renders the context as a real cluster on the graph (an empty cluster still communicates "this is a thing"). Do **not** invent an `inlineContexts` field on `system.yaml` to embed them inline — the v0.1 schema doesn't carry that field and the loader will silently drop it, making the contexts invisible.
+
+## Phase 6b — Cross-context seams and boundary rules
+
+v0.x `system.md` often had top-level "Cross-context architecture seams" or "Cross-context boundary rules" sections. The v0.1 schema scopes both to a single owning context:
+
+- A **seam** lives on the bounded context where the *primary owner* of the joint sits, with `participants:` listing the other side(s).
+- A **boundary rule** lives on the context named in its `from:` field.
+
+Emission rule: pick one owning context per cross-cutting entry. Do not duplicate the same seam or rule into multiple files; do not preserve a top-level `crossCuttingSeams` / `crossCuttingBoundaryRules` array on `system.yaml`. The schema has no slot for either, and zod will strip them silently.
+
+If the v0.x prose genuinely names both sides as equally primary (no clear owner), pick the context that *creates* the joint (for boundary rules, that's the `from:` context). Flag the choice in the migration report so the user can move it if they disagree.
+
+## Phase 6c — Battery / installation-specific blocks
+
+Some v0.x system.md files carry a "Battery" or "Installation-specific" section that distinguishes platform UL from the specific deployment's components. The v0.1 schema has no `battery:` slot. Three legitimate destinations:
+
+- **Cross-cutting `deliberateOmissions`** — "Multi-tenancy is deferred" *is* a deliberate omission; phrase the battery scope similarly ("This system ships with the medical-pipelines battery; alternative batteries are out of scope today").
+- **A dedicated stub bounded context** — if the battery names ≥3 modules or has its own terms/invariants, emit it as `contexts/<battery-slug>.yaml` with a `purpose:` that says "Battery-level — specific to this installation."
+- **Body prose on the relevant inline context stubs** — if the battery items each belong to a specific context (medical RAG → medical-knowledge-integration, format converters → ingestion-and-format-conversion), distribute them to the relevant context stubs' `purpose:` or `body:`.
+
+Pick exactly one. Do **not** invent a top-level `battery:` array on `system.yaml`.
 
 ## Phase 7 — Validate the emitted YAML
 
 After all files are emitted, parse them yourself and check:
 
-- Every `disambiguatesFrom:` / `affects:` / `supersedes:` / `supersededBy:` ref resolves to an existing entity.
+- Every `disambiguatesFrom:` / `affects:` / `supersedes:` / `supersededBy:` ref resolves to an existing entity. Every entry in `system.yaml`'s `contexts:` index has a matching `contexts/<slug>.yaml` file.
 - Every term ID is unique within its owning file.
 - Every ADR ID is unique across `lexicon/decisions/`.
 - Every `surfaces/<slug>.yaml`'s `id:` matches its filename.
 - Schema version on every file is `"0.1"`.
+- **No invented top-level keys.** The only top-level keys the schema accepts on `system.yaml` are: `schemaVersion`, `kind`, `id`, `name`, `purpose`, `body`, `contexts`, `crossCuttingTerms`, `crossCuttingInvariants`, `deliberateOmissions`. If migration was tempted to emit `inlineContexts`, `crossCuttingSeams`, `crossCuttingBoundaryRules`, `battery`, or anything else not on that list, fix it (see Phases 6, 6b, 6c) — zod strips unknown keys silently and the content goes invisible.
 
 Dangling refs and validation failures go in the migration report; the user resolves them, not the agent.
 
@@ -186,6 +221,8 @@ To: v0.1 YAML
 
 ## Items needing follow-up
 - ADRs missing `affects:` (all <A> of them, since v0.x didn't carry this field)
+- Terms without `symbols:` (v0.x markdown didn't carry code anchors as structured data; even if the prose named a file, migration didn't extract it). List the count and recommend filling during the next `lex-audit` — see Anchoring discipline in `lex-overview`.
+- Invariants without `constrainsCode:` and/or `validationMode:` — same reason. List the count and the same recommendation.
 - View-scoped "deliberately not specified" entries discarded (<N> items, listed below for user to re-add if real invariants)
 - Cross-context References sections discarded (<N> items — pure metadata, but listed below so you can verify)
 - <Any other parsing ambiguities you encountered>

@@ -209,6 +209,32 @@ regions:
 
 The canonical examples ship at `${SKILL_DIR}/templates/*.yaml.example` next to `lex-bootstrap`'s SKILL.md. Examples are reference shapes; the spec above is normative.
 
+## Anchoring discipline
+
+The schema's optional fields (`symbols`, `constrainsCode`, `validationMode`, `affects`, `disambiguatesFrom`) are *optional in the parser, expected in practice*. Skipping them turns the cold layer into a glossary divorced from the code — a doc that ages without the project, the exact failure mode lexicon is built to prevent.
+
+Treat the fields as defaults-to-fill, not nice-to-haves:
+
+- **`symbols` on a term** — every term that maps to a code identifier gets at least one anchor. The anchor is what makes the term verifiable: a reader (human or agent) can jump from the glossary to the implementation and check whether they still align. A term about a class or function with no `symbols` is a smell — either the term is purely conceptual (rare in real code), or the anchor is missing.
+- **`constrainsCode` + `validationMode` on an invariant** — if the invariant is enforceable by code or linter, list the call sites/files and set `validationMode: code` or `linter`. If it's a judgment call only humans uphold, set `validationMode: principle` and document it as such. Empty `validationMode` is the worst of both worlds: the reader can't tell whether to look for tooling or to trust the team.
+- **`affects` on an ADR** — every ADR lists the terms, invariants, and contexts it touches. This is the edge that makes "what decided this?" queryable. An ADR with no `affects` is a story without a subject; it'll get lost when the cold layer grows past memory.
+- **`disambiguatesFrom` on a term** — whenever two terms collide (same word, different meanings; same shape, different scope), record the pair. The graph view renders these as visible edges, and the reader sees the distinction before they conflate the concepts.
+
+### Names with code identifiers
+
+A `name` field may contain backtick-wrapped runs to mark code-identifier substrings, markdown-style. Examples:
+
+```yaml
+- id: cn-helper
+  name: "`cn(...)`"
+- id: theme-inline
+  name: "`@theme inline` ⇄ raw tokens"
+```
+
+The viewer renders backtick-wrapped runs in monospace, so the visual distinction between "an English phrase about code" and "a code identifier verbatim" survives into the UI. Use backticks deliberately when the name *is* (or contains) a code symbol; don't sprinkle them for emphasis.
+
+This is a rendering convention, not a parser rule — the schema accepts any string. But authoring with the convention in mind gives the viewer something to do.
+
 ## The six skills
 
 - **`lex-bootstrap`** — Runs **once** at adoption time. Scans existing docs and code, drafts a first-cut `system.yaml` and per-context files, migrates ADR-shaped content into YAML, sets up the directory structure, and produces a triage report at `lexicon/bootstrap.md`. Trigger: "set up lexicon", "adopt lexicon", "bootstrap lexicon", or `lex-ground` deferring on a project with no `system.yaml`.

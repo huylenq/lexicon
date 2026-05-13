@@ -312,3 +312,15 @@ The graph view ships when:
 - A `CHANGELOG-VIEWER.md` (or addition to viewer's `README.md`) documents the graph view, its keyboard shortcuts, and the three lenses.
 
 Path B is then complete and lexicon-viewer ships v0.1.
+
+## See also
+
+The graph view is one of several "maxx the visualization" paths. Sibling plans:
+
+- **[PATH-C-DRIFT-INDICATORS.md](./PATH-C-DRIFT-INDICATORS.md)** — continuous code↔doc anchor validation, status pills, project-level health.
+- **[PATH-D-PENDING-CRYSTALLIZATION.md](./PATH-D-PENDING-CRYSTALLIZATION.md)** — surface the gap between retros (forward-flow drift) and the user pulling `lex-crystallize`.
+- **[PATH-E-SEARCH.md](./PATH-E-SEARCH.md)** — Cmd-K palette across all entity prose.
+- **[PATH-F-GIT-HISTORY.md](./PATH-F-GIT-HISTORY.md)** — render git history of any entity inline, with ADR status timelines.
+- **[PATH-G-POLISH.md](./PATH-G-POLISH.md)** — papercut fixes bundle (region owner, self-host Monaco, FS watcher, hover-expand truncated names).
+
+See **[PLANS.md](./PLANS.md)** for the full index and how the paths compose.

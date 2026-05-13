@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { Link, useLocation } from "react-router-dom";
 import type { ResolvedGraph } from "@/lib/types";
+import InlineCode from "./InlineCode";
 
 export default function ContextSidebar({
   graph,
@@ -46,7 +47,7 @@ export default function ContextSidebar({
             to={linkTo(graph.system.ref.fqid)}
             className={`block py-1 -ml-3 pl-3 ${isActive(graph.system.ref.fqid) ? "active-rule" : ""}`}
           >
-            <span className="display text-h3 leading-tight">{graph.system.ref.name}</span>
+            <span className="display text-h3 leading-tight"><InlineCode text={graph.system.ref.name} /></span>
           </Link>
           {crossTerms.length > 0 && (
             <div className="mt-3 ml-3">
@@ -58,7 +59,7 @@ export default function ContextSidebar({
                       to={linkTo(t.fqid)}
                       className={`block py-0.5 mono text-small text-vellum-2 hover:text-oxide-2 -ml-3 pl-3 ${isActive(t.fqid) ? "active-rule text-vellum" : ""}`}
                     >
-                      {t.name}
+                      <InlineCode text={t.name} />
                     </Link>
                   </li>
                 ))}
@@ -75,7 +76,7 @@ export default function ContextSidebar({
                       to={linkTo(i.fqid)}
                       className={`block py-0.5 mono text-small text-vellum-2 hover:text-oxide-2 -ml-3 pl-3 ${isActive(i.fqid) ? "active-rule text-vellum" : ""}`}
                     >
-                      {i.name}
+                      <InlineCode text={i.name} />
                     </Link>
                   </li>
                 ))}
@@ -97,7 +98,7 @@ export default function ContextSidebar({
                   to={linkTo(ctx.ref.fqid)}
                   className={`block py-1 -ml-3 pl-3 ${isActive(ctx.ref.fqid) ? "active-rule" : ""}`}
                 >
-                  <span className="display text-h3 leading-tight">{ctx.ref.name}</span>
+                  <span className="display text-h3 leading-tight"><InlineCode text={ctx.ref.name} /></span>
                 </Link>
                 <div className="ml-3 mt-2">
                   <SubList title="Terms" items={ch.terms} active={activeFqid} linkTo={linkTo} />
@@ -139,7 +140,7 @@ export default function ContextSidebar({
                 to={linkTo(s.ref.fqid)}
                 className={`block py-1 -ml-3 pl-3 ${isActive(s.ref.fqid) ? "active-rule" : ""}`}
               >
-                <span className="display text-h3 leading-tight">{s.ref.name}</span>
+                <span className="display text-h3 leading-tight"><InlineCode text={s.ref.name} /></span>
               </Link>
               {(s.regions ?? []).length > 0 && (
                 <div className="ml-3 mt-1">
@@ -191,9 +192,9 @@ function SubList({
             <Link
               to={linkTo(it.fqid)}
               className={`block py-0.5 mono text-small text-vellum-2 hover:text-oxide-2 -ml-3 pl-3 truncate ${active === it.fqid ? "active-rule text-vellum" : ""}`}
-              title={it.name}
+              title={it.name.replace(/`/g, "")}
             >
-              {it.name}
+              <InlineCode text={it.name} />
             </Link>
           </li>
         ))}

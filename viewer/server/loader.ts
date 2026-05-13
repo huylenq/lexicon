@@ -237,9 +237,24 @@ function resolve(
   }
 
   // second pass: resolve typed refs and back-fill containment
-  const resolveRef = (raw: string, originFile: string): EntityRef | null => {
+  const resolveRef = (
+    raw: string,
+    originFile: string,
+    ownerContextId?: string | null,
+  ): EntityRef | null => {
     // try exact fqid first
     if (entities[raw]) return entities[raw].ref;
+    // owner-scoped lookups first — disambiguatesFrom inside a context usually
+    // points at a sibling in the same context.
+    if (ownerContextId) {
+      const scoped = [
+        `${ownerContextId}/${raw}`,
+        `${ownerContextId}/invariant/${raw}`,
+        `${ownerContextId}/seam/${raw}`,
+        `${ownerContextId}/rule/${raw}`,
+      ];
+      for (const c of scoped) if (entities[c]) return entities[c].ref;
+    }
     // try common shorthands
     const candidates = [
       `term/${raw}`,
@@ -297,7 +312,9 @@ function resolve(
       for (const t of data.terms ?? []) {
         const e = entities[`${data.id}/${t.id}`];
         if (e && t.disambiguatesFrom) {
-          e.disambiguatesFrom = t.disambiguatesFrom.map(r => resolveRef(r, relFile)).filter((x): x is EntityRef => x !== null);
+          e.disambiguatesFrom = t.disambiguatesFrom
+            .map(r => resolveRef(r, relFile, data.id))
+            .filter((x): x is EntityRef => x !== null);
         }
       }
     } else if (data.kind === "decision") {

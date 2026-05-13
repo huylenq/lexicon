@@ -12,6 +12,19 @@ export const KIND_LABEL: Record<EntityKind, string> = {
   region: "Region",
 };
 
+// Filterable kinds in graph view, ordered to match `1`..`7` keyboard shortcuts.
+// Single source of truth — used by the filter bar UI and the GraphPage hotkey
+// dispatcher.
+export const FILTERABLE_KINDS: { id: EntityKind; label: string; key: string }[] = [
+  { id: "term", label: "Terms", key: "1" },
+  { id: "invariant", label: "Invariants", key: "2" },
+  { id: "seam", label: "Seams", key: "3" },
+  { id: "boundary-rule", label: "Boundary rules", key: "4" },
+  { id: "decision", label: "ADRs", key: "5" },
+  { id: "surface", label: "Surfaces", key: "6" },
+  { id: "region", label: "Regions", key: "7" },
+];
+
 export const KIND_GLYPH: Record<EntityKind, string> = {
   system: "S",
   "bounded-context": "C",
