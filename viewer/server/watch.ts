@@ -1,13 +1,11 @@
-import { watch, type FSWatcher } from "node:fs";
+import { watch } from "node:fs";
 import { join } from "node:path";
 
 type Subscriber = (paths: string[]) => void;
 
 interface Entry {
-  watcher: FSWatcher;
   subs: Set<Subscriber>;
-  pending: Set<string>;
-  timer: ReturnType<typeof setTimeout> | null;
+  dispose: () => void;
 }
 
 const entries = new Map<string, Entry>();
@@ -17,33 +15,38 @@ export function subscribe(projectRoot: string, fn: Subscriber): () => void {
   let entry = entries.get(projectRoot);
   if (!entry) {
     const lexiconDir = join(projectRoot, "lexicon");
-    const created: Entry = {
-      watcher: undefined as unknown as FSWatcher,
-      subs: new Set(),
-      pending: new Set(),
-      timer: null,
-    };
+    const subs = new Set<Subscriber>();
+    const pending = new Set<string>();
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
     const fire = () => {
-      const paths = [...created.pending];
-      created.pending.clear();
-      created.timer = null;
-      for (const s of created.subs) {
-        try { s(paths); } catch (e) { console.error("[watch] subscriber threw", e); }
+      const paths = [...pending];
+      pending.clear();
+      timer = null;
+      for (const s of subs) {
+        try { s(paths); }
+        catch (e) { console.error("[watch] subscriber threw", e); }
       }
     };
+
     // macOS recursive watch on directories is supported but flaky for deep
     // trees; lexicon/ is shallow (one level of contexts/decisions/surfaces),
     // so recursive is fine here.
-    created.watcher = watch(lexiconDir, { recursive: true }, (_event, filename) => {
-      if (typeof filename === "string" && filename) created.pending.add(filename);
-      if (created.timer) clearTimeout(created.timer);
-      created.timer = setTimeout(fire, DEBOUNCE_MS);
+    const watcher = watch(lexiconDir, { recursive: true }, (_event, filename) => {
+      if (typeof filename === "string" && filename) pending.add(filename);
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(fire, DEBOUNCE_MS);
     });
-    created.watcher.on("error", err => {
-      console.error(`[watch] ${lexiconDir}:`, err.message);
-    });
-    entries.set(projectRoot, created);
-    entry = created;
+    watcher.on("error", err => console.error(`[watch] ${lexiconDir}:`, err.message));
+
+    entry = {
+      subs,
+      dispose: () => {
+        watcher.close();
+        if (timer) clearTimeout(timer);
+      },
+    };
+    entries.set(projectRoot, entry);
   }
   entry.subs.add(fn);
   return () => {
@@ -51,8 +54,7 @@ export function subscribe(projectRoot: string, fn: Subscriber): () => void {
     if (!e) return;
     e.subs.delete(fn);
     if (e.subs.size === 0) {
-      e.watcher.close();
-      if (e.timer) clearTimeout(e.timer);
+      e.dispose();
       entries.delete(projectRoot);
     }
   };

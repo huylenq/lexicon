@@ -85,16 +85,17 @@ app.get("/api/projects/:id/events", c => {
   if (!p) return c.json({ error: "not found" }, 404);
   const projectRoot = p.root_path;
   return streamSSE(c, async stream => {
-    const unsubscribe = subscribe(projectRoot, paths => {
+    let unsubscribe = () => {};
+    unsubscribe = subscribe(projectRoot, paths => {
       stream
         .writeSSE({ event: "changed", data: JSON.stringify({ paths }) })
-        .catch(() => {});
+        .catch(() => unsubscribe());
     });
-    stream.onAbort(() => unsubscribe());
+    stream.onAbort(unsubscribe);
     await stream.writeSSE({ event: "open", data: "1" });
-    // Heartbeat so idle connections don't time out at a proxy or in the
-    // browser. EventSource auto-reconnects on close, but no need to make
-    // it work for that.
+    // Heartbeat keeps the connection from idling out at a proxy or in the
+    // browser. Without it, an open stream with no FS activity for ~60s
+    // gets reaped and the client churns through reconnects.
     while (!stream.aborted) {
       await stream.sleep(25_000);
       if (stream.aborted) break;
