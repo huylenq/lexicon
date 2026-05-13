@@ -49,11 +49,11 @@ The cool tier exists deliberately. It's there to **make the question get asked**
 
 ## Design decisions and their reasoning
 
-### Why five skills, not one
+### Why separate skills, not one
 
-Could be a single `lexicon` skill that branches internally. Rejected because skill descriptions are the trigger mechanism — separate skills give the agent five different sets of contextual cues to fire on. `bootstrap` triggers on "set up lexicon" cues; `ground` triggers on "starting work" cues; `retro` triggers on "stopping point" cues; `crystallize` triggers on "feature done" cues; `audit` triggers on "sanity check" / "is system.md still accurate?" cues. Conflating any of them would weaken triggering.
+Could be a single `lexicon` skill that branches internally. Rejected because skill descriptions are the trigger mechanism — separate skills give the agent distinct sets of contextual cues to fire on. `bootstrap` triggers on "set up lexicon" cues; `ground` triggers on "starting work" cues; `retro` triggers on "stopping point" cues; `crystallize` triggers on "feature done" cues; `audit` triggers on "sanity check" / "is system.md still accurate?" cues; `migrate` triggers on "convert to YAML" cues; `meta` triggers on `/lex-meta` (explicit slash, no phrase fallback). Conflating any of them would weaken triggering.
 
-(v0.1.0 shipped with three; bootstrap was a subroutine inside `ground`. v0.2.0 split it out. v0.3.0 added audit. See dedicated rationales below.)
+(v0.1.0 shipped with three; bootstrap was a subroutine inside `ground`. v0.2.0 split it out. v0.3.0 added audit. v0.9.0 added migrate for the YAML transition. The unreleased line adds `lex-meta` as the bundle's self-evolve channel. See dedicated rationales below.)
 
 ### Why `lex-bootstrap` is its own skill, not a subroutine of `lex-ground`
 
@@ -197,6 +197,28 @@ Project-specific overrides — the cases where calibration *is* genuinely about 
 
 The "no separate `lex-feedback` skill" decision was deliberate: lexicon already has five skills and the taxonomy is hard to remember. Folding the feedback-capture behavior into `lex-retro` (explicit trigger) and `lex-crystallize` (suggest entries on repeated rejections) keeps the surface area flat. If feedback-capture grows complex enough to need its own skill, revisit.
 
+### Why `lex-meta` is its own skill, and why it kills `lexicon-prefs.md` (unreleased)
+
+The v0.7.0 "no separate feedback skill" call held until real use exposed two things the prefs file couldn't do:
+
+1. **It missed the highest-signal feedback channel.** The richest input isn't "I'd like to register a taste preference" (the only thing `for lexicon: <X>` was shaped to capture) — it's "I just corrected something the agent produced and the *conversation* contains the rationale." A correction-incident has the agent's wrong output, the user's pushback, and the user's reasoning, all in-context. A separate prefs file forces transcription away from that context, and the transcription is usually the step that doesn't happen.
+2. **The buffer-then-curate model wasn't actually paying for itself.** Prefs entries accumulated, but the curation pass into SKILL.md files was supposed to be a deliberate human step and rarely happened. The buffer-of-a-buffer added ceremony without raising the rate of bundle improvement.
+
+`lex-meta` collapses both:
+
+- **Conversation is the primary signal, diff is corroborating.** The agent reads the in-context turns for the *why*; the project's `lexicon/` diff confirms what landed. Together they're a much higher-fidelity input than a one-line prefs entry, and they come for free — no transcription step.
+- **The bundle repo's dirty working tree replaces the prefs buffer.** Every `/lex-meta` edits a SKILL.md in `~/src/lexicon/` and leaves the change uncommitted. Across multiple invocations the dirty state accumulates; the next run reads it via `git status`/`git diff` and can refine an existing uncommitted edit rather than introducing a parallel one. The buffer *is* the thing it's a buffer for — no second file drifting from the first, no curation pass needed. Crystallization happens in-place.
+- **User-triggered, explicit slash command, no phrase trigger.** Bundle edits are deliberate. The slash-command form forces the user to invoke intentionally; volunteering would slide back into the "agent decides what's significant" failure mode the rest of the workflow explicitly rejects.
+- **Triage gate up front: bundle-edit / project-quirk / no-op.** A `/lex-meta` invocation is *not* a contract to produce a SKILL.md amendment. The no-op branch is load-bearing — it's what prevents the skill from inventing reasons to edit just because it was invoked.
+- **Bug vs. taste is a labeling sub-question inside the bundle-edit branch**, not a routing decision. Both produce a SKILL.md edit; the label tells the user which they're approving so taste calls don't go global silently.
+- **Interview replaces queue.** Earlier drafts considered a "not confident" fallback that queued the incident to a meta-buffer for later. Rejected because the user is on the line — when the agent isn't confident, it asks (capped at three or four questions), not defers. The whole point of being a slash command is the audience is present.
+
+**What this kills.** `lexicon-prefs.md` is deprecated (not yet ripped out — other SKILL.md files still reference it, and that cleanup is itself a candidate `/lex-meta` use). The "for lexicon: <X>" phrase trigger is retired with it — its discoverability advantage (fires opportunistically without a slash) doesn't outweigh the transcription cost it imposed.
+
+**What it asymmetrically does.** Where every other lexicon skill takes the bundle as authoritative and reshapes the project, `lex-meta` takes the session as authoritative and reshapes the bundle. It writes only to `~/src/lexicon/`; it touches no project file (no retro, no `.last-crystallized` bump, no cold-layer mutation).
+
+**Discoverability gap to watch.** Slash-command requires the user to *think to invoke it*. The old phrase trigger fired opportunistically — that property is gone. If real use shows that correction-incidents pass unrecorded because nobody types `/lex-meta` at the right moment, the right next move is probably `lex-retro` noticing pushback-against-skill-output in the session and gently suggesting `/lex-meta` — not bringing the phrase trigger back. Holding that as a future move, not a current commitment.
+
 ### Why crystallize is user-triggered, not agent-triggered (v0.5.0)
 
 v0.1.0–v0.4.0 had `lex-crystallize` fire on agent-detected "feature done" cues. The agent doesn't reliably know when work is done — it knows when *a session* is done. Feature-completion is a user judgment call.
@@ -234,7 +256,7 @@ These are easy targets for "simplification" that would actually break the system
 
 - **The `retros/` directory.** Almost never read in any single session. Looks like noise. Is the mechanism that makes "the question gets asked every time" enforceable, *and* the input `lex-crystallize` aggregates over.
 - **The `lexicon/.last-crystallized` marker.** Trivial file (one ISO timestamp), critical role: it's how `lex-crystallize` knows which retros to consider. Without it, every crystallization either re-considers the entire history or asks the user "since when?" — both worse.
-- **`lexicon-prefs.md`.** The user-level prefs file (currently hardcoded at `~/src/lexicon/lexicon-prefs.md`). It's the only mechanism that makes lexicon adapt to the user across projects. Without it, the same lessons get re-learned every project. v0.7.0 promoted this from per-project `calibration.md` to a single user-level file — see "Why prefs are user-level, not project-level" below.
+- **The bundle repo's dirty working tree at `~/src/lexicon/`** *(replaces the v0.7.0 `lexicon-prefs.md` role)*. Uncommitted SKILL.md edits accumulated across `/lex-meta` invocations are the buffer that makes lexicon adapt to the user across projects. Without that property — without each `/lex-meta` leaving its edit dirty for review across sessions — the same corrections get re-made every project. See "Why `lex-meta` is its own skill, and why it kills `lexicon-prefs.md`" above for the full rationale. (The old `lexicon-prefs.md` is deprecated but still readable while other SKILL.md files reference it; that cleanup is itself a candidate `/lex-meta` use.)
 - **The "deliberately not changing" section in `lex-crystallize` proposals.** Looks like padding. Is the discipline that keeps each crystallization tightly scoped — without it, a crystallization becomes a chance to fix everything noticed about `system.md`, and the proposal becomes unreviewable.
 - **The user-as-trigger property of `lex-crystallize`.** It's tempting to make the agent volunteer crystallizations when retros pile up. Don't. The premise of v0.5.0 is that the agent isn't a reliable judge of "done" — making it a judge again undoes the simplification.
 

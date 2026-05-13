@@ -1,11 +1,11 @@
 ---
 name: lex-overview
-description: "Load at the start of any session in a project that has lexicon/system.yaml, whenever another lexicon skill (lex-bootstrap, lex-ground, lex-retro, lex-crystallize, lex-audit, lex-migrate) is about to run, or when the user asks about the lexicon workflow. Defines the shared rules, the cold-layer YAML schema, and the structural checks the other skills depend on. Load this first; the others assume it is in context."
+description: "Load at the start of any session in a project that has lexicon/system.yaml, whenever another lexicon skill (lex-bootstrap, lex-ground, lex-retro, lex-crystallize, lex-audit, lex-migrate, lex-meta) is about to run, or when the user asks about the lexicon workflow. Defines the shared rules, the cold-layer YAML schema, and the structural checks the other skills depend on. Load this first; the others assume it is in context."
 ---
 
 # Lexicon: workflow overview
 
-This skill is the **rulebook** for the lexicon workflow. Six skills implement specific moments in the loop — one adoption-time (`lex-bootstrap`), three operational (`lex-ground`, `lex-retro`, `lex-crystallize`), one periodic-maintenance (`lex-audit`), and one format-migration (`lex-migrate`); this skill explains how they fit together.
+This skill is the **rulebook** for the lexicon workflow. Seven skills implement specific moments in the loop — one adoption-time (`lex-bootstrap`), three operational (`lex-ground`, `lex-retro`, `lex-crystallize`), one periodic-maintenance (`lex-audit`), one format-migration (`lex-migrate`), and one self-evolve channel (`lex-meta`) that lets the bundle itself learn from corrections; this skill explains how they fit together.
 
 If you're loading this in response to one of the other skills, you only need the **Project shape**, **Schema specification**, and **Rules of engagement** sections — skim and proceed.
 
@@ -235,7 +235,7 @@ The viewer renders backtick-wrapped runs in monospace, so the visual distinction
 
 This is a rendering convention, not a parser rule — the schema accepts any string. But authoring with the convention in mind gives the viewer something to do.
 
-## The six skills
+## The seven skills
 
 - **`lex-bootstrap`** — Runs **once** at adoption time. Scans existing docs and code, drafts a first-cut `system.yaml` and per-context files, migrates ADR-shaped content into YAML, sets up the directory structure, and produces a triage report at `lexicon/bootstrap.md`. Trigger: "set up lexicon", "adopt lexicon", "bootstrap lexicon", or `lex-ground` deferring on a project with no `system.yaml`.
 - **`lex-ground`** — Runs at the start of substantive coding work. Reads `system.yaml` and relevant context files, declares scope (terms, invariants, bounded context) **in conversation**, surfaces vocabulary gaps. No file writes — the agent's context window holds the grounding for the rest of the session. Trigger: any non-trivial task.
@@ -243,6 +243,7 @@ This is a rendering convention, not a parser rule — the schema accepts any str
 - **`lex-crystallize`** — **User-triggered.** Runs when the user explicitly asks to update the cold layer ("crystallize", "update lexicon", "absorb the retros", "feature X is done"). Reads retros since the last crystallization, cross-checks against git diff, proposes a typed mutation set (creates / updates / renames / deprecations) over the YAML files **inline in conversation**, and applies on user approval. Updates `lexicon/.last-crystallized`.
 - **`lex-audit`** — Runs periodically (quarterly, on demand, or before planning sessions). Re-validates the cold-layer YAML against current code to catch backward-flow drift — stale glossary, dead invariants, undeclared contexts, hygiene rot, dangling refs. Writes a triage report to `lexicon/audits/audit-<iso>.md`; never edits cold-layer YAML directly. Trigger: "audit lexicon", "sanity-check the docs", "is the cold layer still accurate?".
 - **`lex-migrate`** — One-shot. Converts a v0.x markdown lexicon (`system.md`, `views/*.md`, `decisions/*.md`) into v0.1 YAML files. Trigger: "migrate lexicon", "convert lexicon to YAML", or `lex-ground` / `lex-bootstrap` detecting a markdown lexicon on a project that should be on YAML.
+- **`lex-meta`** — **User-triggered.** Runs when the user invokes `/lex-meta [optional prompt]` after correcting something a lexicon skill produced. This is the self-evolve channel for the skill bundle itself: takes the conversation (primary signal) and the project's `lexicon/` diff (corroborating), interviews to disambiguate, then amends the responsible `~/src/lexicon/skills/<skill>/SKILL.md`. Cross-repo write; leaves the bundle repo uncommitted so accumulated edits stay visible until you deliberately push.
 
 ### Forward-flow vs backward-flow drift
 

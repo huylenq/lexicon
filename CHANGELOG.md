@@ -10,6 +10,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 While in 0.x, breaking project-shape changes bump the minor (0.x.0 → 0.(x+1).0); the major bump is reserved for a stability commitment at 1.0.
 
+## [Unreleased]
+
+### Added
+
+- **`lex-meta` skill** — a self-evolve channel for the lexicon skill bundle itself. User-triggered via `/lex-meta [optional prompt]` after correcting something a lexicon skill produced (either an edit to the project's `lexicon/` folder or pushback against a skill's output earlier in the session). Takes the session conversation as the **primary signal** for *why* the correction was needed, with `git diff` of the project's `lexicon/` folder as corroborating evidence, then interviews to disambiguate and proposes an amendment to the responsible `~/src/lexicon/skills/<skill>/SKILL.md`. Cross-repo write; **does not commit** in the lexicon repo — the dirty working tree across multiple invocations is the accumulation buffer, deliberately reviewed and pushed when the user sits down in the bundle repo intentionally.
+
+  Triage is the first phase: classify the correction as **bundle edit** (lesson generalizes), **project-quirk** (belongs in the project's CLAUDE.md), or **no-op** (the skill was right; the user just preferred a different cosmetic this once). Bundle edits are further labeled bug-vs-taste in the proposal so taste calls get an explicit "you're sure you want this as a global rule?" confirmation. Anti-patterns the body calls out: inventing reasons to edit (a `/lex-meta` invocation is not a contract to produce an amendment), editing without quoting the current SKILL.md text, bundling unrelated lessons, committing in the bundle repo, treating the diff as primary, and routing to the phased-out `lexicon-prefs.md`.
+
+### Deprecated
+
+- **`lexicon-prefs.md` as the buffer for user preferences.** v0.7.0 introduced `~/src/lexicon/lexicon-prefs.md` as a user-level prefs file with a curation pass to absorb stabilized entries into SKILL.md files. In practice the buffer added a transcription step without paying for itself — the "consolidate through continuous use" property is better served by `/lex-meta` editing SKILL.md directly, with the bundle repo's dirty working tree playing the accumulation role. References to `lexicon-prefs.md` in other SKILL.md bodies are now stale and a candidate for cleanup via `/lex-meta`; they remain readable for now to avoid an abrupt break, but the routing target is the SKILL.md files themselves.
+
 ## [0.9.0] - 2026-05-12
 
 ### Changed

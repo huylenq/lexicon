@@ -13,7 +13,7 @@ Inspired by domain-driven design's [ubiquitous language](https://martinfowler.co
 
 ## What it does
 
-Lexicon adds five skills to Claude Code:
+Lexicon adds six skills to Claude Code:
 
 | Skill | Fires when | Does |
 |---|---|---|
@@ -22,6 +22,7 @@ Lexicon adds five skills to Claude Code:
 | `lex-retro` | At every natural stopping point | Always logs to `lexicon/retros/`; structural-drift flags land inline in the same log when triggers fire |
 | `lex-crystallize` | **You trigger it** ("crystallize", "update lexicon", "feature X is done") | Reads retros since last crystallization, cross-checks against git, proposes a coherent diff to `system.md` inline in chat, applies it directly on your yes |
 | `lex-audit` | Periodically (quarterly, on demand) | Re-validates `system.md` against current code; flags stale glossary, dead invariants, undeclared contexts, hygiene rot. Writes a triage report to `lexicon/audits/`; never edits `system.md` directly |
+| `lex-meta` | **You trigger it** (`/lex-meta`) after correcting something a lexicon skill produced | The self-evolve channel for the bundle itself: takes the session conversation as the primary signal, amends the responsible `~/src/lexicon/skills/<skill>/SKILL.md`, leaves the bundle repo uncommitted so accumulated edits stay visible |
 
 Cold-layer edits (`system.md`, views) go through `lex-crystallize` — propose, agree, apply. There's no separate proposal file or merge queue: the proposal happens in chat and the edit happens immediately.
 
