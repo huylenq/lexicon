@@ -1,0 +1,59 @@
+schemaVersion: "0.1"
+kind: surface
+id: projects-page
+name: Projects page
+route: /
+body: |
+  The masthead — landing page for the viewer. Lists registered projects in
+  recency order, offers a form to register a new project by absolute path,
+  and links into each project's reading room. Visually the most editorial
+  surface: pulled-up masthead with display-tight title, italic prose,
+  hairline-ruled cards. Empty state reads as a "no projects yet" italic note,
+  not an onboarding CTA.
+
+regions:
+  - id: masthead
+    name: Masthead
+    role: |
+      Top-of-page newspaper masthead — "Vol. 0 · No. 1 · Local edition" smallcap
+      tagline, oversized "Lexicon" title, italic blurb describing the viewer.
+    implementation:
+      kind: inline
+      file: client/src/pages/ProjectsPage.tsx
+      lineStart: 38
+      lineEnd: 50
+
+  - id: register-form
+    name: Register form
+    role: |
+      Left column. Absolute-path text input + "Add" submit; rejects invalid
+      paths via server validation and surfaces the error inline. Sits above
+      a small "About this view" italic prose block.
+    implementation:
+      kind: inline
+      file: client/src/pages/ProjectsPage.tsx
+      lineStart: 53
+      lineEnd: 88
+
+  - id: registered-list
+    name: Registered list
+    role: |
+      Right column. One row per registered project — display name, root path
+      in mono, added-at and last-opened-at dates in smallcap. Click anywhere
+      on the row except the "Remove" button to open the project.
+    implementation:
+      kind: inline
+      file: client/src/pages/ProjectsPage.tsx
+      lineStart: 90
+      lineEnd: 129
+
+  - id: footer
+    name: Footer
+    role: |
+      Single-line smallcap "Lexicon-viewer · v0 · local edition" under a top
+      rule. Identifies the build; no navigation.
+    implementation:
+      kind: inline
+      file: client/src/pages/ProjectsPage.tsx
+      lineStart: 131
+      lineEnd: 133

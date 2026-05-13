@@ -1,0 +1,164 @@
+schemaVersion: "0.1"
+kind: bounded-context
+id: graph-model
+name: Graph model
+purpose: |
+  Convert the server's `ResolvedGraph` into a renderable diagram. Build a
+  lens-specific node/edge model from the cold layer, hand it to ELK.js for
+  layout, then render as custom SVG. Three lenses (ownership / decisions /
+  surfaces) plus per-lens edge styling, kind filters, context filters, and
+  several routing modes for noisy `affects` edges.
+modules:
+  - client/src/lib/graph/build-graph.ts
+  - client/src/lib/graph/layout.ts
+  - client/src/pages/GraphPage.tsx
+  - client/src/components/graph/*
+
+terms:
+  - id: lens
+    name: lens
+    definition: |
+      A named projection of the `ResolvedGraph` answering one structural
+      question. Three exist: **ownership** (bounded contexts as compound
+      containers with terms / invariants / seams / boundary rules nested,
+      cross-cutting and ADR clusters alongside — primary lens), **decisions**
+      (ADRs in a timeline with supersession chains and affected-entity
+      satellites), **surfaces** (surfaces as containers with regions nested).
+      The lens is part of the URL: `/p/:id/graph/<lens>`.
+    symbols:
+      - file: client/src/lib/graph/build-graph.ts
+        lineStart: 6
+        lineEnd: 7
+        symbol: LENSES
+
+  - id: graph-node
+    name: GraphNode
+    definition: |
+      One node in the renderable graph model: `{id, kind, name, parent?,
+      isCluster?, width, height}`. `id` is the entity's fqid (or a synthetic
+      `__cluster/...` for cross-cutting / ADR pseudo-containers). `parent`
+      makes it a child in a compound graph. Width/height are pre-layout size
+      hints — set to 0 for containers (ELK computes from children).
+    symbols:
+      - file: client/src/lib/graph/build-graph.ts
+        lineStart: 17
+        lineEnd: 27
+        symbol: GraphNode
+
+  - id: graph-edge
+    name: GraphEdge
+    definition: |
+      One typed edge in the model: `{id, source, target, kind, label?,
+      directed}`. `kind` is one of `disambiguates | seam | boundary-rule |
+      affects | supersedes | contains`; each kind is rendered with its own
+      aesthetic (solid oxide / dashed vellum / dotted saffron / arrow style).
+    symbols:
+      - file: client/src/lib/graph/build-graph.ts
+        lineStart: 29
+        lineEnd: 36
+        symbol: GraphEdge
+
+  - id: cluster-node
+    name: cluster node
+    definition: |
+      A synthetic compound-graph container that holds entities sharing no
+      bounded context but belonging together visually. Two exist: the
+      `__cluster/cross-cutting` cluster (system-level terms and invariants)
+      and the `__cluster/decisions` cluster (ADRs in the ownership lens).
+      Distinguished from real bounded-context containers by `kind: "cluster"`
+      and the `__cluster/` id prefix.
+    symbols:
+      - file: client/src/lib/graph/build-graph.ts
+        lineStart: 52
+        lineEnd: 54
+
+  - id: affects-routing
+    name: affects routing
+    definition: |
+      Strategy for drawing ADR→entity `affects` edges, which fan out to many
+      targets and are visually loud at default. Four modes: `bundle` (default,
+      hierarchical-edge-bundled with adjustable tension), `elbow` (orthogonal
+      L-shapes), `astar` (grid A* pathfinding with turn penalty and reuse
+      factor), `straight` (raw lines). Switched live from the layout options
+      panel.
+    symbols:
+      - file: client/src/lib/graph/layout.ts
+        lineStart: 88
+        symbol: AffectsRouting
+
+  - id: layout-result
+    name: LayoutResult
+    definition: |
+      What ELK + post-processing produces and the canvas consumes: a flat list
+      of `PositionedNode`s (with `x, y` plus the original GraphNode fields)
+      and `PositionedEdge`s (with computed routing points). The viewport size
+      is implied by the bounding box of positioned nodes.
+    symbols:
+      - file: client/src/lib/graph/layout.ts
+        lineStart: 26
+        symbol: LayoutResult
+
+invariants:
+  - id: lens-set-closed
+    name: lens set is closed
+    statement: |
+      The `LENSES` array is the complete, ordered list of supported lenses.
+      A `Lens` value outside this set is impossible at the type level;
+      runtime parsing of the URL lens param falls back to "ownership" if the
+      route segment doesn't match.
+    rationale: |
+      Adding a fourth lens is intentionally heavier than a config edit — it
+      requires new `build<Lens>` logic, new filter semantics, possibly new
+      edge styling. Closing the set prevents accidental drift and makes the
+      surface area easy to enumerate in code review.
+    validationMode: code
+    constrainsCode:
+      - file: client/src/lib/graph/build-graph.ts
+        lineStart: 6
+        symbol: LENSES
+      - file: client/src/pages/GraphPage.tsx
+        lineStart: 24
+        symbol: isLens
+
+  - id: layout-deterministic
+    name: layout is deterministic per (model, options)
+    statement: |
+      Given the same `GraphModel` and the same `LayoutOptions`, ELK produces
+      the same node positions and edge routing. There is no per-session
+      randomness, no saved layout state, and no user-drag overrides.
+    rationale: |
+      Determinism is what lets filter toggles "reshape the diagram" rather
+      than "animate to a new state" — reproducibility comes for free, and the
+      user never has to fight a layout they didn't choose. Adding free-form
+      drag-to-reposition would break this invariant; see PATH-B non-goals.
+    validationMode: principle
+
+  - id: filter-relayout
+    name: filter changes re-run layout
+    statement: |
+      Toggling kind filters, context filters, or edge filters rebuilds the
+      `GraphModel` and re-runs `layoutModel`. There is no fade-in-place or
+      fade-out animation for filtered-out nodes.
+    rationale: |
+      ELK is fast enough on graphs of expected size (~50 entities for the
+      sample, hundreds for real projects). Re-layout produces a cleaner
+      diagram than partial-hide-and-reflow, and the editorial aesthetic is
+      "the diagram reshapes" rather than "things slide around."
+    validationMode: code
+    constrainsCode:
+      - file: client/src/pages/GraphPage.tsx
+        lineStart: 65
+        lineEnd: 93
+
+seams:
+  - id: resolved-graph-to-model
+    name: ResolvedGraph → GraphModel
+    description: |
+      The graph view consumes the same `LexiconResponse` the reading room
+      does; nothing graph-specific lives on the server. `buildModel(graph,
+      lens, opts)` is the boundary — every lens reads only typed fields of
+      `ResolvedEntity` (containedTerms, affects, supersedes, regions, …),
+      never the raw YAML.
+    participants:
+      - lexicon-loading
+      - graph-model

@@ -4,7 +4,7 @@ Cmd-K command palette across all entity prose in the loaded project. One Claude 
 
 ## Read first
 
-- `viewer/PATH-B-GRAPH-VIEW.md` § "What lexicon-viewer is" — viewer architecture.
+- `viewer/lexicon/plans/graph-view/spec.md` § "What lexicon-viewer is" — viewer architecture.
 - `viewer/server/schema.ts`, `viewer/client/src/lib/types.ts` — what fields exist on each entity (terms have `definition`, invariants have `statement` + `rationale`, ADRs have four prose blocks, etc.).
 
 ## The goal

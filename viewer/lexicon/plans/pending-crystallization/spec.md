@@ -4,7 +4,7 @@ Surface the gap between forward-flow drift (logged by `lex-retro`) and the user 
 
 ## Read first
 
-- `viewer/PATH-B-GRAPH-VIEW.md` § "What lexicon-viewer is" — viewer architecture.
+- `viewer/lexicon/plans/graph-view/spec.md` § "What lexicon-viewer is" — viewer architecture.
 - `skills/lex-retro/SKILL.md` — how retros are written. **Note:** retros are still markdown in v0.9; the structured-retro evolution is future work.
 - `skills/lex-crystallize/SKILL.md` — what the user does with retros once they decide to absorb them.
 

@@ -4,7 +4,7 @@ Render the git history of any entity inline — when it was introduced, what cha
 
 ## Read first
 
-- `viewer/PATH-B-GRAPH-VIEW.md` § "What lexicon-viewer is" — viewer architecture.
+- `viewer/lexicon/plans/graph-view/spec.md` § "What lexicon-viewer is" — viewer architecture.
 - `viewer/server/loader.ts` — how YAML files map to entities; the `source.file` field on every `ResolvedEntity` is the git-tracked file.
 - `viewer/server/index.ts` — current API surface (so you know which patterns to reuse).
 

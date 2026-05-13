@@ -4,7 +4,7 @@ Continuous, calm code↔doc drift detection surfaced as ambient UI state. One Cl
 
 ## Read first
 
-- `viewer/PATH-B-GRAPH-VIEW.md` § "What lexicon-viewer is" — viewer architecture and stack.
+- `viewer/lexicon/plans/graph-view/spec.md` § "What lexicon-viewer is" — viewer architecture and stack.
 - `viewer/server/schema.ts` — `CodeAnchor`, `ResolvedEntity`, `LoadIssue`.
 - `skills/lex-audit/SKILL.md` Phase 1, Phase 2 — the backward-flow checks this path makes continuous.
 

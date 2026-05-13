@@ -1,6 +1,6 @@
 # lexicon-viewer plans
 
-Each plan file is scoped to a single Claude Code session. Pick one, hand off to a fresh session with `Read viewer/PATH-X-…md and implement it`.
+Each plan file is scoped to a single Claude Code session. Pick one, hand off to a fresh session with `Read viewer/lexicon/plans/<slug>/spec.md and implement it`.
 
 Plans are independent — they can ship in any order, except where a "Depends on" note says otherwise.
 
@@ -8,12 +8,12 @@ Plans are independent — they can ship in any order, except where a "Depends on
 
 | Plan | What it ships | Status |
 |---|---|---|
-| [PATH-B: Graph view](./PATH-B-GRAPH-VIEW.md) | Graph view as a peer to the detail view. Three lenses: ownership, decisions, surfaces. ELK.js layout + custom SVG. | in progress |
-| [PATH-C: Drift indicators](./PATH-C-DRIFT-INDICATORS.md) | Continuous code↔doc anchor validation. Status pills on code anchors; `/p/:id/drift` triage list; project-list health badges. | planned |
-| [PATH-D: Pending crystallization](./PATH-D-PENDING-CRYSTALLIZATION.md) | Surface the gap between retros (forward-flow drift) and the user pulling `lex-crystallize`. Three groupings: by entity, by retro, by check kind. | planned |
-| [PATH-E: Search palette](./PATH-E-SEARCH.md) | Cmd-K palette across all entity prose. In-memory inverted index, kind filters, recency boost. | planned |
-| [PATH-F: Git-history time travel](./PATH-F-GIT-HISTORY.md) | Render git history of any entity inline. Commit timeline with diff hunks; ADR status timeline. | planned |
-| [PATH-G: Polish bundle](./PATH-G-POLISH.md) | Region owner label, self-host Monaco workers, filesystem watcher for auto-refresh, hover-expand for truncated sidebar names. | planned |
+| [Graph view](./graph-view/spec.md) | Graph view as a peer to the detail view. Three lenses: ownership, decisions, surfaces. ELK.js layout + custom SVG. | in progress |
+| [Drift indicators](./drift-indicators/spec.md) | Continuous code↔doc anchor validation. Status pills on code anchors; `/p/:id/drift` triage list; project-list health badges. | planned |
+| [Pending crystallization](./pending-crystallization/spec.md) | Surface the gap between retros (forward-flow drift) and the user pulling `lex-crystallize`. Three groupings: by entity, by retro, by check kind. | planned |
+| [Search palette](./search-palette/spec.md) | Cmd-K palette across all entity prose. In-memory inverted index, kind filters, recency boost. | planned |
+| [Git history](./git-history/spec.md) | Render git history of any entity inline. Commit timeline with diff hunks; ADR status timeline. | planned |
+| [Polish bundle](./polish-bundle/spec.md) | Region owner label, self-host Monaco workers, filesystem watcher for auto-refresh, hover-expand for truncated sidebar names. | planned |
 
 ## Out of scope (waiting on upstream changes)
 

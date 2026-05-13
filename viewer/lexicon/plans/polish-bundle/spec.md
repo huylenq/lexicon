@@ -4,7 +4,7 @@ Four small-but-papercutty fixes the v0 viewer left on the table. Bundled because
 
 ## Read first
 
-- `viewer/PATH-B-GRAPH-VIEW.md` § "What lexicon-viewer is" — viewer architecture.
+- `viewer/lexicon/plans/graph-view/spec.md` § "What lexicon-viewer is" — viewer architecture.
 - `viewer/README.md` — running the dev server.
 
 ## Item 1 — Region owner label resolves to parent surface

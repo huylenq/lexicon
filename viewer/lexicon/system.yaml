@@ -1,0 +1,119 @@
+schemaVersion: "0.1"
+kind: system
+id: lexicon-viewer
+name: Lexicon viewer
+purpose: |
+  A local web app for browsing a lexicon-conform project's cold layer (DDD-style
+  ubiquitous language: bounded contexts, terms, invariants, ADRs, surfaces and
+  regions) and its codebase in the same window. Two peer views — a reading room
+  (catalog + detail + Monaco peek drawer) and a graph view (typeset diagram with
+  three lenses). Single-user, single-project-at-a-time, read-only.
+
+contexts:
+  - lexicon-loading
+  - project-registry
+  - graph-model
+  - design-system
+
+crossCuttingTerms:
+  - id: lexicon-conform-project
+    name: lexicon-conform project
+    definition: |
+      A project that contains a top-level `lexicon/` directory of YAML files
+      conforming to schema v0.1 — `system.yaml`, optional per-context files in
+      `contexts/`, optional `decisions/ADR-*.yaml`, optional `surfaces/*.yaml`.
+      The viewer's input. Registered with the viewer by absolute path.
+
+  - id: cold-layer
+    name: cold layer
+    definition: |
+      The structured YAML files under `lexicon/` that capture vocabulary,
+      invariants, bounded contexts, and decisions. Distinct from the hot layer
+      (per-feature plans in `lexicon/plans/`) and from code itself. The viewer
+      reads the cold layer; it does not write it.
+
+  - id: fqid
+    name: fqid (fully-qualified id)
+    definition: |
+      A stable string identifier for any resolved entity, unique across the
+      graph. Forms: `system/<slug>`, `context/<slug>`, `<context>/<term>`,
+      `<context>/invariant/<slug>`, `<context>/seam/<slug>`, `<context>/rule/<slug>`,
+      `term/<slug>` and `invariant/<slug>` for cross-cutting, `decision/ADR-NNNN`,
+      `surface/<slug>`, `surface/<slug>/<region>`. Used as React keys, graph node
+      IDs, route params (`/p/:id/<fqid>`).
+    symbols:
+      - file: server/schema.ts
+        symbol: EntityRef
+      - file: server/loader.ts
+        lineStart: 114
+        symbol: register
+
+  - id: code-anchor
+    name: code anchor
+    definition: |
+      A pointer from a cold-layer entity into a code file: `{file, lineStart?,
+      lineEnd?, symbol?}`. Lives on `Term.symbols`, `Invariant.constrainsCode`,
+      and `Region.implementation` (inline variant carries `file/lineStart/lineEnd`,
+      component variant carries `import` with optional `file`). The viewer
+      renders anchors as badges that open the file in a Monaco peek.
+    symbols:
+      - file: server/schema.ts
+        lineStart: 15
+        lineEnd: 20
+        symbol: codeAnchor
+
+  - id: peek
+    name: peek
+    definition: |
+      A Monaco editor instance opened in a side drawer to read the file behind
+      a code anchor, with the anchor's line range highlighted. Multiple peeks
+      stack vertically. State lives in a React context (`PeekProvider`) so
+      peeks persist across view changes (reading room ↔ graph view).
+      Read-only — the peek shows the file as-on-disk; the viewer never writes.
+    symbols:
+      - file: client/src/lib/peek.tsx
+        symbol: PeekProvider
+      - file: client/src/components/PeekDrawer.tsx
+
+crossCuttingInvariants:
+  - id: read-only
+    name: viewer is read-only
+    statement: |
+      The viewer never writes to cold-layer YAML, never modifies code, and
+      never mutates the user's filesystem outside `lexicon-viewer.db`.
+      Corrections go through `lex-crystallize` running in the user's terminal,
+      not through the viewer.
+    rationale: |
+      Editing in the viewer would duplicate `lex-crystallize`'s deliberate
+      propose-then-apply discipline, and likely badly — the viewer has no
+      access to the full conversational context that makes crystallization
+      good. Keep the viewer a *reading room*, not an IDE.
+
+  - id: single-project-active
+    name: one project active at a time
+    statement: |
+      The browser loads exactly one project's `ResolvedGraph` at a time. The
+      search index, recency cache, and peek state are scoped to that project.
+      Switching projects reloads everything from scratch.
+    rationale: |
+      Single-project scope keeps the in-browser index small (linear scan over
+      hundreds of entities), routing simple (`/p/:id/...`), and the mental
+      model uncluttered. Cross-project features (if ever) would be a separate
+      surface, not a graph-layer concern.
+
+  - id: editorial-aesthetic
+    name: editorial-meets-blueprint aesthetic
+    statement: |
+      The viewer's visual identity (Fraunces + IBM Plex Mono on ink/vellum
+      with oxide accents, sharp geometry, hairline rules, no rounded badges,
+      no purple defaults) is load-bearing — a correct-but-generic viewer
+      would feel like a downgrade from the YAML it renders. Canonical
+      vocabulary and component primitives live in [[design-system]];
+      surfaces consume from there rather than declaring their own colors,
+      fonts, or shapes.
+    rationale: |
+      The aesthetic is the differentiator. When adding a feature, push the
+      typography and edge styling until it reads as "extension of the
+      existing viewer," not "bolted on." If a tradeoff arises between
+      capability and aesthetic, the aesthetic wins — see also PATH-B's
+      "Aesthetic continuity" guidance.
