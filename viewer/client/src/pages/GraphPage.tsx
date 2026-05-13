@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import type { EntityKind, LexiconResponse } from "@/lib/types";
+import type { EntityKind, LexiconResponse, ResolvedEntity } from "@/lib/types";
 import { buildModel, LENSES, type EdgeKind, type Lens } from "@/lib/graph/build-graph";
 import {
   layoutModel,
@@ -18,6 +18,12 @@ import GraphDetailRail from "@/components/graph/GraphDetailRail";
 import LayoutOptionsPanel from "@/components/graph/LayoutOptionsPanel";
 import type { ThreadStop } from "@/components/graph/NarrativeThread";
 import { ResizeHandle, usePersistedWidth } from "@/lib/resize";
+import {
+  isInspectorChord,
+  isTypingTarget,
+  toInspectorTarget,
+  useInspector,
+} from "@/lib/inspector";
 
 const DEFAULT_KINDS: EntityKind[] = FILTERABLE_KINDS.map(k => k.id);
 const DEFAULT_EDGES: EdgeKind[] = ["disambiguates", "affects", "supersedes"];
@@ -63,6 +69,7 @@ export default function GraphPage({
   const searchRef = useRef<HTMLInputElement>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [narrativeThreadEnabled, setNarrativeThreadEnabled] = useState(false);
+  const { isOpen: inspectorOpen, open: openInspector } = useInspector();
 
   const model = useMemo(
     () => buildModel(resp.graph, lens, { kindFilter: kinds, edgeFilter: edges, contextFilter }),
@@ -107,17 +114,32 @@ export default function GraphPage({
     if (hit) setSelectedId(hit.ref.fqid);
   }, [search, resp.graph.entities]);
 
+  const selectedEntity = useMemo<ResolvedEntity | null>(
+    () => (selectedId ? resp.graph.entities[selectedId] ?? null : null),
+    [selectedId, resp.graph.entities],
+  );
+
+  // Read the inspector target at fire-time via a ref so the listener doesn't
+  // rebind on every selection change or SSE refresh (graph.system / entities
+  // both swap references when resp is replaced).
+  const inspectTargetRef = useRef<ResolvedEntity | null>(null);
+  inspectTargetRef.current = selectedEntity ?? resp.graph.system;
+
   // Keyboard shortcuts
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null;
-      const isTyping =
-        target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA");
       if (e.key === "Escape") {
         navigate(`/p/${id}/`);
         return;
       }
-      if (isTyping) return;
+      if (isTypingTarget(e.target)) return;
+      if (isInspectorChord(e)) {
+        e.preventDefault();
+        if (inspectorOpen) return; // close is handled at the page shell
+        const t = inspectTargetRef.current;
+        if (t) openInspector(toInspectorTarget(t));
+        return;
+      }
       if (e.key === "/") {
         e.preventDefault();
         searchRef.current?.focus();
@@ -128,7 +150,7 @@ export default function GraphPage({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [id, navigate]);
+  }, [id, navigate, inspectorOpen, openInspector]);
 
   const toggleKind = makeSetToggle(setKinds);
   const toggleEdge = makeSetToggle(setEdges);
@@ -147,8 +169,6 @@ export default function GraphPage({
     setSelectedId(null);
     navigate(`/p/${id}/graph/${l}`);
   };
-
-  const selectedEntity = selectedId ? resp.graph.entities[selectedId] ?? null : null;
 
   // Stops include the selected entity itself plus each `narrativeRefs` target
   // present in the current layout. Refs are pre-resolved by the loader; this

@@ -1,4 +1,4 @@
-import { useEffect, type FC } from "react";
+import { useEffect, useRef, type FC } from "react";
 import type { EntityKind, EntityRef, ResolvedEntity, ResolvedGraph } from "@/lib/types";
 import { KIND_LABEL, formatLineRange } from "@/lib/kinds";
 import RefLink from "./RefLink";
@@ -6,7 +6,12 @@ import CodeAnchorBadge from "./CodeAnchorBadge";
 import InlineCode from "./InlineCode";
 import { Marginalia, MarginaliaItem } from "./Marginalia";
 import Prose from "./Prose";
-import { useInspector } from "@/lib/inspector";
+import {
+  isInspectorChord,
+  isTypingTarget,
+  toInspectorTarget,
+  useInspector,
+} from "@/lib/inspector";
 
 export default function EntityDetail({
   entity,
@@ -16,23 +21,29 @@ export default function EntityDetail({
   graph: ResolvedGraph;
 }) {
   const { isOpen, target, open: openInspector } = useInspector();
+  const entityRef = useRef(entity);
+  entityRef.current = entity;
 
-  // If the inspector is open, retarget it to the new entity whenever the
-  // page navigates (without us actively opening). Keeps the slab synced to
-  // whatever the user is reading.
+  // Keep the slab synced to whatever the user is reading. The retarget only
+  // fires while the inspector is already open; opening from scratch is the
+  // user's job (Specimen button or ⌘').
   useEffect(() => {
     if (!isOpen) return;
     if (target?.fqid === entity.ref.fqid) return;
-    openInspector({
-      fqid: entity.ref.fqid,
-      name: entity.ref.name,
-      file: entity.source.file,
-      lineStart: entity.source.lineStart,
-      lineEnd: entity.source.lineEnd,
-      path: entity.source.path,
-      kind: entity.ref.kind,
-    });
+    openInspector(toInspectorTarget(entity));
   }, [entity.ref.fqid, isOpen]);
+
+  // Close-side of ⌘' lives in the page shell; we own the open path here.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!isInspectorChord(e) || isTypingTarget(e.target)) return;
+      if (isOpen) return;
+      e.preventDefault();
+      openInspector(toInspectorTarget(entityRef.current));
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isOpen, openInspector]);
 
   return (
     <article className="grid grid-cols-12 gap-12 py-12 px-12">
@@ -65,17 +76,7 @@ function Header({ entity }: { entity: ResolvedEntity }) {
         className="inspector-pull shrink-0"
         data-active={isActive}
         title="Inspect YAML source (⌘ ')"
-        onClick={() =>
-          toggle({
-            fqid: entity.ref.fqid,
-            name: entity.ref.name,
-            file: entity.source.file,
-            lineStart: entity.source.lineStart,
-            lineEnd: entity.source.lineEnd,
-            path: entity.source.path,
-            kind: entity.ref.kind,
-          })
-        }
+        onClick={() => toggle(toInspectorTarget(entity))}
       >
         <span>Specimen</span>
         <span className="inspector-pull-range">{lineLabel}</span>

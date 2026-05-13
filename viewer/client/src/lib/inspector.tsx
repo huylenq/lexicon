@@ -6,7 +6,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { EntityKind } from "./types";
+import type { EntityKind, ResolvedEntity } from "./types";
 
 // Single open inspector at a time. Lives at page level so the slab survives
 // entity navigation — clicking a sibling in the rail re-targets in place.
@@ -19,6 +19,28 @@ export interface InspectorTarget {
   lineEnd: number;
   path: string;
   kind: EntityKind;
+}
+
+export function toInspectorTarget(e: ResolvedEntity): InspectorTarget {
+  return {
+    fqid: e.ref.fqid,
+    name: e.ref.name,
+    file: e.source.file,
+    lineStart: e.source.lineStart,
+    lineEnd: e.source.lineEnd,
+    path: e.source.path,
+    kind: e.ref.kind,
+  };
+}
+
+export function isInspectorChord(e: KeyboardEvent): boolean {
+  return (e.metaKey || e.ctrlKey) && e.key === "'";
+}
+
+export function isTypingTarget(t: EventTarget | null): boolean {
+  if (!t) return false;
+  const el = t as HTMLElement;
+  return el.tagName === "INPUT" || el.tagName === "TEXTAREA";
 }
 
 interface InspectorCtx {

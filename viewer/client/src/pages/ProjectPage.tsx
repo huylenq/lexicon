@@ -3,7 +3,12 @@ import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { api } from "@/lib/api";
 import type { LexiconResponse, ResolvedGraph } from "@/lib/types";
 import { PeekProvider, usePeek } from "@/lib/peek";
-import { InspectorProvider, useInspector } from "@/lib/inspector";
+import {
+  InspectorProvider,
+  isInspectorChord,
+  isTypingTarget,
+  useInspector,
+} from "@/lib/inspector";
 import { ResizeHandle, usePersistedWidth } from "@/lib/resize";
 import ContextSidebar from "@/components/ContextSidebar";
 import EntityDetail from "@/components/EntityDetail";
@@ -48,19 +53,16 @@ function ProjectShell({ projectId }: { projectId: number }) {
     key: "lexicon.specimenSlabWidth", defaultPx: 560, minPx: 360, maxFrac: 0.7,
   });
 
-  // Keyboard shortcut — Cmd+' (or Ctrl+') toggles the slab when closed,
-  // closes it when open. ESC also closes when focus isn't in an input.
+  // Close-side of ⌘'/ESC. The open-side lives in each page because the target
+  // depends on context (selected node, current entity, graph.system fallback).
   useEffect(() => {
+    if (!inspectorOpen) return;
     const onKey = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null;
-      const typing = target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA");
-      if (typing) return;
-      if ((e.metaKey || e.ctrlKey) && e.key === "'") {
+      if (isTypingTarget(e.target)) return;
+      if (isInspectorChord(e)) {
         e.preventDefault();
-        if (inspectorOpen) closeInspector();
-        // Opening from a global key without a target entity isn't meaningful;
-        // the user opens via the EntityDetail pull tab instead.
-      } else if (e.key === "Escape" && inspectorOpen) {
+        closeInspector();
+      } else if (e.key === "Escape") {
         closeInspector();
       }
     };
@@ -119,8 +121,8 @@ function ProjectShell({ projectId }: { projectId: number }) {
 
   return (
     <div className="h-screen flex flex-col">
-      {/* top strip */}
-      <div className="flex items-baseline gap-6 px-6 py-3 border-b rule">
+      {/* top strip — doubles as the PWA titlebar when launched with WCO. */}
+      <div className="titlebar flex items-baseline gap-6 px-6 py-3 border-b rule">
         <Link to="/" className="smallcap hover:text-fg">← Lexicon</Link>
         <div className="display text-h3 text-fg leading-none">{project.name}</div>
         <div className="mono text-small text-fg-3 truncate">{project.root_path}</div>
@@ -158,6 +160,21 @@ function ProjectShell({ projectId }: { projectId: number }) {
           <div className="flex-1 min-w-0 min-h-0 flex flex-col">
             <GraphPage resp={resp} lens={graphLens} />
           </div>
+          <aside
+            ref={slabRef}
+            className={`relative overflow-hidden ${inspectorOpen ? "" : "hidden"}`}
+            style={{ width: inspectorOpen ? slab.width : 0 }}
+          >
+            {inspectorOpen && (
+              <ResizeHandle
+                side="left"
+                panelRef={slabRef}
+                onResize={slab.setLive}
+                onCommit={slab.commit}
+              />
+            )}
+            <YamlInspector projectId={projectId} graph={graph} />
+          </aside>
           <aside
             ref={drawerRef}
             className={`relative border-l rule overflow-hidden ${peekOpen ? "" : "hidden"}`}

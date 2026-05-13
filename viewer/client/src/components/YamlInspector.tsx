@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import Editor, { type Monaco, type OnMount } from "@monaco-editor/react";
 import type { editor as MonacoEditor } from "monaco-editor";
 import { api } from "@/lib/api";
@@ -22,6 +22,8 @@ export default function YamlInspector({
   const monacoRef = useRef<Monaco | null>(null);
   const decorationsRef = useRef<string[]>([]);
   const navigate = useNavigate();
+  const location = useLocation();
+  const onGraphView = /\/graph(\/|$)/.test(location.pathname);
 
   // Re-fetch only when the file path changes. Switching atoms within the
   // same file just retargets via the decoration effect — no refetch.
@@ -127,16 +129,22 @@ export default function YamlInspector({
 
   const handleSiblingClick = (s: YamlSibling) => {
     if (!graph.entities[s.fqid]) return;
-    openTarget({
-      fqid: s.fqid,
-      name: s.name,
-      file: target.file,
-      lineStart: s.lineStart,
-      lineEnd: s.lineEnd,
-      path: s.path,
-      kind: s.kind,
-    });
-    navigate(`/p/${projectId}/${encodeURIComponent(s.fqid)}`);
+    if (onGraphView) {
+      // On graph view, just retarget the slab — don't punt the user into the
+      // reading room. The graph's own rail/canvas owns selection there.
+      openTarget({
+        fqid: s.fqid,
+        name: s.name,
+        file: target.file,
+        lineStart: s.lineStart,
+        lineEnd: s.lineEnd,
+        path: s.path,
+        kind: s.kind,
+      });
+    } else {
+      // EntityDetail's retarget effect will sync the slab once the route changes.
+      navigate(`/p/${projectId}/${encodeURIComponent(s.fqid)}`);
+    }
   };
 
   return (

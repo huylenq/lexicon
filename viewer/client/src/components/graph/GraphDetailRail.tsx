@@ -1,9 +1,10 @@
 import { Link } from "react-router-dom";
 import type { EntityRef, ResolvedEntity, ResolvedGraph } from "@/lib/types";
-import { KIND_LABEL } from "@/lib/kinds";
+import { KIND_LABEL, formatLineRange } from "@/lib/kinds";
 import RefLink from "../RefLink";
 import CodeAnchorBadge from "../CodeAnchorBadge";
 import InlineCode from "../InlineCode";
+import { toInspectorTarget, useInspector } from "@/lib/inspector";
 
 interface Props {
   entity: ResolvedEntity | null;
@@ -27,6 +28,7 @@ const REF_LIST_FIELDS: [keyof ResolvedEntity, string][] = [
 ];
 
 export default function GraphDetailRail({ entity, graph, projectId, onClose }: Props) {
+  const { target: inspectorTarget, toggle: toggleInspector } = useInspector();
   if (!entity) return <EmptyRail />;
 
   const owner = entity.ownerContextId
@@ -42,16 +44,30 @@ export default function GraphDetailRail({ entity, graph, projectId, onClose }: P
     ...(entity.constrainsCode ?? []),
   ];
 
+  const inspectorActive = inspectorTarget?.fqid === entity.ref.fqid;
+  const lineLabel = `L${formatLineRange(entity.source.lineStart, entity.source.lineEnd)}`;
+
   return (
     <div className="card-tick card-tick--inset h-full overflow-y-auto px-7 py-5">
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-3 gap-2">
         <span className="smallcap">{KIND_LABEL[entity.ref.kind]}</span>
-        <button
-          onClick={onClose}
-          className="mono text-micro uppercase tracking-widest text-fg-3 hover:text-fg"
-        >
-          Close
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            className="inspector-pull shrink-0"
+            data-active={inspectorActive}
+            title="Inspect YAML source (⌘ ')"
+            onClick={() => toggleInspector(toInspectorTarget(entity))}
+          >
+            <span>Specimen</span>
+            <span className="inspector-pull-range">{lineLabel}</span>
+          </button>
+          <button
+            onClick={onClose}
+            className="mono text-micro uppercase tracking-widest text-fg-3 hover:text-fg"
+          >
+            Close
+          </button>
+        </div>
       </div>
 
       <h2 className="display-tight text-h2 leading-[1.02] mb-2">
