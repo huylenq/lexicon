@@ -7,6 +7,7 @@ Plans are independent — they can ship in any order, except where a "Depends on
 ## Shipped
 
 - **[Graph view](./_archive/graph-view/spec.md)** — Graph view as a peer to the detail view. Three lenses: ownership, decisions, surfaces. ELK.js layout + custom SVG. Shipped in `5dd7cac`; subsequent commits added the layout-options panel, Phosphor icon glyphs, blueprint/cyanotype theme pivot, and resize-handle extraction.
+- **[Polish bundle](./_archive/polish-bundle/spec.md)** — Region owner label resolves to parent surface, Monaco workers self-hosted via Vite, filesystem watcher with SSE auto-refresh (live dot next to REFRESH), and CSS-only hover-expand for truncated sidebar names. Shipped in `9523eaa` + `4074301`.
 
 ## Visualization paths
 
@@ -16,7 +17,6 @@ Plans are independent — they can ship in any order, except where a "Depends on
 | [Pending crystallization](./pending-crystallization/spec.md) | Surface the gap between retros (forward-flow drift) and the user pulling `lex-crystallize`. Three groupings: by entity, by retro, by check kind. | planned |
 | [Search palette](./search-palette/spec.md) | Cmd-K palette across all entity prose. In-memory inverted index, kind filters, recency boost. | planned |
 | [Git history](./git-history/spec.md) | Render git history of any entity inline. Commit timeline with diff hunks; ADR status timeline. | planned |
-| [Polish bundle](./polish-bundle/spec.md) | Region owner label, self-host Monaco workers, filesystem watcher for auto-refresh, hover-expand for truncated sidebar names. | planned |
 
 ## Out of scope (waiting on upstream changes)
 
