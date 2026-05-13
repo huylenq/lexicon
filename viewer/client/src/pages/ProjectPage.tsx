@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { api } from "@/lib/api";
 import type { LexiconResponse, ResolvedGraph } from "@/lib/types";
 import { PeekProvider, usePeek } from "@/lib/peek";
+import { ResizeHandle, usePersistedWidth } from "@/lib/resize";
 import ContextSidebar from "@/components/ContextSidebar";
 import EntityDetail from "@/components/EntityDetail";
 import PeekDrawer from "@/components/PeekDrawer";
@@ -19,27 +20,21 @@ export default function ProjectPage() {
   );
 }
 
-const DRAWER_WIDTH_KEY = "lexicon.peekDrawerWidth";
-const DRAWER_MIN_PX = 280;
-const DRAWER_DEFAULT_PX = 480; // ~30rem
-const DRAWER_MAX_FRAC = 0.7;
-
 function ProjectShell({ projectId }: { projectId: number }) {
   const [resp, setResp] = useState<LexiconResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { peeks } = usePeek();
   const loc = useLocation();
   const navigate = useNavigate();
-  const [drawerWidth, setDrawerWidth] = useState<number>(() => {
-    const saved = Number(localStorage.getItem(DRAWER_WIDTH_KEY));
-    return Number.isFinite(saved) && saved >= DRAWER_MIN_PX ? saved : DRAWER_DEFAULT_PX;
+
+  const sidebarRef = useRef<HTMLElement>(null);
+  const drawerRef = useRef<HTMLElement>(null);
+  const sidebar = usePersistedWidth({
+    key: "lexicon.contextSidebarWidth", defaultPx: 272 /* 17rem */, minPx: 200, maxFrac: 0.5,
   });
-  const onDrawerResize = (clientX: number) => {
-    const max = Math.floor(window.innerWidth * DRAWER_MAX_FRAC);
-    const w = Math.max(DRAWER_MIN_PX, Math.min(max, window.innerWidth - clientX));
-    setDrawerWidth(w);
-    localStorage.setItem(DRAWER_WIDTH_KEY, String(w));
-  };
+  const drawer = usePersistedWidth({
+    key: "lexicon.peekDrawerWidth", defaultPx: 480 /* 30rem */, minPx: 280, maxFrac: 0.7,
+  });
 
   // parse trailing path: either "graph[/<lens>]" or an activeFqid
   const prefix = `/p/${projectId}/`;
@@ -110,10 +105,18 @@ function ProjectShell({ projectId }: { projectId: number }) {
             <GraphPage resp={resp} lens={graphLens} />
           </div>
           <aside
+            ref={drawerRef}
             className={`relative border-l rule overflow-hidden ${peekOpen ? "" : "hidden"}`}
-            style={{ width: peekOpen ? drawerWidth : 0 }}
+            style={{ width: peekOpen ? drawer.width : 0 }}
           >
-            {peekOpen && <DrawerResizer onResize={onDrawerResize} />}
+            {peekOpen && (
+              <ResizeHandle
+                side="left"
+                panelRef={drawerRef}
+                onResize={drawer.setLive}
+                onCommit={drawer.commit}
+              />
+            )}
             <PeekDrawer projectId={projectId} />
           </aside>
         </div>
@@ -122,12 +125,18 @@ function ProjectShell({ projectId }: { projectId: number }) {
           className="flex-1 grid min-h-0"
           style={{
             gridTemplateColumns: peekOpen
-              ? `minmax(0, 17rem) minmax(0, 1fr) ${drawerWidth}px`
-              : "minmax(0, 17rem) minmax(0, 1fr) 0",
+              ? `${sidebar.width}px minmax(0, 1fr) ${drawer.width}px`
+              : `${sidebar.width}px minmax(0, 1fr) 0`,
           }}
         >
-          <aside className="border-r rule overflow-hidden">
+          <aside ref={sidebarRef} className="relative border-r rule overflow-hidden">
             <ContextSidebar graph={graph} projectId={projectId} activeFqid={activeFqid} />
+            <ResizeHandle
+              side="right"
+              panelRef={sidebarRef}
+              onResize={sidebar.setLive}
+              onCommit={sidebar.commit}
+            />
           </aside>
           <main className="overflow-y-auto">
             {active ? (
@@ -136,8 +145,18 @@ function ProjectShell({ projectId }: { projectId: number }) {
               <Welcome graph={graph} />
             )}
           </main>
-          <aside className={`relative border-l rule overflow-hidden ${peekOpen ? "" : "hidden"}`}>
-            {peekOpen && <DrawerResizer onResize={onDrawerResize} />}
+          <aside
+            ref={drawerRef}
+            className={`relative border-l rule overflow-hidden ${peekOpen ? "" : "hidden"}`}
+          >
+            {peekOpen && (
+              <ResizeHandle
+                side="left"
+                panelRef={drawerRef}
+                onResize={drawer.setLive}
+                onCommit={drawer.commit}
+              />
+            )}
             <PeekDrawer projectId={projectId} />
           </aside>
         </div>
@@ -195,39 +214,6 @@ function useGlobalShortcut(key: string, fn: () => void) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [key, fn]);
-}
-
-function DrawerResizer({ onResize }: { onResize: (clientX: number) => void }) {
-  const draggingRef = useRef(false);
-  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.currentTarget.setPointerCapture(e.pointerId);
-    draggingRef.current = true;
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
-  };
-  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!draggingRef.current) return;
-    onResize(e.clientX);
-  };
-  const stop = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!draggingRef.current) return;
-    e.currentTarget.releasePointerCapture(e.pointerId);
-    draggingRef.current = false;
-    document.body.style.cursor = "";
-    document.body.style.userSelect = "";
-  };
-  return (
-    <div
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={stop}
-      onPointerCancel={stop}
-      title="Drag to resize"
-      className="absolute left-0 top-0 bottom-0 w-1.5 z-10 cursor-col-resize hover:bg-oxide-2/30 active:bg-oxide-2/60"
-      style={{ touchAction: "none" }}
-    />
-  );
 }
 
 function Welcome({ graph }: { graph: ResolvedGraph }) {
