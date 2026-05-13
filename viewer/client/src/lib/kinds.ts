@@ -1,3 +1,15 @@
+import type { Icon } from "@phosphor-icons/react";
+import {
+  AppWindow,
+  BookmarkSimple,
+  BoundingBox,
+  Cube,
+  Intersect,
+  Lock,
+  Selection,
+  Signpost,
+  Wall,
+} from "@phosphor-icons/react";
 import type { EntityKind } from "./types";
 
 export const KIND_LABEL: Record<EntityKind, string> = {
@@ -25,16 +37,16 @@ export const FILTERABLE_KINDS: { id: EntityKind; label: string; key: string }[] 
   { id: "region", label: "Regions", key: "7" },
 ];
 
-export const KIND_GLYPH: Record<EntityKind, string> = {
-  system: "S",
-  "bounded-context": "C",
-  term: "T",
-  invariant: "I",
-  seam: "M",
-  "boundary-rule": "R",
-  decision: "D",
-  surface: "Sf",
-  region: "Rg",
+export const KIND_ICON: Record<EntityKind, Icon> = {
+  system: Cube,
+  "bounded-context": BoundingBox,
+  term: BookmarkSimple,
+  invariant: Lock,
+  seam: Intersect,
+  "boundary-rule": Wall,
+  decision: Signpost,
+  surface: AppWindow,
+  region: Selection,
 };
 
 export function formatLineRange(lineStart?: number, lineEnd?: number): string {

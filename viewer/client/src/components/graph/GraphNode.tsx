@@ -1,6 +1,7 @@
 import { memo } from "react";
 import type { PositionedNode } from "@/lib/graph/layout";
-import { KIND_GLYPH } from "@/lib/kinds";
+import { KIND_ICON } from "@/lib/kinds";
+import type { EntityKind } from "@/lib/types";
 import { splitBackticks } from "@/lib/inline-code";
 
 interface Props {
@@ -137,12 +138,16 @@ function LeafNode({
   onMouseEnter,
   onMouseLeave,
 }: Props) {
-  const isDecision = node.kind === "decision";
+  // LeafNode is dispatched only when !isCluster, so kind is always a leaf EntityKind.
+  const kind = node.kind as EntityKind;
+  const isDecision = kind === "decision";
   const stroke = selected
     ? "var(--color-mark-2)"
     : highlighted
     ? "var(--color-fg)"
     : "var(--color-rule)";
+  const labelColor = isDecision ? "var(--color-highlight)" : "var(--color-fg-3)";
+  const KindIcon = KIND_ICON[kind];
   return (
     <g
       transform={`translate(${node.x}, ${node.y})`}
@@ -167,16 +172,16 @@ function LeafNode({
         stroke={stroke}
         strokeWidth={selected || highlighted ? 1.25 : 1}
       />
+      <KindIcon x={8} y={5} size={14} weight="bold" color={labelColor} />
       <text
-        x={8}
+        x={26}
         y={16}
         className="mono"
         fontSize={10}
         letterSpacing="0.16em"
-        fill={isDecision ? "var(--color-highlight)" : "var(--color-fg-3)"}
+        fill={labelColor}
       >
-        {KIND_GLYPH[node.kind as keyof typeof KIND_GLYPH] ?? ""} ·{" "}
-        {node.kind.replace("-", " ").toUpperCase()}
+        {kind.replace("-", " ").toUpperCase()}
       </text>
       {/* Body font — Saira Condensed crushes at 13px (parens, brackets, word shapes go indistinct). */}
       <text

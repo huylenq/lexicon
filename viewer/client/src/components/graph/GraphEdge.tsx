@@ -57,6 +57,11 @@ function GraphEdge({
   if (!path) return null;
   const opacity = hidden ? 0 : dimmed ? 0.18 : highlighted ? 1 : s.opacity;
   const stroke = highlighted ? "var(--color-mark-2)" : s.stroke;
+  const markerEnd = hidden || !edge.directed
+    ? undefined
+    : highlighted
+      ? "url(#arrow-mark-2)"
+      : s.markerEnd;
   return (
     <g style={{ pointerEvents: "none" }}>
       <path
@@ -65,7 +70,7 @@ function GraphEdge({
         strokeWidth={highlighted ? 1.5 : 1}
         fill="none"
         strokeDasharray={s.dasharray}
-        markerEnd={hidden || !edge.directed ? undefined : s.markerEnd}
+        markerEnd={markerEnd}
         opacity={opacity}
         style={{ transition: "opacity 180ms ease, stroke 160ms ease" }}
       />
@@ -138,6 +143,17 @@ export function ArrowDefs() {
         orient="auto-start-reverse"
       >
         <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--color-mark)" />
+      </marker>
+      <marker
+        id="arrow-mark-2"
+        viewBox="0 0 10 10"
+        refX="9"
+        refY="5"
+        markerWidth="6"
+        markerHeight="6"
+        orient="auto-start-reverse"
+      >
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--color-mark-2)" />
       </marker>
     </defs>
   );
