@@ -185,4 +185,4 @@ crossCuttingInvariants:
       typography and edge styling until it reads as "extension of the
       existing viewer," not "bolted on." If a tradeoff arises between
       capability and aesthetic, the aesthetic wins — see also
-      `plans/graph-view/spec.md`'s "Aesthetic continuity" guidance.
+      `plans/_archive/graph-view/spec.md`'s "Aesthetic continuity" guidance.

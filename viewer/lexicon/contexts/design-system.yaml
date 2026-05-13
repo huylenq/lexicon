@@ -142,9 +142,9 @@ invariants:
     rationale: |
       The Light Table moment — "everything is at your fingertips" — is the
       core affordance the peek drawer carries; losing peeks on a view
-      toggle would defeat the purpose. `plans/graph-view/spec.md` is explicit
-      about this; any future surface added under `/p/:id/...` must mount
-      inside the existing provider, not its own.
+      toggle would defeat the purpose. `plans/_archive/graph-view/spec.md` is
+      explicit about this; any future surface added under `/p/:id/...` must
+      mount inside the existing provider, not its own.
     validationMode: principle
     constrainsCode:
       - file: client/src/pages/ProjectPage.tsx

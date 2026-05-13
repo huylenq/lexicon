@@ -28,7 +28,7 @@ narrative: |
   The trade is real: we maintain pan/zoom, hover-dim, selection state, and
   the routing modes. Worth it.
 context: |
-  The Path B graph view needs to render a compound graph: bounded contexts as
+  The graph view needs to render a compound graph: bounded contexts as
   containers with terms / invariants / seams / boundary rules nested, plus
   ADRs floating outside with `affects` edges, plus a separate surfaces lens.
   Edges cross container boundaries (a term's `disambiguates-from` may point

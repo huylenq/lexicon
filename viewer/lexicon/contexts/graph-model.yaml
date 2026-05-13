@@ -149,7 +149,7 @@ invariants:
       than "animate to a new state" — reproducibility comes for free, and the
       user never has to fight a layout they didn't choose. Adding free-form
       drag-to-reposition would break this invariant; see
-      `plans/graph-view/spec.md` non-goals.
+      `plans/_archive/graph-view/spec.md` non-goals.
     validationMode: principle
 
   - id: filter-relayout
