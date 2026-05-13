@@ -448,9 +448,10 @@ function resolve(
     }
   }
 
-  // fourth pass: validate [[fqid]] links in every prose-bearing field.
-  // Dangling links become warning LoadIssues; the client re-parses at render
-  // time and resolves independently.
+  // fourth pass: resolve [[fqid]] links in every prose-bearing field. Dangling
+  // links become warning LoadIssues. For `narrative` specifically we also keep
+  // the resolved (ordered, deduped) refs on the entity so the graph builder
+  // and narrative-thread overlay don't re-parse on every render.
   const proseFieldsByKind: Partial<Record<EntityKind, (keyof ResolvedEntity)[]>> = {
     system: ["narrative", "purpose", "body"],
     "bounded-context": ["narrative", "purpose", "body"],
@@ -462,22 +463,34 @@ function resolve(
     surface: ["body"],
     region: ["role"],
   };
-  const validateLinksIn = (text: string | undefined, e: ResolvedEntity, location: string) => {
-    if (!text) return;
+  const resolveLinksIn = (
+    text: string | undefined,
+    e: ResolvedEntity,
+    location: string,
+  ): EntityRef[] => {
+    if (!text) return [];
+    const out: EntityRef[] = [];
+    const seen = new Set<string>();
     for (const link of parseProseLinks(text)) {
-      resolveRef(link.fqid, e.source.file, e.ownerContextId, `prose link [[${link.raw}]] in ${location}`);
+      const ref = resolveRef(link.fqid, e.source.file, e.ownerContextId, `prose link [[${link.raw}]] in ${location}`);
+      if (ref && !seen.has(ref.fqid)) {
+        seen.add(ref.fqid);
+        out.push(ref);
+      }
     }
+    return out;
   };
   for (const e of Object.values(entities)) {
     for (const f of proseFieldsByKind[e.ref.kind] ?? []) {
-      validateLinksIn(e[f] as string | undefined, e, `${e.ref.fqid}.${String(f)}`);
+      const refs = resolveLinksIn(e[f] as string | undefined, e, `${e.ref.fqid}.${String(f)}`);
+      if (f === "narrative" && refs.length > 0) e.narrativeRefs = refs;
     }
     if (e.ref.kind === "system") {
       for (const ov of e.overlays ?? []) {
-        validateLinksIn(ov.description, e, `overlay ${ov.id}.description`);
+        resolveLinksIn(ov.description, e, `overlay ${ov.id}.description`);
       }
       for (const om of e.deliberateOmissions ?? []) {
-        validateLinksIn(om.reason, e, `deliberateOmission "${om.topic}"`);
+        resolveLinksIn(om.reason, e, `deliberateOmission "${om.topic}"`);
       }
     }
   }

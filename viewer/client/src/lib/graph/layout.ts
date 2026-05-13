@@ -294,14 +294,15 @@ export async function layoutModel(
     edges.push({ ...e, points: [] });
   }
 
-  // Batch pre-pass: A* router for affects edges. Runs before the per-edge
-  // fallback so the grid + channel-reuse map are shared across all edges.
-  // Edges this pass routes (sets e.points) are skipped by the loop below.
+  // A* shares one channel-reuse map across all routed edges. Narrative edges
+  // (~hundreds per project) would saturate it and pull affects edges into
+  // narrative bundles, so they're always routed as `bundle` instead — see the
+  // per-edge fallback below.
   if (affectsRouting === "astar") {
     const gridW = (result as ElkNode).width ?? 800;
     const gridH = (result as ElkNode).height ?? 600;
     const affectsEdges = edges
-      .filter(e => (e.kind === "affects" || e.kind === "narrative") && e.points.length === 0)
+      .filter(e => e.kind === "affects" && e.points.length === 0)
       .sort((p, q) => (p.source + ">" + p.target).localeCompare(q.source + ">" + q.target));
     astarRouteAffects(affectsEdges, nodes, gridW, gridH, byIdPos, {
       cellSize: astarCellSize,
@@ -344,10 +345,10 @@ export async function layoutModel(
     const b = byIdPos.get(e.target);
     if (!a || !b) continue;
 
-    // Narrative edges bundle the same way affects does — they're the same shape
-    // (one source, many fan-out targets) and benefit from the same channel-sharing.
     const isFanout = e.kind === "affects" || e.kind === "narrative";
-    if (isFanout && affectsRouting === "bundle") {
+    // Narrative always bundles; see the A* note above.
+    const routing = e.kind === "narrative" ? "bundle" : affectsRouting;
+    if (isFanout && routing === "bundle") {
       const ctrl = bundleControlPoints(a, b, byIdPos, bundleTension, chainOf);
       if (ctrl.length < 2) continue;
       // Clip endpoints to the node rectangles, pointing toward the *next*
@@ -364,7 +365,7 @@ export async function layoutModel(
       continue;
     }
 
-    if (isFanout && affectsRouting === "elbow") {
+    if (isFanout && routing === "elbow") {
       const pts = elbowRoute(a, b);
       if (pts) {
         e.points = pts;

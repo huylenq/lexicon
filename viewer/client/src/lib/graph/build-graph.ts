@@ -2,7 +2,6 @@
 // One model per lens: ownership, decisions, surfaces.
 
 import type { EntityKind, ResolvedEntity, ResolvedGraph } from "@/lib/types";
-import { parseProseLinks, resolveFqid } from "@server/prose-links";
 
 export const LENSES = ["ownership", "decisions", "surfaces"] as const;
 export type Lens = (typeof LENSES)[number];
@@ -118,23 +117,15 @@ function edgeAllowed(kind: EdgeKind, opts: BuildOpts): boolean {
   return opts.edgeFilter.has(kind);
 }
 
-// Emits one edge per distinct `[[fqid]]` target found in `entity.narrative`.
-// Dangling links and links to nodes not in the current layout are skipped
-// silently (the loader's load-issues already surface dangling ones).
+// The loader pre-resolves narrative links and stores them on `narrativeRefs`,
+// so this is a flat map; in-layout filtering is the only work left.
 function emitNarrativeEdges(
   entity: ResolvedEntity,
-  graph: ResolvedGraph,
   has: (id: string) => boolean,
   out: GraphEdge[],
 ): void {
-  if (!entity.narrative) return;
-  const seen = new Set<string>();
-  for (const link of parseProseLinks(entity.narrative)) {
-    const ref = resolveFqid(link.fqid, graph.entities, entity.ownerContextId, graph.system);
-    if (!ref || ref.fqid === entity.ref.fqid) continue;
-    if (!has(ref.fqid)) continue;
-    if (seen.has(ref.fqid)) continue;
-    seen.add(ref.fqid);
+  for (const ref of entity.narrativeRefs ?? []) {
+    if (ref.fqid === entity.ref.fqid || !has(ref.fqid)) continue;
     out.push({
       id: `nar:${entity.ref.fqid}->${ref.fqid}`,
       source: entity.ref.fqid,
@@ -330,11 +321,11 @@ function buildOwnership(graph: ResolvedGraph, opts: BuildOpts): GraphModel {
   if (edgeAllowed("narrative", opts)) {
     for (const ctx of contexts) {
       if (!has(ctx.ref.fqid)) continue;
-      emitNarrativeEdges(ctx, graph, has, edges);
+      emitNarrativeEdges(ctx, has, edges);
     }
     for (const d of decisions) {
       if (!has(d.ref.fqid)) continue;
-      emitNarrativeEdges(d, graph, has, edges);
+      emitNarrativeEdges(d, has, edges);
     }
   }
 
@@ -414,7 +405,7 @@ function buildDecisions(graph: ResolvedGraph, opts: BuildOpts): GraphModel {
   if (edgeAllowed("narrative", opts)) {
     for (const d of decisions) {
       if (!has(d.ref.fqid)) continue;
-      emitNarrativeEdges(d, graph, has, edges);
+      emitNarrativeEdges(d, has, edges);
     }
   }
 

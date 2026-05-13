@@ -73,6 +73,7 @@ export interface ResolvedEntity {
   rationale?: string;
   body?: string;
   narrative?: string;
+  narrativeRefs?: EntityRef[];
   validationMode?: "code" | "linter" | "principle";
   symbols?: CodeAnchor[];
   constrainsCode?: CodeAnchor[];

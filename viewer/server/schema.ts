@@ -229,6 +229,9 @@ export interface ResolvedEntity {
   rationale?: string;
   body?: string;
   narrative?: string;
+  // Resolved + de-duped `[[fqid]]` mentions from `narrative`, in prose order.
+  // Filled by the loader's fourth pass so the client doesn't re-parse.
+  narrativeRefs?: EntityRef[];
   validationMode?: "code" | "linter" | "principle";
   symbols?: CodeAnchor[];
   constrainsCode?: CodeAnchor[];

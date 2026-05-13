@@ -18,7 +18,6 @@ import GraphDetailRail from "@/components/graph/GraphDetailRail";
 import LayoutOptionsPanel from "@/components/graph/LayoutOptionsPanel";
 import type { ThreadStop } from "@/components/graph/NarrativeThread";
 import { ResizeHandle, usePersistedWidth } from "@/lib/resize";
-import { parseProseLinks, resolveFqid } from "@server/prose-links";
 
 const DEFAULT_KINDS: EntityKind[] = FILTERABLE_KINDS.map(k => k.id);
 const DEFAULT_EDGES: EdgeKind[] = ["disambiguates", "affects", "supersedes"];
@@ -151,30 +150,26 @@ export default function GraphPage({
 
   const selectedEntity = selectedId ? resp.graph.entities[selectedId] ?? null : null;
 
-  // Narrative thread: walk the selected entity's narrative in order, resolve
-  // each [[fqid]] mention, and turn the resolved targets into ordered stops on
-  // top of the laid-out positions. The selected entity itself is the first stop.
+  // Stops include the selected entity itself plus each `narrativeRefs` target
+  // present in the current layout. Refs are pre-resolved by the loader; this
+  // memo is pure position lookup.
   const narrativeThread = useMemo<ThreadStop[] | null>(() => {
     if (!narrativeThreadEnabled) return null;
-    if (!selectedEntity?.narrative || !layout) return null;
+    if (!selectedEntity?.narrativeRefs?.length || !layout) return null;
     const positioned = new Map(layout.nodes.map(n => [n.id, n]));
     const seen = new Set<string>();
     const stops: ThreadStop[] = [];
-    const push = (id: string, name: string) => {
+    const push = (id: string) => {
       if (seen.has(id)) return;
       const n = positioned.get(id);
       if (!n) return;
       seen.add(id);
-      stops.push({ id, x: n.x + n.width / 2, y: n.y + n.height / 2, name });
+      stops.push({ id, x: n.x + n.width / 2, y: n.y + n.height / 2 });
     };
-    push(selectedEntity.ref.fqid, selectedEntity.ref.name);
-    for (const link of parseProseLinks(selectedEntity.narrative)) {
-      const ref = resolveFqid(link.fqid, resp.graph.entities, selectedEntity.ownerContextId, resp.graph.system);
-      if (!ref) continue;
-      push(ref.fqid, ref.name);
-    }
+    push(selectedEntity.ref.fqid);
+    for (const ref of selectedEntity.narrativeRefs) push(ref.fqid);
     return stops;
-  }, [narrativeThreadEnabled, selectedEntity, layout, resp.graph]);
+  }, [narrativeThreadEnabled, selectedEntity, layout]);
 
   const railRef = useRef<HTMLElement>(null);
   const rail = usePersistedWidth({
