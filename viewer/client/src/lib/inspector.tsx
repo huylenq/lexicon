@@ -6,11 +6,10 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import type { EntityKind } from "./types";
 
-// The Specimen Slab state — a single open inspector at a time, scoped to one
-// entity. Lives at the page level so the slab survives entity navigation
-// (when the user clicks a sibling in the rail, the slab stays open and
-// re-targets to the new entity's range).
+// Single open inspector at a time. Lives at page level so the slab survives
+// entity navigation — clicking a sibling in the rail re-targets in place.
 
 export interface InspectorTarget {
   fqid: string;
@@ -19,7 +18,7 @@ export interface InspectorTarget {
   lineStart: number;
   lineEnd: number;
   path: string;
-  kind: string;
+  kind: EntityKind;
 }
 
 interface InspectorCtx {

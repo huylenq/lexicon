@@ -1,7 +1,6 @@
 import { readdir, readFile, stat } from "node:fs/promises";
 import { join, relative } from "node:path";
 import {
-  parse as parseYaml,
   parseDocument,
   isMap,
   isSeq,
@@ -62,14 +61,23 @@ export async function loadLexicon(projectRoot: string): Promise<ResolvedGraph> {
       issues.push({ file, message: `read failed: ${error.message}`, severity: "error" });
       continue;
     }
-    let doc: unknown;
+    const lc = new LineCounter();
+    let docNode;
     try {
-      doc = parseYaml(text);
+      docNode = parseDocument(text, { lineCounter: lc });
     } catch (e) {
       issues.push({ file, message: `yaml parse: ${(e as Error).message}`, severity: "error" });
       continue;
     }
-    const result = lexiconFile.safeParse(doc);
+    if (docNode.errors.length > 0) {
+      issues.push({
+        file,
+        message: `yaml parse: ${docNode.errors.map(e => e.message).join("; ")}`,
+        severity: "error",
+      });
+      continue;
+    }
+    const result = lexiconFile.safeParse(docNode.toJS());
     if (!result.success) {
       issues.push({
         file,
@@ -78,7 +86,7 @@ export async function loadLexicon(projectRoot: string): Promise<ResolvedGraph> {
       });
       continue;
     }
-    const ranges = computeFileRanges(text);
+    const ranges = computeFileRanges(docNode, lc, text);
     parsed.push({ file, data: result.data, ranges });
   }
 
@@ -114,24 +122,12 @@ function emptyByKind(): Record<EntityKind, string[]> {
   };
 }
 
-// -----------------------------------------------------------------------------
-// Line-range extraction for the Specimen Slab (YAML source inspector).
-//
-// We parse the file twice: once via `parseYaml` for the resolved JS data
-// (zod-validated above), and once via `parseDocument` here, with a
-// LineCounter, so we can compute exact 1-indexed line ranges per atom.
-// Keyed by the seq-key under the doc root ("terms", "invariants", "seams",
-// "boundaryRules", "regions", "crossCuttingTerms", "crossCuttingInvariants",
-// "overlays", "deliberateOmissions") and then by atom id (or `topic` for
-// omissions).
-// -----------------------------------------------------------------------------
+// Line-range extraction for the Specimen Slab. Walks the parsed Document
+// (already validated above) and captures 1-indexed line ranges for the
+// root atom and every named child under one of CHILD_KEYS, keyed by atom
+// id — or `topic` for deliberateOmissions, which lack ids.
 
 type Range = { lineStart: number; lineEnd: number; path: string };
-export interface FileRanges {
-  root: Range;
-  totalLines: number;
-  byKey: Record<string, Record<string, Range>>;
-}
 
 const CHILD_KEYS = [
   "terms",
@@ -144,23 +140,24 @@ const CHILD_KEYS = [
   "overlays",
   "deliberateOmissions",
 ] as const;
+type ChildKey = typeof CHILD_KEYS[number];
 
-function computeFileRanges(text: string): FileRanges {
+export interface FileRanges {
+  root: Range;
+  totalLines: number;
+  byKey: Partial<Record<ChildKey, Record<string, Range>>>;
+}
+
+function computeFileRanges(
+  doc: ReturnType<typeof parseDocument>,
+  lc: LineCounter,
+  text: string,
+): FileRanges {
   const totalLines = text.split("\n").length;
   const fallback: Range = { lineStart: 1, lineEnd: totalLines, path: "" };
-  const lc = new LineCounter();
-  let doc;
-  try {
-    doc = parseDocument(text, { lineCounter: lc });
-  } catch {
-    return { root: fallback, totalLines, byKey: {} };
-  }
-
-  // 1-indexed line for a byte offset, with safe fallback.
   const lineAt = (offset: number | undefined | null): number => {
     if (offset == null) return 1;
-    const p = lc.linePos(offset);
-    return p.line || 1;
+    return lc.linePos(offset).line || 1;
   };
 
   const out: FileRanges = { root: fallback, totalLines, byKey: {} };
@@ -232,7 +229,7 @@ function resolve(
   for (const { file, data, ranges } of files) {
     const relFile = relative(projectRoot, file);
     const rootLoc = loc(relFile, ranges.root, ranges.totalLines);
-    const childLoc = (key: string, id: string): SourceLocation =>
+    const childLoc = (key: ChildKey, id: string): SourceLocation =>
       loc(relFile, ranges.byKey[key]?.[id], ranges.totalLines);
 
     if (data.kind === "system") {

@@ -1,6 +1,6 @@
 import { useEffect, type FC } from "react";
 import type { EntityKind, EntityRef, ResolvedEntity, ResolvedGraph } from "@/lib/types";
-import { KIND_LABEL } from "@/lib/kinds";
+import { KIND_LABEL, formatLineRange } from "@/lib/kinds";
 import RefLink from "./RefLink";
 import CodeAnchorBadge from "./CodeAnchorBadge";
 import InlineCode from "./InlineCode";
@@ -50,9 +50,7 @@ export default function EntityDetail({
 function Header({ entity }: { entity: ResolvedEntity }) {
   const { target, toggle } = useInspector();
   const isActive = target?.fqid === entity.ref.fqid;
-  const lineLabel = entity.source.lineStart === entity.source.lineEnd
-    ? `L${entity.source.lineStart}`
-    : `L${entity.source.lineStart}–${entity.source.lineEnd}`;
+  const lineLabel = `L${formatLineRange(entity.source.lineStart, entity.source.lineEnd)}`;
 
   return (
     <header className="mb-10 flex items-start gap-6">
@@ -455,17 +453,26 @@ function Margin({ entity, graph }: { entity: ResolvedEntity; graph: ResolvedGrap
     ...(entity.constrainsCode ?? []),
   ];
 
-  const ownerNode = entity.ownerContextId ? (
-    <RefLink
-      to={graph.entities[`context/${entity.ownerContextId}`]?.ref ?? {
-        kind: "bounded-context",
-        fqid: `context/${entity.ownerContextId}`,
-        name: entity.ownerContextId,
-      }}
-    />
-  ) : entity.ref.kind !== "system" && entity.ref.kind !== "decision" ? (
-    <span className="mono text-small text-fg-3 italic">cross-cutting</span>
-  ) : null;
+  const ownerNode =
+    entity.ref.kind === "region" && entity.surfaceId ? (
+      <RefLink
+        to={graph.entities[`surface/${entity.surfaceId}`]?.ref ?? {
+          kind: "surface",
+          fqid: `surface/${entity.surfaceId}`,
+          name: entity.surfaceId,
+        }}
+      />
+    ) : entity.ownerContextId ? (
+      <RefLink
+        to={graph.entities[`context/${entity.ownerContextId}`]?.ref ?? {
+          kind: "bounded-context",
+          fqid: `context/${entity.ownerContextId}`,
+          name: entity.ownerContextId,
+        }}
+      />
+    ) : entity.ref.kind !== "system" && entity.ref.kind !== "decision" ? (
+      <span className="mono text-small text-fg-3 italic">cross-cutting</span>
+    ) : null;
 
   return (
     <Marginalia>
