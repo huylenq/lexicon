@@ -195,7 +195,7 @@ export async function layoutModel(
             "elk.algorithm": "layered",
             "elk.hierarchyHandling": "INCLUDE_CHILDREN",
             "elk.direction": "RIGHT",
-            "elk.padding": "[top=56, left=18, right=18, bottom=18]",
+            "elk.padding": "[top=34, left=18, right=18, bottom=18]",
             "elk.layered.spacing.nodeNodeBetweenLayers": "28",
             "elk.spacing.nodeNode": "18",
             ...sizeConstraints,
@@ -203,7 +203,7 @@ export async function layoutModel(
         : {
             "elk.algorithm": "box",
             "elk.aspectRatio": "1.6",
-            "elk.padding": "[top=56, left=18, right=18, bottom=18]",
+            "elk.padding": "[top=34, left=18, right=18, bottom=18]",
             "elk.spacing.nodeNode": "14",
             ...sizeConstraints,
           };

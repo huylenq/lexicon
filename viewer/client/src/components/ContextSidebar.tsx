@@ -57,7 +57,7 @@ export default function ContextSidebar({
                   <li key={t.fqid}>
                     <Link
                       to={linkTo(t.fqid)}
-                      className={`block py-0.5 mono text-small text-vellum-2 hover:text-oxide-2 -ml-3 pl-3 ${isActive(t.fqid) ? "active-rule text-vellum" : ""}`}
+                      className={`block py-0.5 mono text-small text-fg-2 hover:text-fg -ml-3 pl-3 ${isActive(t.fqid) ? "active-rule text-fg" : ""}`}
                     >
                       <InlineCode text={t.name} />
                     </Link>
@@ -74,7 +74,7 @@ export default function ContextSidebar({
                   <li key={i.fqid}>
                     <Link
                       to={linkTo(i.fqid)}
-                      className={`block py-0.5 mono text-small text-vellum-2 hover:text-oxide-2 -ml-3 pl-3 ${isActive(i.fqid) ? "active-rule text-vellum" : ""}`}
+                      className={`block py-0.5 mono text-small text-fg-2 hover:text-fg -ml-3 pl-3 ${isActive(i.fqid) ? "active-rule text-fg" : ""}`}
                     >
                       <InlineCode text={i.name} />
                     </Link>
@@ -122,8 +122,8 @@ export default function ContextSidebar({
                   to={linkTo(d.ref.fqid)}
                   className={`block py-0.5 -ml-3 pl-3 ${isActive(d.ref.fqid) ? "active-rule" : ""}`}
                 >
-                  <span className="mono text-small text-vellum-3">{d.ref.fqid.replace("decision/", "")}</span>
-                  <span className="display text-small text-vellum-2 ml-2">{d.title}</span>
+                  <span className="mono text-small text-fg-3">{d.ref.fqid.replace("decision/", "")}</span>
+                  <span className="display text-small text-fg-2 ml-2">{d.title}</span>
                 </Link>
               </li>
             ))}
@@ -154,11 +154,11 @@ export default function ContextSidebar({
 
       {graph.issues.length > 0 && (
         <div className="mt-8 pt-6 border-t rule">
-          <div className="smallcap text-oxide-2 mb-2">Load issues · {graph.issues.length}</div>
+          <div className="smallcap text-mark-2 mb-2">Load issues · {graph.issues.length}</div>
           <ul className="space-y-1">
             {graph.issues.map((iss, i) => (
-              <li key={i} className="mono text-micro text-vellum-3">
-                <span className={iss.severity === "error" ? "text-oxide-2" : "text-saffron"}>
+              <li key={i} className="mono text-micro text-fg-3">
+                <span className={iss.severity === "error" ? "text-mark-2" : "text-highlight"}>
                   {iss.severity}
                 </span>{" "}
                 {iss.file.split("/").pop()}: {iss.message}
@@ -185,13 +185,13 @@ function SubList({
   if (items.length === 0) return null;
   return (
     <div className="mb-2">
-      <div className="smallcap text-vellum-3 mb-1">{title}</div>
+      <div className="smallcap text-fg-3 mb-1">{title}</div>
       <ul>
         {items.map(it => (
           <li key={it.fqid}>
             <Link
               to={linkTo(it.fqid)}
-              className={`block py-0.5 mono text-small text-vellum-2 hover:text-oxide-2 -ml-3 pl-3 truncate ${active === it.fqid ? "active-rule text-vellum" : ""}`}
+              className={`block py-0.5 mono text-small text-fg-2 hover:text-fg -ml-3 pl-3 truncate ${active === it.fqid ? "active-rule text-fg" : ""}`}
               title={it.name.replace(/`/g, "")}
             >
               <InlineCode text={it.name} />

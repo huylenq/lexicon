@@ -43,26 +43,23 @@ export default function GraphDetailRail({ entity, graph, projectId, onClose }: P
   ];
 
   return (
-    <div className="h-full overflow-y-auto px-5 py-5">
+    <div className="card-tick card-tick--inset h-full overflow-y-auto px-7 py-5">
       <div className="flex items-center justify-between mb-3">
         <span className="smallcap">{KIND_LABEL[entity.ref.kind]}</span>
         <button
           onClick={onClose}
-          className="mono text-micro uppercase tracking-widest text-vellum-3 hover:text-oxide-2"
+          className="mono text-micro uppercase tracking-widest text-fg-3 hover:text-fg"
         >
           Close
         </button>
       </div>
 
-      <h2 className="display-tight text-h2 leading-[1.05] mb-2">
+      <h2 className="display-tight text-h2 leading-[1.02] mb-2">
         <InlineCode text={entity.title ?? entity.ref.name} />
       </h2>
-      <div className="mono text-micro text-vellum-3 mb-5 break-all">{entity.ref.fqid}</div>
+      <div className="mono text-micro text-fg-3 mb-5 break-all">{entity.ref.fqid}</div>
 
-      <Link
-        to={`/p/${projectId}/${entity.ref.fqid}`}
-        className="inline-block mono text-micro uppercase tracking-widest text-oxide-2 mb-5"
-      >
+      <Link to={`/p/${projectId}/${entity.ref.fqid}`} className="callout-link mb-5">
         Open in reading room →
       </Link>
 
@@ -75,16 +72,16 @@ export default function GraphDetailRail({ entity, graph, projectId, onClose }: P
       )}
       {entity.statement && (
         <Section label="Statement">
-          <blockquote className="border-l-2 border-oxide pl-3 display text-h3 italic leading-snug">
+          <blockquote className="border-l-2 border-mark pl-3 display text-h3 italic leading-snug">
             {entity.statement.trim()}
           </blockquote>
         </Section>
       )}
       {entity.status && (
         <Section label="Status">
-          <span className="display text-h3 italic text-oxide-2">{entity.status}</span>
+          <span className="display text-h3 italic text-mark-2">{entity.status}</span>
           {entity.date && (
-            <span className="mono text-small text-vellum-3 ml-2">· {entity.date}</span>
+            <span className="mono text-small text-fg-3 ml-2">· {entity.date}</span>
           )}
         </Section>
       )}
@@ -133,10 +130,10 @@ export default function GraphDetailRail({ entity, graph, projectId, onClose }: P
 function EmptyRail() {
   return (
     <div className="h-full flex items-center justify-center px-6">
-      <div className="prose-body text-small italic text-vellum-3 text-center">
+      <div className="prose-body text-small italic text-fg-3 text-center">
         Hover or click a node to inspect it.
         <br />
-        <span className="mono text-micro text-vellum-3 mt-3 inline-block">
+        <span className="mono text-micro text-fg-3 mt-3 inline-block">
           double-click to open in the reading room
         </span>
       </div>

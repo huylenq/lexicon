@@ -1,25 +1,29 @@
 @import "tailwindcss";
 
 @theme {
-  /* palette */
-  --color-ink: #0e1014;
-  --color-ink-2: #14171d;
-  --color-ink-3: #1d212a;
-  --color-ink-4: #2a2f3a;
-  --color-rule: #353b48;
-  --color-vellum: #e8e2d5;
-  --color-vellum-2: #c9c2b3;
-  --color-vellum-3: #8e8878;
-  --color-oxide: #b8472d;
-  --color-oxide-2: #d76647;
-  --color-saffron: #d9a566;
+  --color-chrome:  #ece2cb;
+  --color-paper:   #f0ead8;
+  --color-paper-2: #e6ddc4;
+  --color-paper-3: #ddd2b3;
+  --color-paper-4: #cec3a1;
+  --color-fg:      #0d2a52;
+  --color-fg-2:    #1f3e6e;
+  --color-fg-3:    #4f6788;
+  --color-rule:    rgba(13, 42, 82, 0.28);
+  /* mark-2 is *deeper* than mark in light mode — selection on cream needs
+     oxblood, not orange. Dark-mode block below inverts this relationship. */
+  --color-mark:    #c8401e;
+  --color-mark-2:  #9c2e16;
+  --color-highlight: #b8861a;
 
-  /* fonts */
-  --font-display: "Fraunces", ui-serif, Georgia, serif;
+  --grid-line:   rgba(13, 42, 82, 0.12);
+  --grid-line-5: rgba(13, 42, 82, 0.22);
+
+  --font-display: "Saira Condensed", "Inter Tight", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Inter Tight", "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
-  --font-sans: "Fraunces", ui-serif, Georgia, serif;
+  --font-sans: "Inter Tight", "Inter", ui-sans-serif, system-ui, sans-serif;
 
-  /* type scale */
   --text-display: 4.5rem;
   --text-h1: 2.75rem;
   --text-h2: 1.875rem;
@@ -28,112 +32,192 @@
   --text-small: 0.8125rem;
   --text-micro: 0.6875rem;
 
-  /* radii (sharp on purpose) */
   --radius-card: 0;
   --radius-pill: 2px;
 }
 
+:root { color-scheme: light; }
+
+[data-theme="dark"] {
+  --color-chrome:  #04102a;
+  --color-paper:   #0a1f3d;
+  --color-paper-2: #0f2a52;
+  --color-paper-3: #15355f;
+  --color-paper-4: #1e4275;
+  --color-fg:      #dce8f5;
+  --color-fg-2:    #a8bcd0;
+  --color-fg-3:    #7388a0;
+  --color-rule:    rgba(168, 188, 208, 0.30);
+  /* Chinagraph amber (mark) + sky cyan (highlight) — period-correct annotation
+     for cyanotype. Red on Prussian navy was historically wrong and visually muted. */
+  --color-mark:    #e0a015;
+  --color-mark-2:  #ffce28;
+  --color-highlight: #7dd3fc;
+
+  --grid-line:   rgba(168, 188, 208, 0.10);
+  --grid-line-5: rgba(168, 188, 208, 0.18);
+
+  color-scheme: dark;
+}
+
 @layer base {
   html, body {
-    background: var(--color-ink);
-    color: var(--color-vellum);
-    font-family: var(--font-display);
-    font-feature-settings: "ss01", "ss02", "kern", "liga";
+    background: var(--color-chrome);
+    color: var(--color-fg);
+    font-family: var(--font-body);
+    font-feature-settings: "kern", "liga", "calt";
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
-  }
-  body {
-    font-variation-settings: "opsz" 14, "SOFT" 30;
+    -moz-osx-font-smoothing: grayscale;
   }
   ::selection {
-    background: var(--color-oxide);
-    color: var(--color-ink);
+    background: var(--color-fg);
+    color: var(--color-paper);
   }
   *:focus-visible {
-    outline: 1px solid var(--color-oxide-2);
+    outline: 1px solid var(--color-fg);
     outline-offset: 2px;
   }
+  #root { min-height: 100vh; }
 }
 
 @layer components {
   .mono { font-family: var(--font-mono); }
-  .display { font-family: var(--font-display); font-variation-settings: "opsz" 144, "SOFT" 80; letter-spacing: -0.02em; }
-  .display-tight { font-variation-settings: "opsz" 144, "SOFT" 40; letter-spacing: -0.025em; line-height: 0.95; }
-  .smallcap { font-family: var(--font-mono); font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.18em; color: var(--color-vellum-3); }
+
+  .display {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+    font-weight: 600;
+    text-transform: none;
+  }
+  .display-tight {
+    font-family: var(--font-display);
+    letter-spacing: -0.025em;
+    line-height: 0.95;
+    font-weight: 700;
+  }
+
+  .smallcap {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--color-fg-3);
+  }
   .rule { border-color: var(--color-rule); }
 
-  /* Inline reference pill: a typeset cross-reference, not a generic link. */
   .ref-link {
-    background-image: linear-gradient(var(--color-oxide-2), var(--color-oxide-2));
+    background-image: linear-gradient(var(--color-fg), var(--color-fg));
     background-size: 100% 1px;
     background-repeat: no-repeat;
     background-position: 0 100%;
     text-decoration: none;
     color: inherit;
     padding-bottom: 1px;
-    transition: background-size 120ms ease;
+    transition: color 120ms ease, background-image 120ms ease;
   }
   .ref-link:hover {
-    background-color: rgba(184, 71, 45, 0.12);
-    background-size: 100% 100%;
+    color: var(--color-mark-2);
+    background-image: linear-gradient(var(--color-mark-2), var(--color-mark-2));
   }
 
-  /* index-card surface */
+  .callout-link {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--color-fg);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5em;
+    padding: 0.25em 0;
+    transition: color 120ms ease;
+  }
+  .callout-link::before { content: "["; color: var(--color-fg-3); }
+  .callout-link::after  { content: "]"; color: var(--color-fg-3); }
+  .callout-link:hover,
+  .callout-link:hover::before,
+  .callout-link:hover::after { color: var(--color-mark-2); }
+
   .card {
-    background: var(--color-ink-2);
+    background: var(--color-paper-2);
     border: 1px solid var(--color-rule);
   }
   .card-inset {
-    background: var(--color-ink-3);
+    background: var(--color-paper-3);
     border: 1px solid var(--color-rule);
   }
 
-  /* drafting hairline */
-  .hr-rule {
-    height: 1px;
-    background: var(--color-rule);
-    border: 0;
+  /*
+    Corner-tick: TL/BR registration marks. Default sits at the rect edge
+    (-1px). `.card-tick--inset` shifts them inside (8px) — needed when an
+    ancestor has overflow:hidden that would clip edge-aligned ticks.
+  */
+  .card-tick { --tick-offset: -1px; position: relative; }
+  .card-tick--inset { --tick-offset: 8px; }
+  .card-tick::before,
+  .card-tick::after {
+    content: "";
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border: 1px solid var(--color-fg-2);
+    pointer-events: none;
+    z-index: 2;
+  }
+  .card-tick::before {
+    top: var(--tick-offset);
+    left: var(--tick-offset);
+    border-right: 0;
+    border-bottom: 0;
+  }
+  .card-tick::after {
+    bottom: var(--tick-offset);
+    right: var(--tick-offset);
+    border-left: 0;
+    border-top: 0;
   }
 
-  /* the oxide focus rule used on the active sidebar item */
-  .active-rule {
-    position: relative;
-  }
+  .hr-rule { height: 1px; background: var(--color-rule); border: 0; }
+
+  .active-rule { position: relative; }
   .active-rule::before {
     content: "";
     position: absolute;
     left: 0; top: 0; bottom: 0; width: 2px;
-    background: var(--color-oxide);
+    background: var(--color-mark);
   }
 
-  /* prose body */
   .prose-body {
-    font-family: var(--font-display);
-    font-variation-settings: "opsz" 14, "SOFT" 30;
+    font-family: var(--font-body);
     line-height: 1.55;
-    color: var(--color-vellum);
+    color: var(--color-fg);
     max-width: 62ch;
   }
   .prose-body p + p { margin-top: 0.85em; }
 
-  /* monaco peek decorations */
   .peek-highlight-line {
-    background: linear-gradient(90deg, rgba(184, 71, 45, 0.15), rgba(184, 71, 45, 0));
+    background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--color-highlight) 22%, transparent),
+      color-mix(in srgb, var(--color-highlight) 0%, transparent)
+    );
   }
   .peek-highlight-gutter {
-    background: var(--color-oxide);
+    background: var(--color-highlight);
     width: 2px !important;
     margin-left: 4px;
   }
 
-  /* grain overlay for atmosphere — opt-in via .grain on container */
-  .grain::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    opacity: 0.04;
-    mix-blend-mode: overlay;
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.6'/></svg>");
+  .svg-cluster-fill { fill: color-mix(in srgb, var(--color-paper-2) 50%, transparent); }
+  .svg-leaf-fill { fill: var(--color-paper-3); }
+  .svg-leaf-fill-decision {
+    fill: color-mix(in srgb, var(--color-highlight) 10%, var(--color-paper-3));
   }
+  .svg-grid-minor { stroke: var(--grid-line); fill: none; }
+  .svg-grid-major { stroke: var(--grid-line-5); fill: none; }
+
+  /* Kept as a no-op so legacy markup (`<div className="... grain">`) doesn't break. */
+  .grain {}
 }

@@ -22,9 +22,8 @@ export default function GraphLensSelector({
             key={l.id}
             onClick={() => onChange(l.id)}
             className={`mono text-micro uppercase tracking-widest px-3 py-1.5 border-r rule last:border-r-0 transition-colors ${
-              active ? "bg-oxide text-vellum" : "text-vellum-3 hover:text-vellum"
+              active ? "bg-fg text-paper" : "text-fg-3 hover:text-fg"
             }`}
-            style={active ? { background: "var(--color-oxide)" } : {}}
           >
             {l.label}
           </button>

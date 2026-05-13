@@ -12,7 +12,7 @@ export default function RefLink({ to, className = "" }: { to: EntityRef; classNa
       className={`ref-link inline-flex items-baseline gap-1 ${className}`}
       title={`${to.kind} · ${to.fqid}`}
     >
-      <span className="mono text-micro uppercase tracking-widest text-vellum-3">
+      <span className="mono text-micro uppercase tracking-widest text-fg-3">
         {KIND_GLYPH[to.kind]}
       </span>
       <InlineCode text={to.name} />

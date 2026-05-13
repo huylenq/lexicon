@@ -182,9 +182,9 @@ export default function GraphPage({
 
       <main className="min-w-0 min-h-0 relative">
         {layoutErr ? (
-          <div className="p-6 mono text-small text-oxide-2">Layout error: {layoutErr}</div>
+          <div className="p-6 mono text-small text-mark-2">Layout error: {layoutErr}</div>
         ) : !layout ? (
-          <div className="h-full flex items-center justify-center mono text-small text-vellum-3">
+          <div className="h-full flex items-center justify-center mono text-small text-fg-3">
             laying out…
           </div>
         ) : (
@@ -197,7 +197,7 @@ export default function GraphPage({
           />
         )}
         {layout && layout.nodes.length === 0 && (
-          <div className="absolute inset-0 flex items-center justify-center prose-body italic text-vellum-3 text-small pointer-events-none">
+          <div className="absolute inset-0 flex items-center justify-center prose-body italic text-fg-3 text-small pointer-events-none">
             Nothing to draw at this lens / filter combination.
           </div>
         )}
@@ -227,7 +227,7 @@ export default function GraphPage({
               <span className="smallcap">Layout</span>
               <button
                 onClick={() => setLayoutPanelOpen(false)}
-                className="mono text-micro text-vellum-3 hover:text-vellum"
+                className="mono text-micro text-fg-3 hover:text-fg"
                 aria-label="Close layout panel"
               >
                 ✕

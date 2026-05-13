@@ -204,12 +204,12 @@ function Radio({
           width: 10,
           height: 10,
           borderRadius: "50%",
-          border: "1px solid var(--color-vellum-3)",
-          background: checked ? "var(--color-oxide-2)" : "transparent",
+          border: "1px solid var(--color-fg-3)",
+          background: checked ? "var(--color-fg)" : "transparent",
           flexShrink: 0,
         }}
       />
-      <span className={checked ? "text-vellum" : "text-vellum-3 hover:text-vellum"}>
+      <span className={checked ? "text-fg" : "text-fg-3 hover:text-fg"}>
         {label}
       </span>
     </button>
@@ -232,12 +232,12 @@ function Checkbox({
         style={{
           width: 11,
           height: 11,
-          border: "1px solid var(--color-vellum-3)",
-          background: checked ? "var(--color-oxide-2)" : "transparent",
+          border: "1px solid var(--color-fg-3)",
+          background: checked ? "var(--color-fg)" : "transparent",
           flexShrink: 0,
         }}
       />
-      <span className={checked ? "text-vellum" : "text-vellum-3 hover:text-vellum"}>
+      <span className={checked ? "text-fg" : "text-fg-3 hover:text-fg"}>
         {label}
       </span>
     </button>
@@ -263,7 +263,7 @@ function Slider({
 }) {
   return (
     <div className="flex items-center gap-2 mono text-micro">
-      <span className="text-vellum-3 w-24 shrink-0">{label}</span>
+      <span className="text-fg-3 w-24 shrink-0">{label}</span>
       <input
         type="range"
         min={min}
@@ -272,11 +272,11 @@ function Slider({
         value={value}
         onChange={e => onChange(parseFloat(e.target.value))}
         className="flex-1 accent-saffron"
-        style={{ accentColor: "var(--color-saffron)" }}
+        style={{ accentColor: "var(--color-highlight)" }}
       />
-      <span className="text-vellum w-12 text-right tabular-nums">
+      <span className="text-fg w-12 text-right tabular-nums">
         {step < 1 ? value.toFixed(2) : value}
-        {unit ? <span className="text-vellum-3 ml-0.5">{unit}</span> : null}
+        {unit ? <span className="text-fg-3 ml-0.5">{unit}</span> : null}
       </span>
     </div>
   );

@@ -131,8 +131,8 @@ export default function GraphCanvas({ layout, selectedId, onSelect, onActivate, 
   return (
     <div
       ref={containerRef}
-      className="relative w-full h-full overflow-hidden grain"
-      style={{ background: "var(--color-ink)", cursor: isPanning ? "grabbing" : "grab" }}
+      className="relative w-full h-full overflow-hidden"
+      style={{ cursor: isPanning ? "grabbing" : "grab" }}
       onMouseDown={onMouseDown}
       onMouseMove={onMouseMove}
       onMouseUp={onMouseUp}
@@ -142,9 +142,13 @@ export default function GraphCanvas({ layout, selectedId, onSelect, onActivate, 
       <svg
         width={size.w}
         height={size.h}
-        style={{ display: "block" }}
+        style={{ display: "block", background: "var(--color-paper)" }}
       >
         <ArrowDefs />
+        <GridPattern viewport={viewport} />
+        {/* Major drawn on top of minor so heavier line wins at subdivision boundaries. */}
+        <rect x={0} y={0} width={size.w} height={size.h} fill="url(#bp-grid-minor)" pointerEvents="none" />
+        <rect x={0} y={0} width={size.w} height={size.h} fill="url(#bp-grid-major)" pointerEvents="none" />
         <g transform={`translate(${viewport.x}, ${viewport.y}) scale(${viewport.scale})`}>
           {/* containers behind leaves */}
           {clusterNodes.map(n => (
@@ -200,9 +204,36 @@ export default function GraphCanvas({ layout, selectedId, onSelect, onActivate, 
 
 function ZoomBadge({ scale }: { scale: number }) {
   return (
-    <div className="absolute bottom-3 right-3 mono text-micro text-vellum-3 uppercase tracking-widest">
+    <div className="absolute bottom-3 right-3 mono text-micro text-fg-3 uppercase tracking-widest">
       {(scale * 100).toFixed(0)}%
     </div>
+  );
+}
+
+// patternTransform mirrors the content <g>'s viewport transform so the grid pans and zooms with it.
+function GridPattern({ viewport }: { viewport: Viewport }) {
+  const t = `translate(${viewport.x} ${viewport.y}) scale(${viewport.scale})`;
+  return (
+    <defs>
+      <pattern
+        id="bp-grid-minor"
+        width={24}
+        height={24}
+        patternUnits="userSpaceOnUse"
+        patternTransform={t}
+      >
+        <path d="M 24 0 L 0 0 L 0 24" className="svg-grid-minor" strokeWidth={1} />
+      </pattern>
+      <pattern
+        id="bp-grid-major"
+        width={120}
+        height={120}
+        patternUnits="userSpaceOnUse"
+        patternTransform={t}
+      >
+        <path d="M 120 0 L 0 0 L 0 120" className="svg-grid-major" strokeWidth={1} />
+      </pattern>
+    </defs>
   );
 }
 

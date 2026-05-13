@@ -94,7 +94,7 @@ export function ResizeHandle({
       onPointerUp={stop}
       onPointerCancel={stop}
       title="Drag to resize"
-      className={`absolute top-0 bottom-0 w-1.5 z-10 cursor-col-resize hover:bg-oxide-2/30 active:bg-oxide-2/60 ${side === "left" ? "left-0" : "right-0"}`}
+      className={`absolute top-0 bottom-0 w-1.5 z-10 cursor-col-resize hover:bg-fg/20 active:bg-fg/40 ${side === "left" ? "left-0" : "right-0"}`}
       style={{ touchAction: "none" }}
     />
   );

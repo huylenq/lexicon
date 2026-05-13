@@ -29,15 +29,15 @@ function catmullRomPath(points: { x: number; y: number }[]): string {
   return d;
 }
 
-const STYLE: Record<
+export const EDGE_STYLE: Record<
   PositionedEdge["kind"],
   { stroke: string; dasharray?: string; opacity: number; markerEnd?: string }
 > = {
-  disambiguates: { stroke: "var(--color-oxide)", opacity: 1 },
-  seam:          { stroke: "var(--color-vellum-3)", dasharray: "6 4", opacity: 0.8 },
-  "boundary-rule": { stroke: "var(--color-vellum-3)", dasharray: "2 3", opacity: 0.8, markerEnd: "url(#arrow-vellum)" },
-  affects:       { stroke: "var(--color-saffron)", dasharray: "12 3", opacity: 0.45, markerEnd: "url(#arrow-saffron)" },
-  supersedes:    { stroke: "var(--color-vellum-2)", opacity: 0.7, markerEnd: "url(#arrow-vellum)" },
+  disambiguates: { stroke: "var(--color-mark)", opacity: 1 },
+  seam:          { stroke: "var(--color-fg-3)", dasharray: "6 4", opacity: 0.8 },
+  "boundary-rule": { stroke: "var(--color-fg-3)", dasharray: "2 3", opacity: 0.8, markerEnd: "url(#arrow-fg)" },
+  affects:       { stroke: "var(--color-highlight)", dasharray: "12 3", opacity: 0.45, markerEnd: "url(#arrow-highlight)" },
+  supersedes:    { stroke: "var(--color-fg-2)", opacity: 0.7, markerEnd: "url(#arrow-fg)" },
   contains:      { stroke: "var(--color-rule)", opacity: 0.4 },
 };
 
@@ -52,11 +52,11 @@ function GraphEdge({
   highlighted: boolean;
   hidden?: boolean;
 }) {
-  const s = STYLE[edge.kind];
+  const s = EDGE_STYLE[edge.kind];
   const path = toPath(edge.points, edge.bundled);
   if (!path) return null;
   const opacity = hidden ? 0 : dimmed ? 0.18 : highlighted ? 1 : s.opacity;
-  const stroke = highlighted ? "var(--color-oxide-2)" : s.stroke;
+  const stroke = highlighted ? "var(--color-mark-2)" : s.stroke;
   return (
     <g style={{ pointerEvents: "none" }}>
       <path
@@ -95,7 +95,7 @@ function EdgeLabel({
       textAnchor="middle"
       className="mono"
       fontSize={9}
-      fill="var(--color-vellum-3)"
+      fill="var(--color-fg-3)"
       opacity={dimmed ? 0.2 : 0.9}
     >
       {text}
@@ -107,7 +107,7 @@ export function ArrowDefs() {
   return (
     <defs>
       <marker
-        id="arrow-vellum"
+        id="arrow-fg"
         viewBox="0 0 10 10"
         refX="9"
         refY="5"
@@ -115,10 +115,10 @@ export function ArrowDefs() {
         markerHeight="6"
         orient="auto-start-reverse"
       >
-        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--color-vellum-2)" />
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--color-fg-2)" />
       </marker>
       <marker
-        id="arrow-saffron"
+        id="arrow-highlight"
         viewBox="0 0 10 10"
         refX="9"
         refY="5"
@@ -126,10 +126,10 @@ export function ArrowDefs() {
         markerHeight="6"
         orient="auto-start-reverse"
       >
-        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--color-saffron)" />
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--color-highlight)" />
       </marker>
       <marker
-        id="arrow-oxide"
+        id="arrow-mark"
         viewBox="0 0 10 10"
         refX="9"
         refY="5"
@@ -137,7 +137,7 @@ export function ArrowDefs() {
         markerHeight="6"
         orient="auto-start-reverse"
       >
-        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--color-oxide)" />
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--color-mark)" />
       </marker>
     </defs>
   );

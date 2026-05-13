@@ -7,6 +7,7 @@ import { ResizeHandle, usePersistedWidth } from "@/lib/resize";
 import ContextSidebar from "@/components/ContextSidebar";
 import EntityDetail from "@/components/EntityDetail";
 import PeekDrawer from "@/components/PeekDrawer";
+import ThemeToggle from "@/components/ThemeToggle";
 import GraphPage from "./GraphPage";
 
 export default function ProjectPage() {
@@ -54,7 +55,7 @@ function ProjectShell({ projectId }: { projectId: number }) {
       <div className="min-h-screen flex items-center justify-center p-12">
         <div className="max-w-md">
           <div className="smallcap mb-3">Could not load project</div>
-          <div className="prose-body text-oxide-2 mono text-small mb-6">{error}</div>
+          <div className="prose-body text-mark-2 mono text-small mb-6">{error}</div>
           <Link to="/" className="ref-link mono text-small">← Back to projects</Link>
         </div>
       </div>
@@ -63,7 +64,7 @@ function ProjectShell({ projectId }: { projectId: number }) {
 
   if (!resp) {
     return (
-      <div className="min-h-screen flex items-center justify-center mono text-small text-vellum-3">
+      <div className="min-h-screen flex items-center justify-center mono text-small text-fg-3">
         loading…
       </div>
     );
@@ -77,24 +78,28 @@ function ProjectShell({ projectId }: { projectId: number }) {
     <div className="h-screen flex flex-col">
       {/* top strip */}
       <div className="flex items-baseline gap-6 px-6 py-3 border-b rule">
-        <Link to="/" className="smallcap hover:text-oxide-2">← Lexicon</Link>
-        <div className="display text-h3 text-vellum leading-none">{project.name}</div>
-        <div className="mono text-small text-vellum-3 truncate">{project.root_path}</div>
-        <div className="ml-auto flex items-center gap-4">
+        <Link to="/" className="smallcap hover:text-fg">← Lexicon</Link>
+        <div className="display text-h3 text-fg leading-none">{project.name}</div>
+        <div className="mono text-small text-fg-3 truncate">{project.root_path}</div>
+        <div className="ml-auto flex items-center gap-3">
           <ViewToggle
             isGraph={isGraph}
             onDetail={() => navigate(`/p/${projectId}/${activeFqid ?? ""}`)}
             onGraph={() => navigate(`/p/${projectId}/graph`)}
           />
+          <span className="smallcap">·</span>
           <span className="smallcap">
             {Object.keys(graph.entities).length} entities
           </span>
+          <span className="smallcap">·</span>
           <button
             onClick={() => api.loadLexicon(projectId, true).then(setResp)}
-            className="mono text-micro uppercase tracking-widest text-vellum-3 hover:text-oxide-2"
+            className="mono text-micro uppercase tracking-widest text-fg-3 hover:text-fg"
           >
             Refresh
           </button>
+          <span className="smallcap">·</span>
+          <ThemeToggle />
         </div>
       </div>
 
@@ -138,7 +143,7 @@ function ProjectShell({ projectId }: { projectId: number }) {
               onCommit={sidebar.commit}
             />
           </aside>
-          <main className="overflow-y-auto">
+          <main className="overflow-y-auto bg-paper">
             {active ? (
               <EntityDetail entity={active} graph={graph} />
             ) : (
@@ -182,19 +187,17 @@ function ViewToggle({
     <div className="flex items-center border rule">
       <button
         onClick={onDetail}
-        className={`mono text-micro uppercase tracking-widest px-3 py-1 ${
-          !isGraph ? "text-vellum" : "text-vellum-3 hover:text-vellum"
+        className={`mono text-micro uppercase tracking-widest px-3 py-1 transition-colors ${
+          !isGraph ? "bg-fg text-paper" : "text-fg-3 hover:text-fg"
         }`}
-        style={!isGraph ? { background: "var(--color-oxide)" } : {}}
       >
         Reading
       </button>
       <button
         onClick={onGraph}
-        className={`mono text-micro uppercase tracking-widest px-3 py-1 border-l rule ${
-          isGraph ? "text-vellum" : "text-vellum-3 hover:text-vellum"
+        className={`mono text-micro uppercase tracking-widest px-3 py-1 border-l rule transition-colors ${
+          isGraph ? "bg-fg text-paper" : "text-fg-3 hover:text-fg"
         }`}
-        style={isGraph ? { background: "var(--color-oxide)" } : {}}
       >
         Graph
       </button>
@@ -225,16 +228,16 @@ function Welcome({ graph }: { graph: ResolvedGraph }) {
         {sys ? sys.ref.name : "Lexicon"}
       </h1>
       {sys?.purpose && (
-        <p className="prose-body italic text-vellum-2 mb-10" style={{ maxWidth: "62ch" }}>
+        <p className="prose-body italic text-fg-2 mb-10" style={{ maxWidth: "62ch" }}>
           {sys.purpose}
         </p>
       )}
-      <div className="prose-body text-small text-vellum-3 italic">
+      <div className="prose-body text-small text-fg-3 italic">
         Choose a system, bounded context, term, invariant, decision or surface from
         the catalog on the left. Code references open inline on the right.
         <br />
         <span className="mono text-micro mt-3 inline-block">
-          press <span className="text-oxide-2">g</span> to switch to the graph view
+          press <span className="text-fg font-semibold">g</span> to switch to the graph view
         </span>
       </div>
     </div>

@@ -33,7 +33,7 @@ function Header({ entity }: { entity: ResolvedEntity }) {
       <h1 className="display-tight text-h1 leading-[0.95] mb-3">
         <InlineCode text={entity.title ?? entity.ref.name} />
       </h1>
-      <div className="mono text-small text-vellum-3">{entity.ref.fqid}</div>
+      <div className="mono text-small text-fg-3">{entity.ref.fqid}</div>
     </header>
   );
 }
@@ -70,7 +70,7 @@ function InvariantBody({ entity }: { entity: ResolvedEntity }) {
   return (
     <div>
       {entity.statement && (
-        <blockquote className="border-l-2 border-oxide pl-5 my-4 display text-h3 italic leading-snug">
+        <blockquote className="border-l-2 border-mark pl-5 my-4 display text-h3 italic leading-snug">
           {entity.statement.trim()}
         </blockquote>
       )}
@@ -140,10 +140,10 @@ function ContextChildren({
             <li key={r.fqid} className="card-inset px-5 py-4">
               <RefLink to={e?.ref ?? r} className="display text-h3" />
               {e?.definition && (
-                <div className="prose-body text-small text-vellum-2 mt-1">{e.definition}</div>
+                <div className="prose-body text-small text-fg-2 mt-1">{e.definition}</div>
               )}
               {e?.statement && (
-                <div className="prose-body text-small italic text-vellum-2 mt-1">{e.statement}</div>
+                <div className="prose-body text-small italic text-fg-2 mt-1">{e.statement}</div>
               )}
             </li>
           );
@@ -158,8 +158,8 @@ function DecisionBody({ entity }: { entity: ResolvedEntity }) {
     <div className="space-y-8">
       <div className="flex items-baseline gap-4">
         <span className="smallcap">Status</span>
-        <span className="display text-h3 italic text-oxide-2">{entity.status}</span>
-        {entity.date && <span className="mono text-small text-vellum-3">· {entity.date}</span>}
+        <span className="display text-h3 italic text-mark-2">{entity.status}</span>
+        {entity.date && <span className="mono text-small text-fg-3">· {entity.date}</span>}
       </div>
       {entity.context && (
         <section>
@@ -193,7 +193,7 @@ function SurfaceBody({ entity }: { entity: ResolvedEntity }) {
   return (
     <div>
       {entity.route && (
-        <div className="mb-6 mono text-small text-vellum-2">{entity.route}</div>
+        <div className="mb-6 mono text-small text-fg-2">{entity.route}</div>
       )}
       {entity.body && <Prose text={entity.body} drop />}
     </div>
@@ -231,7 +231,7 @@ function SeamBody({ entity }: { entity: ResolvedEntity }) {
 
 function BoundaryRuleBody({ entity }: { entity: ResolvedEntity }) {
   return entity.statement ? (
-    <blockquote className="border-l-2 border-oxide pl-5 display text-h3 italic leading-snug">
+    <blockquote className="border-l-2 border-mark pl-5 display text-h3 italic leading-snug">
       {entity.statement.trim()}
     </blockquote>
   ) : null;
@@ -252,7 +252,7 @@ function Margin({ entity, graph }: { entity: ResolvedEntity; graph: ResolvedGrap
       }}
     />
   ) : entity.ref.kind !== "system" && entity.ref.kind !== "decision" ? (
-    <span className="mono text-small text-vellum-3 italic">cross-cutting</span>
+    <span className="mono text-small text-fg-3 italic">cross-cutting</span>
   ) : null;
 
   return (
@@ -260,7 +260,7 @@ function Margin({ entity, graph }: { entity: ResolvedEntity; graph: ResolvedGrap
       {ownerNode && <MarginaliaItem label="Owner">{ownerNode}</MarginaliaItem>}
       {entity.validationMode && (
         <MarginaliaItem label="Validation">
-          <span className="mono text-small text-vellum-2">{entity.validationMode}</span>
+          <span className="mono text-small text-fg-2">{entity.validationMode}</span>
         </MarginaliaItem>
       )}
       {entity.disambiguatesFrom && entity.disambiguatesFrom.length > 0 && (
@@ -301,12 +301,12 @@ function Margin({ entity, graph }: { entity: ResolvedEntity; graph: ResolvedGrap
       {entity.modules && entity.modules.length > 0 && (
         <MarginaliaItem label="Modules">
           {entity.modules.map((m, i) => (
-            <div key={i} className="mono text-small text-vellum-2">{m}</div>
+            <div key={i} className="mono text-small text-fg-2">{m}</div>
           ))}
         </MarginaliaItem>
       )}
       <MarginaliaItem label="Source">
-        <div className="mono text-micro text-vellum-3 break-all">{entity.source.file}</div>
+        <div className="mono text-micro text-fg-3 break-all">{entity.source.file}</div>
       </MarginaliaItem>
     </Marginalia>
   );
@@ -324,7 +324,7 @@ function Prose({ text, drop = false, emphasis = false }: { text: string; drop?: 
           return (
             <p key={i}>
               <span
-                className="display float-left text-[5rem] leading-[0.85] pr-3 pt-1 text-oxide"
+                className="display float-left text-[5rem] leading-[0.85] pr-3 pt-1 text-mark"
                 style={{ fontVariationSettings: "'opsz' 144, 'SOFT' 100" }}
               >
                 {first}

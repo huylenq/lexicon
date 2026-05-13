@@ -60,7 +60,7 @@ export default function PeekDrawer({ projectId }: { projectId: number }) {
     return (
       <div className="h-full flex flex-col items-center justify-center p-8 text-center">
         <div className="smallcap mb-4">Peek drawer</div>
-        <div className="prose-body text-small text-vellum-3 italic" style={{ maxWidth: "28ch" }}>
+        <div className="prose-body text-small text-fg-3 italic" style={{ maxWidth: "28ch" }}>
           Click any code reference to open it here. Multiple peeks stack vertically.
         </div>
       </div>
@@ -73,7 +73,7 @@ export default function PeekDrawer({ projectId }: { projectId: number }) {
         <div className="smallcap">Peeks · {peeks.length}</div>
         <button
           onClick={closeAll}
-          className="mono text-micro uppercase tracking-widest text-vellum-3 hover:text-oxide-2"
+          className="mono text-micro uppercase tracking-widest text-fg-3 hover:text-fg"
         >
           Close all
         </button>
@@ -148,29 +148,29 @@ function PeekCard({
 
   return (
     <div className="border-b rule">
-      <div className="flex items-baseline justify-between px-4 py-2 bg-ink-2">
+      <div className="flex items-baseline justify-between px-4 py-2 bg-paper-2">
         <div className="min-w-0 flex-1">
-          <div className="mono text-small text-vellum truncate">
+          <div className="mono text-small text-fg truncate">
             {peek.file}
-            <span className="text-vellum-3">{range}</span>
+            <span className="text-fg-3">{range}</span>
           </div>
           <div className="smallcap mt-0.5 truncate">
-            from <span className="text-vellum-2">{peek.origin.name}</span>
+            from <span className="text-fg-2">{peek.origin.name}</span>
             {peek.symbol && <> · {peek.symbol}</>}
           </div>
         </div>
         <button
           onClick={onClose}
-          className="mono text-micro uppercase tracking-widest text-vellum-3 hover:text-oxide-2 ml-3"
+          className="mono text-micro uppercase tracking-widest text-fg-3 hover:text-fg ml-3"
         >
           Close
         </button>
       </div>
       <div style={{ height: 320 }}>
         {error ? (
-          <div className="p-4 mono text-small text-oxide-2">cannot read: {error}</div>
+          <div className="p-4 mono text-small text-mark-2">cannot read: {error}</div>
         ) : text == null ? (
-          <div className="p-4 mono text-small text-vellum-3">loading…</div>
+          <div className="p-4 mono text-small text-fg-3">loading…</div>
         ) : (
           <Editor
             height="320px"

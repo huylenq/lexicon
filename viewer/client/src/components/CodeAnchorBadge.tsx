@@ -22,15 +22,15 @@ export default function CodeAnchorBadge({
           origin: { fqid: origin.fqid, name: origin.name },
         })
       }
-      className="group block w-full text-left card-inset px-3 py-2 hover:border-oxide-2 transition-colors"
+      className="group block w-full text-left card-inset px-3 py-2 hover:border-fg transition-colors"
     >
       <div className="flex items-baseline gap-2">
-        <span className="smallcap text-vellum-3 group-hover:text-oxide-2">peek</span>
-        <span className="mono text-small text-vellum truncate">{anchor.file}</span>
-        {range && <span className="mono text-small text-vellum-3">:{range}</span>}
+        <span className="smallcap text-fg-3 group-hover:text-fg">peek</span>
+        <span className="mono text-small text-fg truncate">{anchor.file}</span>
+        {range && <span className="mono text-small text-fg-3">:{range}</span>}
       </div>
       {anchor.symbol && (
-        <div className="mono text-micro text-vellum-3 mt-1 italic">{anchor.symbol}</div>
+        <div className="mono text-micro text-fg-3 mt-1 italic">{anchor.symbol}</div>
       )}
     </button>
   );
