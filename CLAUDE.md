@@ -4,7 +4,9 @@ This file is for a future Claude Code session opening this repo to work on lexic
 
 If you're an agent reading this: read it before proposing changes to skill descriptions, escalation rules, or the project-shape conventions. The current shape is the result of several rounds of pushback on plausible-but-wrong defaults; understanding *why* those defaults were rejected matters more than the surface decisions.
 
-Lexicon is a skill bundle, not a domain codebase, so the cold-doc shape (`lexicon/system.md` + bounded contexts + invariants) doesn't apply here — the artifact being maintained is a coherent set of skill descriptions and bodies, not a running system with executable invariants. This file plays the role `system.md` would play for a coding project: capturing the design rationale that's hard to recover from the skill files alone.
+Lexicon-the-skill-bundle is not a domain codebase, so the cold-doc shape (`lexicon/system.yaml` + bounded contexts + invariants) doesn't apply at the repo root — the artifact being maintained here is a coherent set of skill descriptions and bodies, not a running system with executable invariants. This file plays the role `system.yaml` would play for a coding project: capturing the design rationale that's hard to recover from the skill files alone.
+
+The `viewer/` subproject is different. It's an actual app (a local web app for browsing cold layers) with its own domain — graph layout, drift indicators, search, project switching — and it carries its own `viewer/lexicon/` cold layer, bootstrapped via `lex-bootstrap` on that subdirectory. When working inside `viewer/`, the normal lexicon workflow applies: `lex-ground` reads `viewer/lexicon/system.yaml`, retros land in `viewer/lexicon/retros/`, crystallize updates the viewer's cold layer. This file (at the repo root) governs the skill bundle; `viewer/lexicon/` governs the viewer app.
 
 ---
 
