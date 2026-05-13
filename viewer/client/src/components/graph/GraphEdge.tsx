@@ -39,6 +39,7 @@ export const EDGE_STYLE: Record<
   affects:       { stroke: "var(--color-highlight)", dasharray: "12 3", opacity: 0.45, markerEnd: "url(#arrow-highlight)" },
   supersedes:    { stroke: "var(--color-fg-2)", opacity: 0.7, markerEnd: "url(#arrow-fg)" },
   contains:      { stroke: "var(--color-rule)", opacity: 0.4 },
+  narrative:     { stroke: "var(--color-fg-3)", dasharray: "1 4", opacity: 0.35 },
 };
 
 function GraphEdge({

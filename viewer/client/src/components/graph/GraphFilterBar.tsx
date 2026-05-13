@@ -8,6 +8,7 @@ const EDGES: { id: EdgeKind; label: string }[] = [
   { id: "disambiguates", label: "Disambiguates" },
   { id: "affects", label: "Affects" },
   { id: "supersedes", label: "Supersedes" },
+  { id: "narrative", label: "Narrative" },
 ];
 
 // Legend dasharrays are hand-tuned for a 16px swatch; colors come from EDGE_STYLE.
@@ -15,6 +16,7 @@ const LEGEND_DASH: Partial<Record<EdgeKind, string>> = {
   affects: "6 2",
   seam: "5 3",
   "boundary-rule": "2 2",
+  narrative: "1 3",
 };
 
 interface Props {

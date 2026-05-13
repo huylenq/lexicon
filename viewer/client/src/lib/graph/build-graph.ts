@@ -2,6 +2,7 @@
 // One model per lens: ownership, decisions, surfaces.
 
 import type { EntityKind, ResolvedEntity, ResolvedGraph } from "@/lib/types";
+import { parseProseLinks, resolveFqid } from "@server/prose-links";
 
 export const LENSES = ["ownership", "decisions", "surfaces"] as const;
 export type Lens = (typeof LENSES)[number];
@@ -12,7 +13,8 @@ export type EdgeKind =
   | "boundary-rule"
   | "affects"
   | "supersedes"
-  | "contains";
+  | "contains"
+  | "narrative";
 
 export interface GraphNode {
   id: string;            // fqid
@@ -114,6 +116,33 @@ function include(
 function edgeAllowed(kind: EdgeKind, opts: BuildOpts): boolean {
   if (!opts.edgeFilter) return true;
   return opts.edgeFilter.has(kind);
+}
+
+// Emits one edge per distinct `[[fqid]]` target found in `entity.narrative`.
+// Dangling links and links to nodes not in the current layout are skipped
+// silently (the loader's load-issues already surface dangling ones).
+function emitNarrativeEdges(
+  entity: ResolvedEntity,
+  graph: ResolvedGraph,
+  has: (id: string) => boolean,
+  out: GraphEdge[],
+): void {
+  if (!entity.narrative) return;
+  const seen = new Set<string>();
+  for (const link of parseProseLinks(entity.narrative)) {
+    const ref = resolveFqid(link.fqid, graph.entities, entity.ownerContextId, graph.system);
+    if (!ref || ref.fqid === entity.ref.fqid) continue;
+    if (!has(ref.fqid)) continue;
+    if (seen.has(ref.fqid)) continue;
+    seen.add(ref.fqid);
+    out.push({
+      id: `nar:${entity.ref.fqid}->${ref.fqid}`,
+      source: entity.ref.fqid,
+      target: ref.fqid,
+      kind: "narrative",
+      directed: true,
+    });
+  }
 }
 
 // ---------------- ownership ----------------
@@ -294,6 +323,21 @@ function buildOwnership(graph: ResolvedGraph, opts: BuildOpts): GraphModel {
     }
   }
 
+  // Narrative edges from system, bounded-contexts, and decisions. The system
+  // entity isn't a node on this lens, so its mentions become unparented edges
+  // from a synthetic system node — too noisy. Skip system narrative here; the
+  // reading-room renders it instead.
+  if (edgeAllowed("narrative", opts)) {
+    for (const ctx of contexts) {
+      if (!has(ctx.ref.fqid)) continue;
+      emitNarrativeEdges(ctx, graph, has, edges);
+    }
+    for (const d of decisions) {
+      if (!has(d.ref.fqid)) continue;
+      emitNarrativeEdges(d, graph, has, edges);
+    }
+  }
+
   return { nodes, edges, topLevelIds, lens: "ownership" };
 }
 
@@ -364,6 +408,13 @@ function buildDecisions(graph: ResolvedGraph, opts: BuildOpts): GraphModel {
           directed: true,
         });
       }
+    }
+  }
+
+  if (edgeAllowed("narrative", opts)) {
+    for (const d of decisions) {
+      if (!has(d.ref.fqid)) continue;
+      emitNarrativeEdges(d, graph, has, edges);
     }
   }
 

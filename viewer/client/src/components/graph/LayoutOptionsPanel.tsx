@@ -33,6 +33,9 @@ interface Props {
 
   affectsFocusOnly: boolean;
   onToggleAffectsFocusOnly: () => void;
+
+  narrativeThread: boolean;
+  onToggleNarrativeThread: () => void;
 }
 
 export default function LayoutOptionsPanel(props: Props) {
@@ -145,6 +148,11 @@ export default function LayoutOptionsPanel(props: Props) {
           checked={props.affectsFocusOnly}
           onChange={props.onToggleAffectsFocusOnly}
           label="Show affects only when focused"
+        />
+        <Checkbox
+          checked={props.narrativeThread}
+          onChange={props.onToggleNarrativeThread}
+          label="Narrative thread of selected entity"
         />
       </Section>
     </div>

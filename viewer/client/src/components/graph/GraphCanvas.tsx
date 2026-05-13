@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { clamp, type LayoutResult } from "@/lib/graph/layout";
 import GraphNode from "./GraphNode";
 import GraphEdge, { ArrowDefs } from "./GraphEdge";
+import NarrativeThread, { type ThreadStop } from "./NarrativeThread";
 
 interface Props {
   layout: LayoutResult;
@@ -9,6 +10,7 @@ interface Props {
   onSelect: (id: string | null) => void;
   onActivate: (id: string) => void; // double-click → navigate to detail
   affectsFocusOnly?: boolean;
+  narrativeThread?: ThreadStop[] | null;
 }
 
 interface Viewport {
@@ -17,7 +19,7 @@ interface Viewport {
   scale: number;
 }
 
-export default function GraphCanvas({ layout, selectedId, onSelect, onActivate, affectsFocusOnly = false }: Props) {
+export default function GraphCanvas({ layout, selectedId, onSelect, onActivate, affectsFocusOnly = false, narrativeThread = null }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<{ w: number; h: number }>({ w: 800, h: 600 });
   const [viewport, setViewport] = useState<Viewport>({ x: 0, y: 0, scale: 1 });
@@ -195,6 +197,9 @@ export default function GraphCanvas({ layout, selectedId, onSelect, onActivate, 
               onMouseLeave={() => setHoverId(prev => (prev === n.id ? null : prev))}
             />
           ))}
+          {narrativeThread && narrativeThread.length >= 2 && (
+            <NarrativeThread stops={narrativeThread} />
+          )}
         </g>
       </svg>
       <ZoomBadge scale={viewport.scale} />

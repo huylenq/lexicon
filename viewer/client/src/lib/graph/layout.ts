@@ -138,10 +138,13 @@ export async function layoutModel(
   // ownership and surfaces lenses we keep `affects` edges in the model (the
   // canvas reveals them on focus) but withhold them from ELK's layout pass.
   // On the decisions lens, `affects` IS the subject — let ELK see them.
+  //
+  // Narrative edges are always withheld — they're free-prose links and can run
+  // to dozens per source. Letting ELK lay them out would sprawl the graph.
   const withholdAffects = model.lens !== "decisions";
-  const layoutEdges = withholdAffects
-    ? model.edges.filter(e => e.kind !== "affects")
-    : model.edges;
+  const layoutEdges = model.edges.filter(
+    e => e.kind !== "narrative" && (e.kind !== "affects" || !withholdAffects),
+  );
 
   // Bucket edges by whether their endpoints share a cluster:
   //   * an edge with both endpoints inside the same cluster gives that cluster
@@ -298,7 +301,7 @@ export async function layoutModel(
     const gridW = (result as ElkNode).width ?? 800;
     const gridH = (result as ElkNode).height ?? 600;
     const affectsEdges = edges
-      .filter(e => e.kind === "affects" && e.points.length === 0)
+      .filter(e => (e.kind === "affects" || e.kind === "narrative") && e.points.length === 0)
       .sort((p, q) => (p.source + ">" + p.target).localeCompare(q.source + ">" + q.target));
     astarRouteAffects(affectsEdges, nodes, gridW, gridH, byIdPos, {
       cellSize: astarCellSize,
@@ -341,7 +344,10 @@ export async function layoutModel(
     const b = byIdPos.get(e.target);
     if (!a || !b) continue;
 
-    if (e.kind === "affects" && affectsRouting === "bundle") {
+    // Narrative edges bundle the same way affects does — they're the same shape
+    // (one source, many fan-out targets) and benefit from the same channel-sharing.
+    const isFanout = e.kind === "affects" || e.kind === "narrative";
+    if (isFanout && affectsRouting === "bundle") {
       const ctrl = bundleControlPoints(a, b, byIdPos, bundleTension, chainOf);
       if (ctrl.length < 2) continue;
       // Clip endpoints to the node rectangles, pointing toward the *next*
@@ -358,7 +364,7 @@ export async function layoutModel(
       continue;
     }
 
-    if (e.kind === "affects" && affectsRouting === "elbow") {
+    if (isFanout && affectsRouting === "elbow") {
       const pts = elbowRoute(a, b);
       if (pts) {
         e.points = pts;

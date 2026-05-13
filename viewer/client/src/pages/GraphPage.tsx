@@ -16,7 +16,9 @@ import GraphCanvas from "@/components/graph/GraphCanvas";
 import GraphFilterBar from "@/components/graph/GraphFilterBar";
 import GraphDetailRail from "@/components/graph/GraphDetailRail";
 import LayoutOptionsPanel from "@/components/graph/LayoutOptionsPanel";
+import type { ThreadStop } from "@/components/graph/NarrativeThread";
 import { ResizeHandle, usePersistedWidth } from "@/lib/resize";
+import { parseProseLinks, resolveFqid } from "@server/prose-links";
 
 const DEFAULT_KINDS: EntityKind[] = FILTERABLE_KINDS.map(k => k.id);
 const DEFAULT_EDGES: EdgeKind[] = ["disambiguates", "affects", "supersedes"];
@@ -61,6 +63,7 @@ export default function GraphPage({
   const [search, setSearch] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [narrativeThreadEnabled, setNarrativeThreadEnabled] = useState(false);
 
   const model = useMemo(
     () => buildModel(resp.graph, lens, { kindFilter: kinds, edgeFilter: edges, contextFilter }),
@@ -148,6 +151,31 @@ export default function GraphPage({
 
   const selectedEntity = selectedId ? resp.graph.entities[selectedId] ?? null : null;
 
+  // Narrative thread: walk the selected entity's narrative in order, resolve
+  // each [[fqid]] mention, and turn the resolved targets into ordered stops on
+  // top of the laid-out positions. The selected entity itself is the first stop.
+  const narrativeThread = useMemo<ThreadStop[] | null>(() => {
+    if (!narrativeThreadEnabled) return null;
+    if (!selectedEntity?.narrative || !layout) return null;
+    const positioned = new Map(layout.nodes.map(n => [n.id, n]));
+    const seen = new Set<string>();
+    const stops: ThreadStop[] = [];
+    const push = (id: string, name: string) => {
+      if (seen.has(id)) return;
+      const n = positioned.get(id);
+      if (!n) return;
+      seen.add(id);
+      stops.push({ id, x: n.x + n.width / 2, y: n.y + n.height / 2, name });
+    };
+    push(selectedEntity.ref.fqid, selectedEntity.ref.name);
+    for (const link of parseProseLinks(selectedEntity.narrative)) {
+      const ref = resolveFqid(link.fqid, resp.graph.entities, selectedEntity.ownerContextId, resp.graph.system);
+      if (!ref) continue;
+      push(ref.fqid, ref.name);
+    }
+    return stops;
+  }, [narrativeThreadEnabled, selectedEntity, layout, resp.graph]);
+
   const railRef = useRef<HTMLElement>(null);
   const rail = usePersistedWidth({
     key: "lexicon.graphDetailRailWidth", defaultPx: 352 /* 22rem */, minPx: 240, maxFrac: 0.5,
@@ -194,6 +222,7 @@ export default function GraphPage({
             onSelect={setSelectedId}
             onActivate={fqid => navigate(`/p/${id}/${fqid}`)}
             affectsFocusOnly={affectsFocusOnly}
+            narrativeThread={narrativeThread}
           />
         )}
         {layout && layout.nodes.length === 0 && (
@@ -242,6 +271,8 @@ export default function GraphPage({
               onAstarParamsChange={setAstarParams}
               affectsFocusOnly={affectsFocusOnly}
               onToggleAffectsFocusOnly={() => setAffectsFocusOnly(b => !b)}
+              narrativeThread={narrativeThreadEnabled}
+              onToggleNarrativeThread={() => setNarrativeThreadEnabled(b => !b)}
             />
           </div>
         )}
