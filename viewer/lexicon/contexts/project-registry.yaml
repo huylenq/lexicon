@@ -1,4 +1,4 @@
-schemaVersion: "0.1"
+schemaVersion: "0.2"
 kind: bounded-context
 id: project-registry
 name: Project registry
@@ -7,9 +7,24 @@ purpose: |
   HTTP API, and safely serve files from any registered project's tree to the
   Monaco peek drawer. SQLite-backed (`lexicon-viewer.db`); single-process,
   single-user.
-modules:
-  - server/db.ts
-  - server/index.ts
+
+narrative: |
+  Three small jobs done well. The user registers a [[project]] by absolute
+  path; `POST /api/projects` refuses anything that isn't absolute and pointing
+  at an existing directory ([[rootpath-absolute]]), and the SQLite UNIQUE
+  constraint blocks duplicates ([[unique-rootpath]]) so the registry stays a
+  set. Stored rows carry only what's needed to find the project again later
+  (`id, name, root_path, added_at, last_opened_at`).
+
+  On project open, [[lexicon-loading]] reads `<root_path>/lexicon/`; the
+  registry's job is just to hand over the [[project-root]]. The last
+  responsibility — and the most safety-load-bearing — is serving file content
+  to the [[peek]] drawer. Every `/api/projects/:id/file?path=…` request
+  resolves the requested path under the project root and runs the
+  [[path-clamp]]: relative form starts with `..` or is absolute? Reject with
+  `400 path escape` ([[file-escape-rejected]]). Local-only today, but the
+  clamp is the actual safety check — every future code-anchor flow must route
+  through this endpoint, not bypass it.
 
 terms:
   - id: project

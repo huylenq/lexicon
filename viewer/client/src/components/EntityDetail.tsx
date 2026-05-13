@@ -1,10 +1,12 @@
-import type { FC } from "react";
+import { useEffect, type FC } from "react";
 import type { EntityKind, EntityRef, ResolvedEntity, ResolvedGraph } from "@/lib/types";
 import { KIND_LABEL } from "@/lib/kinds";
 import RefLink from "./RefLink";
 import CodeAnchorBadge from "./CodeAnchorBadge";
 import InlineCode from "./InlineCode";
 import { Marginalia, MarginaliaItem } from "./Marginalia";
+import Prose from "./Prose";
+import { useInspector } from "@/lib/inspector";
 
 export default function EntityDetail({
   entity,
@@ -13,6 +15,25 @@ export default function EntityDetail({
   entity: ResolvedEntity;
   graph: ResolvedGraph;
 }) {
+  const { isOpen, target, open: openInspector } = useInspector();
+
+  // If the inspector is open, retarget it to the new entity whenever the
+  // page navigates (without us actively opening). Keeps the slab synced to
+  // whatever the user is reading.
+  useEffect(() => {
+    if (!isOpen) return;
+    if (target?.fqid === entity.ref.fqid) return;
+    openInspector({
+      fqid: entity.ref.fqid,
+      name: entity.ref.name,
+      file: entity.source.file,
+      lineStart: entity.source.lineStart,
+      lineEnd: entity.source.lineEnd,
+      path: entity.source.path,
+      kind: entity.ref.kind,
+    });
+  }, [entity.ref.fqid, isOpen]);
+
   return (
     <article className="grid grid-cols-12 gap-12 py-12 px-12">
       <div className="col-span-8 min-w-0">
@@ -27,13 +48,40 @@ export default function EntityDetail({
 }
 
 function Header({ entity }: { entity: ResolvedEntity }) {
+  const { target, toggle } = useInspector();
+  const isActive = target?.fqid === entity.ref.fqid;
+  const lineLabel = entity.source.lineStart === entity.source.lineEnd
+    ? `L${entity.source.lineStart}`
+    : `L${entity.source.lineStart}–${entity.source.lineEnd}`;
+
   return (
-    <header className="mb-10">
-      <div className="smallcap mb-3">{KIND_LABEL[entity.ref.kind]}</div>
-      <h1 className="display-tight text-h1 leading-[0.95] mb-3">
-        <InlineCode text={entity.title ?? entity.ref.name} />
-      </h1>
-      <div className="mono text-small text-fg-3">{entity.ref.fqid}</div>
+    <header className="mb-10 flex items-start gap-6">
+      <div className="flex-1 min-w-0">
+        <div className="smallcap mb-3">{KIND_LABEL[entity.ref.kind]}</div>
+        <h1 className="display-tight text-h1 leading-[0.95] mb-3">
+          <InlineCode text={entity.title ?? entity.ref.name} />
+        </h1>
+        <div className="mono text-small text-fg-3">{entity.ref.fqid}</div>
+      </div>
+      <button
+        className="inspector-pull shrink-0"
+        data-active={isActive}
+        title="Inspect YAML source (⌘ ')"
+        onClick={() =>
+          toggle({
+            fqid: entity.ref.fqid,
+            name: entity.ref.name,
+            file: entity.source.file,
+            lineStart: entity.source.lineStart,
+            lineEnd: entity.source.lineEnd,
+            path: entity.source.path,
+            kind: entity.ref.kind,
+          })
+        }
+      >
+        <span>Specimen</span>
+        <span className="inspector-pull-range">{lineLabel}</span>
+      </button>
     </header>
   );
 }
@@ -41,15 +89,15 @@ function Header({ entity }: { entity: ResolvedEntity }) {
 type BodyProps = { entity: ResolvedEntity; graph: ResolvedGraph };
 
 const BODY: Record<EntityKind, FC<BodyProps>> = {
-  system: ({ entity }) => <SystemBody entity={entity} />,
+  system: ({ entity, graph }) => <SystemBody entity={entity} graph={graph} />,
   "bounded-context": ({ entity, graph }) => <ContextBody entity={entity} graph={graph} />,
-  term: ({ entity }) => <TermBody entity={entity} />,
-  invariant: ({ entity }) => <InvariantBody entity={entity} />,
-  seam: ({ entity }) => <SeamBody entity={entity} />,
+  term: ({ entity, graph }) => <TermBody entity={entity} graph={graph} />,
+  invariant: ({ entity, graph }) => <InvariantBody entity={entity} graph={graph} />,
+  seam: ({ entity, graph }) => <SeamBody entity={entity} graph={graph} />,
   "boundary-rule": ({ entity }) => <BoundaryRuleBody entity={entity} />,
-  decision: ({ entity }) => <DecisionBody entity={entity} />,
-  surface: ({ entity }) => <SurfaceBody entity={entity} />,
-  region: ({ entity }) => <RegionBody entity={entity} />,
+  decision: ({ entity, graph }) => <DecisionBody entity={entity} graph={graph} />,
+  surface: ({ entity, graph }) => <SurfaceBody entity={entity} graph={graph} />,
+  region: ({ entity, graph }) => <RegionBody entity={entity} graph={graph} />,
 };
 
 function Body(props: BodyProps) {
@@ -57,16 +105,20 @@ function Body(props: BodyProps) {
   return <C {...props} />;
 }
 
-function TermBody({ entity }: { entity: ResolvedEntity }) {
+function TermBody({ entity, graph }: { entity: ResolvedEntity; graph: ResolvedGraph }) {
   return (
     <div>
-      {entity.definition && <Prose text={entity.definition} drop />}
-      {entity.body && <Prose text={entity.body} />}
+      {entity.definition && (
+        <Prose text={entity.definition} graph={graph} ownerContextId={entity.ownerContextId} drop />
+      )}
+      {entity.body && (
+        <Prose text={entity.body} graph={graph} ownerContextId={entity.ownerContextId} />
+      )}
     </div>
   );
 }
 
-function InvariantBody({ entity }: { entity: ResolvedEntity }) {
+function InvariantBody({ entity, graph }: { entity: ResolvedEntity; graph: ResolvedGraph }) {
   return (
     <div>
       {entity.statement && (
@@ -77,32 +129,178 @@ function InvariantBody({ entity }: { entity: ResolvedEntity }) {
       {entity.rationale && (
         <div className="mt-6">
           <div className="smallcap mb-2">Why</div>
-          <Prose text={entity.rationale} />
+          <Prose text={entity.rationale} graph={graph} ownerContextId={entity.ownerContextId} />
         </div>
       )}
-      {entity.body && <Prose text={entity.body} />}
+      {entity.body && (
+        <Prose text={entity.body} graph={graph} ownerContextId={entity.ownerContextId} />
+      )}
     </div>
   );
 }
 
-function SystemBody({ entity }: { entity: ResolvedEntity }) {
+function SystemBody({ entity, graph }: { entity: ResolvedEntity; graph: ResolvedGraph }) {
   return (
     <div>
-      {entity.purpose && <Prose text={entity.purpose} drop />}
-      {entity.body && <Prose text={entity.body} />}
-      {entity.deliberateOmissions && entity.deliberateOmissions.length > 0 && (
-        <div className="mt-10">
-          <div className="smallcap mb-3">Deliberate omissions</div>
-          <ul className="space-y-4">
-            {entity.deliberateOmissions.map((o, i) => (
-              <li key={i} className="card-inset px-5 py-4">
-                <div className="display text-h3 italic mb-1">{o.topic}</div>
-                <div className="prose-body text-small">{o.reason}</div>
-              </li>
-            ))}
-          </ul>
-        </div>
+      <NarrativeAndPurpose entity={entity} graph={graph} />
+      {entity.body && <Prose text={entity.body} graph={graph} />}
+      {entity.overlays && entity.overlays.length > 0 && (
+        <OverlaysSection overlays={entity.overlays} graph={graph} />
       )}
+      {entity.deliberateOmissions && entity.deliberateOmissions.length > 0 && (
+        <OmissionsSection omissions={entity.deliberateOmissions} graph={graph} />
+      )}
+    </div>
+  );
+}
+
+// When a narrative is present, the purpose demotes to a small labelled section
+// underneath. When there's no narrative, the purpose carries the drop cap.
+function NarrativeAndPurpose({
+  entity,
+  graph,
+}: {
+  entity: ResolvedEntity;
+  graph: ResolvedGraph;
+}) {
+  if (entity.narrative) {
+    return (
+      <>
+        <section className="mb-12">
+          <Prose
+            text={entity.narrative}
+            graph={graph}
+            ownerContextId={entity.ownerContextId}
+            drop
+          />
+        </section>
+        {entity.purpose && (
+          <section className="mb-10">
+            <div className="smallcap mb-2">Purpose</div>
+            <Prose
+              text={entity.purpose}
+              graph={graph}
+              ownerContextId={entity.ownerContextId}
+            />
+          </section>
+        )}
+      </>
+    );
+  }
+  if (entity.purpose) {
+    return (
+      <Prose
+        text={entity.purpose}
+        graph={graph}
+        ownerContextId={entity.ownerContextId}
+        drop
+      />
+    );
+  }
+  return null;
+}
+
+function OverlaysSection({
+  overlays,
+  graph,
+}: {
+  overlays: NonNullable<ResolvedEntity["overlays"]>;
+  graph: ResolvedGraph;
+}) {
+  return (
+    <div className="mt-12">
+      <div className="smallcap mb-3">Overlays</div>
+      <div className="space-y-8">
+        {overlays.map(ov => (
+          <article key={ov.id} className="card-inset px-6 py-5">
+            <div className="flex items-baseline gap-3 mb-2">
+              <h3 className="display text-h3 italic">{ov.name}</h3>
+              <span className="mono text-micro text-fg-3">{ov.id}</span>
+            </div>
+            {ov.description && (
+              <Prose text={ov.description} graph={graph} className="text-small" />
+            )}
+            {ov.items && ov.items.length > 0 && (
+              <ul className="mt-3 space-y-1 list-none">
+                {ov.items.map((it, i) => (
+                  <li key={i} className="prose-body text-small">
+                    <span className="mono text-fg-3 mr-2">·</span>
+                    <Prose
+                      text={it}
+                      graph={graph}
+                      className="inline text-small"
+                    />
+                  </li>
+                ))}
+              </ul>
+            )}
+            {ov.invariants && ov.invariants.length > 0 && (
+              <div className="mt-4">
+                <div className="smallcap mb-2">Overlay invariants</div>
+                <ul className="space-y-3">
+                  {ov.invariants.map((inv, i) => (
+                    <li key={i}>
+                      <blockquote className="border-l-2 border-mark pl-4 italic text-small">
+                        {inv.statement.trim()}
+                      </blockquote>
+                      {inv.rationale && (
+                        <Prose
+                          text={inv.rationale}
+                          graph={graph}
+                          className="text-small text-fg-2 mt-1 pl-4"
+                        />
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </article>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function OmissionsSection({
+  omissions,
+  graph,
+}: {
+  omissions: NonNullable<ResolvedEntity["deliberateOmissions"]>;
+  graph: ResolvedGraph;
+}) {
+  return (
+    <div className="mt-12">
+      <div className="smallcap mb-3">Deliberate omissions</div>
+      <ul className="space-y-5">
+        {omissions.map((o, i) => (
+          <li key={i} className="card-inset px-5 py-4">
+            <div className="display text-h3 italic mb-1">{o.topic}</div>
+            <Prose text={o.reason} graph={graph} className="text-small" />
+            {o.triggers && o.triggers.length > 0 && (
+              <div className="mt-3">
+                <div className="smallcap mb-1">Revisit when</div>
+                <ul className="prose-body text-small text-fg-2 space-y-1">
+                  {o.triggers.map((t, j) => (
+                    <li key={j}>
+                      <span className="mono text-fg-3 mr-2">·</span>
+                      <Prose text={t} graph={graph} className="inline text-small" />
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {o.relatedAtoms && o.relatedAtoms.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 items-baseline">
+                <span className="smallcap">Related</span>
+                {o.relatedAtoms.map(r => (
+                  <RefLink key={r.fqid} to={r} />
+                ))}
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -110,8 +308,10 @@ function SystemBody({ entity }: { entity: ResolvedEntity }) {
 function ContextBody({ entity, graph }: { entity: ResolvedEntity; graph: ResolvedGraph }) {
   return (
     <div>
-      {entity.purpose && <Prose text={entity.purpose} drop />}
-      {entity.body && <Prose text={entity.body} />}
+      <NarrativeAndPurpose entity={entity} graph={graph} />
+      {entity.body && (
+        <Prose text={entity.body} graph={graph} ownerContextId={entity.ownerContextId} />
+      )}
       <ContextChildren title="Terms" refs={entity.containedTerms ?? []} graph={graph} />
       <ContextChildren title="Invariants" refs={entity.containedInvariants ?? []} graph={graph} />
       <ContextChildren title="Architecture seams" refs={entity.containedSeams ?? []} graph={graph} />
@@ -153,7 +353,7 @@ function ContextChildren({
   );
 }
 
-function DecisionBody({ entity }: { entity: ResolvedEntity }) {
+function DecisionBody({ entity, graph }: { entity: ResolvedEntity; graph: ResolvedGraph }) {
   return (
     <div className="space-y-8">
       <div className="flex items-baseline gap-4">
@@ -161,50 +361,55 @@ function DecisionBody({ entity }: { entity: ResolvedEntity }) {
         <span className="display text-h3 italic text-mark-2">{entity.status}</span>
         {entity.date && <span className="mono text-small text-fg-3">· {entity.date}</span>}
       </div>
+      {entity.narrative && (
+        <section>
+          <Prose text={entity.narrative} graph={graph} drop />
+        </section>
+      )}
       {entity.context && (
         <section>
           <div className="smallcap mb-2">Context</div>
-          <Prose text={entity.context} />
+          <Prose text={entity.context} graph={graph} />
         </section>
       )}
       {entity.decision && (
         <section>
           <div className="smallcap mb-2">Decision</div>
-          <Prose text={entity.decision} emphasis />
+          <Prose text={entity.decision} graph={graph} emphasis />
         </section>
       )}
       {entity.consequences && (
         <section>
           <div className="smallcap mb-2">Consequences</div>
-          <Prose text={entity.consequences} />
+          <Prose text={entity.consequences} graph={graph} />
         </section>
       )}
       {entity.alternatives && (
         <section>
           <div className="smallcap mb-2">Alternatives considered</div>
-          <Prose text={entity.alternatives} />
+          <Prose text={entity.alternatives} graph={graph} />
         </section>
       )}
     </div>
   );
 }
 
-function SurfaceBody({ entity }: { entity: ResolvedEntity }) {
+function SurfaceBody({ entity, graph }: { entity: ResolvedEntity; graph: ResolvedGraph }) {
   return (
     <div>
       {entity.route && (
         <div className="mb-6 mono text-small text-fg-2">{entity.route}</div>
       )}
-      {entity.body && <Prose text={entity.body} drop />}
+      {entity.body && <Prose text={entity.body} graph={graph} drop />}
     </div>
   );
 }
 
-function RegionBody({ entity }: { entity: ResolvedEntity }) {
+function RegionBody({ entity, graph }: { entity: ResolvedEntity; graph: ResolvedGraph }) {
   const impl = entity.implementation;
   return (
     <div>
-      {entity.role && <Prose text={entity.role} drop />}
+      {entity.role && <Prose text={entity.role} graph={graph} drop />}
       {impl && (
         <div className="mt-8">
           <div className="smallcap mb-2">Implementation · {impl.kind}</div>
@@ -225,8 +430,15 @@ function RegionBody({ entity }: { entity: ResolvedEntity }) {
   );
 }
 
-function SeamBody({ entity }: { entity: ResolvedEntity }) {
-  return entity.definition ? <Prose text={entity.definition} drop /> : null;
+function SeamBody({ entity, graph }: { entity: ResolvedEntity; graph: ResolvedGraph }) {
+  return entity.definition ? (
+    <Prose
+      text={entity.definition}
+      graph={graph}
+      ownerContextId={entity.ownerContextId}
+      drop
+    />
+  ) : null;
 }
 
 function BoundaryRuleBody({ entity }: { entity: ResolvedEntity }) {
@@ -312,29 +524,3 @@ function Margin({ entity, graph }: { entity: ResolvedEntity; graph: ResolvedGrap
   );
 }
 
-function Prose({ text, drop = false, emphasis = false }: { text: string; drop?: boolean; emphasis?: boolean }) {
-  const cleaned = text.trim();
-  const paras = cleaned.split(/\n{2,}/);
-  return (
-    <div className={`prose-body ${emphasis ? "text-h3 display italic leading-snug" : ""}`}>
-      {paras.map((p, i) => {
-        if (i === 0 && drop && !emphasis) {
-          const first = p.charAt(0);
-          const rest = p.slice(1);
-          return (
-            <p key={i}>
-              <span
-                className="display float-left text-[5rem] leading-[0.85] pr-3 pt-1 text-mark"
-                style={{ fontVariationSettings: "'opsz' 144, 'SOFT' 100" }}
-              >
-                {first}
-              </span>
-              {rest}
-            </p>
-          );
-        }
-        return <p key={i}>{p}</p>;
-      })}
-    </div>
-  );
-}

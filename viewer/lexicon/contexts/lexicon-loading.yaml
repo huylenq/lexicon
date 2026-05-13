@@ -1,15 +1,35 @@
-schemaVersion: "0.1"
+schemaVersion: "0.2"
 kind: bounded-context
 id: lexicon-loading
 name: Lexicon loading
 purpose: |
   Read a lexicon-conform project's YAML files from disk, validate them against
-  schema v0.1 with zod, resolve typed cross-references between entities, and
-  produce a `ResolvedGraph` the client can render. Surfaces load issues
+  schema v0.1/v0.2 with zod, resolve typed cross-references between entities,
+  and produce a `ResolvedGraph` the client can render. Surfaces load issues
   (parse errors, schema errors, dangling refs) without failing the whole load.
-modules:
-  - server/schema.ts
-  - server/loader.ts
+
+narrative: |
+  The loader runs in four passes. First it walks `lexicon/`, reads every YAML
+  file, parses with `yaml`, and validates against `lexiconFile` (the zod
+  union). Any single-file failure becomes a [[load-issue]]; the loader never
+  throws ([[loader-never-throws]]). Second, it registers every entity as a
+  [[resolved-entity]] keyed by [[fqid]] — duplicates raise an error issue and
+  the second registration is dropped ([[fqid-unique]]).
+
+  The third pass is [[ref-resolution]]: slug-form refs in YAML (a term's
+  `disambiguatesFrom`, an ADR's `affects`, omission `relatedAtoms`) are looked
+  up against the registered map with owner-scoped fallbacks first, then common
+  shorthands. Unresolved refs become warnings ([[ref-resolution-is-warning]]).
+  The fourth pass scans every prose-bearing field for `[[fqid]]` inline links
+  and runs the same resolver — a dangling prose link is the same severity as
+  a dangling structured ref.
+
+  An [[mtime-cache]] short-circuits the whole pipeline on unchanged files;
+  `?refresh=1` clears every project's cache ([[cache-invalidates-on-refresh]])
+  so the user's "Refresh" button is a strong signal that means *re-read from
+  disk*. The viewer is a triage surface as much as a reader — every issue
+  rides along on `ResolvedGraph.issues` so the user can fix their YAML
+  in-place rather than chase parse errors.
 
 terms:
   - id: resolved-graph

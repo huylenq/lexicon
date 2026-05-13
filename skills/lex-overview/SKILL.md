@@ -69,14 +69,25 @@ Partitions are non-breaking: adding one later, or absorbing one back into `syste
 
 ## Schema specification
 
-The cold-layer schema is v0.1. Every YAML file declares `schemaVersion: "0.1"` at the top.
+The cold-layer schema is v0.2 (additive over v0.1). Every YAML file declares `schemaVersion:` at the top — either `"0.1"` or `"0.2"`. The loader accepts both; the v0.2 additions are all optional fields, so a v0.1 file remains valid. New work should emit `"0.2"`.
+
+### What v0.2 adds over v0.1
+
+The big shape stays the same — kinds, atoms, refs, anchors. v0.2 adds the **connective tissue** that v0.1 systematically lost when it atomized the old markdown `system.md` into typed records:
+
+- **`narrative`** — optional prose field on `system`, `bounded-context`, and `decision`. Carries the throughline above the atom layout: the lifecycle, the disambiguation argument, the why-this-decision-touched-those-invariants story. Typically 3–5 paragraphs. *Atoms keep their crisp definitions; narrative is the layer above them.*
+- **`overlays`** on `system` — first-class slot for the platform-vs-installation overlay. Promotes the informal `battery:` block some projects smuggled in pre-v0.2 (a platform is domain-agnostic, but this particular installation adds a medical / legal / retail set of components, resources, and invariants). One overlay = `{id, name, description?, items?, invariants?}`. Backend-only / single-installation projects skip the field entirely, same as `surfaces/`.
+- **Enriched `deliberateOmissions`** — each entry may now carry `triggers: [<string>]` ("revisit when X happens") and `relatedAtoms: [<fqRef>]` (the atoms the omission gestures at, e.g. a `term/macro` whose only purpose is to mark the absent-but-named concept). The flat `{topic, reason}` shape from v0.1 remains valid.
+- **`[[fqid]]` inline links in any prose-bearing field**. Form: `[[fqid]]` or `[[fqid|display label]]`. The fqid resolves with the same fallback chain as structured refs (owner-scoped first, then common shorthands, then qualified split). Dangling links surface as warning `LoadIssue`s — same severity as a dangling `disambiguatesFrom`. **Authoring rule:** when prose in a narrative or rationale names another atom, use `[[fqid]]` so the link graph stays machine-traversable. Reserve plain backticks for code identifiers, not entity references.
+
+The v0.2 additions are not a rewrite — they fill specific gaps v0.1 had. A project that doesn't need narrative (single-context CLI tool, ~10 atoms total) doesn't add it. A project that doesn't have a battery dimension (most do not) leaves `overlays` empty.
 
 ### Shared rules
 
 - **IDs are slugs** (`^[a-z0-9][a-z0-9-]*$`). Scoped within their bounded context (relative); a slug must be unique within its owner file. Across contexts the canonical form is `<context-slug>/<entity-slug>` (fully qualified).
 - **Names are display strings**, mutable. Rename by changing `name`; never change the slug to "fix" a name — that breaks references. If the slug genuinely no longer fits, that's a deliberate `lex-crystallize` operation (rename → cascade).
-- **Refs** in fields like `disambiguatesFrom`, `affects`, `supersedes`, `contexts` may be written as a short slug when unambiguous in context, or as `<context-slug>/<entity-slug>` when qualification is needed. Resolvers try both.
-- **Prose-bearing fields** (`definition`, `statement`, `rationale`, `body`, `purpose`, `role`, `context`, `decision`, `consequences`, `alternatives`) carry the human voice. The schema names the slot; it doesn't constrain the content. Multi-line YAML literals (`|` or `>`) are normal.
+- **Refs** in fields like `disambiguatesFrom`, `affects`, `supersedes`, `contexts`, `relatedAtoms` may be written as a short slug when unambiguous in context, or as `<context-slug>/<entity-slug>` when qualification is needed. Resolvers try both.
+- **Prose-bearing fields** (`definition`, `statement`, `rationale`, `body`, `purpose`, `narrative`, `role`, `context`, `decision`, `consequences`, `alternatives`, the `reason` on a deliberate omission, the `description` on an overlay) carry the human voice. The schema names the slot; it doesn't constrain the content. Multi-line YAML literals (`|` or `>`) are normal. Any prose field may carry `[[fqid]]` interlinks.
 - **`status: deprecated`** is the soft-delete. Hard delete is allowed when the entity is mistakenly created; git is the audit trail.
 
 ### File kinds
@@ -92,12 +103,17 @@ The cold-layer schema is v0.1. Every YAML file declares `schemaVersion: "0.1"` a
 
 ```yaml
 # system.yaml
-schemaVersion: "0.1"
+schemaVersion: "0.2"
 kind: system
 id: <project-slug>
 name: <Project name>
 purpose: |
-  One paragraph: what this system does, for whom.
+  One paragraph: what this system does, for whom. Stays as a teaser even
+  when `narrative` is present.
+narrative: |                    # optional, v0.2 — the throughline
+  Multi-paragraph prose tying the contexts and cross-cutting atoms into
+  a story. Use `[[fqid]]` interlinks: `[[context/foo]]`, `[[term/bar]]`,
+  `[[decision/ADR-0001]]`, `[[some-cross-cutting-term]]`.
 contexts:                       # list of <context-slug>s (or context/<slug>)
   - <slug>
 crossCuttingTerms:              # terms that span ≥3 contexts
@@ -118,20 +134,40 @@ crossCuttingInvariants:
       ...
     rationale: |
       ...
+overlays:                       # optional, v0.2 — installation-specific tier
+  - id: <slug>                  # e.g. medical-battery, retail-battery
+    name: <Display>
+    description: |              # may carry [[fqid]] interlinks
+      Why this overlay exists; what swapping it out would and wouldn't change.
+    items:                      # optional free-form bulleted list
+      - <string>
+    invariants:                 # optional, scoped to this overlay
+      - statement: |
+          ...
+        rationale: |
+          ...
 deliberateOmissions:
   - topic: <Short>
     reason: |
-      ...
+      Why this is omitted, with optional [[fqid]] interlinks.
+    triggers:                   # optional v0.2 — what would prompt a revisit
+      - <Short, concrete signal>
+    relatedAtoms:               # optional v0.2 — atoms this gestures at
+      - <fqRef>
 ```
 
 ```yaml
 # contexts/<slug>.yaml
-schemaVersion: "0.1"
+schemaVersion: "0.2"
 kind: bounded-context
 id: <slug>                      # must match filename slug
 name: <Display>
 purpose: |
-  ...
+  One-paragraph framing — stays as a teaser even when `narrative` is present.
+narrative: |                    # optional, v0.2 — the local lifecycle / flow
+  Multi-paragraph prose walking the context's atoms in story order. Use
+  `[[fqid]]` interlinks; owner-scoped lookups resolve sibling slugs without
+  qualification — `[[seam/foo]]` finds the seam in this same context.
 modules:                        # optional: code globs/paths this context owns
   - src/<module>/**
 terms:
@@ -166,7 +202,7 @@ boundaryRules:
 
 ```yaml
 # decisions/ADR-<NNNN>-<slug>.yaml
-schemaVersion: "0.1"
+schemaVersion: "0.2"
 kind: decision
 id: ADR-<NNNN>
 title: <Short title>
@@ -175,6 +211,10 @@ status: proposed|accepted|superseded
 supersedes: [ADR-<MMMM>, ...]   # optional
 supersededBy: ADR-<MMMM>        # optional, set when later ADR supersedes this one
 affects: [<ref>, ...]           # optional: terms/invariants/contexts touched
+narrative: |                    # optional, v0.2 — the why-this-touched-those story
+  Use when the argument spans atoms the structured slots fragment: an ADR
+  whose `affects` list contains an invariant + a seam + a term all forming
+  one continuous argument. Use `[[fqid]]` to weave them.
 context: |
   ...
 decision: |
@@ -187,7 +227,7 @@ alternatives: |
 
 ```yaml
 # surfaces/<slug>.yaml
-schemaVersion: "0.1"
+schemaVersion: "0.2"
 kind: surface
 id: <slug>
 name: <Display>
@@ -242,7 +282,7 @@ This is a rendering convention, not a parser rule — the schema accepts any str
 - **`lex-retro`** — Runs at every natural stopping point. Writes a log to `lexicon/retros/<timestamp>.md`, with structural-drift flags inline. Trigger: completion signals like "looks good", "we're done", tests pass and user moves on. *Retros remain markdown for now; structured retros are a future evolution.*
 - **`lex-crystallize`** — **User-triggered.** Runs when the user explicitly asks to update the cold layer ("crystallize", "update lexicon", "absorb the retros", "feature X is done"). Reads retros since the last crystallization, cross-checks against git diff, proposes a typed mutation set (creates / updates / renames / deprecations) over the YAML files **inline in conversation**, and applies on user approval. Updates `lexicon/.last-crystallized`.
 - **`lex-audit`** — Runs periodically (quarterly, on demand, or before planning sessions). Re-validates the cold-layer YAML against current code to catch backward-flow drift — stale glossary, dead invariants, undeclared contexts, hygiene rot, dangling refs. Writes a triage report to `lexicon/audits/audit-<iso>.md`; never edits cold-layer YAML directly. Trigger: "audit lexicon", "sanity-check the docs", "is the cold layer still accurate?".
-- **`lex-migrate`** — One-shot. Converts a v0.x markdown lexicon (`system.md`, `views/*.md`, `decisions/*.md`) into v0.1 YAML files. Trigger: "migrate lexicon", "convert lexicon to YAML", or `lex-ground` / `lex-bootstrap` detecting a markdown lexicon on a project that should be on YAML.
+- **`lex-migrate`** — Schema-and-structure migration. Two modes: **(A)** converts a v0.x markdown lexicon (`system.md`, `views/*.md`, `decisions/*.md`) into v0.1 YAML files; **(B)** brings a v0.1 YAML lexicon up to v0.2 conformance — lifts informal `battery:` blocks into `overlays`, formalizes `[[fqid]]` inline links (and pre-formal patterns like `(→ slug)`), drafts `narrative` at scopes that warrant it, enriches `deliberateOmissions` with `triggers`/`relatedAtoms`. Triggers: "migrate lexicon", "convert lexicon to YAML", "upgrade lexicon to v0.2", "lexicon doesn't have narrative / overlays / inline links", or `lex-ground`/`lex-bootstrap`/`lex-audit` detecting structural violations.
 - **`lex-meta`** — **User-triggered.** Runs when the user invokes `/lex-meta [optional prompt]` after correcting something a lexicon skill produced. This is the self-evolve channel for the skill bundle itself: takes the conversation (primary signal) and the project's `lexicon/` diff (corroborating), interviews to disambiguate, then amends the responsible `~/src/lexicon/skills/<skill>/SKILL.md`. Cross-repo write; leaves the bundle repo uncommitted so accumulated edits stay visible until you deliberately push.
 
 ### Forward-flow vs backward-flow drift

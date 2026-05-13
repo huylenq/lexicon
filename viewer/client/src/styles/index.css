@@ -220,4 +220,267 @@
 
   /* Kept as a no-op so legacy markup (`<div className="... grain">`) doesn't break. */
   .grain {}
+
+  /* ────────────────────────────────────────────────────────────────────────
+     SPECIMEN SLAB — YAML source inspector
+     ────────────────────────────────────────────────────────────────────────
+     The slab is a precision-cut inspection panel that opens alongside the
+     entity reading view. Visually: drafting-table chrome, blueprint editor
+     surface, with a sibling-atom rail running down the left edge.        */
+
+  .slab {
+    background: var(--color-paper);
+    border-left: 1px solid var(--color-rule);
+    position: relative;
+  }
+  .slab::before {
+    /* Faint vertical hairline tying the slab to the page chrome — a single
+       extra rule, 1px inside the border, evoking a print-binding edge. */
+    content: "";
+    position: absolute;
+    left: 5px; top: 0; bottom: 0;
+    width: 1px;
+    background: var(--color-rule);
+    opacity: 0.6;
+    pointer-events: none;
+  }
+
+  .slab-strip {
+    background: linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--color-paper-3) 70%, transparent),
+      var(--color-paper-2)
+    );
+    border-bottom: 1px solid var(--color-rule);
+    position: relative;
+  }
+  .slab-strip::before {
+    /* The leading vertical "binding tape" — a 2px mark-coloured stripe at
+       the slab's left edge, signaling "this surface is annotated, not for
+       editing." */
+    content: "";
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: var(--color-mark);
+  }
+
+  .slab-tag {
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--color-paper);
+    background: var(--color-mark);
+    padding: 2px 6px 1px;
+    line-height: 1;
+    display: inline-block;
+  }
+
+  .slab-line-chip {
+    font-size: 0.6875rem;
+    letter-spacing: 0.06em;
+    color: var(--color-fg);
+    background: var(--color-paper);
+    border: 1px solid var(--color-fg);
+    padding: 2px 8px 1px;
+    line-height: 1.2;
+    white-space: nowrap;
+    box-shadow: 2px 2px 0 var(--color-fg);
+  }
+
+  .slab-x {
+    color: var(--color-fg-3);
+    width: 22px; height: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--color-rule);
+    background: transparent;
+    transition: all 120ms ease;
+  }
+  .slab-x:hover {
+    color: var(--color-paper);
+    background: var(--color-fg);
+    border-color: var(--color-fg);
+  }
+
+  .slab-crumb {
+    background: var(--color-paper);
+    border-bottom: 1px solid var(--color-rule);
+  }
+
+  /* The atom rail — vertical sibling navigator on the left edge.            */
+  .slab-rail {
+    width: 28px;
+    background: var(--color-paper-2);
+    border-right: 1px solid var(--color-rule);
+    position: relative;
+    overflow: visible;
+    flex-shrink: 0;
+  }
+  .slab-rail-center {
+    position: absolute;
+    left: 13px; right: auto;
+    top: 0; bottom: 0;
+    width: 1px;
+    background: var(--color-rule);
+    pointer-events: none;
+  }
+
+  .slab-tick {
+    position: absolute;
+    left: 9px;
+    width: 10px;
+    border: 1px solid var(--color-fg-3);
+    background: var(--color-paper);
+    cursor: pointer;
+    padding: 0;
+    transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
+  }
+  .slab-tick:hover {
+    background: var(--color-highlight);
+    border-color: var(--color-fg);
+    transform: scaleX(1.6);
+  }
+  .slab-tick--active {
+    background: var(--color-mark);
+    border-color: var(--color-mark-2);
+    box-shadow: -3px 0 0 var(--color-mark-2);
+  }
+  .slab-tick--active::after {
+    content: "";
+    position: absolute;
+    right: -16px;
+    top: 50%;
+    width: 12px;
+    height: 1px;
+    background: var(--color-mark);
+    transform: translateY(-50%);
+  }
+
+  .slab-tip {
+    position: absolute;
+    left: calc(100% + 12px);
+    z-index: 50;
+    width: 240px;
+    background: var(--color-paper);
+    border: 1px solid var(--color-fg);
+    padding: 10px 12px 10px;
+    box-shadow: 4px 4px 0 var(--color-fg);
+    pointer-events: none;
+  }
+  .slab-tip::before {
+    /* A small triangle pointing back at the tick. */
+    content: "";
+    position: absolute;
+    left: -7px;
+    top: 14px;
+    width: 0; height: 0;
+    border-top: 6px solid transparent;
+    border-bottom: 6px solid transparent;
+    border-right: 7px solid var(--color-fg);
+  }
+
+  /* Editor decorations — spotlight + dim                                    */
+  .slab-dim-line {
+    opacity: 0.22;
+    filter: saturate(0.4);
+  }
+  .slab-spotlight-line {
+    background: color-mix(in srgb, var(--color-highlight) 13%, transparent);
+    box-shadow: inset 2px 0 0 var(--color-mark);
+  }
+  .slab-spotlight-gutter {
+    background: var(--color-mark);
+    width: 3px !important;
+    margin-left: 2px;
+  }
+
+  /* Bottom toolbar                                                          */
+  .slab-foot {
+    background: var(--color-paper-2);
+    border-top: 1px solid var(--color-rule);
+  }
+  .slab-tool {
+    font-size: 0.625rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--color-fg-3);
+    padding: 4px 8px;
+    background: transparent;
+    border: 0;
+    transition: color 120ms ease, background 120ms ease;
+    cursor: pointer;
+  }
+  .slab-tool:hover {
+    color: var(--color-fg);
+    background: var(--color-paper);
+  }
+  .slab-tool--active {
+    color: var(--color-mark);
+  }
+  .slab-tool--active:hover {
+    color: var(--color-mark-2);
+  }
+  .slab-tool-div {
+    width: 1px;
+    align-self: stretch;
+    background: var(--color-rule);
+    margin: 0 2px;
+  }
+
+  /* ────────────────────────────────────────────────────────────────────────
+     INSPECTOR TAB — the affordance on the right edge of EntityDetail that
+     opens the slab. Designed to read as a "drawer pull" — a small vertical
+     tab in mono, with a chinagraph-amber accent and an L-range chip when
+     the entity's source range is known.
+     ──────────────────────────────────────────────────────────────────── */
+  .inspector-pull {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    background: var(--color-paper-2);
+    border: 1px solid var(--color-rule);
+    color: var(--color-fg);
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    line-height: 1;
+    cursor: pointer;
+    transition: all 140ms ease;
+    position: relative;
+  }
+  .inspector-pull::before {
+    /* Leading amber pip — drafting-marker dot. */
+    content: "";
+    width: 6px; height: 6px;
+    background: var(--color-highlight);
+    border-radius: 50%;
+    box-shadow: 0 0 0 1px var(--color-fg-3);
+  }
+  .inspector-pull:hover {
+    background: var(--color-paper-3);
+    border-color: var(--color-fg);
+  }
+  .inspector-pull[data-active="true"] {
+    background: var(--color-fg);
+    color: var(--color-paper);
+    border-color: var(--color-fg);
+  }
+  .inspector-pull[data-active="true"]::before {
+    background: var(--color-mark);
+    box-shadow: 0 0 0 1px var(--color-paper);
+  }
+  .inspector-pull-range {
+    font-size: 0.6875rem;
+    letter-spacing: 0.04em;
+    color: var(--color-fg-3);
+    text-transform: none;
+  }
+  .inspector-pull[data-active="true"] .inspector-pull-range {
+    color: color-mix(in srgb, var(--color-paper) 70%, transparent);
+  }
 }

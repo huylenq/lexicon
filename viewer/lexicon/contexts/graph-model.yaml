@@ -1,4 +1,4 @@
-schemaVersion: "0.1"
+schemaVersion: "0.2"
 kind: bounded-context
 id: graph-model
 name: Graph model
@@ -8,11 +8,29 @@ purpose: |
   layout, then render as custom SVG. Three lenses (ownership / decisions /
   surfaces) plus per-lens edge styling, kind filters, context filters, and
   several routing modes for noisy `affects` edges.
-modules:
-  - client/src/lib/graph/build-graph.ts
-  - client/src/lib/graph/layout.ts
-  - client/src/pages/GraphPage.tsx
-  - client/src/components/graph/*
+
+narrative: |
+  Three steps and the user sees a diagram. First, `buildModel(graph, lens,
+  opts)` projects [[lexicon-loading/resolved-graph]] into a flat list of
+  [[graph-node]]s and [[graph-edge]]s — the [[lens]] decides which entities
+  become nodes and which relationships become edges. Containers
+  (bounded-contexts in the ownership lens, surfaces in the surfaces lens) plus
+  synthetic [[cluster-node]]s for cross-cutting terms and ADRs handle the
+  compound-graph nesting. The set of lenses is closed at the type level
+  ([[lens-set-closed]]).
+
+  Second, ELK lays it out — given the same model and options, the same
+  positions come out every time ([[layout-deterministic]]). Filter toggles
+  rebuild the model and re-run layout rather than fading nodes in place
+  ([[filter-relayout]]): the editorial choice is "the diagram reshapes,"
+  not "things slide around." The `affects` edges fan out from ADRs and need
+  special handling — [[affects-routing]] picks bundle / elbow / astar /
+  straight at the user's call.
+
+  Third, a custom SVG component renders the [[layout-result]] with the
+  [[editorial-aesthetic]]. Nothing graph-specific lives on the server: the
+  graph view consumes the same `LexiconResponse` the reading room does
+  ([[resolved-graph-to-model]]).
 
 terms:
   - id: lens
@@ -130,7 +148,8 @@ invariants:
       Determinism is what lets filter toggles "reshape the diagram" rather
       than "animate to a new state" — reproducibility comes for free, and the
       user never has to fight a layout they didn't choose. Adding free-form
-      drag-to-reposition would break this invariant; see PATH-B non-goals.
+      drag-to-reposition would break this invariant; see
+      `plans/graph-view/spec.md` non-goals.
     validationMode: principle
 
   - id: filter-relayout

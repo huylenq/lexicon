@@ -24,18 +24,55 @@ export interface CodeAnchor {
   symbol?: string;
 }
 
+export interface OverlayInvariant {
+  statement: string;
+  rationale?: string;
+}
+
+export interface Overlay {
+  id: string;
+  name: string;
+  description?: string;
+  items?: string[];
+  invariants?: OverlayInvariant[];
+}
+
+export interface DeliberateOmission {
+  topic: string;
+  reason: string;
+  triggers?: string[];
+  relatedAtoms?: EntityRef[];
+}
+
 export type RegionImpl =
   | { kind: "component"; import: string; file?: string }
   | { kind: "inline"; file: string; lineStart: number; lineEnd: number };
 
+export interface SourceLocation {
+  file: string;
+  lineStart: number;
+  lineEnd: number;
+  path: string;
+}
+
+export interface YamlSibling {
+  fqid: string;
+  kind: EntityKind;
+  name: string;
+  lineStart: number;
+  lineEnd: number;
+  path: string;
+}
+
 export interface ResolvedEntity {
   ref: EntityRef;
   ownerContextId: string | null;
-  source: { file: string };
+  source: SourceLocation;
   definition?: string;
   statement?: string;
   rationale?: string;
   body?: string;
+  narrative?: string;
   validationMode?: "code" | "linter" | "principle";
   symbols?: CodeAnchor[];
   constrainsCode?: CodeAnchor[];
@@ -63,7 +100,8 @@ export interface ResolvedEntity {
   contexts?: EntityRef[];
   crossCuttingTerms?: EntityRef[];
   crossCuttingInvariants?: EntityRef[];
-  deliberateOmissions?: { topic: string; reason: string }[];
+  deliberateOmissions?: DeliberateOmission[];
+  overlays?: Overlay[];
   title?: string;
 }
 

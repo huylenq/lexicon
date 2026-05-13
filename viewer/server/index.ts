@@ -49,6 +49,30 @@ app.get("/api/projects/:id/lexicon", async c => {
   return c.json({ project: p, graph });
 });
 
+// List the atoms (with line ranges) contained in a YAML file. Backs the
+// Specimen Slab's atom rail — a navigator that lets the user jump between
+// every atom in a file without leaving the inspector.
+app.get("/api/projects/:id/yaml-siblings", async c => {
+  const id = Number(c.req.param("id"));
+  const p = projects.get(id);
+  if (!p) return c.json({ error: "not found" }, 404);
+  const reqPath = c.req.query("path");
+  if (!reqPath) return c.json({ error: "path required" }, 400);
+  const graph = await loadLexicon(p.root_path);
+  const siblings = Object.values(graph.entities)
+    .filter(e => e.source.file === reqPath)
+    .map(e => ({
+      fqid: e.ref.fqid,
+      kind: e.ref.kind,
+      name: e.ref.name,
+      lineStart: e.source.lineStart,
+      lineEnd: e.source.lineEnd,
+      path: e.source.path,
+    }))
+    .sort((a, b) => a.lineStart - b.lineStart);
+  return c.json({ file: reqPath, siblings });
+});
+
 // Read a file inside project root for Monaco peek.
 // Clamps the resolved path to the project root to avoid escape.
 app.get("/api/projects/:id/file", async c => {

@@ -1,4 +1,4 @@
-schemaVersion: "0.1"
+schemaVersion: "0.2"
 kind: bounded-context
 id: design-system
 name: Design system
@@ -9,13 +9,30 @@ purpose: |
   `CodeAnchorBadge`, `PeekDrawer`, `Marginalia`). Owns the editorial-meets-
   blueprint aesthetic; surfaces consume from this context rather than declaring
   their own colors / fonts / shapes.
-modules:
-  - client/src/styles/index.css
-  - client/src/components/RefLink.tsx
-  - client/src/components/InlineCode.tsx
-  - client/src/components/CodeAnchorBadge.tsx
-  - client/src/components/PeekDrawer.tsx
-  - client/src/components/Marginalia.tsx
+
+narrative: |
+  Tokens, primitives, theme — in that order. The [[design-tokens]] are the
+  single canonical source for color, typography, and geometry; raw hex
+  literals outside `styles/index.css` are vocabulary drift
+  ([[tokens-are-source-of-color]]). Every surface consumes via Tailwind
+  utilities or `var(--color-…)`; the palette is small and load-bearing.
+
+  Above the tokens sit a small family of primitives every surface uses:
+  [[ref-link]] for entity references, [[inline-code]] for backtick-spanning
+  names, [[code-anchor-badge]] as the *only* entry point that opens a peek,
+  [[peek-drawer]] as the Monaco host, [[marginalia]] for the right-rail
+  metadata layout. Bypassing them (raw `<a>`, hand-rolled span splits, direct
+  `usePeek` calls) re-implements the affordance and loses visual consistency
+  ([[primitives-not-raw-html]]).
+
+  The [[lexicon-ink-theme]] is the Monaco theme defined once in
+  `PeekDrawer.tsx`: vs-dark base, vellum on ink-2, oxide-tinted line
+  decoration. Every peek inherits it. A single `PeekProvider` wraps every
+  project surface ([[peek-persists-across-surfaces]]) — switching
+  [[surface/reading-room]] ↔ [[surface/graph-view]] never closes peeks or
+  drops scroll position.
+  The Light Table moment is the affordance the drawer carries; resetting on a
+  toggle would defeat the point.
 
 terms:
   - id: design-tokens
@@ -92,8 +109,9 @@ terms:
     definition: |
       The Monaco editor theme defined once in `PeekDrawer.tsx`'s `defineTheme`:
       vs-dark base, vellum text on ink-2 background, oxide-tinted line
-      decoration. Applied to every peek. PATH-F notes a planned extraction
-      into `lib/monaco-theme.ts` so HistoryTimeline can share it.
+      decoration. Applied to every peek. `plans/git-history/spec.md` notes a
+      planned extraction into `lib/monaco-theme.ts` so HistoryTimeline can
+      share it.
     symbols:
       - file: client/src/components/PeekDrawer.tsx
         symbol: defineTheme
@@ -124,9 +142,9 @@ invariants:
     rationale: |
       The Light Table moment — "everything is at your fingertips" — is the
       core affordance the peek drawer carries; losing peeks on a view
-      toggle would defeat the purpose. PATH-B is explicit about this; any
-      future surface added under `/p/:id/...` must mount inside the existing
-      provider, not its own.
+      toggle would defeat the purpose. `plans/graph-view/spec.md` is explicit
+      about this; any future surface added under `/p/:id/...` must mount
+      inside the existing provider, not its own.
     validationMode: principle
     constrainsCode:
       - file: client/src/pages/ProjectPage.tsx

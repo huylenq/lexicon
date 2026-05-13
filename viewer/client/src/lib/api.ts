@@ -1,4 +1,4 @@
-import type { LexiconResponse, Project } from "./types";
+import type { LexiconResponse, Project, YamlSibling } from "./types";
 
 async function j<T>(res: Response): Promise<T> {
   if (!res.ok) {
@@ -22,4 +22,8 @@ export const api = {
     fetch(`/api/projects/${id}/lexicon${refresh ? "?refresh=1" : ""}`).then(j<LexiconResponse>),
   fetchFile: (id: number, path: string) =>
     fetch(`/api/projects/${id}/file?path=${encodeURIComponent(path)}`).then(j<{ path: string; text: string }>),
+  fetchYamlSiblings: (id: number, path: string) =>
+    fetch(`/api/projects/${id}/yaml-siblings?path=${encodeURIComponent(path)}`).then(
+      j<{ file: string; siblings: YamlSibling[] }>,
+    ),
 };

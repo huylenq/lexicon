@@ -1,6 +1,13 @@
 import { readdir, readFile, stat } from "node:fs/promises";
 import { join, relative } from "node:path";
-import { parse as parseYaml } from "yaml";
+import {
+  parse as parseYaml,
+  parseDocument,
+  isMap,
+  isSeq,
+  isScalar,
+  LineCounter,
+} from "yaml";
 import {
   lexiconFile,
   type LexiconFile,
@@ -10,7 +17,11 @@ import {
   type EntityKind,
   type LoadIssue,
   type CodeAnchor,
+  type DeliberateOmission,
+  type Overlay,
+  type SourceLocation,
 } from "./schema.ts";
+import { parseProseLinks, resolveFqid } from "./prose-links.ts";
 
 const cache = new Map<string, { mtime: number; graph: ResolvedGraph }>();
 
@@ -45,7 +56,7 @@ export async function loadLexicon(projectRoot: string): Promise<ResolvedGraph> {
     ),
   );
 
-  const parsed: { file: string; data: LexiconFile }[] = [];
+  const parsed: { file: string; data: LexiconFile; ranges: FileRanges }[] = [];
   for (const { file, text, error } of reads) {
     if (error) {
       issues.push({ file, message: `read failed: ${error.message}`, severity: "error" });
@@ -67,7 +78,8 @@ export async function loadLexicon(projectRoot: string): Promise<ResolvedGraph> {
       });
       continue;
     }
-    parsed.push({ file, data: result.data });
+    const ranges = computeFileRanges(text);
+    parsed.push({ file, data: result.data, ranges });
   }
 
   const graph = resolve(parsed, projectRoot, issues);
@@ -102,8 +114,103 @@ function emptyByKind(): Record<EntityKind, string[]> {
   };
 }
 
+// -----------------------------------------------------------------------------
+// Line-range extraction for the Specimen Slab (YAML source inspector).
+//
+// We parse the file twice: once via `parseYaml` for the resolved JS data
+// (zod-validated above), and once via `parseDocument` here, with a
+// LineCounter, so we can compute exact 1-indexed line ranges per atom.
+// Keyed by the seq-key under the doc root ("terms", "invariants", "seams",
+// "boundaryRules", "regions", "crossCuttingTerms", "crossCuttingInvariants",
+// "overlays", "deliberateOmissions") and then by atom id (or `topic` for
+// omissions).
+// -----------------------------------------------------------------------------
+
+type Range = { lineStart: number; lineEnd: number; path: string };
+export interface FileRanges {
+  root: Range;
+  totalLines: number;
+  byKey: Record<string, Record<string, Range>>;
+}
+
+const CHILD_KEYS = [
+  "terms",
+  "invariants",
+  "seams",
+  "boundaryRules",
+  "regions",
+  "crossCuttingTerms",
+  "crossCuttingInvariants",
+  "overlays",
+  "deliberateOmissions",
+] as const;
+
+function computeFileRanges(text: string): FileRanges {
+  const totalLines = text.split("\n").length;
+  const fallback: Range = { lineStart: 1, lineEnd: totalLines, path: "" };
+  const lc = new LineCounter();
+  let doc;
+  try {
+    doc = parseDocument(text, { lineCounter: lc });
+  } catch {
+    return { root: fallback, totalLines, byKey: {} };
+  }
+
+  // 1-indexed line for a byte offset, with safe fallback.
+  const lineAt = (offset: number | undefined | null): number => {
+    if (offset == null) return 1;
+    const p = lc.linePos(offset);
+    return p.line || 1;
+  };
+
+  const out: FileRanges = { root: fallback, totalLines, byKey: {} };
+  const root = doc.contents;
+  if (!root || !isMap(root)) return out;
+
+  if (root.range) {
+    out.root = {
+      lineStart: lineAt(root.range[0]),
+      lineEnd: lineAt(root.range[2]),
+      path: "",
+    };
+  }
+
+  for (const key of CHILD_KEYS) {
+    const seq = root.get(key, true);
+    if (!seq || !isSeq(seq)) continue;
+    const byId: Record<string, Range> = {};
+    seq.items.forEach((item, idx) => {
+      if (!isMap(item)) return;
+      const idNode = item.get("id", true);
+      const topicNode = item.get("topic", true);
+      const idValue = isScalar(idNode)
+        ? String(idNode.value)
+        : isScalar(topicNode)
+          ? String(topicNode.value)
+          : null;
+      if (!idValue) return;
+      const r = item.range;
+      if (!r) return;
+      byId[idValue] = {
+        lineStart: lineAt(r[0]),
+        lineEnd: lineAt(r[2]),
+        path: `${key}[${idx}]`,
+      };
+    });
+    if (Object.keys(byId).length > 0) out.byKey[key] = byId;
+  }
+
+  return out;
+}
+
+// Build a SourceLocation, falling back to file-only if ranges weren't found.
+function loc(file: string, range: Range | undefined | null, totalLines: number): SourceLocation {
+  if (!range) return { file, lineStart: 1, lineEnd: totalLines, path: "" };
+  return { file, lineStart: range.lineStart, lineEnd: range.lineEnd, path: range.path };
+}
+
 function resolve(
-  files: { file: string; data: LexiconFile }[],
+  files: { file: string; data: LexiconFile; ranges: FileRanges }[],
   projectRoot: string,
   issues: LoadIssue[],
 ): ResolvedGraph {
@@ -122,16 +229,27 @@ function resolve(
   };
 
   // first pass: register all entities (so refs resolve)
-  for (const { file, data } of files) {
+  for (const { file, data, ranges } of files) {
     const relFile = relative(projectRoot, file);
+    const rootLoc = loc(relFile, ranges.root, ranges.totalLines);
+    const childLoc = (key: string, id: string): SourceLocation =>
+      loc(relFile, ranges.byKey[key]?.[id], ranges.totalLines);
+
     if (data.kind === "system") {
       const e: ResolvedEntity = {
         ref: ref("system", `system/${data.id}`, data.name),
         ownerContextId: null,
-        source: { file: relFile },
+        source: rootLoc,
         purpose: data.purpose,
+        narrative: data.narrative,
         body: data.body,
-        deliberateOmissions: data.deliberateOmissions,
+        // relatedAtoms on each omission is resolved in the second pass.
+        deliberateOmissions: (data.deliberateOmissions ?? []).map(o => ({
+          topic: o.topic,
+          reason: o.reason,
+          triggers: o.triggers,
+        })) as DeliberateOmission[],
+        overlays: (data.overlays ?? []) as Overlay[],
       };
       register(e);
       system = e;
@@ -140,7 +258,7 @@ function resolve(
         register({
           ref: ref("term", `term/${t.id}`, t.name),
           ownerContextId: null,
-          source: { file: relFile },
+          source: childLoc("crossCuttingTerms", t.id),
           definition: t.definition,
           symbols: t.symbols,
         });
@@ -149,7 +267,7 @@ function resolve(
         register({
           ref: ref("invariant", `invariant/${inv.id}`, inv.name),
           ownerContextId: null,
-          source: { file: relFile },
+          source: childLoc("crossCuttingInvariants", inv.id),
           statement: inv.statement,
           rationale: inv.rationale,
         });
@@ -158,8 +276,9 @@ function resolve(
       register({
         ref: ref("bounded-context", `context/${data.id}`, data.name),
         ownerContextId: data.id,
-        source: { file: relFile },
+        source: rootLoc,
         purpose: data.purpose,
+        narrative: data.narrative,
         body: data.body,
         modules: data.modules,
       });
@@ -167,7 +286,7 @@ function resolve(
         register({
           ref: ref("term", `${data.id}/${t.id}`, t.name),
           ownerContextId: data.id,
-          source: { file: relFile },
+          source: childLoc("terms", t.id),
           definition: t.definition,
           body: t.body,
           symbols: t.symbols,
@@ -177,7 +296,7 @@ function resolve(
         register({
           ref: ref("invariant", `${data.id}/invariant/${inv.id}`, inv.name),
           ownerContextId: data.id,
-          source: { file: relFile },
+          source: childLoc("invariants", inv.id),
           statement: inv.statement,
           rationale: inv.rationale,
           validationMode: inv.validationMode,
@@ -189,7 +308,7 @@ function resolve(
         register({
           ref: ref("seam", `${data.id}/seam/${s.id}`, s.name),
           ownerContextId: data.id,
-          source: { file: relFile },
+          source: childLoc("seams", s.id),
           definition: s.description,
         });
       }
@@ -197,7 +316,7 @@ function resolve(
         register({
           ref: ref("boundary-rule", `${data.id}/rule/${r.id}`, r.rule),
           ownerContextId: data.id,
-          source: { file: relFile },
+          source: childLoc("boundaryRules", r.id),
           statement: r.rule,
         });
       }
@@ -205,10 +324,11 @@ function resolve(
       register({
         ref: ref("decision", `decision/${data.id}`, data.title),
         ownerContextId: null,
-        source: { file: relFile },
+        source: rootLoc,
         title: data.title,
         date: data.date,
         status: data.status,
+        narrative: data.narrative,
         context: data.context,
         decision: data.decision,
         consequences: data.consequences,
@@ -219,7 +339,7 @@ function resolve(
       register({
         ref: ref("surface", surfFqid, data.name),
         ownerContextId: null,
-        source: { file: relFile },
+        source: rootLoc,
         route: data.route,
         body: data.body,
       });
@@ -227,7 +347,7 @@ function resolve(
         register({
           ref: ref("region", `${surfFqid}/${r.id}`, r.name),
           ownerContextId: null,
-          source: { file: relFile },
+          source: childLoc("regions", r.id),
           role: r.role,
           implementation: r.implementation,
           surfaceId: data.id,
@@ -236,48 +356,22 @@ function resolve(
     }
   }
 
-  // second pass: resolve typed refs and back-fill containment
+  // The optional `context` lets callers append a precise locator to the issue
+  // message (e.g. "in <fqid>.narrative") so prose-link validation doesn't have
+  // to mutate `issues` after the fact.
   const resolveRef = (
     raw: string,
     originFile: string,
     ownerContextId?: string | null,
+    context?: string,
   ): EntityRef | null => {
-    // try exact fqid first
-    if (entities[raw]) return entities[raw].ref;
-    // owner-scoped lookups first — disambiguatesFrom inside a context usually
-    // points at a sibling in the same context.
-    if (ownerContextId) {
-      const scoped = [
-        `${ownerContextId}/${raw}`,
-        `${ownerContextId}/invariant/${raw}`,
-        `${ownerContextId}/seam/${raw}`,
-        `${ownerContextId}/rule/${raw}`,
-      ];
-      for (const c of scoped) if (entities[c]) return entities[c].ref;
-    }
-    // try common shorthands
-    const candidates = [
-      `term/${raw}`,
-      `invariant/${raw}`,
-      `context/${raw}`,
-      `decision/${raw}`,
-      `surface/${raw}`,
-      raw, // raw is "context/slug" already
-    ];
-    for (const c of candidates) if (entities[c]) return entities[c].ref;
-    // try parsing "context/slug" form
-    if (raw.includes("/")) {
-      const [ctx, ...rest] = raw.split("/");
-      const slug = rest.join("/");
-      const guesses = [
-        `${ctx}/${slug}`,
-        `${ctx}/invariant/${slug}`,
-        `${ctx}/seam/${slug}`,
-        `${ctx}/rule/${slug}`,
-      ];
-      for (const g of guesses) if (entities[g]) return entities[g].ref;
-    }
-    issues.push({ file: originFile, message: `dangling reference: ${raw}`, severity: "warning" });
+    const ref = resolveFqid(raw, entities, ownerContextId, system);
+    if (ref) return ref;
+    issues.push({
+      file: originFile,
+      message: context ? `dangling reference: ${raw} (${context})` : `dangling reference: ${raw}`,
+      severity: "warning",
+    });
     return null;
   };
 
@@ -294,6 +388,18 @@ function resolve(
       if (sys) {
         sys.crossCuttingTerms = (data.crossCuttingTerms ?? []).map(t => entities[`term/${t.id}`]?.ref).filter(Boolean) as EntityRef[];
         sys.crossCuttingInvariants = (data.crossCuttingInvariants ?? []).map(t => entities[`invariant/${t.id}`]?.ref).filter(Boolean) as EntityRef[];
+        if (sys.deliberateOmissions) {
+          sys.deliberateOmissions = sys.deliberateOmissions.map((o, i) => {
+            const raw = data.deliberateOmissions?.[i]?.relatedAtoms ?? [];
+            if (raw.length === 0) return o;
+            return {
+              ...o,
+              relatedAtoms: raw
+                .map(r => resolveRef(r, relFile))
+                .filter((x): x is EntityRef => x !== null),
+            };
+          });
+        }
       }
       for (const t of data.crossCuttingTerms ?? []) {
         const e = entities[`term/${t.id}`];
@@ -342,6 +448,40 @@ function resolve(
     for (const target of e.supersedes) {
       const t = entities[target.fqid];
       if (t) t.supersededBy = e.ref;
+    }
+  }
+
+  // fourth pass: validate [[fqid]] links in every prose-bearing field.
+  // Dangling links become warning LoadIssues; the client re-parses at render
+  // time and resolves independently.
+  const proseFieldsByKind: Partial<Record<EntityKind, (keyof ResolvedEntity)[]>> = {
+    system: ["narrative", "purpose", "body"],
+    "bounded-context": ["narrative", "purpose", "body"],
+    term: ["definition", "body"],
+    invariant: ["statement", "rationale", "body"],
+    seam: ["definition"],
+    "boundary-rule": ["statement"],
+    decision: ["narrative", "context", "decision", "consequences", "alternatives"],
+    surface: ["body"],
+    region: ["role"],
+  };
+  const validateLinksIn = (text: string | undefined, e: ResolvedEntity, location: string) => {
+    if (!text) return;
+    for (const link of parseProseLinks(text)) {
+      resolveRef(link.fqid, e.source.file, e.ownerContextId, `prose link [[${link.raw}]] in ${location}`);
+    }
+  };
+  for (const e of Object.values(entities)) {
+    for (const f of proseFieldsByKind[e.ref.kind] ?? []) {
+      validateLinksIn(e[f] as string | undefined, e, `${e.ref.fqid}.${String(f)}`);
+    }
+    if (e.ref.kind === "system") {
+      for (const ov of e.overlays ?? []) {
+        validateLinksIn(ov.description, e, `overlay ${ov.id}.description`);
+      }
+      for (const om of e.deliberateOmissions ?? []) {
+        validateLinksIn(om.reason, e, `deliberateOmission "${om.topic}"`);
+      }
     }
   }
 

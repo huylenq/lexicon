@@ -3,10 +3,13 @@ import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { api } from "@/lib/api";
 import type { LexiconResponse, ResolvedGraph } from "@/lib/types";
 import { PeekProvider, usePeek } from "@/lib/peek";
+import { InspectorProvider, useInspector } from "@/lib/inspector";
 import { ResizeHandle, usePersistedWidth } from "@/lib/resize";
 import ContextSidebar from "@/components/ContextSidebar";
 import EntityDetail from "@/components/EntityDetail";
 import PeekDrawer from "@/components/PeekDrawer";
+import YamlInspector from "@/components/YamlInspector";
+import Prose from "@/components/Prose";
 import ThemeToggle from "@/components/ThemeToggle";
 import GraphPage from "./GraphPage";
 
@@ -16,7 +19,9 @@ export default function ProjectPage() {
 
   return (
     <PeekProvider>
-      <ProjectShell projectId={id} />
+      <InspectorProvider>
+        <ProjectShell projectId={id} />
+      </InspectorProvider>
     </PeekProvider>
   );
 }
@@ -25,17 +30,42 @@ function ProjectShell({ projectId }: { projectId: number }) {
   const [resp, setResp] = useState<LexiconResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { peeks } = usePeek();
+  const { isOpen: inspectorOpen, close: closeInspector } = useInspector();
   const loc = useLocation();
   const navigate = useNavigate();
 
   const sidebarRef = useRef<HTMLElement>(null);
   const drawerRef = useRef<HTMLElement>(null);
+  const slabRef = useRef<HTMLElement>(null);
   const sidebar = usePersistedWidth({
     key: "lexicon.contextSidebarWidth", defaultPx: 272 /* 17rem */, minPx: 200, maxFrac: 0.5,
   });
   const drawer = usePersistedWidth({
     key: "lexicon.peekDrawerWidth", defaultPx: 480 /* 30rem */, minPx: 280, maxFrac: 0.7,
   });
+  const slab = usePersistedWidth({
+    key: "lexicon.specimenSlabWidth", defaultPx: 560, minPx: 360, maxFrac: 0.7,
+  });
+
+  // Keyboard shortcut — Cmd+' (or Ctrl+') toggles the slab when closed,
+  // closes it when open. ESC also closes when focus isn't in an input.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const typing = target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA");
+      if (typing) return;
+      if ((e.metaKey || e.ctrlKey) && e.key === "'") {
+        e.preventDefault();
+        if (inspectorOpen) closeInspector();
+        // Opening from a global key without a target entity isn't meaningful;
+        // the user opens via the EntityDetail pull tab instead.
+      } else if (e.key === "Escape" && inspectorOpen) {
+        closeInspector();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [inspectorOpen, closeInspector]);
 
   // parse trailing path: either "graph[/<lens>]" or an activeFqid
   const prefix = `/p/${projectId}/`;
@@ -129,9 +159,12 @@ function ProjectShell({ projectId }: { projectId: number }) {
         <div
           className="flex-1 grid min-h-0"
           style={{
-            gridTemplateColumns: peekOpen
-              ? `${sidebar.width}px minmax(0, 1fr) ${drawer.width}px`
-              : `${sidebar.width}px minmax(0, 1fr) 0`,
+            gridTemplateColumns: [
+              `${sidebar.width}px`,
+              "minmax(0, 1fr)",
+              inspectorOpen ? `${slab.width}px` : "0",
+              peekOpen ? `${drawer.width}px` : "0",
+            ].join(" "),
           }}
         >
           <aside ref={sidebarRef} className="relative border-r rule overflow-hidden">
@@ -150,6 +183,20 @@ function ProjectShell({ projectId }: { projectId: number }) {
               <Welcome graph={graph} />
             )}
           </main>
+          <aside
+            ref={slabRef}
+            className={`relative overflow-hidden ${inspectorOpen ? "" : "hidden"}`}
+          >
+            {inspectorOpen && (
+              <ResizeHandle
+                side="left"
+                panelRef={slabRef}
+                onResize={slab.setLive}
+                onCommit={slab.commit}
+              />
+            )}
+            <YamlInspector projectId={projectId} graph={graph} />
+          </aside>
           <aside
             ref={drawerRef}
             className={`relative border-l rule overflow-hidden ${peekOpen ? "" : "hidden"}`}
@@ -227,10 +274,10 @@ function Welcome({ graph }: { graph: ResolvedGraph }) {
       <h1 className="display-tight text-h1 mb-6 leading-[0.95]">
         {sys ? sys.ref.name : "Lexicon"}
       </h1>
-      {sys?.purpose && (
-        <p className="prose-body italic text-fg-2 mb-10" style={{ maxWidth: "62ch" }}>
-          {sys.purpose}
-        </p>
+      {(sys?.narrative || sys?.purpose) && (
+        <div className="mb-10" style={{ maxWidth: "62ch" }}>
+          <Prose text={sys.narrative ?? sys.purpose!} graph={graph} drop />
+        </div>
       )}
       <div className="prose-body text-small text-fg-3 italic">
         Choose a system, bounded context, term, invariant, decision or surface from

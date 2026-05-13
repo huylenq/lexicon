@@ -1,4 +1,4 @@
-schemaVersion: "0.1"
+schemaVersion: "0.2"
 kind: decision
 id: ADR-0001
 title: Use ELK.js for layout and custom SVG for rendering
@@ -9,6 +9,24 @@ affects:
   - graph-model/lens
   - graph-model/affects-routing
   - design-system
+narrative: |
+  This decision exists because [[editorial-aesthetic]] outranks library
+  ergonomics. Cytoscape, react-flow, d3-force all *work*; none of them look
+  like a continuation of the [[surface/reading-room]] the user just came from.
+  Editorial typography (Fraunces + Plex Mono) and sharp geometry survive into
+  the graph view only if the rendering layer is ours to shape, and only if
+  the layout layer doesn't fight us.
+
+  ELK fits because it is layout-only — it computes positions for compound
+  graphs ([[graph-model/lens]] variants need this) and stops. Custom SVG fits
+  because Fraunces and Plex Mono render crisply as `<text>` and the
+  [[graph-model/graph-edge]] kinds each get their own aesthetic
+  (solid / dashed / dotted) without library-default overrides.
+  [[graph-model/affects-routing]] — the four modes for taming ADR fan-out —
+  is something we own because we render the lines ourselves.
+
+  The trade is real: we maintain pan/zoom, hover-dim, selection state, and
+  the routing modes. Worth it.
 context: |
   The Path B graph view needs to render a compound graph: bounded contexts as
   containers with terms / invariants / seams / boundary rules nested, plus

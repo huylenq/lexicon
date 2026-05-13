@@ -1,4 +1,4 @@
-schemaVersion: "0.1"
+schemaVersion: "0.2"
 kind: system
 id: lexicon-viewer
 name: Lexicon viewer
@@ -8,6 +8,31 @@ purpose: |
   regions) and its codebase in the same window. Two peer views — a reading room
   (catalog + detail + Monaco peek drawer) and a graph view (typeset diagram with
   three lenses). Single-user, single-project-at-a-time, read-only.
+
+narrative: |
+  The viewer is a *reading room*, not an IDE. A [[lexicon-conform-project]]
+  declares its [[cold-layer]] as YAML; [[project-registry]] persists the user's
+  registered paths and serves files; [[lexicon-loading]] parses the YAML into a
+  flat [[lexicon-loading/resolved-graph]] keyed by [[fqid]]. From there the
+  graph splits into two peer surfaces sharing one [[peek]] drawer.
+
+  The first surface is the reading room ([[surface/reading-room]]) — a
+  three-pane shell where the left catalog navigates by bounded context, the
+  centre column reads one entity in depth, and the right rail opens
+  [[code-anchor]]s as live Monaco peeks. The second is the graph view
+  ([[surface/graph-view]]): [[graph-model]] projects the same `ResolvedGraph`
+  through one of three [[graph-model/lens]]es, ELK lays it out, and a custom
+  SVG renders it with the editorial aesthetic ([[ADR-0001]]). Peeks persist
+  across the view toggle ([[design-system/invariant/peek-persists-across-surfaces]]) so the
+  drawer never resets when the user switches.
+
+  Two things are deliberately load-bearing. The viewer never writes
+  ([[read-only]]) — corrections go back through `lex-crystallize` in the
+  terminal, not through this app. And the visual identity ([[editorial-aesthetic]])
+  is treated as design constraint, not decoration; capability tradeoffs lose
+  to aesthetic ones. Everything else — the lens semantics, the affects routing,
+  the path-clamp ([[project-registry/path-clamp]]) — descends from those two
+  commitments.
 
 contexts:
   - lexicon-loading
@@ -75,6 +100,50 @@ crossCuttingTerms:
         symbol: PeekProvider
       - file: client/src/components/PeekDrawer.tsx
 
+deliberateOmissions:
+  - topic: Editing the cold layer in the viewer
+    reason: |
+      Corrections route back through `lex-crystallize` in the user's terminal,
+      not through this app. Adding an in-viewer editor would duplicate the
+      crystallize discipline (propose, get user yes, apply) and likely badly —
+      the viewer has no access to the conversational context that makes
+      crystallization good. See [[read-only]].
+    triggers:
+      - A clear use case where terminal round-trip blocks routine fixes
+        (e.g. typo in a `name` field for a heavily-renamed entity).
+      - Crystallize itself moves into a non-terminal context.
+    relatedAtoms:
+      - read-only
+      - peek
+
+  - topic: Multi-project graphs (cross-project queries)
+    reason: |
+      The browser loads exactly one project's [[lexicon-loading/resolved-graph]]
+      at a time ([[single-project-active]]). Cross-project features — finding
+      every ADR that mentions a shared term, diffing two projects' contexts —
+      would change the routing shape (`/p/:id/...` no longer scopes everything)
+      and inflate the in-browser index. Not blocking; no real demand yet.
+    triggers:
+      - Two or more projects start sharing a meaningful term vocabulary.
+      - A user asks "where in any of my projects did I…".
+    relatedAtoms:
+      - single-project-active
+
+  - topic: Real-time refresh on filesystem changes
+    reason: |
+      Today the user clicks Refresh; the loader re-reads and the
+      [[lexicon-loading/mtime-cache]] is cleared globally. A filesystem
+      watcher would push updates automatically, but the manual click is a
+      strong intentional signal ([[lexicon-loading/cache-invalidates-on-refresh]])
+      and avoids partial-write races on long YAML edits. Polish-bundle plan
+      considers this; not committed.
+    triggers:
+      - User complains the click cadence breaks flow during heavy crystallize
+        sessions.
+    relatedAtoms:
+      - lexicon-loading/mtime-cache
+      - lexicon-loading/cache-invalidates-on-refresh
+
 crossCuttingInvariants:
   - id: read-only
     name: viewer is read-only
@@ -115,5 +184,5 @@ crossCuttingInvariants:
       The aesthetic is the differentiator. When adding a feature, push the
       typography and edge styling until it reads as "extension of the
       existing viewer," not "bolted on." If a tradeoff arises between
-      capability and aesthetic, the aesthetic wins — see also PATH-B's
-      "Aesthetic continuity" guidance.
+      capability and aesthetic, the aesthetic wins — see also
+      `plans/graph-view/spec.md`'s "Aesthetic continuity" guidance.
