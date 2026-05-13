@@ -1,9 +1,11 @@
 import { Hono } from "hono";
+import { streamSSE } from "hono/streaming";
 import { serveStatic } from "hono/bun";
 import { readFile, stat } from "node:fs/promises";
 import { resolve, relative, isAbsolute, join } from "node:path";
 import { projects } from "./db.ts";
 import { loadLexicon, invalidateCache } from "./loader.ts";
+import { subscribe } from "./watch.ts";
 
 const app = new Hono();
 
@@ -71,6 +73,36 @@ app.get("/api/projects/:id/yaml-siblings", async c => {
     }))
     .sort((a, b) => a.lineStart - b.lineStart);
   return c.json({ file: reqPath, siblings });
+});
+
+// Stream filesystem events for the project's lexicon/ directory as SSE.
+// The client subscribes once per ProjectPage mount and refetches on each
+// `changed` event. The watcher is shared across subscribers per root and
+// torn down when the last one disconnects (see watch.ts).
+app.get("/api/projects/:id/events", c => {
+  const id = Number(c.req.param("id"));
+  const p = projects.get(id);
+  if (!p) return c.json({ error: "not found" }, 404);
+  const projectRoot = p.root_path;
+  return streamSSE(c, async stream => {
+    const unsubscribe = subscribe(projectRoot, paths => {
+      stream
+        .writeSSE({ event: "changed", data: JSON.stringify({ paths }) })
+        .catch(() => {});
+    });
+    stream.onAbort(() => unsubscribe());
+    await stream.writeSSE({ event: "open", data: "1" });
+    // Heartbeat so idle connections don't time out at a proxy or in the
+    // browser. EventSource auto-reconnects on close, but no need to make
+    // it work for that.
+    while (!stream.aborted) {
+      await stream.sleep(25_000);
+      if (stream.aborted) break;
+      try { await stream.writeSSE({ event: "ping", data: "1" }); }
+      catch { break; }
+    }
+    unsubscribe();
+  });
 });
 
 // Read a file inside project root for Monaco peek.

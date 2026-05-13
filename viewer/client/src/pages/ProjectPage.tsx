@@ -29,6 +29,7 @@ export default function ProjectPage() {
 function ProjectShell({ projectId }: { projectId: number }) {
   const [resp, setResp] = useState<LexiconResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [live, setLive] = useState(false);
   const { peeks } = usePeek();
   const { isOpen: inspectorOpen, close: closeInspector } = useInspector();
   const loc = useLocation();
@@ -80,6 +81,18 @@ function ProjectShell({ projectId }: { projectId: number }) {
     api.loadLexicon(projectId).then(setResp).catch(e => setError(e.message));
   }, [projectId]);
 
+  // Subscribe to filesystem events. EventSource handles reconnection on
+  // its own; we just track open/error to drive the "live" indicator.
+  useEffect(() => {
+    const src = new EventSource(`/api/projects/${projectId}/events`);
+    src.addEventListener("open", () => setLive(true));
+    src.addEventListener("error", () => setLive(false));
+    src.addEventListener("changed", () => {
+      api.loadLexicon(projectId, true).then(setResp).catch(() => {});
+    });
+    return () => { src.close(); setLive(false); };
+  }, [projectId]);
+
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center p-12">
@@ -124,8 +137,14 @@ function ProjectShell({ projectId }: { projectId: number }) {
           <span className="smallcap">·</span>
           <button
             onClick={() => api.loadLexicon(projectId, true).then(setResp)}
-            className="mono text-micro uppercase tracking-widest text-fg-3 hover:text-fg"
+            className="mono text-micro uppercase tracking-widest text-fg-3 hover:text-fg flex items-center gap-2"
+            title={live ? "Watching lexicon/ — auto-refresh on" : "Watcher disconnected — click to refresh"}
           >
+            <span
+              aria-hidden
+              className="inline-block w-1.5 h-1.5 rounded-full"
+              style={{ background: live ? "var(--color-mark)" : "var(--color-fg-3)" }}
+            />
             Refresh
           </button>
           <span className="smallcap">·</span>

@@ -191,8 +191,7 @@ function SubList({
           <li key={it.fqid}>
             <Link
               to={linkTo(it.fqid)}
-              className={`block py-0.5 mono text-small text-fg-2 hover:text-fg -ml-3 pl-3 truncate ${active === it.fqid ? "active-rule text-fg" : ""}`}
-              title={it.name.replace(/`/g, "")}
+              className={`block py-0.5 mono text-small text-fg-2 hover:text-fg -ml-3 pl-3 truncate-hover-expand ${active === it.fqid ? "active-rule text-fg" : ""}`}
             >
               <InlineCode text={it.name} />
             </Link>

@@ -106,6 +106,19 @@
   }
   .rule { border-color: var(--color-rule); }
 
+  .truncate-hover-expand {
+    @apply truncate;
+    position: relative;
+  }
+  .truncate-hover-expand:hover {
+    overflow: visible;
+    white-space: nowrap;
+    z-index: 10;
+    background: var(--color-paper-2);
+    padding-right: 0.5rem;
+    box-shadow: 0 0 0 1px var(--color-rule);
+  }
+
   .ref-link {
     background-image: linear-gradient(var(--color-fg), var(--color-fg));
     background-size: 100% 1px;
