@@ -12,6 +12,35 @@ While in 0.x, breaking project-shape changes bump the minor (0.x.0 → 0.(x+1).0
 
 ## [Unreleased]
 
+### BREAKING
+
+- **Schema v0.2 → v0.3, DDD-faithful shape.** The cold-layer schema is reshaped to follow Eric Evans' Domain-Driven Design building blocks faithfully. The bump is breaking: the viewer's loader fails fast on `schemaVersion: "0.1"` or `"0.2"` files with a `LoadIssue` pointing at `lex-migrate`. The full design rationale, rejected alternatives, and deferred work live in `DESIGN-v0.3.md` at the repo root.
+
+  **Removed**:
+  - The `kind: decision` entity (ADRs). ADR YAML files archive under `lexicon/_pre-migrate-archive/decisions/`; their decision-narrative content is optionally lifted into `rationale:` fields on affected atoms. The "decisions" graph lens, the `affects` / `supersedes` edges, the `Decisions` filter chip, and the `decision.yaml.example` template are gone.
+  - `crossCuttingTerms` / `crossCuttingInvariants` on `system.yaml`. The untyped bag is replaced with typed `sharedKernels` — named shared sub-models with `participatingContexts`, `rationale`, and their own `terms`/`invariants`. Migration groups existing entries into proposed kernels interactively.
+  - The `lexicon/decisions/` directory. v0.3 has no slot for stand-alone decision records; the argument lives next to the thing it argues for (as `rationale:`).
+
+  **Renamed**:
+  - `bounded-context.modules` (file globs) → `codeModules`. The freed `modules` name now holds Evans-sense concept clusters (array of `{id, name, description, members, rationale}`).
+
+  **Added**:
+  - `term.category` discriminator — `entity` | `value` | `service` | `event` | `concept`. Each category surfaces category-specific optional fields: `identityRule` for entities; `equality` for values; `operatesOn` + `returns` for services; `emittedWhen` + `payload` + `consumers` for events.
+  - `kind: aggregate` (inside `bounded-context`) — Evans aggregates with `root`, `members`, transactional `invariants`, `rationale`. Loader validates root is an entity-category term.
+  - `kind: module` (inside `bounded-context`) — Evans-sense concept clusters; distinct from `codeModules` (file globs). The viewer renders them as their own panel.
+  - `kind: shared-kernel` (on `system`) — first-class entity for named shared sub-models. Replaces `crossCuttingTerms` / `crossCuttingInvariants`. Atoms inside use fqid `kernel/<kid>/<slug>` and `kernel/<kid>/invariant/<slug>`.
+  - `seam.kind` — the Evans context-map enum (`shared-kernel`, `customer-supplier`, `conformist`, `anticorruption-layer`, `open-host-service`, `published-language`, `partnership`, `separate-ways`, `unknown`). Asymmetric kinds carry `upstream` / `downstream`; symmetric kinds carry `participants`. Migration sets every existing seam to `unknown` and surfaces the triage list.
+  - `bounded-context.subdomain` — optional `core` | `supporting` | `generic`. The pragmatic v0.3 take on Evans' strategic-design classification (a separate `subdomain` entity kind that spans multiple contexts is deferred to v0.4 if a real project hits the limit).
+  - `rationale:` fields on seam, aggregate, module, shared-kernel, and boundary-rule. The "argument that justifies the model choice" — the only ADR replacement; development-journal / historical-reasoning capture is deferred.
+
+  **Migration**: `lex-migrate v0.2 → v0.3` is the path. Interactive (per-ADR archival, per-cross-cutting kernel grouping, per-term categorization, per-seam classification) — the agent surfaces candidates; the user makes the interpretive calls. See `skills/lex-migrate/migrations/v0.2-to-v0.3.md` for the full delta.
+
+### Changed
+
+- **Viewer**: all renderers updated to the v0.3 entity model. The "decisions" graph lens is removed; ownership and surfaces remain. New entity-kind body panels for `aggregate`, `module`, `shared-kernel`. Category-aware term rendering. Typed seam direction in `GraphDetailRail` and `EntityDetail` margins. `ContextSidebar` shows shared kernels as their own section, not a "cross-cutting" bag. `--color-kind-decision` is removed from the theme; `--color-kind-aggregate`, `--color-kind-module`, `--color-kind-shared-kernel` are added.
+- **`lex-bootstrap`**: Phase 6 reframed from "migrate ADRs to YAML" to "archive ADRs and optionally lift content into rationale fields." Templates updated; `decision.yaml.example` deleted.
+- **All other skill bodies** swept for stale `crossCutting*`, `kind: decision`, `lexicon/decisions/`, and `modules` (file-glob) references. `lex-overview` rule 7 (ADRs are append-only) is removed; subsequent rules renumbered. `lex-retro`'s "ADRs are lighter" branch is gone — Decisions-check flags now surface as `rationale:` candidates for `lex-crystallize` to absorb. `lex-crystallize` gains new typed mutation ops: `add-rationale`, `set-category`, `set-seam-kind`. `lex-audit`'s hygiene sweep checks for orphaned `decisions/` directories, seams stuck at `kind: unknown`, and rationale-empty atoms.
+
 ### Added
 
 - **`lex-meta` skill** — a self-evolve channel for the lexicon skill bundle itself. User-triggered via `/lex-meta [optional prompt]` after correcting something a lexicon skill produced (either an edit to the project's `lexicon/` folder or pushback against a skill's output earlier in the session). Takes the session conversation as the **primary signal** for *why* the correction was needed, with `git diff` of the project's `lexicon/` folder as corroborating evidence, then interviews to disambiguate and proposes an amendment to the responsible `~/src/lexicon/skills/<skill>/SKILL.md`. Cross-repo write; **does not commit** in the lexicon repo — the dirty working tree across multiple invocations is the accumulation buffer, deliberately reviewed and pushed when the user sits down in the bundle repo intentionally.

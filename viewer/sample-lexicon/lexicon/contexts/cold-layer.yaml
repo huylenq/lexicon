@@ -1,11 +1,12 @@
-schemaVersion: "0.1"
+schemaVersion: "0.3"
 kind: bounded-context
 id: cold-layer
 name: Cold Layer
+subdomain: core
 purpose: >
-  The slow-evolving store of project vocabulary, invariants, bounded contexts
-  and decisions — what the code cannot express well on its own.
-modules:
+  The slow-evolving store of project vocabulary, invariants, bounded contexts,
+  shared kernels, and rationale — what the code cannot express well on its own.
+codeModules:
   - skills/lex-overview/**
   - skills/lex-bootstrap/**
   - skills/lex-crystallize/**
@@ -13,6 +14,7 @@ modules:
 terms:
   - id: term
     name: Term
+    category: concept
     definition: >
       A glossary entry — the atom of the ubiquitous language. Identified by a
       stable slug; carries a display name, a definition, optional
@@ -26,6 +28,7 @@ terms:
         symbol: "Vocabulary check"
   - id: invariant
     name: Invariant
+    category: concept
     definition: >
       A property that must hold across the system (or a context). Carries a
       statement, a rationale, and optionally code that constrains it.
@@ -35,26 +38,31 @@ terms:
         lineEnd: 79
   - id: bounded-context
     name: Bounded Context
+    category: concept
     definition: >
       A DDD primitive made first-class in lexicon. A region of the model
       within which terms have a single, consistent meaning. Owns Terms,
-      Invariants, Seams and Boundary Rules.
+      Invariants, Seams, Boundary Rules, Aggregates, and Modules.
     symbols:
       - file: skills/lex-overview/SKILL.md
         lineStart: 80
         lineEnd: 80
   - id: boundary-rule
     name: Boundary Rule
+    category: concept
     definition: >
       A directed normative rule between two bounded contexts, e.g. "Inference
       never writes to the training store."
   - id: architecture-seam
     name: Architecture Seam
+    category: concept
     definition: >
-      A structural joint between modules or contexts. Distinct from a Boundary
-      Rule — a seam is structural, a rule is normative.
+      A structural joint between modules or contexts, typed by one of Evans'
+      eight context-map relationship kinds. Distinct from a Boundary Rule —
+      a seam is structural, a rule is normative.
   - id: deliberate-omission
     name: Deliberate Omission
+    category: concept
     definition: >
       A topic deliberately not specified, and why. Makes boundaries explicit
       by naming what is intentionally outside the model.
@@ -63,7 +71,7 @@ invariants:
     name: Cold doc stays small
     statement: >
       The cold layer's holistic entry point stays under ~500 lines. Beyond
-      that, partition into Domain Views.
+      that, partition into per-context files under lexicon/contexts/.
     rationale: >
       The cold doc rots if it tries to mirror code. The size bound forces
       compression and keeps the layer cold.
@@ -72,11 +80,12 @@ invariants:
     name: Exactly-one ownership for Terms
     statement: >
       Every Term has exactly one owning location — a single bounded context
-      or the system's cross-cutting glossary.
+      or a shared kernel.
     rationale: >
       Without ownership, the same term gets defined twice with slowly
-      diverging meanings. This is the single failure mode views are most
-      prone to.
+      diverging meanings. This is the single failure mode lexicon is most
+      prone to, and the reason shared kernels are typed rather than left as
+      an untyped cross-cutting bag.
     validationMode: code
     constrainsCode:
       - file: skills/lex-audit/SKILL.md
@@ -86,12 +95,18 @@ invariants:
 seams:
   - id: cold-hot-seam
     name: Cold ↔ Hot seam
+    kind: open-host-service
     description: >
       Plans (hot layer) reference Terms, BoundedContexts and Invariants
-      (cold layer) via typed anchors. Cold layer never references plans.
-    participants:
-      - cold-layer
-      - hot-layer
+      (cold layer) via typed anchors. Cold layer publishes the vocabulary
+      and never references plans.
+    rationale: >
+      Open-host-service: cold-layer offers a stable integration surface
+      (typed atoms with stable slugs) that any downstream — hot-layer plans,
+      the viewer, audit tooling — can consume. Cold doesn't care which
+      downstream is integrating; downstream conforms to the published shape.
+    upstream: cold-layer
+    downstream: hot-layer
 boundaryRules:
   - id: no-drive-by-edits
     rule: >
@@ -99,3 +114,7 @@ boundaryRules:
       work. They route through lex-crystallize with explicit human review.
     from: hot-layer
     to: cold-layer
+    rationale: >
+      Drive-by edits accumulate silent drift in exactly the layer that must
+      stay aligned with the human's mental model. Routing edits through
+      crystallize forces deliberate propose-then-apply discipline.

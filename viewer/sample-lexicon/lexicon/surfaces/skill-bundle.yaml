@@ -1,4 +1,4 @@
-schemaVersion: "0.1"
+schemaVersion: "0.3"
 kind: surface
 id: skill-bundle
 name: Skill Bundle

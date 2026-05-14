@@ -1,7 +1,8 @@
-schemaVersion: "0.1"
+schemaVersion: "0.3"
 kind: bounded-context
 id: design-system
 name: Design System
+subdomain: supporting
 purpose: >
   Design vocabulary as ubiquitous language for projects with a UI surface.
   Tokens, components, layout primitives, surfaces and regions, interaction
@@ -10,12 +11,14 @@ purpose: >
 terms:
   - id: design-token
     name: Design Token
+    category: concept
     definition: >
       A named scalar in a canonical source — color, spacing, typography,
       radii, shadows, motion. The value lives in code; the cold layer holds
       only the name and the pointer to the canonical source.
   - id: component
     name: Component
+    category: concept
     definition: >
       A reusable rendered piece. Has a name, role, variants, and
       disambiguation. NOT to be confused with a Term — components are UI
@@ -24,15 +27,18 @@ terms:
       - cold-layer/term
   - id: layout-primitive
     name: Layout Primitive
+    category: concept
     definition: A reusable structural building block — Stack, Cluster, Grid, etc.
   - id: surface
     name: Surface
+    category: concept
     definition: >
       A named top-level view — route, screen, window, pane, voice turn,
       print layout. A bounded context for layout vocabulary; its regions are
       its glossary terms.
   - id: region
     name: Region
+    category: concept
     definition: >
       A named zone within a Surface. Naming gates on conceptual identity
       (the team refers to it as a discrete piece), not on whether the code
@@ -45,9 +51,11 @@ terms:
         symbol: "regions need a small framing"
   - id: interaction-pattern
     name: Interaction Pattern
+    category: concept
     definition: A named UX pattern — "drawer over modal", "destructive confirm", etc.
   - id: accessibility-invariant
     name: Accessibility Invariant
+    category: concept
     definition: >
       An invariant scoped to UI accessibility — visible focus, color contrast,
       keyboard navigation, label-input pairing. Most are validatable via
@@ -74,10 +82,15 @@ invariants:
 seams:
   - id: cold-design-seam
     name: Domain ↔ Design seam
+    kind: shared-kernel
     description: >
-      Design vocabulary lives in the same cold layer as domain vocabulary
-      but in a dedicated section/view. No machinery splits them — the same
-      six structural checks pick up design-system drift naturally.
+      Design vocabulary lives in the same cold layer as domain vocabulary,
+      coordinated through structural-check vocabulary (term, invariant,
+      boundary). The same six checks pick up design-system drift naturally.
+    rationale: >
+      Shared-kernel: both contexts agree on the meta-vocabulary that lexicon
+      itself defines (Term / Invariant / Seam / BoundaryRule). Neither owns
+      it more than the other; they share the lexicon-primitives kernel.
     participants:
       - cold-layer
       - design-system

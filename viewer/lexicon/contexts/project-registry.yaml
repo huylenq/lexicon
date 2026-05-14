@@ -1,7 +1,8 @@
-schemaVersion: "0.2"
+schemaVersion: "0.3"
 kind: bounded-context
 id: project-registry
 name: Project registry
+subdomain: supporting
 purpose: |
   Persist the set of projects the user has registered, expose them over the
   HTTP API, and safely serve files from any registered project's tree to the
@@ -19,7 +20,7 @@ narrative: |
   On project open, [[lexicon-loading]] reads `<root_path>/lexicon/`; the
   registry's job is just to hand over the [[project-root]]. The last
   responsibility — and the most safety-load-bearing — is serving file content
-  to the [[peek]] drawer. Every `/api/projects/:id/file?path=…` request
+  to the [[kernel/viewer-vocabulary/peek]] drawer. Every `/api/projects/:id/file?path=…` request
   resolves the requested path under the project root and runs the
   [[path-clamp]]: relative form starts with `..` or is absolute? Reject with
   `400 path escape` ([[file-escape-rejected]]). Local-only today, but the
@@ -29,6 +30,10 @@ narrative: |
 terms:
   - id: project
     name: Project
+    category: entity
+    identityRule: |
+      Identity is the SQLite `id` (autoincrement integer). `root_path` is the
+      stable natural key; renaming the project changes `name` but not identity.
     definition: |
       A row in the `projects` SQLite table: `{id, name, root_path, added_at,
       last_opened_at}`. `root_path` is absolute, unique, and must point at an
@@ -42,6 +47,10 @@ terms:
 
   - id: project-root
     name: project root
+    category: value
+    equality: |
+      By the absolute path string. Two project-roots are interchangeable iff
+      they resolve to the same canonical filesystem path.
     definition: |
       The absolute filesystem path the loader and file-serving routes scope
       their work to. Stored in `Project.root_path`. All path operations
@@ -50,6 +59,11 @@ terms:
 
   - id: path-clamp
     name: path clamp
+    category: service
+    operatesOn:
+      - project-root
+    returns: |
+      The resolved path under the project root, or a `400 path escape` rejection.
     definition: |
       The safety check applied to every file path requested over
       `/api/projects/:id/file?path=…`: resolve the requested path against the

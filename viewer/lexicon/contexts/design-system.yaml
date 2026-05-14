@@ -1,7 +1,8 @@
-schemaVersion: "0.2"
+schemaVersion: "0.3"
 kind: bounded-context
 id: design-system
 name: Design system
+subdomain: supporting
 purpose: |
   The shared visual vocabulary of the viewer: design tokens (color, typography,
   geometry), the `lexicon-ink` Monaco theme, and the small family of reusable
@@ -37,6 +38,7 @@ narrative: |
 terms:
   - id: design-tokens
     name: design tokens
+    category: concept
     definition: |
       Tailwind v4 `@theme` block: `--color-ink`, `--color-ink-2/3/4`,
       `--color-rule`, `--color-vellum`, `--color-vellum-2/3`, `--color-oxide`,
@@ -51,6 +53,7 @@ terms:
 
   - id: ref-link
     name: RefLink
+    category: concept
     definition: |
       The clickable entity-reference primitive. Renders a `<Link>` to the
       target entity's route with the kind glyph (`T` / `I` / `D` / `Sf` / …)
@@ -63,6 +66,7 @@ terms:
 
   - id: inline-code
     name: InlineCode
+    category: concept
     definition: |
       Renders an entity name whose body may contain backtick-wrapped code
       spans (`InlineCode text="like \`this\`"`). Spans inside backticks
@@ -74,6 +78,7 @@ terms:
 
   - id: code-anchor-badge
     name: CodeAnchorBadge
+    category: concept
     definition: |
       Clickable badge that opens its `CodeAnchor` as a peek in the drawer.
       Displays the relative file path, the formatted line range, and the
@@ -85,6 +90,7 @@ terms:
 
   - id: peek-drawer
     name: PeekDrawer
+    category: concept
     definition: |
       The Monaco-hosting drawer that renders each open `Peek` as a small
       editor (`@monaco-editor/react`) with the `lexicon-ink` theme and line
@@ -96,16 +102,19 @@ terms:
 
   - id: marginalia
     name: Marginalia
+    category: concept
     definition: |
       Two-component pair (`<Marginalia>` + `<MarginaliaItem label=…>`) that
-      lays out the right-rail metadata for an entity: owner, validation mode,
-      disambiguatesFrom, affects, supersedes, code anchors, modules, source
-      file. Each item is a smallcap label over a small column of content.
+      lays out the right-rail metadata for an entity: owner (context or
+      kernel), validation mode, disambiguatesFrom, upstream/downstream
+      (seams), participants, code anchors, codeModules, source file. Each
+      item is a smallcap label over a small column of content.
     symbols:
       - file: client/src/components/Marginalia.tsx
 
   - id: lexicon-ink-theme
     name: lexicon-ink Monaco theme
+    category: concept
     definition: |
       The Monaco editor theme defined once in `PeekDrawer.tsx`'s `defineTheme`:
       vs-dark base, vellum text on ink-2 background, oxide-tinted line

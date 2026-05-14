@@ -1,25 +1,29 @@
-schemaVersion: "0.2"
+schemaVersion: "0.3"
 kind: bounded-context
 id: lexicon-loading
 name: Lexicon loading
+subdomain: core
 purpose: |
   Read a lexicon-conform project's YAML files from disk, validate them against
-  schema v0.1/v0.2 with zod, resolve typed cross-references between entities,
-  and produce a `ResolvedGraph` the client can render. Surfaces load issues
-  (parse errors, schema errors, dangling refs) without failing the whole load.
+  schema v0.3 with zod, resolve typed cross-references between entities, and
+  produce a `ResolvedGraph` the client can render. Surfaces load issues (parse
+  errors, schema errors, version mismatches, dangling refs) without failing the
+  whole load.
 
 narrative: |
   The loader runs in four passes. First it walks `lexicon/`, reads every YAML
   file, parses with `yaml`, and validates against `lexiconFile` (the zod
   union). Any single-file failure becomes a [[load-issue]]; the loader never
   throws ([[loader-never-throws]]). Second, it registers every entity as a
-  [[resolved-entity]] keyed by [[fqid]] — duplicates raise an error issue and
+  [[resolved-entity]] keyed by [[kernel/viewer-vocabulary/fqid]] — duplicates raise an error issue and
   the second registration is dropped ([[fqid-unique]]).
 
   The third pass is [[ref-resolution]]: slug-form refs in YAML (a term's
-  `disambiguatesFrom`, an ADR's `affects`, omission `relatedAtoms`) are looked
-  up against the registered map with owner-scoped fallbacks first, then common
-  shorthands. Unresolved refs become warnings ([[ref-resolution-is-warning]]).
+  `disambiguatesFrom`, an aggregate's `members`, a seam's `upstream`/`downstream`,
+  omission `relatedAtoms`) are looked up against the registered map with
+  owner-scoped fallbacks first (including kernel-owner scope for kernel-owned
+  atoms), then common shorthands. Unresolved refs become warnings
+  ([[ref-resolution-is-warning]]).
   The fourth pass scans every prose-bearing field for `[[fqid]]` inline links
   and runs the same resolver — a dangling prose link is the same severity as
   a dangling structured ref.
@@ -34,6 +38,7 @@ narrative: |
 terms:
   - id: resolved-graph
     name: ResolvedGraph
+    category: value
     definition: |
       The post-load representation delivered to the client. Holds `system`
       (the system root entity), `entities` (a flat map of fqid → ResolvedEntity),
@@ -48,13 +53,16 @@ terms:
 
   - id: resolved-entity
     name: ResolvedEntity
+    category: value
     definition: |
       One node of the `ResolvedGraph`. Carries a typed `ref: EntityRef`, the
-      `ownerContextId` (null for system-level / decisions / surfaces), the
-      `source.file` for git history and audit purposes, and entity-kind-specific
-      typed fields (definition, statement, rationale, body, anchors, …). Every
-      cold-layer entity — system, bounded-context, term, invariant, seam,
-      boundary-rule, decision, surface, region — becomes one ResolvedEntity.
+      `ownerContextId` (null for system-level / surfaces / shared kernels), an
+      optional `ownerKernelId` for kernel-owned atoms, the `source.file` for
+      git history and audit purposes, and entity-kind-specific typed fields
+      (definition, statement, rationale, body, anchors, category, seam kind,
+      aggregate root, …). Every cold-layer entity — system, bounded-context,
+      term, invariant, seam, boundary-rule, aggregate, module, shared-kernel,
+      surface, region — becomes one ResolvedEntity.
     symbols:
       - file: server/schema.ts
         lineStart: 178
@@ -63,11 +71,13 @@ terms:
 
   - id: entity-ref
     name: EntityRef
+    category: value
     definition: |
       The smallest pointer to an entity: `{kind, fqid, name}`. Used everywhere
-      the graph references another entity (disambiguatesFrom, affects,
-      supersedes, contains, regions, supersededBy). Cheap to embed in many
-      places without duplicating prose.
+      the graph references another entity (disambiguatesFrom, contains,
+      regions, aggregate root/members/invariants, seam upstream/downstream,
+      service operatesOn, event consumers). Cheap to embed in many places
+      without duplicating prose.
     symbols:
       - file: server/schema.ts
         lineStart: 172
@@ -76,6 +86,7 @@ terms:
 
   - id: load-issue
     name: LoadIssue
+    category: value
     definition: |
       A single parse / schema / resolution failure: `{file, message, severity}`
       with severity `error` (file couldn't be loaded) or `warning` (loaded but
@@ -89,13 +100,21 @@ terms:
 
   - id: ref-resolution
     name: ref resolution
+    category: service
     definition: |
       The second pass of the loader, where slug-form refs in YAML (e.g. a
       term's `disambiguatesFrom: [other-term]`) are looked up against the
       registered entity map. The resolver tries owner-scoped lookups first
-      (sibling in the same context), then qualified forms (`<ctx>/<slug>`),
-      then common shorthands (`term/<slug>`, `decision/<slug>`, …). Unresolved
-      refs become warnings — they don't block the load.
+      (sibling in the same context, or sibling in the same shared kernel),
+      then qualified forms (`<ctx>/<slug>`, `kernel/<kid>/<slug>`), then
+      common shorthands (`context/<slug>`, `kernel/<slug>`, `surface/<slug>`).
+      Unresolved refs become warnings — they don't block the load.
+    operatesOn:
+      - resolved-entity
+      - load-issue
+    returns: |
+      A resolved `EntityRef` if the slug matched, or null (with a warning
+      `LoadIssue` appended to the project's issue list).
     symbols:
       - file: server/loader.ts
         lineStart: 240
@@ -104,6 +123,7 @@ terms:
 
   - id: mtime-cache
     name: mtime cache
+    category: concept
     definition: |
       The loader keeps a per-`projectRoot` cache keyed by the latest mtime
       across all YAML files in the project's `lexicon/` dir. A subsequent
