@@ -40,8 +40,7 @@ Read:
    - `## Notes for future sweeps` (sub-flag-threshold patterns that may have crossed the line cumulatively).
 3. **Cross-check with git.** Run `git log --since=<marker>` and `git diff <commit-at-marker>..HEAD` over the relevant code paths. Catches drift the retros missed (skipped retros, silent renames the structural checks didn't flag).
 4. **The cold layer.** `lexicon/system.yaml` plus whichever `lexicon/contexts/*.yaml` and `lexicon/surfaces/*.yaml` files the diff touches. Don't load every file — read what's relevant to the diff.
-5. **`lexicon/decisions/`** — recent ADRs that might overlap with what you're about to propose.
-6. **`~/src/lexicon/lexicon-prefs.md`** — personal overrides. The Calibration section especially can change which retro flags are worth absorbing vs leaving as known-noise.
+5. **`~/src/lexicon/lexicon-prefs.md`** — personal overrides. The Calibration section especially can change which retro flags are worth absorbing vs leaving as known-noise.
 
 This is a bigger read than a retro. Take the time on it. Crystallization done badly is worse than crystallization skipped — a wrong glossary entry is harder to remove than a missing one is to add.
 
@@ -55,12 +54,12 @@ The cumulative framing changes how each check lands:
 - **Vocabulary consistency** — look at coherence *across* all retros and the current code. If terminology drifted within the period, that's a vocabulary problem worth fixing.
 - **Invariants** — look for adds, removes, modifications across the whole diff, not per-session.
 - **Boundaries** — re-look at the bounded-contexts model with fresh eyes; cumulative boundary changes often hide in incremental session diffs.
-- **Decisions** — prefer a single ADR for a coherent decision arc when scattered session-level decisions cohere into one story.
+- **Decisions** — when scattered session-level decisions cohere into one argument, propose a single coherent `rationale:` lift onto the atom the argument justifies (an invariant, a seam's `kind` choice, an aggregate's boundary). v0.3 has no separate ADR slot — the argument lives next to the thing it argues for.
 - **Declared scope match (cumulative)** — did the work as a whole stay where it said it would, or did it become something else? If it became something else, that often reveals a model update.
 
 ## Surface pre-existing inconsistencies
 
-If the existing cold layer already contains entries that look mutually inconsistent — a term defined two slightly different ways across contexts, an invariant that contradicts another, an ADR `affects:` set that points at deleted entities — **surface this to the user before proposing the new mutation set**. Don't smooth it over silently.
+If the existing cold layer already contains entries that look mutually inconsistent — a term defined two slightly different ways across contexts, an invariant that contradicts another, an aggregate's `members:` pointing at a deleted term, a seam whose `upstream`/`downstream` refer to nonexistent contexts — **surface this to the user before proposing the new mutation set**. Don't smooth it over silently.
 
 These usually come from previous incomplete edits, concurrent sessions that didn't reconcile, or older content that got partially updated. The right move is to name what you found and ask: "Should I reconcile this as part of the crystallization, or is it intentional?" Reconciling without asking is exactly the kind of silent edit lexicon exists to prevent.
 
@@ -81,7 +80,10 @@ Use these operation kinds when describing changes:
 | `deprecate` | Soft-delete via `status: deprecated` | `deprecate term inference/old-queue` |
 | `delete` | Hard removal (rare; for mistakes) | `delete term inference/typo-name` |
 | `add-anchor` | Add a `symbols` or `constrainsCode` entry | `add-anchor term inference/worker += src/worker.ts#Worker` |
-| `set-status` | ADR transition | `set-status decision/ADR-0007 = superseded` (and supersededBy on the older one) |
+| `add-rationale` | Add (or replace) a `rationale:` field on an atom | `add-rationale invariant inference/scan-queue-bound` (prose shown) |
+| `set-category` | Set a term's `category` | `set-category term inference/scan-queue = value` |
+| `set-seam-kind` | Set a seam's `kind` (and direction fields) | `set-seam-kind context/inference/seam/storage = anticorruption-layer` (upstream=storage, downstream=inference) |
+| `set-status` | Lifecycle transition on an atom | `set-status term inference/old-queue = deprecated` |
 
 For each `update`, show the **prose diff** in the chat — the human-readable change to definition / statement / rationale / body. For structural ops (rename / move / deprecate / status transition), the description and target are enough; the reference cascade is mechanical.
 
@@ -113,10 +115,14 @@ For each `update`, show the **prose diff** in the chat — the human-readable ch
 >   ```
 > - `rename` term `inference/worker` → `inference/run-worker`  *(cascades: 3 refs in inference.yaml, 1 in billing.yaml)*
 >
-> **`lexicon/decisions/`**
-> - `create` ADR-0042 "Introduce scan-queue between intake and workers"
->   - `affects:` [inference/scan-queue, inference/worker, inference/intake]
->   - body to be written after approval if you accept
+> **`lexicon/contexts/inference.yaml`** (rationale lift)
+> - `add-rationale` invariant `inference/scan-queue-bound`
+>   ```
+>   The bound exists because intake bursts can outpace worker throughput by 5–10x;
+>   without a queue the system either drops jobs (silent failure) or backpressures
+>   intake (cascading outage). 1k is small enough to flush on a worker restart and
+>   large enough to absorb the observed burst pattern.
+>   ```
 >
 > ### Confidence: <low | medium | high>
 >
@@ -132,10 +138,9 @@ When the user says yes:
 
 1. **Apply each mutation** to its target file using Edit. Single Edit per mutation where possible.
 2. **For rename / move operations**, cascade reference updates across all files in `lexicon/`. Don't ask per-file — that's what the cascade declaration in the proposal was for. If a cascade can't be performed mechanically (ambiguous ref), surface the specific case and ask.
-3. **Append new ADRs** to `lexicon/decisions/` as fresh YAML files (`ADR-<NNNN>-<slug>.yaml`). Use the next available NNNN.
-4. **If a feature plan was involved**, move `lexicon/plans/<feature>/` to `lexicon/plans/_archive/<feature>/` (ask first if the user didn't explicitly ask to wrap up the feature).
-5. **Update the marker.** Write the current ISO timestamp to `lexicon/.last-crystallized`.
-6. **Confirm in chat**: "Crystallized. <N> mutations applied across <F> files; <K> ADRs added; <R> reference cascades. Marker updated."
+3. **If a feature plan was involved**, move `lexicon/plans/<feature>/` to `lexicon/plans/_archive/<feature>/` (ask first if the user didn't explicitly ask to wrap up the feature).
+4. **Update the marker.** Write the current ISO timestamp to `lexicon/.last-crystallized`.
+5. **Confirm in chat**: "Crystallized. <N> mutations applied across <F> files; <R> reference cascades. Marker updated."
 
 If the user says **revise**, iterate on the proposal in conversation. Don't apply partial mutation sets unilaterally.
 

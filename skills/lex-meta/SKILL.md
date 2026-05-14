@@ -16,7 +16,7 @@ If you haven't loaded `lex-overview` yet this session, read it first — you'll 
 Run when the user invokes `/lex-meta`, optionally followed by a prompt pointing at the angle or moment they care about. Typical scenarios:
 
 - The user just edited a file under the project's `lexicon/` folder and wants the underlying skill to "learn" from that correction.
-- The user pushed back on something a lexicon skill did earlier in the session ("no, don't propose ADRs for that kind of change") and now wants the rule captured.
+- The user pushed back on something a lexicon skill did earlier in the session ("no, don't auto-categorize terms; always interview") and now wants the rule captured.
 - The user wants a behavioral tweak to a skill they've been thinking about, and `/lex-meta` is the route to it.
 
 Don't run when:

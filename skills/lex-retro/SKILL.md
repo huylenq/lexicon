@@ -24,17 +24,17 @@ If unsure whether a stopping point has been reached, lean toward running. The co
 ## Gather inputs
 
 Read, in this order:
-1. `lexicon/system.md` — the cold model.
-2. Relevant `lexicon/views/*.md` — whichever the session was working in.
+1. `lexicon/system.yaml` — the cold-layer root.
+2. Relevant `lexicon/contexts/*.yaml` — whichever the session was working in.
 3. `~/src/lexicon/lexicon-prefs.md` — personal overrides (Calibration section especially, for what to flag vs skip). Loaded by `lex-overview` already; re-check if this session might have added entries.
 4. The actual code diff for this session (use git: `git diff` against the session's start point if known, otherwise summarize touched files from the conversation history).
 5. The conversation history itself — the scope declaration `lex-ground` produced is here, not in any file.
 
 ## Run the structural checks
 
-Run the six checks defined in `lex-overview` § Structural checks, applied **forward against this session's diff**: *did this session introduce anything that conflicts with `system.md`?*
+Run the six checks defined in `lex-overview` § Structural checks, applied **forward against this session's diff**: *did this session introduce anything that conflicts with `system.yaml`?*
 
-Each check that fires is a candidate flag in the retro's `## Structural drift` section — except check 5 (Decisions), which becomes a candidate for an ADR (append to `lexicon/decisions/`, lighter than a drift flag and doesn't wait for crystallize).
+Each check that fires is a candidate flag in the retro's `## Structural drift` section. Check 5 (Decisions) surfaces as a flag like any other — v0.3 has no append-only ADR slot; the decision argument lives as `rationale:` on the affected atom, which is a cold-layer edit and goes through `lex-crystallize`. The retro names the candidate target atom and the argument; crystallize applies it.
 
 Be conservative on flagging. Borderline cases get a brief note under `## Notes for future sweeps` rather than a full drift flag — across multiple sessions, patterns will emerge that `lex-crystallize` can act on. Don't try to be perfectly precise per-session; the architecture handles eventual consistency.
 
@@ -58,7 +58,7 @@ Outcome: <silent | drift-flagged | adr | drift+adr>
 - Vocabulary consistency: <pass | flagged: ...>
 - Invariants: <pass | flagged: ...>
 - Boundaries: <pass | flagged: ...>
-- Decisions: <none | recorded as ADR ...>
+- Decisions: <none | flagged: rationale candidate on ...>
 - Scope match: <within scope | drifted: ...>
 
 ## Structural drift
@@ -76,34 +76,13 @@ Outcome: <silent | drift-flagged | adr | drift+adr>
 
 Keep the retro **short**. The drift section, if present, should be readable in under two minutes per flag. Long retros are a signal you're trying to crystallize inside a retro — don't. Crystallization is a separate skill, user-triggered.
 
-## ADRs are lighter
-
-If the only thing that fired was check 5 (decisions), don't write a drift flag — append an ADR to `lexicon/decisions/`:
-
-```markdown
-# ADR-<NNNN>: <Short title>
-Date: <iso>
-Status: accepted
-
-## Context
-<What problem we faced.>
-
-## Decision
-<What we chose.>
-
-## Consequences
-<What this enables and what it forecloses.>
-```
-
-ADRs don't need user approval before being written — they're append-only history.
-
 ## Tell the user
 
 After writing the retro:
 
-- If silent (no drift flags, no ADR): one line. "Retro logged."
+- If silent (no drift flags): one line. "Retro logged."
 - If drift flags: name them briefly. "Retro logged with one drift flag — new `ScanQueue` concept worth crystallizing later."
-- If ADR: name it. "Retro logged; recorded ADR-0042 for the queue-vs-stream choice."
+- If a decision argument was captured: name the rationale candidate. "Retro logged; flagged a rationale candidate on `context/intake/invariant/scan-queue-bound` for the queue-vs-stream choice — apply via crystallize."
 
 Don't dump the retro contents into chat. The file is the artifact; chat is the pointer.
 
