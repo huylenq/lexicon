@@ -91,8 +91,13 @@ function DropCapFirst({
   graph: ResolvedGraph;
   ownerContextId: string | null;
 }) {
-  const first = text.charAt(0);
-  const rest = text.slice(1);
+  // Skip leading markdown emphasis markers and whitespace so the drop cap lands
+  // on the first actual letter — otherwise `**Bold lede**` would drop-cap the `*`.
+  const m = text.match(/^([^\p{L}\p{N}]*)([\p{L}\p{N}])([\s\S]*)$/u);
+  if (!m) return <>{renderInline(text, graph, ownerContextId)}</>;
+  const [, leading, first, rest] = m;
+  // Re-attach `leading` (e.g. `**`) so the remainder still parses as balanced markdown.
+  const remainder = leading + rest;
   return (
     <>
       <span
@@ -101,7 +106,7 @@ function DropCapFirst({
       >
         {first}
       </span>
-      {renderInline(rest, graph, ownerContextId)}
+      {renderInline(remainder, graph, ownerContextId)}
     </>
   );
 }
@@ -129,7 +134,7 @@ function renderInline(
 }
 
 function renderCode(text: string): ReactNode {
-  if (!text.includes("`")) return text;
+  if (!text.includes("`")) return renderEmphasis(text);
   const parts = splitBackticks(text);
   return parts.map((p, i) =>
     p.code ? (
@@ -137,9 +142,34 @@ function renderCode(text: string): ReactNode {
         {p.text}
       </code>
     ) : (
-      <Fragment key={i}>{p.text}</Fragment>
+      <Fragment key={i}>{renderEmphasis(p.text)}</Fragment>
     ),
   );
+}
+
+// `**bold**` and `*italic*`. Underscore italics are intentionally not supported
+// — snake_case identifiers in narrative prose would false-match.
+const EMPHASIS_RE = /\*\*([\s\S]+?)\*\*|\*(?!\s)([^*\n]+?)(?<!\s)\*/g;
+
+function renderEmphasis(text: string): ReactNode {
+  if (!text.includes("*")) return text;
+  const out: ReactNode[] = [];
+  let cursor = 0;
+  let key = 0;
+  let m: RegExpExecArray | null;
+  EMPHASIS_RE.lastIndex = 0;
+  while ((m = EMPHASIS_RE.exec(text)) !== null) {
+    if (m.index > cursor) out.push(<Fragment key={key++}>{text.slice(cursor, m.index)}</Fragment>);
+    if (m[1] !== undefined) {
+      out.push(<strong key={key++} className="font-semibold">{m[1]}</strong>);
+    } else {
+      out.push(<em key={key++}>{m[2]}</em>);
+    }
+    cursor = m.index + m[0].length;
+  }
+  if (cursor === 0) return text;
+  if (cursor < text.length) out.push(<Fragment key={key++}>{text.slice(cursor)}</Fragment>);
+  return out;
 }
 
 function InlineRef({

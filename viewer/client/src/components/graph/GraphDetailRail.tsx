@@ -4,6 +4,7 @@ import { KIND_LABEL, formatLineRange } from "@/lib/kinds";
 import RefLink from "../RefLink";
 import CodeAnchorBadge from "../CodeAnchorBadge";
 import InlineCode from "../InlineCode";
+import Prose from "../Prose";
 import { toInspectorTarget, useInspector } from "@/lib/inspector";
 
 interface Props {
@@ -82,7 +83,12 @@ export default function GraphDetailRail({ entity, graph, projectId, onClose }: P
       {PROSE_FIELDS.map(([field, label]) =>
         entity[field] ? (
           <Section key={field} label={label}>
-            <Prose text={entity[field] as string} />
+            <Prose
+              text={entity[field] as string}
+              graph={graph}
+              ownerContextId={entity.ownerContextId}
+              className="text-small"
+            />
           </Section>
         ) : null
       )}
@@ -166,6 +172,3 @@ function Section({ label, children }: { label: string; children: React.ReactNode
   );
 }
 
-function Prose({ text }: { text: string }) {
-  return <div className="prose-body text-small">{text.trim()}</div>;
-}
