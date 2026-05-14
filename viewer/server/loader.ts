@@ -9,16 +9,18 @@ import {
 } from "yaml";
 import {
   lexiconFile,
+  SCHEMA_VERSION,
+  ASYMMETRIC_SEAM_KINDS,
+  SYMMETRIC_SEAM_KINDS,
   type LexiconFile,
   type ResolvedGraph,
   type ResolvedEntity,
   type EntityRef,
   type EntityKind,
   type LoadIssue,
-  type CodeAnchor,
-  type DeliberateOmission,
-  type Overlay,
   type SourceLocation,
+  type SeamKind,
+  type TermCategory,
 } from "./schema.ts";
 import { parseProseLinks, resolveFqid } from "./prose-links.ts";
 
@@ -56,6 +58,7 @@ export async function loadLexicon(projectRoot: string): Promise<ResolvedGraph> {
   );
 
   const parsed: { file: string; data: LexiconFile; ranges: FileRanges }[] = [];
+  let outdatedDetected = false;
   for (const { file, text, error } of reads) {
     if (error) {
       issues.push({ file, message: `read failed: ${error.message}`, severity: "error" });
@@ -86,8 +89,29 @@ export async function loadLexicon(projectRoot: string): Promise<ResolvedGraph> {
       });
       continue;
     }
+    if (result.data.schemaVersion !== SCHEMA_VERSION) {
+      issues.push({
+        file,
+        message: `schemaVersion ${result.data.schemaVersion} is older than ${SCHEMA_VERSION}; run \`lex-migrate\` to upgrade`,
+        severity: "error",
+      });
+      outdatedDetected = true;
+      continue;
+    }
     const ranges = computeFileRanges(docNode, lc, text);
     parsed.push({ file, data: result.data, ranges });
+  }
+
+  // If any file declared an older schemaVersion, refuse to render a partial
+  // graph — the resolver's reference shapes are v0.3-only.
+  if (outdatedDetected) {
+    return {
+      system: null,
+      entities: {},
+      byKind: emptyByKind(),
+      issues,
+      projectRoot,
+    };
   }
 
   const graph = resolve(parsed, projectRoot, issues);
@@ -100,7 +124,12 @@ async function walkYaml(dir: string): Promise<string[]> {
   const nested = await Promise.all(
     entries.map(async e => {
       const full = join(dir, e.name);
-      if (e.isDirectory()) return walkYaml(full);
+      // Skip archive directories produced by lex-migrate so legacy schema
+      // versions don't fail the project-wide load.
+      if (e.isDirectory()) {
+        if (e.name.startsWith("_pre-migrate-archive") || e.name === "_archive") return [];
+        return walkYaml(full);
+      }
       if (e.isFile() && /\.ya?ml$/i.test(e.name)) return [full];
       return [];
     }),
@@ -116,7 +145,9 @@ function emptyByKind(): Record<EntityKind, string[]> {
     invariant: [],
     seam: [],
     "boundary-rule": [],
-    decision: [],
+    aggregate: [],
+    module: [],
+    "shared-kernel": [],
     surface: [],
     region: [],
   };
@@ -134,9 +165,10 @@ const CHILD_KEYS = [
   "invariants",
   "seams",
   "boundaryRules",
+  "aggregates",
+  "modules",
   "regions",
-  "crossCuttingTerms",
-  "crossCuttingInvariants",
+  "sharedKernels",
   "overlays",
   "deliberateOmissions",
 ] as const;
@@ -206,6 +238,14 @@ function loc(file: string, range: Range | undefined | null, totalLines: number):
   return { file, lineStart: range.lineStart, lineEnd: range.lineEnd, path: range.path };
 }
 
+function normalizeSeamKind(raw: SeamKind | undefined): SeamKind {
+  return raw ?? "unknown";
+}
+
+function normalizeTermCategory(raw: TermCategory | undefined): TermCategory {
+  return raw ?? "concept";
+}
+
 function resolve(
   files: { file: string; data: LexiconFile; ranges: FileRanges }[],
   projectRoot: string,
@@ -240,34 +280,59 @@ function resolve(
         purpose: data.purpose,
         narrative: data.narrative,
         body: data.body,
-        // relatedAtoms on each omission is resolved in the second pass.
         deliberateOmissions: (data.deliberateOmissions ?? []).map(o => ({
           topic: o.topic,
           reason: o.reason,
           triggers: o.triggers,
-        })) as DeliberateOmission[],
-        overlays: (data.overlays ?? []) as Overlay[],
+        })),
+        overlays: data.overlays ?? [],
       };
       register(e);
       system = e;
 
-      for (const t of data.crossCuttingTerms ?? []) {
+      for (const k of data.sharedKernels ?? []) {
+        const kernelFqid = `kernel/${k.id}`;
         register({
-          ref: ref("term", `term/${t.id}`, t.name),
+          ref: ref("shared-kernel", kernelFqid, k.name),
           ownerContextId: null,
-          source: childLoc("crossCuttingTerms", t.id),
-          definition: t.definition,
-          symbols: t.symbols,
+          ownerKernelId: null,
+          source: childLoc("sharedKernels", k.id),
+          description: k.description,
+          rationale: k.rationale,
         });
-      }
-      for (const inv of data.crossCuttingInvariants ?? []) {
-        register({
-          ref: ref("invariant", `invariant/${inv.id}`, inv.name),
-          ownerContextId: null,
-          source: childLoc("crossCuttingInvariants", inv.id),
-          statement: inv.statement,
-          rationale: inv.rationale,
-        });
+        for (const t of k.terms ?? []) {
+          register({
+            ref: ref("term", `${kernelFqid}/${t.id}`, t.name),
+            ownerContextId: null,
+            ownerKernelId: k.id,
+            source: rootLoc, // sharedKernel children share the kernel's range; refined in pass 2 if needed
+            category: normalizeTermCategory(t.category),
+            definition: t.definition,
+            rationale: t.rationale,
+            body: t.body,
+            symbols: t.symbols,
+            identityRule: t.identityRule,
+            equality: t.equality,
+            returns: t.returns,
+            emittedWhen: t.emittedWhen,
+            payload: t.payload,
+            status: t.status,
+          });
+        }
+        for (const inv of k.invariants ?? []) {
+          register({
+            ref: ref("invariant", `${kernelFqid}/invariant/${inv.id}`, inv.name),
+            ownerContextId: null,
+            ownerKernelId: k.id,
+            source: rootLoc,
+            statement: inv.statement,
+            rationale: inv.rationale,
+            validationMode: inv.validationMode,
+            constrainsCode: inv.constrainsCode,
+            body: inv.body,
+            status: inv.status,
+          });
+        }
       }
     } else if (data.kind === "bounded-context") {
       register({
@@ -277,16 +342,25 @@ function resolve(
         purpose: data.purpose,
         narrative: data.narrative,
         body: data.body,
-        modules: data.modules,
+        subdomain: data.subdomain,
+        codeModules: data.codeModules,
       });
       for (const t of data.terms ?? []) {
         register({
           ref: ref("term", `${data.id}/${t.id}`, t.name),
           ownerContextId: data.id,
           source: childLoc("terms", t.id),
+          category: normalizeTermCategory(t.category),
           definition: t.definition,
+          rationale: t.rationale,
           body: t.body,
           symbols: t.symbols,
+          identityRule: t.identityRule,
+          equality: t.equality,
+          returns: t.returns,
+          emittedWhen: t.emittedWhen,
+          payload: t.payload,
+          status: t.status,
         });
       }
       for (const inv of data.invariants ?? []) {
@@ -299,6 +373,7 @@ function resolve(
           validationMode: inv.validationMode,
           constrainsCode: inv.constrainsCode,
           body: inv.body,
+          status: inv.status,
         });
       }
       for (const s of data.seams ?? []) {
@@ -307,6 +382,9 @@ function resolve(
           ownerContextId: data.id,
           source: childLoc("seams", s.id),
           definition: s.description,
+          rationale: s.rationale,
+          seamKind: normalizeSeamKind(s.kind),
+          status: s.status,
         });
       }
       for (const r of data.boundaryRules ?? []) {
@@ -315,22 +393,28 @@ function resolve(
           ownerContextId: data.id,
           source: childLoc("boundaryRules", r.id),
           statement: r.rule,
+          rationale: r.rationale,
         });
       }
-    } else if (data.kind === "decision") {
-      register({
-        ref: ref("decision", `decision/${data.id}`, data.title),
-        ownerContextId: null,
-        source: rootLoc,
-        title: data.title,
-        date: data.date,
-        status: data.status,
-        narrative: data.narrative,
-        context: data.context,
-        decision: data.decision,
-        consequences: data.consequences,
-        alternatives: data.alternatives,
-      });
+      for (const a of data.aggregates ?? []) {
+        register({
+          ref: ref("aggregate", `${data.id}/aggregate/${a.id}`, a.name),
+          ownerContextId: data.id,
+          source: childLoc("aggregates", a.id),
+          rationale: a.rationale,
+          status: a.status,
+        });
+      }
+      for (const m of data.modules ?? []) {
+        register({
+          ref: ref("module", `${data.id}/module/${m.id}`, m.name),
+          ownerContextId: data.id,
+          source: childLoc("modules", m.id),
+          description: m.description,
+          rationale: m.rationale,
+          status: m.status,
+        });
+      }
     } else if (data.kind === "surface") {
       const surfFqid = `surface/${data.id}`;
       register({
@@ -361,8 +445,9 @@ function resolve(
     originFile: string,
     ownerContextId?: string | null,
     context?: string,
+    ownerKernelId?: string | null,
   ): EntityRef | null => {
-    const ref = resolveFqid(raw, entities, ownerContextId, system);
+    const ref = resolveFqid(raw, entities, ownerContextId, system, ownerKernelId);
     if (ref) return ref;
     issues.push({
       file: originFile,
@@ -372,7 +457,8 @@ function resolve(
     return null;
   };
 
-  // walk original files again to fill in disambiguatesFrom, affects, supersedes, contexts list
+  // second pass: fill in cross-entity refs (disambiguatesFrom, contained*,
+  // seam direction, aggregate refs, module members, kernel participants, etc.)
   for (const { file, data } of files) {
     const relFile = relative(projectRoot, file);
     if (data.kind === "system") {
@@ -383,8 +469,9 @@ function resolve(
           .filter((x): x is EntityRef => x !== null);
       }
       if (sys) {
-        sys.crossCuttingTerms = (data.crossCuttingTerms ?? []).map(t => entities[`term/${t.id}`]?.ref).filter(Boolean) as EntityRef[];
-        sys.crossCuttingInvariants = (data.crossCuttingInvariants ?? []).map(t => entities[`invariant/${t.id}`]?.ref).filter(Boolean) as EntityRef[];
+        sys.sharedKernels = (data.sharedKernels ?? [])
+          .map(k => entities[`kernel/${k.id}`]?.ref)
+          .filter(Boolean) as EntityRef[];
         if (sys.deliberateOmissions) {
           sys.deliberateOmissions = sys.deliberateOmissions.map((o, i) => {
             const raw = data.deliberateOmissions?.[i]?.relatedAtoms ?? [];
@@ -398,68 +485,190 @@ function resolve(
           });
         }
       }
-      for (const t of data.crossCuttingTerms ?? []) {
-        const e = entities[`term/${t.id}`];
-        if (e && t.disambiguatesFrom) {
-          e.disambiguatesFrom = t.disambiguatesFrom.map(r => resolveRef(r, relFile)).filter((x): x is EntityRef => x !== null);
+      // sharedKernel-level cross-refs
+      for (const k of data.sharedKernels ?? []) {
+        const kEnt = entities[`kernel/${k.id}`];
+        if (!kEnt) continue;
+        if (k.participatingContexts) {
+          kEnt.kernelParticipatingContexts = k.participatingContexts
+            .map(c => resolveRef(c.includes("/") ? c : `context/${c}`, relFile))
+            .filter((x): x is EntityRef => x !== null);
+        }
+        kEnt.containedKernelTerms = (k.terms ?? [])
+          .map(t => entities[`kernel/${k.id}/${t.id}`]?.ref)
+          .filter(Boolean) as EntityRef[];
+        kEnt.containedKernelInvariants = (k.invariants ?? [])
+          .map(i => entities[`kernel/${k.id}/invariant/${i.id}`]?.ref)
+          .filter(Boolean) as EntityRef[];
+        // term-level refs inside a kernel — pass ownerKernelId so sibling
+        // slugs resolve via the kernel-owner-scope fallback.
+        for (const t of k.terms ?? []) {
+          const e = entities[`kernel/${k.id}/${t.id}`];
+          if (!e) continue;
+          if (t.disambiguatesFrom) {
+            e.disambiguatesFrom = t.disambiguatesFrom
+              .map(r => resolveRef(r, relFile, null, `term ${e.ref.fqid}.disambiguatesFrom`, k.id))
+              .filter((x): x is EntityRef => x !== null);
+          }
+          if (t.operatesOn) {
+            e.operatesOn = t.operatesOn
+              .map(r => resolveRef(r, relFile, null, `term ${e.ref.fqid}.operatesOn`, k.id))
+              .filter((x): x is EntityRef => x !== null);
+          }
+          if (t.consumers) {
+            e.consumers = t.consumers
+              .map(r => resolveRef(r, relFile, null, `term ${e.ref.fqid}.consumers`, k.id))
+              .filter((x): x is EntityRef => x !== null);
+          }
         }
       }
     } else if (data.kind === "bounded-context") {
       const ctx = entities[`context/${data.id}`];
       if (ctx) {
-        ctx.containedTerms = (data.terms ?? []).map(t => entities[`${data.id}/${t.id}`]?.ref).filter(Boolean) as EntityRef[];
-        ctx.containedInvariants = (data.invariants ?? []).map(t => entities[`${data.id}/invariant/${t.id}`]?.ref).filter(Boolean) as EntityRef[];
-        ctx.containedSeams = (data.seams ?? []).map(t => entities[`${data.id}/seam/${t.id}`]?.ref).filter(Boolean) as EntityRef[];
-        ctx.containedBoundaryRules = (data.boundaryRules ?? []).map(t => entities[`${data.id}/rule/${t.id}`]?.ref).filter(Boolean) as EntityRef[];
+        ctx.containedTerms = (data.terms ?? [])
+          .map(t => entities[`${data.id}/${t.id}`]?.ref)
+          .filter(Boolean) as EntityRef[];
+        ctx.containedInvariants = (data.invariants ?? [])
+          .map(t => entities[`${data.id}/invariant/${t.id}`]?.ref)
+          .filter(Boolean) as EntityRef[];
+        ctx.containedSeams = (data.seams ?? [])
+          .map(t => entities[`${data.id}/seam/${t.id}`]?.ref)
+          .filter(Boolean) as EntityRef[];
+        ctx.containedBoundaryRules = (data.boundaryRules ?? [])
+          .map(t => entities[`${data.id}/rule/${t.id}`]?.ref)
+          .filter(Boolean) as EntityRef[];
+        ctx.containedAggregates = (data.aggregates ?? [])
+          .map(t => entities[`${data.id}/aggregate/${t.id}`]?.ref)
+          .filter(Boolean) as EntityRef[];
+        ctx.containedModules = (data.modules ?? [])
+          .map(t => entities[`${data.id}/module/${t.id}`]?.ref)
+          .filter(Boolean) as EntityRef[];
       }
       for (const t of data.terms ?? []) {
         const e = entities[`${data.id}/${t.id}`];
-        if (e && t.disambiguatesFrom) {
+        if (!e) continue;
+        if (t.disambiguatesFrom) {
           e.disambiguatesFrom = t.disambiguatesFrom
-            .map(r => resolveRef(r, relFile, data.id))
+            .map(r => resolveRef(r, relFile, data.id, `term ${e.ref.fqid}.disambiguatesFrom`))
+            .filter((x): x is EntityRef => x !== null);
+        }
+        if (t.operatesOn) {
+          e.operatesOn = t.operatesOn
+            .map(r => resolveRef(r, relFile, data.id, `term ${e.ref.fqid}.operatesOn`))
+            .filter((x): x is EntityRef => x !== null);
+        }
+        if (t.consumers) {
+          e.consumers = t.consumers
+            .map(r => resolveRef(r, relFile, data.id, `term ${e.ref.fqid}.consumers`))
             .filter((x): x is EntityRef => x !== null);
         }
       }
-    } else if (data.kind === "decision") {
-      const adr = entities[`decision/${data.id}`];
-      if (!adr) continue;
-      if (data.affects) {
-        adr.affects = data.affects.map(r => resolveRef(r, relFile)).filter((x): x is EntityRef => x !== null);
+      for (const s of data.seams ?? []) {
+        const e = entities[`${data.id}/seam/${s.id}`];
+        if (!e) continue;
+        const sk = normalizeSeamKind(s.kind);
+        if (s.upstream) {
+          e.upstream = resolveRef(s.upstream.includes("/") ? s.upstream : `context/${s.upstream}`, relFile, data.id, `seam ${e.ref.fqid}.upstream`);
+        }
+        if (s.downstream) {
+          e.downstream = resolveRef(s.downstream.includes("/") ? s.downstream : `context/${s.downstream}`, relFile, data.id, `seam ${e.ref.fqid}.downstream`);
+        }
+        if (s.participants) {
+          e.participants = s.participants
+            .map(c => resolveRef(c.includes("/") ? c : `context/${c}`, relFile, data.id, `seam ${e.ref.fqid}.participants`))
+            .filter((x): x is EntityRef => x !== null);
+        }
+        // Validation: asymmetric kinds want upstream+downstream; symmetric want participants.
+        if (ASYMMETRIC_SEAM_KINDS.has(sk) && (!e.upstream || !e.downstream)) {
+          issues.push({
+            file: relFile,
+            message: `seam ${e.ref.fqid} has kind=${sk} but is missing upstream/downstream`,
+            severity: "warning",
+          });
+        }
+        if (SYMMETRIC_SEAM_KINDS.has(sk) && (!e.participants || e.participants.length < 2)) {
+          issues.push({
+            file: relFile,
+            message: `seam ${e.ref.fqid} has kind=${sk} but participants list is missing or has <2 entries`,
+            severity: "warning",
+          });
+        }
+        if (sk === "unknown") {
+          issues.push({
+            file: relFile,
+            message: `seam ${e.ref.fqid} has kind=unknown — triage needed`,
+            severity: "warning",
+          });
+        }
       }
-      if (data.supersedes) {
-        adr.supersedes = data.supersedes
-          .map(r => entities[`decision/${r}`]?.ref)
-          .filter(Boolean) as EntityRef[];
+      for (const a of data.aggregates ?? []) {
+        const e = entities[`${data.id}/aggregate/${a.id}`];
+        if (!e) continue;
+        const rootRef = a.root.includes("/") ? a.root : `${data.id}/${a.root}`;
+        e.aggregateRoot = resolveRef(rootRef, relFile, data.id, `aggregate ${e.ref.fqid}.root`);
+        if (e.aggregateRoot && e.aggregateRoot.kind !== "term") {
+          issues.push({
+            file: relFile,
+            message: `aggregate ${e.ref.fqid}.root points at ${e.aggregateRoot.fqid} which is not a term`,
+            severity: "warning",
+          });
+        } else if (e.aggregateRoot) {
+          const rootEnt = entities[e.aggregateRoot.fqid];
+          if (rootEnt && rootEnt.category && rootEnt.category !== "entity") {
+            issues.push({
+              file: relFile,
+              message: `aggregate ${e.ref.fqid}.root points at a ${rootEnt.category}-category term; aggregate roots must be entity-category`,
+              severity: "warning",
+            });
+          }
+        }
+        if (a.members) {
+          e.aggregateMembers = a.members
+            .map(r => resolveRef(r.includes("/") ? r : `${data.id}/${r}`, relFile, data.id, `aggregate ${e.ref.fqid}.members`))
+            .filter((x): x is EntityRef => x !== null);
+        }
+        if (a.invariants) {
+          e.aggregateInvariants = a.invariants
+            .map(r => resolveRef(r.includes("/") ? r : `${data.id}/invariant/${r}`, relFile, data.id, `aggregate ${e.ref.fqid}.invariants`))
+            .filter((x): x is EntityRef => x !== null);
+        }
+      }
+      for (const m of data.modules ?? []) {
+        const e = entities[`${data.id}/module/${m.id}`];
+        if (!e) continue;
+        if (m.members) {
+          e.moduleMembers = m.members
+            .map(r => resolveRef(r, relFile, data.id, `module ${e.ref.fqid}.members`))
+            .filter((x): x is EntityRef => x !== null);
+        }
       }
     } else if (data.kind === "surface") {
       const surf = entities[`surface/${data.id}`];
       if (surf) {
-        surf.regions = (data.regions ?? []).map(r => entities[`surface/${data.id}/${r.id}`]?.ref).filter(Boolean) as EntityRef[];
+        surf.regions = (data.regions ?? [])
+          .map(r => entities[`surface/${data.id}/${r.id}`]?.ref)
+          .filter(Boolean) as EntityRef[];
       }
     }
   }
 
-  // third pass: backfill supersededBy
-  for (const e of Object.values(entities)) {
-    if (e.ref.kind !== "decision" || !e.supersedes) continue;
-    for (const target of e.supersedes) {
-      const t = entities[target.fqid];
-      if (t) t.supersededBy = e.ref;
-    }
-  }
-
-  // fourth pass: resolve [[fqid]] links in every prose-bearing field. Dangling
+  // third pass: resolve [[fqid]] links in every prose-bearing field. Dangling
   // links become warning LoadIssues. For `narrative` specifically we also keep
   // the resolved (ordered, deduped) refs on the entity so the graph builder
   // and narrative-thread overlay don't re-parse on every render.
   const proseFieldsByKind: Partial<Record<EntityKind, (keyof ResolvedEntity)[]>> = {
     system: ["narrative", "purpose", "body"],
     "bounded-context": ["narrative", "purpose", "body"],
-    term: ["definition", "body"],
+    term: [
+      "definition", "rationale", "body",
+      "identityRule", "equality", "returns", "emittedWhen", "payload",
+    ],
     invariant: ["statement", "rationale", "body"],
-    seam: ["definition"],
-    "boundary-rule": ["statement"],
-    decision: ["narrative", "context", "decision", "consequences", "alternatives"],
+    seam: ["definition", "rationale"],
+    "boundary-rule": ["statement", "rationale"],
+    aggregate: ["rationale"],
+    module: ["description", "rationale"],
+    "shared-kernel": ["description", "rationale"],
     surface: ["body"],
     region: ["role"],
   };
@@ -472,7 +681,13 @@ function resolve(
     const out: EntityRef[] = [];
     const seen = new Set<string>();
     for (const link of parseProseLinks(text)) {
-      const ref = resolveRef(link.fqid, e.source.file, e.ownerContextId, `prose link [[${link.raw}]] in ${location}`);
+      const ref = resolveRef(
+        link.fqid,
+        e.source.file,
+        e.ownerContextId,
+        `prose link [[${link.raw}]] in ${location}`,
+        e.ownerKernelId,
+      );
       if (ref && !seen.has(ref.fqid)) {
         seen.add(ref.fqid);
         out.push(ref);

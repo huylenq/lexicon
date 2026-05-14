@@ -18,15 +18,25 @@ interface Props {
 const PROSE_FIELDS: [keyof ResolvedEntity, string][] = [
   ["definition", "Definition"],
   ["purpose", "Purpose"],
+  ["description", "Description"],
   ["rationale", "Why"],
   ["role", "Role"],
-  ["decision", "Decision"],
+  ["identityRule", "Identity"],
+  ["equality", "Equality"],
+  ["returns", "Returns"],
+  ["emittedWhen", "Emitted when"],
+  ["payload", "Payload"],
 ];
 
 const REF_LIST_FIELDS: [keyof ResolvedEntity, string][] = [
   ["disambiguatesFrom", "Not to be confused with"],
-  ["affects", "Affects"],
-  ["supersedes", "Supersedes"],
+  ["operatesOn", "Operates on"],
+  ["consumers", "Consumers"],
+  ["aggregateMembers", "Members"],
+  ["aggregateInvariants", "Invariants"],
+  ["moduleMembers", "Members"],
+  ["participants", "Participants"],
+  ["kernelParticipatingContexts", "Participating contexts"],
 ];
 
 export default function GraphDetailRail({ entity, graph, projectId, onClose }: Props) {
@@ -35,6 +45,9 @@ export default function GraphDetailRail({ entity, graph, projectId, onClose }: P
 
   const owner = entity.ownerContextId
     ? graph.entities[`context/${entity.ownerContextId}`]
+    : null;
+  const kernelOwner = entity.ownerKernelId
+    ? graph.entities[`kernel/${entity.ownerKernelId}`]
     : null;
   const surfaceOwner =
     entity.ref.kind === "region" && entity.surfaceId
@@ -81,6 +94,22 @@ export default function GraphDetailRail({ entity, graph, projectId, onClose }: P
         Open in reading room →
       </Link>
 
+      {entity.category && entity.ref.kind === "term" && (
+        <Section label="Category">
+          <span className="mono text-small text-fg-2">{entity.category}</span>
+        </Section>
+      )}
+      {entity.subdomain && entity.ref.kind === "bounded-context" && (
+        <Section label="Subdomain">
+          <span className="mono text-small text-fg-2">{entity.subdomain}</span>
+        </Section>
+      )}
+      {entity.seamKind && (
+        <Section label="Seam kind">
+          <span className="mono text-small text-fg-2">{entity.seamKind}</span>
+        </Section>
+      )}
+
       {PROSE_FIELDS.map(([field, label]) =>
         entity[field] ? (
           <Section key={field} label={label}>
@@ -88,6 +117,7 @@ export default function GraphDetailRail({ entity, graph, projectId, onClose }: P
               text={entity[field] as string}
               graph={graph}
               ownerContextId={entity.ownerContextId}
+              ownerKernelId={entity.ownerKernelId}
               className="text-small"
             />
           </Section>
@@ -103,9 +133,6 @@ export default function GraphDetailRail({ entity, graph, projectId, onClose }: P
       {entity.status && (
         <Section label="Status">
           <span className="display text-h3 italic text-mark-2">{entity.status}</span>
-          {entity.date && (
-            <span className="mono text-small text-fg-3 ml-2">· {entity.date}</span>
-          )}
         </Section>
       )}
 
@@ -114,9 +141,29 @@ export default function GraphDetailRail({ entity, graph, projectId, onClose }: P
           <RefLink to={owner.ref} />
         </Section>
       )}
+      {kernelOwner && (
+        <Section label="Kernel">
+          <RefLink to={kernelOwner.ref} />
+        </Section>
+      )}
       {surfaceOwner && (
         <Section label="Surface">
           <RefLink to={surfaceOwner.ref} />
+        </Section>
+      )}
+      {entity.upstream && (
+        <Section label="Upstream">
+          <RefLink to={entity.upstream} />
+        </Section>
+      )}
+      {entity.downstream && (
+        <Section label="Downstream">
+          <RefLink to={entity.downstream} />
+        </Section>
+      )}
+      {entity.aggregateRoot && (
+        <Section label="Root">
+          <RefLink to={entity.aggregateRoot} />
         </Section>
       )}
 
@@ -131,11 +178,6 @@ export default function GraphDetailRail({ entity, graph, projectId, onClose }: P
           </Section>
         );
       })}
-      {entity.supersededBy && (
-        <Section label="Superseded by">
-          <RefLink to={entity.supersededBy} />
-        </Section>
-      )}
 
       {anchors.length > 0 && (
         <Section label="Code">
@@ -172,4 +214,3 @@ function Section({ label, children }: { label: string; children: React.ReactNode
     </section>
   );
 }
-

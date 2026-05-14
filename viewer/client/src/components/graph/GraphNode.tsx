@@ -102,7 +102,14 @@ function CornerTicks({
 }
 
 function TitleBlock({ w, text, kind }: { w: number; text: string; kind: string }) {
-  const tag = kind === "bounded-context" ? "CONTEXT" : kind === "surface" ? "SURFACE" : "GROUP";
+  const tag =
+    kind === "bounded-context"
+      ? "CONTEXT"
+      : kind === "surface"
+        ? "SURFACE"
+        : kind === "shared-kernel"
+          ? "KERNEL"
+          : "GROUP";
   return (
     <g transform="translate(14, 18)" pointerEvents="none">
       <text
@@ -140,7 +147,6 @@ function LeafNode({
 }: Props) {
   // LeafNode is dispatched only when !isCluster, so kind is always a leaf EntityKind.
   const kind = node.kind as EntityKind;
-  const isDecision = kind === "decision";
   const stroke = selected
     ? "var(--color-mark-2)"
     : highlighted
@@ -163,7 +169,7 @@ function LeafNode({
       onMouseLeave={onMouseLeave}
     >
       <rect
-        className={isDecision ? "svg-leaf-fill-decision" : "svg-leaf-fill"}
+        className="svg-leaf-fill"
         x={0}
         y={0}
         width={node.width}

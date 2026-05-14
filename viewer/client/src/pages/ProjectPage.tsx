@@ -344,8 +344,8 @@ function Welcome({ graph }: { graph: ResolvedGraph }) {
         </div>
       )}
       <div className="prose-body text-small text-fg-3 italic">
-        Choose a system, bounded context, term, invariant, decision or surface from
-        the catalog on the left. Code references open inline on the right.
+        Choose a system, bounded context, term, invariant, aggregate, shared kernel,
+        or surface from the catalog on the left. Code references open inline on the right.
         <br />
         <span className="mono text-micro mt-3 inline-block">
           press <span className="text-fg font-semibold">g</span> to switch to the graph view

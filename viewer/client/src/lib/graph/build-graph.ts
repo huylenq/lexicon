@@ -1,26 +1,30 @@
 // Translate the ResolvedGraph (server shape) into a lens-specific graph model.
-// One model per lens: ownership, decisions, surfaces.
+// One model per lens: ownership, surfaces.
 
 import type { EntityKind, ResolvedEntity, ResolvedGraph } from "@/lib/types";
 
-export const LENSES = ["ownership", "decisions", "surfaces"] as const;
+export const LENSES = ["ownership", "surfaces"] as const;
 export type Lens = (typeof LENSES)[number];
 
 export type EdgeKind =
   | "disambiguates"
   | "seam"
   | "boundary-rule"
-  | "affects"
-  | "supersedes"
   | "contains"
-  | "narrative";
+  | "narrative"
+  // `affects` and `supersedes` were ADR edges in v0.2; v0.3 removed ADRs so
+  // no edge of these kinds is emitted. The names remain in the union so the
+  // layout-routing infrastructure (A* fan-out router, focus-only toggles)
+  // still typechecks; a polish pass can rip the dead code later.
+  | "affects"
+  | "supersedes";
 
 export interface GraphNode {
   id: string;            // fqid
   kind: EntityKind | "cluster";
   name: string;
   parent?: string;       // compound-graph parent id
-  // a "cluster" node is a synthetic container (e.g. cross-cutting, adr cluster)
+  // a "cluster" node is a synthetic container (e.g. shared-kernel cluster)
   isCluster?: boolean;
   // pre-layout size hints (px)
   width: number;
@@ -46,12 +50,9 @@ export interface GraphModel {
 
 export interface BuildOpts {
   kindFilter?: Set<EntityKind>; // include if undefined or set has kind
-  contextFilter?: Set<string>;  // include entity if ownerContextId in set OR cross-cutting (when set non-empty: only listed contexts)
+  contextFilter?: Set<string>;  // include entity if ownerContextId in set OR shared-kernel (when set non-empty: only listed contexts)
   edgeFilter?: Set<EdgeKind>;
 }
-
-const CROSS_CLUSTER_ID = "__cluster/cross-cutting";
-const ADR_CLUSTER_ID = "__cluster/decisions";
 
 // width/height per kind, in px (pre-layout)
 function size(kind: EntityKind | "cluster", name: string): { width: number; height: number } {
@@ -62,6 +63,8 @@ function size(kind: EntityKind | "cluster", name: string): { width: number; heig
       return { width: 0, height: 0 }; // ELK computes from children
     case "surface":
       return { width: 0, height: 0 };
+    case "shared-kernel":
+      return { width: 0, height: 0 }; // compound: contains terms/invariants
     case "system":
       return { width: approxText + 40, height: 56 };
     case "term":
@@ -72,8 +75,10 @@ function size(kind: EntityKind | "cluster", name: string): { width: number; heig
       return { width: Math.min(approxText + 32, 220), height: 48 };
     case "boundary-rule":
       return { width: Math.min(approxText + 32, 240), height: 56 };
-    case "decision":
-      return { width: 200, height: 64 };
+    case "aggregate":
+      return { width: Math.min(approxText + 32, 220), height: 56 };
+    case "module":
+      return { width: Math.min(approxText + 32, 220), height: 48 };
     case "region":
       return { width: Math.min(approxText + 32, 200), height: 44 };
     case "cluster":
@@ -89,8 +94,6 @@ export function buildModel(
   switch (lens) {
     case "ownership":
       return buildOwnership(graph, opts);
-    case "decisions":
-      return buildDecisions(graph, opts);
     case "surfaces":
       return buildSurfaces(graph, opts);
   }
@@ -102,11 +105,10 @@ function include(
 ): boolean {
   if (opts.kindFilter && !opts.kindFilter.has(e.ref.kind)) return false;
   if (opts.contextFilter && opts.contextFilter.size > 0) {
-    // include only if owner is in set; cross-cutting passes only if filter includes "__cross"
     if (e.ownerContextId) {
       if (!opts.contextFilter.has(e.ownerContextId)) return false;
-    } else if (e.ref.kind === "term" || e.ref.kind === "invariant") {
-      if (!opts.contextFilter.has("__cross")) return false;
+    } else if (e.ownerKernelId) {
+      if (!opts.contextFilter.has("__kernel")) return false;
     }
   }
   return true;
@@ -165,6 +167,8 @@ function buildOwnership(graph: ResolvedGraph, opts: BuildOpts): GraphModel {
       ...(ctx.containedInvariants ?? []),
       ...(ctx.containedSeams ?? []),
       ...(ctx.containedBoundaryRules ?? []),
+      ...(ctx.containedAggregates ?? []),
+      ...(ctx.containedModules ?? []),
     ]
       .map(r => graph.entities[r.fqid])
       .filter((e): e is ResolvedEntity => !!e);
@@ -180,72 +184,40 @@ function buildOwnership(graph: ResolvedGraph, opts: BuildOpts): GraphModel {
     }
   }
 
-  // Cross-cutting cluster.
-  const crossTerms = graph.system?.crossCuttingTerms ?? [];
-  const crossInvs = graph.system?.crossCuttingInvariants ?? [];
-  const anyCross = crossTerms.length + crossInvs.length > 0;
-  const showCrossCluster =
-    anyCross &&
-    (!opts.contextFilter ||
-      opts.contextFilter.size === 0 ||
-      opts.contextFilter.has("__cross"));
-  if (showCrossCluster) {
-    nodes.push({
-      id: CROSS_CLUSTER_ID,
-      kind: "cluster",
-      name: "Cross-cutting",
-      isCluster: true,
-      ...size("cluster", "Cross-cutting"),
-    });
-    topLevelIds.push(CROSS_CLUSTER_ID);
-    for (const r of crossTerms) {
-      const e = graph.entities[r.fqid];
-      if (!e || !include(e, opts)) continue;
-      nodes.push({
-        id: e.ref.fqid,
-        kind: e.ref.kind,
-        name: e.ref.name,
-        parent: CROSS_CLUSTER_ID,
-        ...size(e.ref.kind, e.ref.name),
-      });
-    }
-    for (const r of crossInvs) {
-      const e = graph.entities[r.fqid];
-      if (!e || !include(e, opts)) continue;
-      nodes.push({
-        id: e.ref.fqid,
-        kind: e.ref.kind,
-        name: e.ref.name,
-        parent: CROSS_CLUSTER_ID,
-        ...size(e.ref.kind, e.ref.name),
-      });
-    }
-  }
-
-  // ADRs as floating top-level nodes (if their kind is allowed).
-  const decisions = (graph.byKind.decision ?? [])
+  // Shared kernels as compound nodes (sit alongside bounded contexts).
+  const kernels = (graph.byKind["shared-kernel"] ?? [])
     .map(id => graph.entities[id])
-    .filter(Boolean)
-    .sort((a, b) => a.ref.fqid.localeCompare(b.ref.fqid));
-  const includeDecisions =
-    !opts.kindFilter || opts.kindFilter.has("decision");
-  if (includeDecisions && decisions.length > 0) {
-    nodes.push({
-      id: ADR_CLUSTER_ID,
-      kind: "cluster",
-      name: "Decisions",
-      isCluster: true,
-      ...size("cluster", "Decisions"),
-    });
-    topLevelIds.push(ADR_CLUSTER_ID);
-    for (const d of decisions) {
+    .filter(Boolean);
+  const showKernels =
+    !opts.contextFilter ||
+    opts.contextFilter.size === 0 ||
+    opts.contextFilter.has("__kernel");
+  if (showKernels) {
+    for (const k of kernels) {
       nodes.push({
-        id: d.ref.fqid,
-        kind: "decision",
-        name: d.title ?? d.ref.name,
-        parent: ADR_CLUSTER_ID,
-        ...size("decision", d.ref.fqid.replace("decision/", "")),
+        id: k.ref.fqid,
+        kind: "shared-kernel",
+        name: k.ref.name,
+        isCluster: true,
+        ...size("shared-kernel", k.ref.name),
       });
+      topLevelIds.push(k.ref.fqid);
+      const inside = [
+        ...(k.containedKernelTerms ?? []),
+        ...(k.containedKernelInvariants ?? []),
+      ]
+        .map(r => graph.entities[r.fqid])
+        .filter((e): e is ResolvedEntity => !!e);
+      for (const e of inside) {
+        if (!include(e, opts)) continue;
+        nodes.push({
+          id: e.ref.fqid,
+          kind: e.ref.kind,
+          name: e.ref.name,
+          parent: k.ref.fqid,
+          ...size(e.ref.kind, e.ref.name),
+        });
+      }
     }
   }
 
@@ -276,145 +248,59 @@ function buildOwnership(graph: ResolvedGraph, opts: BuildOpts): GraphModel {
     }
   }
 
-  // Seam and boundary-rule arrows aren't rendered at v0 — seam containment and
-  // boundary-rule placement inside the owning context carry the meaning
-  // visually. If we ever surface participant/from/to as edges, do it here.
-
-  // ADR affects
-  if (edgeAllowed("affects", opts)) {
-    for (const d of decisions) {
-      if (!has(d.ref.fqid)) continue;
-      for (const r of d.affects ?? []) {
-        if (!has(r.fqid)) continue;
-        edges.push({
-          id: `aff:${d.ref.fqid}->${r.fqid}`,
-          source: d.ref.fqid,
-          target: r.fqid,
-          kind: "affects",
-          directed: true,
-        });
+  // Seam direction edges. For asymmetric seams (kind ∈ ACL / Conformist /
+  // Customer-Supplier / Open-Host-Service) draw upstream → downstream;
+  // symmetric seams emit a pair of undirected edges between participants.
+  if (edgeAllowed("seam", opts)) {
+    for (const e of Object.values(graph.entities)) {
+      if (e.ref.kind !== "seam") continue;
+      if (!has(e.ref.fqid) && !e.ownerContextId) continue;
+      if (e.upstream && e.downstream) {
+        const a = e.upstream.fqid;
+        const b = e.downstream.fqid;
+        if (has(a) && has(b)) {
+          edges.push({
+            id: `seam:${a}->${b}:${e.ref.fqid}`,
+            source: a,
+            target: b,
+            kind: "seam",
+            directed: true,
+            label: e.seamKind,
+          });
+        }
+      } else if (e.participants && e.participants.length >= 2) {
+        const ps = e.participants.filter(p => has(p.fqid));
+        for (let i = 0; i < ps.length; i++) {
+          for (let j = i + 1; j < ps.length; j++) {
+            edges.push({
+              id: `seam:${ps[i].fqid}<>${ps[j].fqid}:${e.ref.fqid}`,
+              source: ps[i].fqid,
+              target: ps[j].fqid,
+              kind: "seam",
+              directed: false,
+              label: e.seamKind,
+            });
+          }
+        }
       }
     }
   }
 
-  // supersedes (between ADRs)
-  if (edgeAllowed("supersedes", opts)) {
-    for (const d of decisions) {
-      if (!has(d.ref.fqid)) continue;
-      for (const r of d.supersedes ?? []) {
-        if (!has(r.fqid)) continue;
-        edges.push({
-          id: `sup:${d.ref.fqid}->${r.fqid}`,
-          source: d.ref.fqid,
-          target: r.fqid,
-          kind: "supersedes",
-          directed: true,
-        });
-      }
-    }
-  }
-
-  // Narrative edges from system, bounded-contexts, and decisions. The system
-  // entity isn't a node on this lens, so its mentions become unparented edges
-  // from a synthetic system node — too noisy. Skip system narrative here; the
-  // reading-room renders it instead.
+  // Narrative edges from system, bounded-contexts, and shared-kernels. The
+  // system entity isn't a node on this lens, so its mentions become unparented
+  // edges from a synthetic system node — too noisy. Skip system narrative here.
   if (edgeAllowed("narrative", opts)) {
     for (const ctx of contexts) {
       if (!has(ctx.ref.fqid)) continue;
       emitNarrativeEdges(ctx, has, edges);
     }
-    for (const d of decisions) {
-      if (!has(d.ref.fqid)) continue;
-      emitNarrativeEdges(d, has, edges);
+    for (const k of kernels) {
+      if (!has(k.ref.fqid)) continue;
+      emitNarrativeEdges(k, has, edges);
     }
   }
 
   return { nodes, edges, topLevelIds, lens: "ownership" };
-}
-
-// ---------------- decisions ----------------
-
-function buildDecisions(graph: ResolvedGraph, opts: BuildOpts): GraphModel {
-  const nodes: GraphNode[] = [];
-  const edges: GraphEdge[] = [];
-
-  const decisions = (graph.byKind.decision ?? [])
-    .map(id => graph.entities[id])
-    .filter(Boolean)
-    .sort((a, b) => (a.date ?? "").localeCompare(b.date ?? "") || a.ref.fqid.localeCompare(b.ref.fqid));
-
-  for (const d of decisions) {
-    nodes.push({
-      id: d.ref.fqid,
-      kind: "decision",
-      name: d.title ?? d.ref.name,
-      ...size("decision", d.ref.fqid.replace("decision/", "")),
-    });
-  }
-
-  // affected satellites: top-level (not parented), draw edges
-  const satelliteIds = new Set<string>();
-  if (!opts.kindFilter || opts.kindFilter.size === 0 || hasNonDecisionKind(opts.kindFilter)) {
-    for (const d of decisions) {
-      for (const r of d.affects ?? []) {
-        const e = graph.entities[r.fqid];
-        if (!e || !include(e, opts)) continue;
-        if (satelliteIds.has(e.ref.fqid)) continue;
-        satelliteIds.add(e.ref.fqid);
-        nodes.push({
-          id: e.ref.fqid,
-          kind: e.ref.kind,
-          name: e.ref.name,
-          ...size(e.ref.kind, e.ref.name),
-        });
-      }
-    }
-  }
-
-  const decisionNodeIds = new Set(nodes.map(n => n.id));
-  const has = (id: string) => decisionNodeIds.has(id);
-  if (edgeAllowed("supersedes", opts)) {
-    for (const d of decisions) {
-      for (const r of d.supersedes ?? []) {
-        if (!has(r.fqid)) continue;
-        edges.push({
-          id: `sup:${d.ref.fqid}->${r.fqid}`,
-          source: d.ref.fqid,
-          target: r.fqid,
-          kind: "supersedes",
-          directed: true,
-        });
-      }
-    }
-  }
-  if (edgeAllowed("affects", opts)) {
-    for (const d of decisions) {
-      for (const r of d.affects ?? []) {
-        if (!has(r.fqid)) continue;
-        edges.push({
-          id: `aff:${d.ref.fqid}->${r.fqid}`,
-          source: d.ref.fqid,
-          target: r.fqid,
-          kind: "affects",
-          directed: true,
-        });
-      }
-    }
-  }
-
-  if (edgeAllowed("narrative", opts)) {
-    for (const d of decisions) {
-      if (!has(d.ref.fqid)) continue;
-      emitNarrativeEdges(d, has, edges);
-    }
-  }
-
-  return { nodes, edges, topLevelIds: nodes.map(n => n.id), lens: "decisions" };
-}
-
-function hasNonDecisionKind(filter: Set<EntityKind>): boolean {
-  for (const k of filter) if (k !== "decision") return true;
-  return false;
 }
 
 // ---------------- surfaces ----------------

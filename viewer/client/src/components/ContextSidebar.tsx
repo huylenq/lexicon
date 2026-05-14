@@ -16,25 +16,22 @@ export default function ContextSidebar({
   const linkTo = (fqid: string) => `/p/${projectId}/${fqid}${loc.hash}`;
   const isActive = (fqid: string) => activeFqid === fqid;
 
-  const { contexts, decisions, surfaces, crossTerms, crossInvariants } = useMemo(() => ({
+  const { contexts, kernels, surfaces } = useMemo(() => ({
     contexts: graph.byKind["bounded-context"].map(id => graph.entities[id]).filter(Boolean),
-    decisions: graph.byKind.decision
-      .map(id => graph.entities[id])
-      .filter(Boolean)
-      .sort((a, b) => (a.title ?? "").localeCompare(b.title ?? "")),
+    kernels: graph.byKind["shared-kernel"].map(id => graph.entities[id]).filter(Boolean),
     surfaces: graph.byKind.surface.map(id => graph.entities[id]).filter(Boolean),
-    crossTerms: graph.system?.crossCuttingTerms ?? [],
-    crossInvariants: graph.system?.crossCuttingInvariants ?? [],
   }), [graph]);
 
   const childrenFor = (ctxId: string) => {
     const c = graph.entities[`context/${ctxId}`];
-    if (!c) return { terms: [], invariants: [], seams: [], rules: [] };
+    if (!c) return { terms: [], invariants: [], seams: [], rules: [], aggregates: [], modules: [] };
     return {
       terms: c.containedTerms ?? [],
       invariants: c.containedInvariants ?? [],
       seams: c.containedSeams ?? [],
       rules: c.containedBoundaryRules ?? [],
+      aggregates: c.containedAggregates ?? [],
+      modules: c.containedModules ?? [],
     };
   };
 
@@ -49,40 +46,26 @@ export default function ContextSidebar({
           >
             <span className="display text-h3 leading-tight"><InlineCode text={graph.system.ref.name} /></span>
           </Link>
-          {crossTerms.length > 0 && (
-            <div className="mt-3 ml-3">
-              <div className="smallcap mb-2">Cross-cutting terms</div>
-              <ul>
-                {crossTerms.map(t => (
-                  <li key={t.fqid}>
-                    <Link
-                      to={linkTo(t.fqid)}
-                      className={`block py-0.5 mono text-small text-fg-2 hover:text-fg -ml-3 pl-3 ${isActive(t.fqid) ? "active-rule text-fg" : ""}`}
-                    >
-                      <InlineCode text={t.name} />
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+        </div>
+      )}
+
+      {kernels.length > 0 && (
+        <div className="mb-8">
+          <div className="smallcap mb-3">Shared kernels</div>
+          {kernels.map(k => (
+            <div key={k.ref.fqid} className="mb-5">
+              <Link
+                to={linkTo(k.ref.fqid)}
+                className={`block py-1 -ml-3 pl-3 ${isActive(k.ref.fqid) ? "active-rule" : ""}`}
+              >
+                <span className="display text-h3 leading-tight"><InlineCode text={k.ref.name} /></span>
+              </Link>
+              <div className="ml-3 mt-2">
+                <SubList title="Terms" items={k.containedKernelTerms ?? []} active={activeFqid} linkTo={linkTo} />
+                <SubList title="Invariants" items={k.containedKernelInvariants ?? []} active={activeFqid} linkTo={linkTo} />
+              </div>
             </div>
-          )}
-          {crossInvariants.length > 0 && (
-            <div className="mt-3 ml-3">
-              <div className="smallcap mb-2">Cross-cutting invariants</div>
-              <ul>
-                {crossInvariants.map(i => (
-                  <li key={i.fqid}>
-                    <Link
-                      to={linkTo(i.fqid)}
-                      className={`block py-0.5 mono text-small text-fg-2 hover:text-fg -ml-3 pl-3 ${isActive(i.fqid) ? "active-rule text-fg" : ""}`}
-                    >
-                      <InlineCode text={i.name} />
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+          ))}
         </div>
       )}
 
@@ -99,35 +82,21 @@ export default function ContextSidebar({
                   className={`block py-1 -ml-3 pl-3 ${isActive(ctx.ref.fqid) ? "active-rule" : ""}`}
                 >
                   <span className="display text-h3 leading-tight"><InlineCode text={ctx.ref.name} /></span>
+                  {ctx.subdomain && (
+                    <span className="mono text-micro text-fg-3 ml-2 uppercase tracking-widest">{ctx.subdomain}</span>
+                  )}
                 </Link>
                 <div className="ml-3 mt-2">
                   <SubList title="Terms" items={ch.terms} active={activeFqid} linkTo={linkTo} />
                   <SubList title="Invariants" items={ch.invariants} active={activeFqid} linkTo={linkTo} />
+                  <SubList title="Aggregates" items={ch.aggregates} active={activeFqid} linkTo={linkTo} />
+                  <SubList title="Modules" items={ch.modules} active={activeFqid} linkTo={linkTo} />
                   <SubList title="Seams" items={ch.seams} active={activeFqid} linkTo={linkTo} />
                   <SubList title="Boundary rules" items={ch.rules} active={activeFqid} linkTo={linkTo} />
                 </div>
               </div>
             );
           })}
-        </div>
-      )}
-
-      {decisions.length > 0 && (
-        <div className="mb-8">
-          <div className="smallcap mb-3">Decisions</div>
-          <ul>
-            {decisions.map(d => (
-              <li key={d.ref.fqid}>
-                <Link
-                  to={linkTo(d.ref.fqid)}
-                  className={`block py-0.5 -ml-3 pl-3 ${isActive(d.ref.fqid) ? "active-rule" : ""}`}
-                >
-                  <span className="mono text-small text-fg-3">{d.ref.fqid.replace("decision/", "")}</span>
-                  <span className="display text-small text-fg-2 ml-2">{d.title}</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
         </div>
       )}
 

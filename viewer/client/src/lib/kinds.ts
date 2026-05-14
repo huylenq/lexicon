@@ -1,13 +1,15 @@
 import type { Icon } from "@phosphor-icons/react";
 import {
   AppWindow,
+  Atom,
   BookmarkSimple,
   BoundingBox,
   Cube,
+  Handshake,
   Intersect,
   Lock,
   Selection,
-  Signpost,
+  SquaresFour,
   Wall,
 } from "@phosphor-icons/react";
 import type { EntityKind } from "./types";
@@ -19,12 +21,14 @@ export const KIND_LABEL: Record<EntityKind, string> = {
   invariant: "Invariant",
   seam: "Architecture Seam",
   "boundary-rule": "Boundary Rule",
-  decision: "Decision",
+  aggregate: "Aggregate",
+  module: "Module",
+  "shared-kernel": "Shared Kernel",
   surface: "Surface",
   region: "Region",
 };
 
-// Filterable kinds in graph view, ordered to match `1`..`7` keyboard shortcuts.
+// Filterable kinds in graph view, ordered to match `1`..`9` keyboard shortcuts.
 // Single source of truth — used by the filter bar UI and the GraphPage hotkey
 // dispatcher.
 export const FILTERABLE_KINDS: { id: EntityKind; label: string; key: string }[] = [
@@ -32,9 +36,11 @@ export const FILTERABLE_KINDS: { id: EntityKind; label: string; key: string }[] 
   { id: "invariant", label: "Invariants", key: "2" },
   { id: "seam", label: "Seams", key: "3" },
   { id: "boundary-rule", label: "Boundary rules", key: "4" },
-  { id: "decision", label: "ADRs", key: "5" },
-  { id: "surface", label: "Surfaces", key: "6" },
-  { id: "region", label: "Regions", key: "7" },
+  { id: "aggregate", label: "Aggregates", key: "5" },
+  { id: "module", label: "Modules", key: "6" },
+  { id: "shared-kernel", label: "Shared kernels", key: "7" },
+  { id: "surface", label: "Surfaces", key: "8" },
+  { id: "region", label: "Regions", key: "9" },
 ];
 
 export const KIND_ICON: Record<EntityKind, Icon> = {
@@ -44,7 +50,9 @@ export const KIND_ICON: Record<EntityKind, Icon> = {
   invariant: Lock,
   seam: Intersect,
   "boundary-rule": Wall,
-  decision: Signpost,
+  aggregate: Atom,
+  module: SquaresFour,
+  "shared-kernel": Handshake,
   surface: AppWindow,
   region: Selection,
 };
@@ -57,7 +65,9 @@ export const KIND_COLOR_VAR: Record<EntityKind, string> = {
   invariant: "var(--color-kind-invariant)",
   seam: "var(--color-kind-seam)",
   "boundary-rule": "var(--color-kind-boundary-rule)",
-  decision: "var(--color-kind-decision)",
+  aggregate: "var(--color-kind-aggregate)",
+  module: "var(--color-kind-module)",
+  "shared-kernel": "var(--color-kind-shared-kernel)",
   surface: "var(--color-kind-surface)",
   region: "var(--color-kind-region)",
 };

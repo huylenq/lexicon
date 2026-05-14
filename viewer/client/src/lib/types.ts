@@ -7,9 +7,31 @@ export type EntityKind =
   | "invariant"
   | "seam"
   | "boundary-rule"
-  | "decision"
+  | "aggregate"
+  | "module"
+  | "shared-kernel"
   | "surface"
   | "region";
+
+export type TermCategory =
+  | "entity"
+  | "value"
+  | "service"
+  | "event"
+  | "concept";
+
+export type SeamKind =
+  | "shared-kernel"
+  | "customer-supplier"
+  | "conformist"
+  | "anticorruption-layer"
+  | "open-host-service"
+  | "published-language"
+  | "partnership"
+  | "separate-ways"
+  | "unknown";
+
+export type SubdomainKind = "core" | "supporting" | "generic" | "overlay";
 
 export interface EntityRef {
   kind: EntityKind;
@@ -67,42 +89,80 @@ export interface YamlSibling {
 export interface ResolvedEntity {
   ref: EntityRef;
   ownerContextId: string | null;
+  ownerKernelId?: string | null;
   source: SourceLocation;
+
+  // shared prose
   definition?: string;
   statement?: string;
   rationale?: string;
   body?: string;
   narrative?: string;
   narrativeRefs?: EntityRef[];
+  purpose?: string;
+  description?: string;
+
+  // anchors
   validationMode?: "code" | "linter" | "principle";
   symbols?: CodeAnchor[];
   constrainsCode?: CodeAnchor[];
+
+  // term
+  category?: TermCategory;
+  identityRule?: string;
+  equality?: string;
+  operatesOn?: EntityRef[];
+  returns?: string;
+  emittedWhen?: string;
+  payload?: string;
+  consumers?: EntityRef[];
   disambiguatesFrom?: EntityRef[];
-  affects?: EntityRef[];
-  supersedes?: EntityRef[];
-  supersededBy?: EntityRef | null;
+
+  // seam
+  seamKind?: SeamKind;
+  upstream?: EntityRef | null;
+  downstream?: EntityRef | null;
+  participants?: EntityRef[];
+
+  // aggregate
+  aggregateRoot?: EntityRef | null;
+  aggregateMembers?: EntityRef[];
+  aggregateInvariants?: EntityRef[];
+
+  // module (Evans-sense)
+  moduleMembers?: EntityRef[];
+
+  // shared kernel
+  kernelParticipatingContexts?: EntityRef[];
+  containedKernelTerms?: EntityRef[];
+  containedKernelInvariants?: EntityRef[];
+
+  // status
   status?: string;
-  date?: string;
-  context?: string;
-  decision?: string;
-  consequences?: string;
-  alternatives?: string;
+
+  // surface / region
   route?: string;
   role?: string;
   implementation?: RegionImpl;
   regions?: EntityRef[];
   surfaceId?: string;
-  purpose?: string;
-  modules?: string[];
+
+  // bounded-context
+  subdomain?: SubdomainKind;
+  codeModules?: string[];
   containedTerms?: EntityRef[];
   containedInvariants?: EntityRef[];
   containedSeams?: EntityRef[];
   containedBoundaryRules?: EntityRef[];
+  containedAggregates?: EntityRef[];
+  containedModules?: EntityRef[];
+
+  // system
   contexts?: EntityRef[];
-  crossCuttingTerms?: EntityRef[];
-  crossCuttingInvariants?: EntityRef[];
+  sharedKernels?: EntityRef[];
   deliberateOmissions?: DeliberateOmission[];
   overlays?: Overlay[];
+
   title?: string;
 }
 

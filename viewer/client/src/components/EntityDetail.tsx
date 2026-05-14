@@ -71,8 +71,17 @@ function Header({ entity }: { entity: ResolvedEntity }) {
   return (
     <header className="mb-10 flex items-start gap-6">
       <div className="flex-1 min-w-0">
-        <div className="mb-3">
+        <div className="mb-3 flex items-center gap-3">
           <KindBadge kind={entity.ref.kind} size={18} />
+          {entity.ref.kind === "term" && entity.category && (
+            <span className="mono text-micro text-fg-3 uppercase tracking-widest">{entity.category}</span>
+          )}
+          {entity.ref.kind === "bounded-context" && entity.subdomain && (
+            <span className="mono text-micro text-fg-3 uppercase tracking-widest">{entity.subdomain}</span>
+          )}
+          {entity.ref.kind === "seam" && entity.seamKind && (
+            <span className="mono text-micro text-fg-3 uppercase tracking-widest">{entity.seamKind}</span>
+          )}
         </div>
         <h1 className="display-tight text-h1 leading-[0.95] mb-3">
           <InlineCode text={entity.title ?? entity.ref.name} />
@@ -100,8 +109,10 @@ const BODY: Record<EntityKind, FC<BodyProps>> = {
   term: ({ entity, graph }) => <TermBody entity={entity} graph={graph} />,
   invariant: ({ entity, graph }) => <InvariantBody entity={entity} graph={graph} />,
   seam: ({ entity, graph }) => <SeamBody entity={entity} graph={graph} />,
-  "boundary-rule": ({ entity }) => <BoundaryRuleBody entity={entity} />,
-  decision: ({ entity, graph }) => <DecisionBody entity={entity} graph={graph} />,
+  "boundary-rule": ({ entity, graph }) => <BoundaryRuleBody entity={entity} graph={graph} />,
+  aggregate: ({ entity, graph }) => <AggregateBody entity={entity} graph={graph} />,
+  module: ({ entity, graph }) => <ModuleBody entity={entity} graph={graph} />,
+  "shared-kernel": ({ entity, graph }) => <SharedKernelBody entity={entity} graph={graph} />,
   surface: ({ entity, graph }) => <SurfaceBody entity={entity} graph={graph} />,
   region: ({ entity, graph }) => <RegionBody entity={entity} graph={graph} />,
 };
@@ -115,11 +126,71 @@ function TermBody({ entity, graph }: { entity: ResolvedEntity; graph: ResolvedGr
   return (
     <div>
       {entity.definition && (
-        <Prose text={entity.definition} graph={graph} ownerContextId={entity.ownerContextId} drop />
+        <Prose text={entity.definition} graph={graph} ownerContextId={entity.ownerContextId} ownerKernelId={entity.ownerKernelId} drop />
+      )}
+      {entity.identityRule && (
+        <CategoryProse label="Identity" text={entity.identityRule} graph={graph} entity={entity} />
+      )}
+      {entity.equality && (
+        <CategoryProse label="Equality" text={entity.equality} graph={graph} entity={entity} />
+      )}
+      {entity.returns && (
+        <CategoryProse label="Returns" text={entity.returns} graph={graph} entity={entity} />
+      )}
+      {entity.operatesOn && entity.operatesOn.length > 0 && (
+        <div className="mt-6">
+          <div className="smallcap mb-2">Operates on</div>
+          <ul className="space-y-1">
+            {entity.operatesOn.map(r => (
+              <li key={r.fqid}><RefLink to={r} /></li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {entity.emittedWhen && (
+        <CategoryProse label="Emitted when" text={entity.emittedWhen} graph={graph} entity={entity} />
+      )}
+      {entity.payload && (
+        <CategoryProse label="Payload" text={entity.payload} graph={graph} entity={entity} />
+      )}
+      {entity.consumers && entity.consumers.length > 0 && (
+        <div className="mt-6">
+          <div className="smallcap mb-2">Consumers</div>
+          <ul className="space-y-1">
+            {entity.consumers.map(r => (
+              <li key={r.fqid}><RefLink to={r} /></li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {entity.rationale && (
+        <div className="mt-6">
+          <div className="smallcap mb-2">Why</div>
+          <Prose text={entity.rationale} graph={graph} ownerContextId={entity.ownerContextId} ownerKernelId={entity.ownerKernelId} />
+        </div>
       )}
       {entity.body && (
-        <Prose text={entity.body} graph={graph} ownerContextId={entity.ownerContextId} />
+        <Prose text={entity.body} graph={graph} ownerContextId={entity.ownerContextId} ownerKernelId={entity.ownerKernelId} />
       )}
+    </div>
+  );
+}
+
+function CategoryProse({
+  label,
+  text,
+  graph,
+  entity,
+}: {
+  label: string;
+  text: string;
+  graph: ResolvedGraph;
+  entity: ResolvedEntity;
+}) {
+  return (
+    <div className="mt-6">
+      <div className="smallcap mb-2">{label}</div>
+      <Prose text={text} graph={graph} ownerContextId={entity.ownerContextId} ownerKernelId={entity.ownerKernelId} />
     </div>
   );
 }
@@ -135,11 +206,11 @@ function InvariantBody({ entity, graph }: { entity: ResolvedEntity; graph: Resol
       {entity.rationale && (
         <div className="mt-6">
           <div className="smallcap mb-2">Why</div>
-          <Prose text={entity.rationale} graph={graph} ownerContextId={entity.ownerContextId} />
+          <Prose text={entity.rationale} graph={graph} ownerContextId={entity.ownerContextId} ownerKernelId={entity.ownerKernelId} />
         </div>
       )}
       {entity.body && (
-        <Prose text={entity.body} graph={graph} ownerContextId={entity.ownerContextId} />
+        <Prose text={entity.body} graph={graph} ownerContextId={entity.ownerContextId} ownerKernelId={entity.ownerKernelId} />
       )}
     </div>
   );
@@ -150,6 +221,12 @@ function SystemBody({ entity, graph }: { entity: ResolvedEntity; graph: Resolved
     <div>
       <PurposeAndNarrative entity={entity} graph={graph} />
       {entity.body && <Prose text={entity.body} graph={graph} />}
+      {entity.sharedKernels && entity.sharedKernels.length > 0 && (
+        <RefSection title="Shared kernels" refs={entity.sharedKernels} graph={graph} />
+      )}
+      {entity.contexts && entity.contexts.length > 0 && (
+        <RefSection title="Bounded contexts" refs={entity.contexts} graph={graph} />
+      )}
       {entity.overlays && entity.overlays.length > 0 && (
         <OverlaysSection overlays={entity.overlays} graph={graph} />
       )}
@@ -179,7 +256,7 @@ export function PurposeAndNarrative({
             <Prose
               text={entity.purpose}
               graph={graph}
-              ownerContextId={entity.ownerContextId}
+              ownerContextId={entity.ownerContextId} ownerKernelId={entity.ownerKernelId}
             />
           </section>
         )}
@@ -187,7 +264,7 @@ export function PurposeAndNarrative({
           <Prose
             text={entity.narrative}
             graph={graph}
-            ownerContextId={entity.ownerContextId}
+            ownerContextId={entity.ownerContextId} ownerKernelId={entity.ownerKernelId}
             drop
           />
         </section>
@@ -199,7 +276,7 @@ export function PurposeAndNarrative({
       <Prose
         text={entity.purpose}
         graph={graph}
-        ownerContextId={entity.ownerContextId}
+        ownerContextId={entity.ownerContextId} ownerKernelId={entity.ownerKernelId}
         drop
       />
     );
@@ -317,17 +394,19 @@ function ContextBody({ entity, graph }: { entity: ResolvedEntity; graph: Resolve
     <div>
       <PurposeAndNarrative entity={entity} graph={graph} />
       {entity.body && (
-        <Prose text={entity.body} graph={graph} ownerContextId={entity.ownerContextId} />
+        <Prose text={entity.body} graph={graph} ownerContextId={entity.ownerContextId} ownerKernelId={entity.ownerKernelId} />
       )}
-      <ContextChildren title="Terms" refs={entity.containedTerms ?? []} graph={graph} />
-      <ContextChildren title="Invariants" refs={entity.containedInvariants ?? []} graph={graph} />
-      <ContextChildren title="Architecture seams" refs={entity.containedSeams ?? []} graph={graph} />
-      <ContextChildren title="Boundary rules" refs={entity.containedBoundaryRules ?? []} graph={graph} />
+      <ChildList title="Terms" refs={entity.containedTerms ?? []} graph={graph} />
+      <ChildList title="Invariants" refs={entity.containedInvariants ?? []} graph={graph} />
+      <ChildList title="Aggregates" refs={entity.containedAggregates ?? []} graph={graph} />
+      <ChildList title="Modules" refs={entity.containedModules ?? []} graph={graph} />
+      <ChildList title="Architecture seams" refs={entity.containedSeams ?? []} graph={graph} />
+      <ChildList title="Boundary rules" refs={entity.containedBoundaryRules ?? []} graph={graph} />
     </div>
   );
 }
 
-function ContextChildren({
+function ChildList({
   title,
   refs,
   graph,
@@ -352,6 +431,9 @@ function ContextChildren({
               {e?.statement && (
                 <div className="prose-body text-small italic text-fg-2 mt-1">{e.statement}</div>
               )}
+              {e?.description && (
+                <div className="prose-body text-small text-fg-2 mt-1">{e.description}</div>
+              )}
             </li>
           );
         })}
@@ -360,43 +442,29 @@ function ContextChildren({
   );
 }
 
-function DecisionBody({ entity, graph }: { entity: ResolvedEntity; graph: ResolvedGraph }) {
+function RefSection({
+  title,
+  refs,
+  graph,
+}: {
+  title: string;
+  refs: EntityRef[];
+  graph: ResolvedGraph;
+}) {
+  if (refs.length === 0) return null;
   return (
-    <div className="space-y-8">
-      <div className="flex items-baseline gap-4">
-        <span className="smallcap">Status</span>
-        <span className="display text-h3 italic text-mark-2">{entity.status}</span>
-        {entity.date && <span className="mono text-small text-fg-3">· {entity.date}</span>}
-      </div>
-      {entity.narrative && (
-        <section>
-          <Prose text={entity.narrative} graph={graph} drop />
-        </section>
-      )}
-      {entity.context && (
-        <section>
-          <div className="smallcap mb-2">Context</div>
-          <Prose text={entity.context} graph={graph} />
-        </section>
-      )}
-      {entity.decision && (
-        <section>
-          <div className="smallcap mb-2">Decision</div>
-          <Prose text={entity.decision} graph={graph} emphasis />
-        </section>
-      )}
-      {entity.consequences && (
-        <section>
-          <div className="smallcap mb-2">Consequences</div>
-          <Prose text={entity.consequences} graph={graph} />
-        </section>
-      )}
-      {entity.alternatives && (
-        <section>
-          <div className="smallcap mb-2">Alternatives considered</div>
-          <Prose text={entity.alternatives} graph={graph} />
-        </section>
-      )}
+    <div className="mt-10">
+      <div className="smallcap mb-3">{title}</div>
+      <ul className="space-y-2">
+        {refs.map(r => {
+          const e = graph.entities[r.fqid];
+          return (
+            <li key={r.fqid}>
+              <RefLink to={e?.ref ?? r} className="display text-h3" />
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }
@@ -438,22 +506,107 @@ function RegionBody({ entity, graph }: { entity: ResolvedEntity; graph: Resolved
 }
 
 function SeamBody({ entity, graph }: { entity: ResolvedEntity; graph: ResolvedGraph }) {
-  return entity.definition ? (
-    <Prose
-      text={entity.definition}
-      graph={graph}
-      ownerContextId={entity.ownerContextId}
-      drop
-    />
-  ) : null;
+  return (
+    <div>
+      {entity.definition && (
+        <Prose
+          text={entity.definition}
+          graph={graph}
+          ownerContextId={entity.ownerContextId} ownerKernelId={entity.ownerKernelId}
+          drop
+        />
+      )}
+      {entity.rationale && (
+        <div className="mt-6">
+          <div className="smallcap mb-2">Why</div>
+          <Prose text={entity.rationale} graph={graph} ownerContextId={entity.ownerContextId} ownerKernelId={entity.ownerKernelId} />
+        </div>
+      )}
+    </div>
+  );
 }
 
-function BoundaryRuleBody({ entity }: { entity: ResolvedEntity }) {
-  return entity.statement ? (
-    <blockquote className="border-l-2 border-mark pl-5 display text-h3 italic leading-snug">
-      {entity.statement.trim()}
-    </blockquote>
-  ) : null;
+function BoundaryRuleBody({ entity, graph }: { entity: ResolvedEntity; graph: ResolvedGraph }) {
+  return (
+    <div>
+      {entity.statement && (
+        <blockquote className="border-l-2 border-mark pl-5 display text-h3 italic leading-snug">
+          {entity.statement.trim()}
+        </blockquote>
+      )}
+      {entity.rationale && (
+        <div className="mt-6">
+          <div className="smallcap mb-2">Why</div>
+          <Prose text={entity.rationale} graph={graph} ownerContextId={entity.ownerContextId} ownerKernelId={entity.ownerKernelId} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AggregateBody({ entity, graph }: { entity: ResolvedEntity; graph: ResolvedGraph }) {
+  return (
+    <div>
+      {entity.aggregateRoot && (
+        <div className="mb-6">
+          <div className="smallcap mb-1">Root</div>
+          <RefLink to={entity.aggregateRoot} className="display text-h3" />
+        </div>
+      )}
+      {entity.aggregateMembers && entity.aggregateMembers.length > 0 && (
+        <RefSection title="Members" refs={entity.aggregateMembers} graph={graph} />
+      )}
+      {entity.aggregateInvariants && entity.aggregateInvariants.length > 0 && (
+        <RefSection title="Invariants" refs={entity.aggregateInvariants} graph={graph} />
+      )}
+      {entity.rationale && (
+        <div className="mt-6">
+          <div className="smallcap mb-2">Why</div>
+          <Prose text={entity.rationale} graph={graph} ownerContextId={entity.ownerContextId} ownerKernelId={entity.ownerKernelId} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ModuleBody({ entity, graph }: { entity: ResolvedEntity; graph: ResolvedGraph }) {
+  return (
+    <div>
+      {entity.description && (
+        <Prose text={entity.description} graph={graph} ownerContextId={entity.ownerContextId} ownerKernelId={entity.ownerKernelId} drop />
+      )}
+      {entity.moduleMembers && entity.moduleMembers.length > 0 && (
+        <RefSection title="Members" refs={entity.moduleMembers} graph={graph} />
+      )}
+      {entity.rationale && (
+        <div className="mt-6">
+          <div className="smallcap mb-2">Why</div>
+          <Prose text={entity.rationale} graph={graph} ownerContextId={entity.ownerContextId} ownerKernelId={entity.ownerKernelId} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SharedKernelBody({ entity, graph }: { entity: ResolvedEntity; graph: ResolvedGraph }) {
+  return (
+    <div>
+      {entity.description && (
+        <Prose text={entity.description} graph={graph} drop />
+      )}
+      {entity.kernelParticipatingContexts && entity.kernelParticipatingContexts.length > 0 && (
+        <RefSection title="Participating contexts" refs={entity.kernelParticipatingContexts} graph={graph} />
+      )}
+      <ChildList title="Terms" refs={entity.containedKernelTerms ?? []} graph={graph} />
+      <ChildList title="Invariants" refs={entity.containedKernelInvariants ?? []} graph={graph} />
+      {entity.rationale && (
+        <div className="mt-6">
+          <div className="smallcap mb-2">Why</div>
+          <Prose text={entity.rationale} graph={graph} />
+        </div>
+      )}
+    </div>
+  );
 }
 
 function Margin({ entity, graph }: { entity: ResolvedEntity; graph: ResolvedGraph }) {
@@ -462,30 +615,41 @@ function Margin({ entity, graph }: { entity: ResolvedEntity; graph: ResolvedGrap
     ...(entity.constrainsCode ?? []),
   ];
 
-  const ownerNode =
-    entity.ref.kind === "region" && entity.surfaceId ? (
-      <RefLink
-        to={graph.entities[`surface/${entity.surfaceId}`]?.ref ?? {
-          kind: "surface",
-          fqid: `surface/${entity.surfaceId}`,
-          name: entity.surfaceId,
-        }}
-      />
-    ) : entity.ownerContextId ? (
-      <RefLink
-        to={graph.entities[`context/${entity.ownerContextId}`]?.ref ?? {
-          kind: "bounded-context",
-          fqid: `context/${entity.ownerContextId}`,
-          name: entity.ownerContextId,
-        }}
-      />
-    ) : entity.ref.kind !== "system" && entity.ref.kind !== "decision" ? (
-      <span className="mono text-small text-fg-3 italic">cross-cutting</span>
-    ) : null;
+  const surfaceOwner =
+    entity.ref.kind === "region" && entity.surfaceId
+      ? graph.entities[`surface/${entity.surfaceId}`]
+      : null;
+  const contextOwner = entity.ownerContextId
+    ? graph.entities[`context/${entity.ownerContextId}`]
+    : null;
+  const kernelOwner = entity.ownerKernelId
+    ? graph.entities[`kernel/${entity.ownerKernelId}`]
+    : null;
 
   return (
     <Marginalia>
-      {ownerNode && <MarginaliaItem label="Owner">{ownerNode}</MarginaliaItem>}
+      {surfaceOwner && (
+        <MarginaliaItem label="Surface"><RefLink to={surfaceOwner.ref} /></MarginaliaItem>
+      )}
+      {contextOwner && (
+        <MarginaliaItem label="Context"><RefLink to={contextOwner.ref} /></MarginaliaItem>
+      )}
+      {kernelOwner && (
+        <MarginaliaItem label="Kernel"><RefLink to={kernelOwner.ref} /></MarginaliaItem>
+      )}
+      {entity.upstream && (
+        <MarginaliaItem label="Upstream"><RefLink to={entity.upstream} /></MarginaliaItem>
+      )}
+      {entity.downstream && (
+        <MarginaliaItem label="Downstream"><RefLink to={entity.downstream} /></MarginaliaItem>
+      )}
+      {entity.participants && entity.participants.length > 0 && (
+        <MarginaliaItem label="Participants">
+          {entity.participants.map(r => (
+            <RefLink key={r.fqid} to={r} className="block" />
+          ))}
+        </MarginaliaItem>
+      )}
       {entity.validationMode && (
         <MarginaliaItem label="Validation">
           <span className="mono text-small text-fg-2">{entity.validationMode}</span>
@@ -498,23 +662,9 @@ function Margin({ entity, graph }: { entity: ResolvedEntity; graph: ResolvedGrap
           ))}
         </MarginaliaItem>
       )}
-      {entity.affects && entity.affects.length > 0 && (
-        <MarginaliaItem label="Affects">
-          {entity.affects.map(r => (
-            <RefLink key={r.fqid} to={r} className="block" />
-          ))}
-        </MarginaliaItem>
-      )}
-      {entity.supersedes && entity.supersedes.length > 0 && (
-        <MarginaliaItem label="Supersedes">
-          {entity.supersedes.map(r => (
-            <RefLink key={r.fqid} to={r} className="block" />
-          ))}
-        </MarginaliaItem>
-      )}
-      {entity.supersededBy && (
-        <MarginaliaItem label="Superseded by">
-          <RefLink to={entity.supersededBy} />
+      {entity.status && (
+        <MarginaliaItem label="Status">
+          <span className="mono text-small text-fg-2">{entity.status}</span>
         </MarginaliaItem>
       )}
       {anchors.length > 0 && (
@@ -526,9 +676,9 @@ function Margin({ entity, graph }: { entity: ResolvedEntity; graph: ResolvedGrap
           ))}
         </MarginaliaItem>
       )}
-      {entity.modules && entity.modules.length > 0 && (
-        <MarginaliaItem label="Modules">
-          {entity.modules.map((m, i) => (
+      {entity.codeModules && entity.codeModules.length > 0 && (
+        <MarginaliaItem label="Code modules">
+          {entity.codeModules.map((m, i) => (
             <div key={i} className="mono text-small text-fg-2">{m}</div>
           ))}
         </MarginaliaItem>
@@ -539,4 +689,3 @@ function Margin({ entity, graph }: { entity: ResolvedEntity; graph: ResolvedGrap
     </Marginalia>
   );
 }
-

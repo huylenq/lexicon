@@ -2,7 +2,6 @@ import type { Lens } from "@/lib/graph/build-graph";
 
 const LENSES: { id: Lens; label: string }[] = [
   { id: "ownership", label: "Ownership" },
-  { id: "decisions", label: "Decisions" },
   { id: "surfaces", label: "Surfaces" },
 ];
 

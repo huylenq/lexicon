@@ -14,12 +14,15 @@ export const EDGE_STYLE: Record<
   { stroke: string; dasharray?: string; opacity: number; markerEnd?: string }
 > = {
   disambiguates: { stroke: "var(--color-mark)", opacity: 1 },
-  seam:          { stroke: "var(--color-fg-3)", dasharray: "6 4", opacity: 0.8 },
+  seam:          { stroke: "var(--color-fg-3)", dasharray: "6 4", opacity: 0.8, markerEnd: "url(#arrow-fg)" },
   "boundary-rule": { stroke: "var(--color-fg-3)", dasharray: "2 3", opacity: 0.8, markerEnd: "url(#arrow-fg)" },
-  affects:       { stroke: "var(--color-highlight)", dasharray: "12 3", opacity: 0.45, markerEnd: "url(#arrow-highlight)" },
-  supersedes:    { stroke: "var(--color-fg-2)", opacity: 0.7, markerEnd: "url(#arrow-fg)" },
   contains:      { stroke: "var(--color-rule)", opacity: 0.4 },
   narrative:     { stroke: "var(--color-fg-3)", dasharray: "1 4", opacity: 0.35 },
+  // Vestigial v0.2 edge kinds — never emitted under v0.3. Styles retained so
+  // dead code paths typecheck; the union member exists in EdgeKind for the
+  // same reason. See build-graph.ts.
+  affects:       { stroke: "var(--color-highlight)", dasharray: "12 3", opacity: 0.45, markerEnd: "url(#arrow-highlight)" },
+  supersedes:    { stroke: "var(--color-fg-2)", opacity: 0.7, markerEnd: "url(#arrow-fg)" },
 };
 
 function GraphEdge({

@@ -50,7 +50,9 @@
   --color-kind-invariant:       #c45b5b;
   --color-kind-seam:            #3fa595;
   --color-kind-boundary-rule:   #a85ba8;
-  --color-kind-decision:        #c98b2a;
+  --color-kind-aggregate:       #c98b2a;
+  --color-kind-module:          #b07a3f;
+  --color-kind-shared-kernel:   #6b7d9a;
   --color-kind-surface:         #5fa15f;
   --color-kind-region:          #8fa838;
 }
@@ -268,8 +270,8 @@
 
   .svg-cluster-fill { fill: color-mix(in srgb, var(--color-paper-2) 50%, transparent); }
   .svg-leaf-fill { fill: var(--color-paper-3); }
-  .svg-leaf-fill-decision {
-    fill: color-mix(in srgb, var(--color-highlight) 10%, var(--color-paper-3));
+  .svg-leaf-fill-kernel {
+    fill: color-mix(in srgb, var(--color-highlight) 8%, var(--color-paper-3));
   }
   .svg-grid-minor { stroke: var(--grid-line); fill: none; }
   .svg-grid-major { stroke: var(--grid-line-5); fill: none; }
