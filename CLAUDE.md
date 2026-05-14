@@ -219,7 +219,7 @@ This shape replaced the old "Mode A / Mode B" split (markdown→YAML vs v0.1→v
 
 When the cold-layer schema bumps (v0.2 → v0.3, …), the work is:
 
-1. **Update `skills/lex-overview/SKILL.md`** to document the new version's schema additions (the spec is authoritative there).
+1. **Update `skills/lex-overview/SCHEMA.md`** to document the new version's schema additions (the spec is authoritative there; `SKILL.md` only carries a pointer to it).
 2. **Bump the viewer schema** (`viewer/server/schema.ts`): raise `SCHEMA_VERSION` and add the new literal to the `schemaVersion` zod union so files declaring the new version validate. Mirror any new fields into `viewer/client/src/lib/types.ts`. Wire any new resolver / renderer support in the loader and client.
 3. **Write `skills/lex-migrate/migrations/v<old>-to-v<new>.md`** — the delta. Use the existing two files as the structural template: preamble, pre-flight, detection phase, apply phases, validate phase, report-section template.
 4. **Update the "delta chain" list** at the top of `skills/lex-migrate/SKILL.md` so the orchestrator names the new delta. No other changes to the orchestrator.

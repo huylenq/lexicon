@@ -101,7 +101,7 @@ Use top-level module structure as the starting point, but don't be mechanical ab
 
 ### Fill the YAML
 
-Reference `${SKILL_DIR}/templates/*.yaml.example` next to this `SKILL.md` for shape. Resolve `${SKILL_DIR}` based on install mode: `${CLAUDE_PLUGIN_ROOT}/skills/lex-bootstrap/templates/...` for plugin installs, `~/.claude/skills/lex-bootstrap/templates/...` (or project `.claude/skills/lex-bootstrap/templates/...`) for `npx skills` installs. The schema spec in `lex-overview` is the normative reference; the examples are illustrative.
+Reference `${SKILL_DIR}/templates/*.yaml.example` next to this `SKILL.md` for shape. Resolve `${SKILL_DIR}` based on install mode: `${CLAUDE_PLUGIN_ROOT}/skills/lex-bootstrap/templates/...` for plugin installs, `~/.claude/skills/lex-bootstrap/templates/...` (or project `.claude/skills/lex-bootstrap/templates/...`) for `npx skills` installs. The normative schema spec is `SCHEMA.md` inside the `lex-overview` skill folder (loaded as part of the overview); the examples here are illustrative.
 
 For each evidence-backed entry:
 
