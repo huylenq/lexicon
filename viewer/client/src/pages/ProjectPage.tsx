@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { api } from "@/lib/api";
 import type { LexiconResponse, ResolvedGraph } from "@/lib/types";
@@ -10,8 +10,10 @@ import {
   useInspector,
 } from "@/lib/inspector";
 import { ResizeHandle, usePersistedWidth } from "@/lib/resize";
+import { StackProvider } from "@/lib/stack";
 import ContextSidebar from "@/components/ContextSidebar";
-import EntityDetail, { PurposeAndNarrative } from "@/components/EntityDetail";
+import { PurposeAndNarrative } from "@/components/EntityDetail";
+import StackedEntities from "@/components/StackedEntities";
 import PeekDrawer from "@/components/PeekDrawer";
 import YamlInspector from "@/components/YamlInspector";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -78,6 +80,29 @@ function ProjectShell({ projectId }: { projectId: number }) {
   const graphLens = isGraph ? tail.slice("graph".length).replace(/^\//, "") || undefined : undefined;
   const activeFqid = !isGraph && tail ? tail : null;
 
+  // Stack: leading fqid lives in the path, the rest in ?stacked=...
+  // Memoized so downstream consumers (StackProvider value, StackedEntities'
+  // resolved memo) don't invalidate on every parent re-render.
+  const panes = useMemo(() => {
+    if (isGraph || !activeFqid) return [];
+    const stacked = new URLSearchParams(loc.search).getAll("stacked");
+    return [activeFqid, ...stacked];
+  }, [isGraph, activeFqid, loc.search]);
+
+  const setPanes = useCallback(
+    (next: string[]) => {
+      if (next.length === 0) return;
+      const params = new URLSearchParams(loc.search);
+      params.delete("stacked");
+      next.slice(1).forEach(s => params.append("stacked", s));
+      const q = params.toString();
+      navigate(`/p/${projectId}/${next[0]}${q ? `?${q}` : ""}${loc.hash}`, {
+        replace: true,
+      });
+    },
+    [navigate, projectId, loc.search, loc.hash],
+  );
+
   useEffect(() => {
     api.loadLexicon(projectId).then(setResp).catch(e => setError(e.message));
   }, [projectId]);
@@ -115,7 +140,9 @@ function ProjectShell({ projectId }: { projectId: number }) {
   }
 
   const { project, graph } = resp;
-  const active = activeFqid ? graph.entities[activeFqid] : null;
+  // Sidebar highlight + "return to Reading" target follow the last pane,
+  // not the leading one. Derived directly — no need for state.
+  const focusFqid = panes[panes.length - 1] ?? null;
   const peekOpen = peeks.length > 0;
 
   return (
@@ -128,7 +155,7 @@ function ProjectShell({ projectId }: { projectId: number }) {
         <div className="ml-auto flex items-center gap-3">
           <ViewToggle
             isGraph={isGraph}
-            onDetail={() => navigate(`/p/${projectId}/${activeFqid ?? ""}`)}
+            onDetail={() => navigate(`/p/${projectId}/${focusFqid ?? ""}`)}
             onGraph={() => navigate(`/p/${projectId}/graph`)}
           />
           <span className="smallcap">·</span>
@@ -203,7 +230,7 @@ function ProjectShell({ projectId }: { projectId: number }) {
           }}
         >
           <aside ref={sidebarRef} className="relative border-r rule overflow-hidden">
-            <ContextSidebar graph={graph} projectId={projectId} activeFqid={activeFqid} />
+            <ContextSidebar graph={graph} projectId={projectId} activeFqid={focusFqid} />
             <ResizeHandle
               side="right"
               panelRef={sidebarRef}
@@ -211,9 +238,11 @@ function ProjectShell({ projectId }: { projectId: number }) {
               onCommit={sidebar.commit}
             />
           </aside>
-          <main className="overflow-y-auto bg-paper">
-            {active ? (
-              <EntityDetail entity={active} graph={graph} />
+          <main className="bg-paper min-h-0 overflow-hidden">
+            {panes.length > 0 ? (
+              <StackProvider panes={panes} setPanes={setPanes}>
+                <StackedEntities graph={graph} panes={panes} />
+              </StackProvider>
             ) : (
               <Welcome graph={graph} />
             )}

@@ -522,4 +522,272 @@
       min-height: env(titlebar-area-height, 40px);
     }
   }
+
+  /* ────────────────────────────────────────────────────────────────────────
+     STACKED ENTITIES — horizontal reading stack
+     ────────────────────────────────────────────────────────────────────────
+     A pane corresponds to one entity. Click a RefLink inside a pane → new
+     pane opens to its right. Older panes collapse to 40px strips with
+     vertical titles, sticky-positioned at the left so they remain reachable.
+     The right-edge column lists the last pane's backlinks.              */
+
+  .stacked-entities {
+    --pane-width: 880px;
+    --pane-strip-width: 40px;
+    height: 100%;
+    display: flex;
+    align-items: stretch;
+    overflow-x: auto;
+    overflow-y: hidden;
+    background: var(--color-paper);
+    scroll-padding-left: calc(var(--pane-strip-width) * 4);
+  }
+
+  .entity-pane {
+    flex: 0 0 var(--pane-width);
+    width: var(--pane-width);
+    min-width: var(--pane-width);
+    position: sticky;
+    background: var(--color-paper);
+    /* Border lives on the LEFT so it stays visible when the pane slides over
+       its predecessor (sticky-positioning causes the next pane to cover the
+       previous pane's right edge). The first pane has no preceding pane, so
+       it skips the border. */
+    border-left: 1px solid var(--color-rule);
+    /* Left-cast shadow lands on whatever this pane scrolls over — adds depth
+       at the seam between sticky panes. */
+    box-shadow: -10px 0 18px -14px rgba(0, 0, 0, 0.22);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: flex-basis 240ms ease, min-width 240ms ease, width 240ms ease;
+  }
+  .entity-pane:first-of-type {
+    border-left: 0;
+    box-shadow: none;
+  }
+  /* When ghost cards float to the right, the arrows need a wall to land on.
+     Use :has() so this only kicks in when a .backlink-column actually
+     follows — keeps the right edge clean in single-pane mode. */
+  .entity-pane:has(+ .backlink-column) {
+    border-right: 1px solid var(--color-rule);
+  }
+  .entity-pane.is-collapsed {
+    flex: 0 0 var(--pane-strip-width);
+    width: var(--pane-strip-width);
+    min-width: var(--pane-strip-width);
+    cursor: pointer;
+    background: var(--color-paper-2);
+    z-index: 2;
+  }
+  .entity-pane.is-collapsed:hover {
+    background: var(--color-paper-3);
+  }
+
+  .entity-pane.is-flashing {
+    animation: pane-flash 900ms ease-out;
+  }
+  @keyframes pane-flash {
+    0%   { box-shadow: 0 0 0 2px var(--color-mark), -8px 0 16px -12px rgba(0, 0, 0, 0.18); }
+    100% { box-shadow: 0 0 0 0  transparent, -8px 0 16px -12px rgba(0, 0, 0, 0.18); }
+  }
+
+  /* Passive hover outline — painted by direct-DOM toggling from a linked
+     backlink card's onMouseEnter/Leave. No scroll, no animation, just a
+     visual tie between "this ghost" and "that pane already in the stack". */
+  .entity-pane.is-hover-highlight {
+    outline: 2px solid color-mix(in srgb, var(--color-mark) 70%, transparent);
+    outline-offset: -2px;
+  }
+
+  .entity-pane-strip {
+    display: none;
+    width: 100%;
+    height: 100%;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    padding: 16px 0;
+    color: var(--color-fg-3);
+  }
+  .entity-pane.is-collapsed .entity-pane-strip {
+    display: flex;
+  }
+  .entity-pane-strip-kind {
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    color: var(--color-fg-3);
+  }
+  .entity-pane-strip-name {
+    font-family: var(--font-display, var(--font-body));
+    font-size: 0.95rem;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    color: var(--color-fg);
+    max-height: calc(100% - 80px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .entity-pane-chrome {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 12px 6px 16px;
+    border-bottom: 1px solid var(--color-rule);
+    background: var(--color-paper-2);
+    flex-shrink: 0;
+  }
+  .entity-pane-close {
+    width: 22px;
+    height: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--color-rule);
+    background: transparent;
+    color: var(--color-fg-3);
+    font-size: 14px;
+    line-height: 1;
+    cursor: pointer;
+    transition: all 120ms ease;
+  }
+  .entity-pane-close:hover {
+    color: var(--color-paper);
+    background: var(--color-fg);
+    border-color: var(--color-fg);
+  }
+
+  .entity-pane-body {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+  }
+
+  /* Right-edge backlink column — sits at the tail of the stack, scrolls
+     with it. Floating dashed cards on the page background (no column bg)
+     with arrow connectors pointing back at the last pane. */
+  .backlink-column {
+    flex: 0 0 280px;
+    width: 280px;
+    padding: 28px 24px 28px 56px; /* extra left padding leaves room for arrows */
+    overflow: visible;
+    align-self: center;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+  .backlink-group-label {
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--color-fg-3);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .backlink-group-label::before,
+  .backlink-group-label::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--color-rule);
+  }
+  .backlink-group {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .backlink-card {
+    position: relative;
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 10px 12px;
+    background: transparent;
+    border: 1.5px dashed var(--color-rule);
+    cursor: pointer;
+    opacity: 0.78;
+    transition: opacity 120ms ease, border-color 120ms ease, background 120ms ease;
+    overflow: visible;
+  }
+  .backlink-card:hover {
+    opacity: 1;
+    border-color: var(--color-fg-3);
+    background: color-mix(in srgb, var(--color-paper) 60%, transparent);
+  }
+  .backlink-card.is-linked {
+    border-style: solid;
+    opacity: 0.55;
+  }
+  .backlink-card.is-linked:hover {
+    opacity: 1;
+    background: color-mix(in srgb, var(--color-highlight) 8%, transparent);
+  }
+
+  /* Arrow connector: horizontal line pointing left toward the main pane,
+     terminating in an arrowhead. Built with pseudo-elements (no SVG data
+     URIs) so they pick up theme colors. */
+  .backlink-card::before {
+    content: "";
+    position: absolute;
+    right: calc(100% + 8px);
+    top: 50%;
+    width: 28px;
+    height: 1px;
+    background: var(--color-fg-3);
+    transform: translateY(-50%);
+    opacity: 0.55;
+    transition: opacity 120ms ease, background 120ms ease;
+  }
+  .backlink-card::after {
+    content: "";
+    position: absolute;
+    right: calc(100% + 2px);
+    top: 50%;
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 4px 7px 4px 0;
+    border-color: transparent var(--color-fg-3) transparent transparent;
+    transform: translateY(-50%);
+    opacity: 0.55;
+    transition: opacity 120ms ease, border-color 120ms ease;
+  }
+  .backlink-card:hover::before,
+  .backlink-card:hover::after {
+    opacity: 1;
+  }
+  .backlink-card:hover::before { background: var(--color-fg); }
+  .backlink-card:hover::after { border-right-color: var(--color-fg); }
+
+  /* Inline backlinks at the bottom of non-last panes — same dashed-card
+     vocabulary as the right-edge ghost column, just without arrows (no
+     adjacent main pane for them to point at). */
+  .pane-inline-backlinks {
+    margin: 24px 24px 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  /* Suppress the arrow pseudo-elements when cards are rendered inline. */
+  .pane-inline-backlinks .backlink-card::before,
+  .pane-inline-backlinks .backlink-card::after {
+    display: none;
+  }
+
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
 }

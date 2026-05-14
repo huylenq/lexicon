@@ -16,25 +16,29 @@ import {
 export default function EntityDetail({
   entity,
   graph,
+  passive = false,
 }: {
   entity: ResolvedEntity;
   graph: ResolvedGraph;
+  /**
+   * When rendered inside a multi-pane stack, only the last pane should drive
+   * inspector retargeting and the ⌘' open chord. Other panes pass `passive`.
+   */
+  passive?: boolean;
 }) {
   const { isOpen, target, open: openInspector } = useInspector();
   const entityRef = useRef(entity);
   entityRef.current = entity;
 
-  // Keep the slab synced to whatever the user is reading. The retarget only
-  // fires while the inspector is already open; opening from scratch is the
-  // user's job (Specimen button or ⌘').
   useEffect(() => {
+    if (passive) return;
     if (!isOpen) return;
     if (target?.fqid === entity.ref.fqid) return;
     openInspector(toInspectorTarget(entity));
-  }, [entity.ref.fqid, isOpen]);
+  }, [entity.ref.fqid, isOpen, passive]);
 
-  // Close-side of ⌘' lives in the page shell; we own the open path here.
   useEffect(() => {
+    if (passive) return;
     const onKey = (e: KeyboardEvent) => {
       if (!isInspectorChord(e) || isTypingTarget(e.target)) return;
       if (isOpen) return;
@@ -43,7 +47,7 @@ export default function EntityDetail({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [isOpen, openInspector]);
+  }, [isOpen, openInspector, passive]);
 
   return (
     <article className="grid grid-cols-12 gap-12 py-12 px-12">
