@@ -15,7 +15,9 @@ Code is the executable spec — it evolves freely, always true to itself. Above 
 
 The whole system rests on **ubiquitous language** in the DDD sense: the same nouns and verbs appear in the cold layer, in conversation, and in code. When all three layers use the same vocabulary, mental-model alignment between human and agent is enforced by repetition rather than by remembering.
 
-The cold layer is **structured YAML files**, not markdown prose. Each entity (term, invariant, bounded context, decision, surface, region) is a typed record with a stable ID and prose-bearing fields (definition, statement, rationale, body). The structure pays for itself: agent and tool can reason about the graph; the human reads the prose. Migration from earlier markdown-based lexicon (v0.x) goes through `lex-migrate`.
+The cold layer is **structured YAML files**, not markdown prose. Each entity (system, bounded context, term, invariant, seam, boundary rule, aggregate, module, shared kernel, surface, region) is a typed record with a stable ID and prose-bearing fields (definition, statement, rationale, body, narrative). The structure pays for itself: agent and tool can reason about the graph; the human reads the prose. Migration from earlier schema versions (markdown-era v0.x, YAML v0.1, v0.2) goes through `lex-migrate`.
+
+The cold-layer vocabulary follows Eric Evans' Domain-Driven Design building blocks: ubiquitous language inside bounded contexts, entities and value objects and services and events as term categories, aggregates with roots, shared kernels for inter-context coordination, the eight context-map relationship kinds as the seam kind enum, subdomains classified core / supporting / generic. The two intentional deviations from Evans are UI surfaces & regions (a lexicon invention bridging DDD with design-system thinking) and the omission of Repositories / Factories (tactical code patterns that don't earn modeling vocabulary).
 
 When the project has a UI surface — web pages, desktop windows, mobile screens, CLI/TUI panes, print layouts, voice-skill turns, anything rendered for a human — design vocabulary counts as ubiquitous language too. Not just tokens and reusable components, but also **surfaces** (named top-level views/screens/windows) and the **regions** within them (sidebars, toolbars, canvases, hero blocks, banners), plus interaction patterns and accessibility contracts. It lives in the same cold-layer files. The structural checks below don't split for it.
 
@@ -30,17 +32,17 @@ lexicon/
   system.yaml                       ← the cold layer root (holistic entry point)
   contexts/                         ← one file per bounded context
     <context-slug>.yaml
-  decisions/                        ← one file per ADR, append-only
-    ADR-<NNNN>-<slug>.yaml
   surfaces/                         ← optional: UI surfaces with regions
     <surface-slug>.yaml
   retros/                           ← always-written session logs (timestamp-named markdown for now)
   audits/                           ← audit reports (markdown)
   bootstrap.md                      ← one-shot adoption triage report (created by lex-bootstrap)
+  migrate.md                        ← migration report (created by lex-migrate)
   .last-crystallized                ← ISO timestamp marker; lex-crystallize reads retros newer than this
   plans/
     <feature>/                      ← in-flight materialized plans
     _archive/                       ← archived plan folders
+  _pre-migrate-archive/             ← created by lex-migrate; preserves pre-v0.3 originals (e.g. archived ADRs)
 ```
 
 If a project doesn't have this structure, the **`lex-bootstrap`** skill is the one-shot adoption pass that creates it. The user opts in per project — lexicon is not forced on every project.
@@ -53,11 +55,11 @@ The root file still has a soft ceiling around 500 lines. Past that, partition in
 
 ### Per-context partitions
 
-`lexicon/contexts/<slug>.yaml` is the natural home for a bounded context's owned terms, invariants, seams, and boundary rules. The root `system.yaml` references these contexts by slug and holds only cross-cutting entries (terms/invariants spanning ≥3 contexts) plus the deliberate-omissions list and contexts index.
+`lexicon/contexts/<slug>.yaml` is the natural home for a bounded context's owned terms, invariants, seams, boundary rules, aggregates, and modules. The root `system.yaml` references these contexts by slug and holds shared kernels (named shared sub-models across ≥2 contexts), overlays, the contexts index, and the deliberate-omissions list.
 
 Simple projects can live with everything in `system.yaml` and an empty `contexts/`. Don't materialize a context file until the context actually owns ≥3 entries; until then it's a one-line index entry in the root.
 
-**Ownership rule**: every term has *exactly one* owning location — either a single context file or `system.yaml`'s cross-cutting glossary. Other contexts may *use* the term but never *redefine* it. `lex-audit` flags violations.
+**Ownership rule**: every term/invariant has *exactly one* owning location — a single context file *or* a shared kernel on `system.yaml`. Other contexts may *use* the entity (by reference or by kernel participation) but never *redefine* it. `lex-audit` flags violations.
 
 ### When *not* to partition
 
@@ -69,18 +71,20 @@ Partitions are non-breaking: adding one later, or absorbing one back into `syste
 
 ## Schema
 
-The normative cold-layer schema lives in `SCHEMA.md` alongside this file. **Read it now** — it's part of this overview, not an external reference. It covers the current schema (v0.2): shared rules (slugs, refs, prose-bearing fields), the four file kinds (`system`, `bounded-context`, `decision`, `surface`), annotated entity shapes for each, anchoring discipline for the optional-but-expected fields, and the backtick convention for names with code identifiers. Migration between schema versions is *not* documented there — that lives in per-version delta files under `skills/lex-migrate/migrations/`.
+The normative cold-layer schema lives in `SCHEMA.md` alongside this file. **Read it now** — it's part of this overview, not an external reference. It covers the current schema (v0.3): shared rules (slugs, refs, prose-bearing fields), the three file kinds (`system`, `bounded-context`, `surface`), annotated entity shapes for each (including the v0.3 additions — `term.category`, `aggregate`, `module`, `shared-kernel`, typed `seam.kind`, `subdomain`), anchoring discipline for the optional-but-expected fields, and the backtick convention for names with code identifiers. Migration between schema versions is *not* documented there — that lives in per-version delta files under `skills/lex-migrate/migrations/`.
+
+The design rationale for the current schema (what changed in v0.3, what was rejected, what was deferred) lives in `DESIGN-v0.3.md` at the repo root. Skim it when reasoning about *why* a slot exists; the spec answers *what* the slot is.
 
 Other lexicon skills don't read `SCHEMA.md` directly — they get it transitively by loading this overview first. The path to `SCHEMA.md` is "next to this `SKILL.md`," which is symlink-stable across `npx skills` and plugin-namespaced installs alike.
 
 ## The seven skills
 
-- **`lex-bootstrap`** — Runs **once** at adoption time. Scans existing docs and code, drafts a first-cut `system.yaml` and per-context files, migrates ADR-shaped content into YAML, sets up the directory structure, and produces a triage report at `lexicon/bootstrap.md`. Trigger: "set up lexicon", "adopt lexicon", "bootstrap lexicon", or `lex-ground` deferring on a project with no `system.yaml`.
+- **`lex-bootstrap`** — Runs **once** at adoption time. Scans existing docs and code, drafts a first-cut `system.yaml` and per-context files (with rationale fields lifted from any ADR-shaped existing docs), sets up the directory structure, and produces a triage report at `lexicon/bootstrap.md`. Trigger: "set up lexicon", "adopt lexicon", "bootstrap lexicon", or `lex-ground` deferring on a project with no `system.yaml`.
 - **`lex-ground`** — Runs at the start of substantive coding work. Reads `system.yaml` and relevant context files, declares scope (terms, invariants, bounded context) **in conversation**, surfaces vocabulary gaps. No file writes — the agent's context window holds the grounding for the rest of the session. Trigger: any non-trivial task.
 - **`lex-retro`** — Runs at every natural stopping point. Writes a log to `lexicon/retros/<timestamp>.md`, with structural-drift flags inline. Trigger: completion signals like "looks good", "we're done", tests pass and user moves on. *Retros remain markdown for now; structured retros are a future evolution.*
 - **`lex-crystallize`** — **User-triggered.** Runs when the user explicitly asks to update the cold layer ("crystallize", "update lexicon", "absorb the retros", "feature X is done"). Reads retros since the last crystallization, cross-checks against git diff, proposes a typed mutation set (creates / updates / renames / deprecations) over the YAML files **inline in conversation**, and applies on user approval. Updates `lexicon/.last-crystallized`.
 - **`lex-audit`** — Runs periodically (quarterly, on demand, or before planning sessions). Re-validates the cold-layer YAML against current code to catch backward-flow drift — stale glossary, dead invariants, undeclared contexts, hygiene rot, dangling refs. Writes a triage report to `lexicon/audits/audit-<iso>.md`; never edits cold-layer YAML directly. Trigger: "audit lexicon", "sanity-check the docs", "is the cold layer still accurate?".
-- **`lex-migrate`** — Schema and structural migration. Detects the project's current cold-layer schema version, computes the chain of per-version deltas needed to reach the latest supported version (e.g. v0.x markdown → v0.1 → v0.2), and applies each delta in order. The deltas are individual files under `skills/lex-migrate/migrations/v<X>-to-v<Y>.md` — adding support for a future schema bump is one new delta file, not a change to the skill body. Triggers: "migrate lexicon", "upgrade lexicon", "upgrade to v0.2", "lexicon doesn't have narrative / overlays / inline links", or `lex-ground`/`lex-bootstrap`/`lex-audit` detecting structural violations against the latest schema.
+- **`lex-migrate`** — Schema and structural migration. Detects the project's current cold-layer schema version, computes the chain of per-version deltas needed to reach the latest supported version (e.g. v0.x markdown → v0.1 → v0.2 → v0.3), and applies each delta in order. The deltas are individual files under `skills/lex-migrate/migrations/v<X>-to-v<Y>.md` — adding support for a future schema bump is one new delta file, not a change to the skill body. Triggers: "migrate lexicon", "upgrade lexicon", "upgrade to v0.3", "lexicon doesn't have aggregates / shared kernels / typed seams", or `lex-ground`/`lex-bootstrap`/`lex-audit` detecting structural violations against the latest schema.
 - **`lex-meta`** — **User-triggered.** Runs when the user invokes `/lex-meta [optional prompt]` after correcting something a lexicon skill produced. This is the self-evolve channel for the skill bundle itself: takes the conversation (primary signal) and the project's `lexicon/` diff (corroborating), interviews to disambiguate, then amends the responsible `~/src/lexicon/skills/<skill>/SKILL.md`. Cross-repo write; leaves the bundle repo uncommitted so accumulated edits stay visible until you deliberately push.
 
 ### Forward-flow vs backward-flow drift
@@ -97,7 +101,7 @@ The six checks:
 2. **Vocabulary consistency** — Was a glossary term used in a way that doesn't match its definition? **High priority** — this is the silent-renaming bug.
 3. **Invariants** — Did the work violate, refine, or contradict any invariant? Re-read each invariant and ask: would it still hold given the current code?
 4. **Boundaries** — Did the work cross a boundary in the bounded-contexts model? (New import edge, new call site, new shared state across a previously clean boundary.)
-5. **Decisions** — Were any non-obvious choices made — picking approach A over B for reasons future-readers wouldn't recover from the code alone? These warrant an ADR rather than a glossary/invariant edit.
+5. **Decisions** — Were any non-obvious choices made — picking approach A over B for reasons future-readers wouldn't recover from the code alone? These warrant a `rationale:` field on the affected atom (the invariant the decision justifies, the seam whose kind it explains, the aggregate whose boundary it draws). v0.3 deliberately has no ADR slot; the argument lives next to the thing it argues for.
 6. **Declared scope match** — Did the actual work stay within the scope the agent grounded on? When it drifted, the *reason* often reveals a model gap.
 
 ### Per-skill direction
@@ -157,15 +161,11 @@ Don't edit `lexicon/system.yaml`, `lexicon/contexts/*.yaml`, or `lexicon/surface
 
 This applies to the design-system files too. Adding "just one more shade of blue" to the token list, or naming a new component inline, is a cold-layer edit — route through `lex-crystallize` like any other vocabulary addition.
 
-### 7. ADRs are append-only
-
-Skills *can* append directly to `lexicon/decisions/` without going through crystallize. ADRs are history, not changes to the canonical model. Status transitions (`accepted` → `superseded`) are the only legitimate mutation on an existing ADR file, and they go through `lex-crystallize` so the supersession edge is set on both sides.
-
-### 8. IDs are slugs; rename ≠ re-slug
+### 7. IDs are slugs; rename ≠ re-slug
 
 Display `name` mutates freely. The `id` (slug) is the stable handle. Refs in other files use the slug; renaming a slug breaks them. When a slug genuinely no longer fits the concept, treat it as a `lex-crystallize` rename operation — the skill applies the slug change and cascades the reference updates in a single typed mutation.
 
-### 9. Load `lexicon-prefs.md` and respect "for lexicon: …" feedback
+### 8. Load `lexicon-prefs.md` and respect "for lexicon: …" feedback
 
 At session start (when this skill loads), also load `~/src/lexicon/lexicon-prefs.md` if it exists. The path is hardcoded for now while lexicon iterates. The file holds the user's personal overrides for skill behavior — workflow preferences, style, significance calibration, patterns about how the user works. Treat its entries as **live overrides** of skill defaults: a rule there takes precedence over a default rule here or in another skill body, until a future curation absorbs it back into the skill itself.
 
@@ -177,7 +177,7 @@ Project-specific overrides (the role formerly played by `lexicon/calibration.md`
 
 If a project has no `lexicon/` folder, the user is on a project that doesn't (yet) use lexicon. **Don't force it.** Surface once, near the start of substantive work: "This project doesn't have lexicon docs. Want to run `lex-bootstrap`?" — and respect a "no" by not asking again that session (`lex-ground` describes the marker-file approach for skipping across sessions).
 
-If a project has `lexicon/system.md` but no `lexicon/system.yaml`, it's on the v0.x markdown layout. Surface once: "This project is on the markdown-era lexicon. Want to run `lex-migrate` first?" Respect a "no"; the operational skills won't run cleanly until migration happens, and the user will see the consequences.
+If a project's `lexicon/` declares an older schemaVersion (`"0.1"` or `"0.2"`), or has `lexicon/system.md` (markdown-era v0.x), surface once: "This project is on lexicon schema vX; v0.3 is current. Want to run `lex-migrate` first?" Respect a "no"; the operational skills won't run cleanly until migration happens, and the viewer (if used) will refuse to render the project. The user will see the consequences.
 
 The workflow is opt-in per project. Small scripts, throwaway prototypes, and exploratory notebooks usually don't benefit from it.
 
