@@ -1,10 +1,11 @@
 import { Link } from "react-router-dom";
 import type { EntityRef, ResolvedEntity, ResolvedGraph } from "@/lib/types";
-import { KIND_LABEL, formatLineRange } from "@/lib/kinds";
+import { formatLineRange } from "@/lib/kinds";
 import RefLink from "../RefLink";
 import CodeAnchorBadge from "../CodeAnchorBadge";
 import InlineCode from "../InlineCode";
 import Prose from "../Prose";
+import KindBadge from "../KindBadge";
 import { toInspectorTarget, useInspector } from "@/lib/inspector";
 
 interface Props {
@@ -51,7 +52,7 @@ export default function GraphDetailRail({ entity, graph, projectId, onClose }: P
   return (
     <div className="card-tick card-tick--inset h-full overflow-y-auto px-7 py-5">
       <div className="flex items-center justify-between mb-3 gap-2">
-        <span className="smallcap">{KIND_LABEL[entity.ref.kind]}</span>
+        <KindBadge kind={entity.ref.kind} size={16} />
         <div className="flex items-center gap-2">
           <button
             className="inspector-pull shrink-0"

@@ -8,7 +8,8 @@ import {
 import type { EntityRef, ResolvedEntity, ResolvedGraph } from "@/lib/types";
 import { buildBacklinkIndex, type Backlink } from "@/lib/backlinks";
 import { PaneIndexProvider, useStack } from "@/lib/stack";
-import { KIND_LABEL } from "@/lib/kinds";
+import KindBadge from "./KindBadge";
+import Tip from "./Tip";
 import EntityDetail from "./EntityDetail";
 import { RefLabel } from "./RefLink";
 
@@ -164,7 +165,7 @@ export default function StackedEntities({ graph, panes }: Props) {
 function CollapsedTitle({ entity }: { entity: ResolvedEntity }) {
   return (
     <div className="entity-pane-strip">
-      <div className="entity-pane-strip-kind">{KIND_LABEL[entity.ref.kind]}</div>
+      <KindBadge kind={entity.ref.kind} size={16} />
       <div className="entity-pane-strip-name">{entity.title ?? entity.ref.name}</div>
     </div>
   );
@@ -182,9 +183,7 @@ function PaneChrome({
   const stack = useStack();
   return (
     <div className="entity-pane-chrome">
-      <span className="mono text-micro text-fg-3 tracking-widest uppercase">
-        {KIND_LABEL[entity.ref.kind]}
-      </span>
+      <KindBadge kind={entity.ref.kind} size={13} />
       <button
         className="entity-pane-close"
         title="Close pane"
@@ -289,20 +288,19 @@ function BacklinkCard({
   };
 
   return (
-    <button
-      className={`backlink-card${linked ? " is-linked" : ""}`}
-      onClick={onClick}
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
-    >
-      <div className="flex items-baseline justify-between gap-2">
+    <Tip label={`via ${backlink.via}`} slow className="block">
+      <button
+        className={`backlink-card${linked ? " is-linked" : ""}`}
+        onClick={onClick}
+        onMouseEnter={onMouseEnter}
+        onMouseLeave={onMouseLeave}
+      >
         <span className="ref-link inline-flex items-center gap-1">
           <RefLabel to={ref} />
         </span>
-        <span className="mono text-micro text-fg-3 uppercase tracking-wider">{backlink.via}</span>
-      </div>
-      {lead && <div className="prose-body text-small text-fg-2 mt-1 line-clamp-2">{lead}</div>}
-    </button>
+        {lead && <div className="prose-body text-small text-fg-2 mt-1 line-clamp-2">{lead}</div>}
+      </button>
+    </Tip>
   );
 }
 

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 export function Marginalia({ children }: { children: ReactNode }) {
-  return <aside className="space-y-7 pt-3">{children}</aside>;
+  return <aside className="marginalia space-y-7 pt-3">{children}</aside>;
 }
 
 export function MarginaliaItem({

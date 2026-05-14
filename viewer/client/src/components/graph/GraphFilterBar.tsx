@@ -1,8 +1,9 @@
 import type { EntityKind } from "@/lib/types";
 import type { EdgeKind, Lens } from "@/lib/graph/build-graph";
-import { FILTERABLE_KINDS } from "@/lib/kinds";
+import { FILTERABLE_KINDS, KIND_ICON, KIND_COLOR_VAR } from "@/lib/kinds";
 import GraphLensSelector from "./GraphLensSelector";
 import { EDGE_STYLE } from "./GraphEdge";
+import Tip from "../Tip";
 
 const EDGES: { id: EdgeKind; label: string }[] = [
   { id: "disambiguates", label: "Disambiguates" },
@@ -42,16 +43,20 @@ export default function GraphFilterBar(props: Props) {
       <GraphLensSelector value={props.lens} onChange={props.onLensChange} />
 
       <FilterGroup label="Kinds">
-        {FILTERABLE_KINDS.map(k => (
-          <Chip
-            key={k.id}
-            active={props.kinds.has(k.id)}
-            onClick={() => props.onToggleKind(k.id)}
-            keyHint={k.key}
-          >
-            {k.label}
-          </Chip>
-        ))}
+        {FILTERABLE_KINDS.map(k => {
+          const Icon = KIND_ICON[k.id];
+          return (
+            <Chip
+              key={k.id}
+              active={props.kinds.has(k.id)}
+              onClick={() => props.onToggleKind(k.id)}
+              keyHint={k.key}
+              label={k.label}
+            >
+              <Icon size={14} weight="fill" style={{ color: KIND_COLOR_VAR[k.id] }} />
+            </Chip>
+          );
+        })}
       </FilterGroup>
 
       {props.contexts.length > 0 && (
@@ -80,9 +85,9 @@ export default function GraphFilterBar(props: Props) {
             key={e.id}
             active={props.edges.has(e.id)}
             onClick={() => props.onToggleEdge(e.id)}
-            prefix={<EdgeSample kind={e.id} />}
+            label={e.label}
           >
-            {e.label}
+            <EdgeSample kind={e.id} />
           </Chip>
         ))}
       </FilterGroup>
@@ -116,7 +121,7 @@ function FilterGroup({ label, children }: { label: string; children: React.React
 
 function EdgeSample({ kind }: { kind: EdgeKind }) {
   return (
-    <svg width="16" height="4" className="inline-block mr-1.5" aria-hidden="true">
+    <svg width="16" height="4" className="inline-block" aria-hidden="true">
       <line
         x1="0"
         y1="2"
@@ -135,24 +140,25 @@ function Chip({
   onClick,
   children,
   keyHint,
-  prefix,
+  label,
 }: {
   active: boolean;
   onClick: () => void;
   children: React.ReactNode;
   keyHint?: string;
-  prefix?: React.ReactNode;
+  label?: string;
 }) {
-  return (
+  const btn = (
     <button
       onClick={onClick}
-      className={`mono text-micro uppercase tracking-widest px-2 py-1 border transition-colors inline-flex items-center ${
+      aria-label={label}
+      className={`mono text-micro uppercase tracking-widest px-2 py-1 border transition-colors inline-flex items-center gap-1 ${
         active ? "text-fg border-fg" : "text-fg-3 border-[color:var(--color-rule)] hover:text-fg"
       }`}
     >
-      {prefix}
-      {keyHint && <span className="mr-1 opacity-50">{keyHint}</span>}
+      {keyHint && <span className="opacity-50">{keyHint}</span>}
       {children}
     </button>
   );
+  return label ? <Tip label={label}>{btn}</Tip> : btn;
 }

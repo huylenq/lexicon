@@ -4,8 +4,9 @@ import Editor, { type Monaco, type OnMount } from "@monaco-editor/react";
 import type { editor as MonacoEditor } from "monaco-editor";
 import { api } from "@/lib/api";
 import { useInspector } from "@/lib/inspector";
-import { KIND_LABEL, formatLineRange } from "@/lib/kinds";
+import { KIND_LABEL, KIND_ICON, KIND_COLOR_VAR, formatLineRange } from "@/lib/kinds";
 import type { ResolvedGraph, YamlSibling } from "@/lib/types";
+import KindBadge from "./KindBadge";
 
 export default function YamlInspector({
   projectId,
@@ -181,9 +182,7 @@ export default function YamlInspector({
             </span>
           ))
         )}
-        <span className="ml-auto mono text-micro text-fg-3 italic">
-          {KIND_LABEL[target.kind]}
-        </span>
+        <KindBadge kind={target.kind} size={13} className="ml-auto" />
       </div>
 
       <div className="flex-1 min-h-0 min-w-0 flex relative">
@@ -290,9 +289,13 @@ function RailTooltip({
   totalLines: number;
 }) {
   const topPct = ((sibling.lineStart - 1) / totalLines) * 100;
+  const Icon = KIND_ICON[sibling.kind];
   return (
     <div className="slab-tip" style={{ top: `calc(${topPct}% - 6px)` }} role="tooltip">
-      <div className="smallcap mb-1">{KIND_LABEL[sibling.kind]}</div>
+      <div className="smallcap mb-1 inline-flex items-center gap-1.5">
+        <Icon size={11} weight="fill" style={{ color: KIND_COLOR_VAR[sibling.kind] }} />
+        {KIND_LABEL[sibling.kind]}
+      </div>
       <div className="display text-h3 leading-tight">{sibling.name}</div>
       <div className="mono text-micro text-fg-3 mt-1">
         L{formatLineRange(sibling.lineStart, sibling.lineEnd)} · {sibling.path || "root"}

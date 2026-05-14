@@ -38,6 +38,21 @@
 
   --radius-card: 0;
   --radius-pill: 2px;
+
+  /* Entity-kind palette — single source of truth shared across light/dark.
+     Chosen at OKLCH L≈0.6, moderate chroma, so the same hex reads as a
+     decorative accent on both cream (#f0ead8) and navy (#0a1f3d) without
+     a per-theme override. Used for kind icons today; can extend to graph
+     fills, kind badges, and filter chips. */
+  --color-kind-system:          #9a8c7a;
+  --color-kind-bounded-context: #7d8a9c;
+  --color-kind-term:            #5b8dc4;
+  --color-kind-invariant:       #c45b5b;
+  --color-kind-seam:            #3fa595;
+  --color-kind-boundary-rule:   #a85ba8;
+  --color-kind-decision:        #c98b2a;
+  --color-kind-surface:         #5fa15f;
+  --color-kind-region:          #8fa838;
 }
 
 :root { color-scheme: light; }
@@ -124,21 +139,42 @@
   }
 
   .ref-link {
-    background-image: linear-gradient(var(--color-fg), var(--color-fg));
-    background-size: 100% 1px;
-    background-repeat: no-repeat;
-    /* Pulled above the descender line so the rule hugs the label baseline
-       instead of sitting at the bottom of the inline-flex box. */
-    background-position: 0 calc(100% - 0.2em);
-    padding-bottom: 3px;
-    text-decoration: none;
+    /* `--ref-color` is set per-link via inline style (kind palette).
+       Native text-decoration underlines text-only (not the blank space
+       around wrapped fragments) and wraps cleanly across lines. */
+    --ref-color: var(--color-fg);
+    display: inline;
+    text-decoration-line: underline;
+    text-decoration-color: color-mix(in srgb, var(--ref-color) 45%, transparent);
+    text-decoration-thickness: 2px;
+    text-underline-offset: 2px;
+    text-decoration-skip-ink: auto;
     color: inherit;
     font-weight: 500;
-    transition: color 120ms ease, background-image 120ms ease;
+    transition: color 120ms ease, text-decoration-color 120ms ease;
   }
   .ref-link:hover {
+    /* Label takes the accent on hover; underline goes denser in the kind
+       color so the rule reads as "more itself", not as a yellow stripe. */
     color: var(--color-mark-2);
-    background-image: linear-gradient(var(--color-mark-2), var(--color-mark-2));
+    text-decoration-color: color-mix(in srgb, var(--ref-color) 90%, transparent);
+  }
+  /* Marginalia entries are list-like and short — the underline is noise.
+     Inline ref-links inside prose (definitions, narratives) still get it. */
+  .marginalia .ref-link {
+    text-decoration-line: none;
+  }
+  .ref-link > svg {
+    /* Inline display means no flex baseline tools — pin the icon manually. */
+    display: inline-block;
+    vertical-align: -2px;
+    margin-right: 1px;
+    transition: filter 120ms ease;
+  }
+  .ref-link:hover > svg {
+    /* Bump contrast + saturation so the kind color reads as "more itself"
+       on hover. Works in both themes without picking a hover hex. */
+    filter: contrast(1.2) saturate(1.25);
   }
 
   .callout-link {
@@ -377,6 +413,48 @@
     height: 1px;
     background: var(--color-mark);
     transform: translateY(-50%);
+  }
+
+  /* Family-resembles `.slab-tip` but smaller. Block triggers (backlink
+     cards) pass `className="block"` on <Tip> to override the default. */
+  .tip-wrap {
+    position: relative;
+    display: inline;
+  }
+  .tip-wrap::after {
+    content: attr(data-tip);
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    opacity: 0;
+    pointer-events: none;
+    /* Default = disappearance: short delay + soft fade so cursor-out-and-back
+       doesn't flicker. Hover/focus rules below override for appearance. */
+    transition: opacity 160ms ease 200ms;
+    white-space: nowrap;
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    background: var(--color-paper);
+    color: var(--color-fg);
+    border: 1px solid var(--color-fg);
+    padding: 3px 7px;
+    box-shadow: 2px 2px 0 var(--color-fg);
+    z-index: 100;
+  }
+  .tip-wrap:hover::after,
+  .tip-wrap:focus-within::after {
+    opacity: 1;
+    transition: opacity 120ms ease 120ms;
+  }
+  /* Tooltips that disambiguate but aren't the primary affordance
+     (inline entity-link FQIDs — icon already conveys the kind).
+     Disappearance stays quick. */
+  .tip-wrap--slow:hover::after,
+  .tip-wrap--slow:focus-within::after {
+    transition: opacity 120ms ease 1500ms;
   }
 
   .slab-tip {
@@ -737,14 +815,14 @@
   }
 
   /* Arrow connector: horizontal line pointing left toward the main pane,
-     terminating in an arrowhead. Built with pseudo-elements (no SVG data
-     URIs) so they pick up theme colors. */
+     terminating in an arrowhead at the far (left) end. Built with
+     pseudo-elements (no SVG data URIs) so they pick up theme colors. */
   .backlink-card::before {
     content: "";
     position: absolute;
-    right: calc(100% + 8px);
+    right: calc(100% + 4px);
     top: 50%;
-    width: 28px;
+    width: 41px;
     height: 1px;
     background: var(--color-fg-3);
     transform: translateY(-50%);
@@ -754,7 +832,7 @@
   .backlink-card::after {
     content: "";
     position: absolute;
-    right: calc(100% + 2px);
+    right: calc(100% + 45px);
     top: 50%;
     width: 0;
     height: 0;

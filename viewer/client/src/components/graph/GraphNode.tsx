@@ -1,6 +1,6 @@
 import { memo } from "react";
 import type { PositionedNode } from "@/lib/graph/layout";
-import { KIND_ICON } from "@/lib/kinds";
+import { KIND_ICON, KIND_LABEL, KIND_COLOR_VAR } from "@/lib/kinds";
 import type { EntityKind } from "@/lib/types";
 import { splitBackticks } from "@/lib/inline-code";
 
@@ -146,7 +146,6 @@ function LeafNode({
     : highlighted
     ? "var(--color-fg)"
     : "var(--color-rule)";
-  const labelColor = isDecision ? "var(--color-highlight)" : "var(--color-fg-3)";
   const KindIcon = KIND_ICON[kind];
   return (
     <g
@@ -172,17 +171,9 @@ function LeafNode({
         stroke={stroke}
         strokeWidth={selected || highlighted ? 1.25 : 1}
       />
-      <KindIcon x={8} y={5} size={14} weight="bold" color={labelColor} />
-      <text
-        x={26}
-        y={16}
-        className="mono"
-        fontSize={10}
-        letterSpacing="0.16em"
-        fill={labelColor}
-      >
-        {kind.replace("-", " ").toUpperCase()}
-      </text>
+      <KindIcon x={8} y={5} size={14} weight="fill" color={KIND_COLOR_VAR[kind]}>
+        <title>{KIND_LABEL[kind]}</title>
+      </KindIcon>
       {/* Body font — Saira Condensed crushes at 13px (parens, brackets, word shapes go indistinct). */}
       <text
         x={8}

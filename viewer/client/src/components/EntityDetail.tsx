@@ -1,6 +1,7 @@
 import { useEffect, useRef, type FC } from "react";
 import type { EntityKind, EntityRef, ResolvedEntity, ResolvedGraph } from "@/lib/types";
-import { KIND_LABEL, formatLineRange } from "@/lib/kinds";
+import { formatLineRange } from "@/lib/kinds";
+import KindBadge from "./KindBadge";
 import RefLink from "./RefLink";
 import CodeAnchorBadge from "./CodeAnchorBadge";
 import InlineCode from "./InlineCode";
@@ -70,7 +71,9 @@ function Header({ entity }: { entity: ResolvedEntity }) {
   return (
     <header className="mb-10 flex items-start gap-6">
       <div className="flex-1 min-w-0">
-        <div className="smallcap mb-3">{KIND_LABEL[entity.ref.kind]}</div>
+        <div className="mb-3">
+          <KindBadge kind={entity.ref.kind} size={18} />
+        </div>
         <h1 className="display-tight text-h1 leading-[0.95] mb-3">
           <InlineCode text={entity.title ?? entity.ref.name} />
         </h1>

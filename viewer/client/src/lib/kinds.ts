@@ -49,6 +49,19 @@ export const KIND_ICON: Record<EntityKind, Icon> = {
   region: Selection,
 };
 
+// Same var in light/dark — see `--color-kind-*` in @theme.
+export const KIND_COLOR_VAR: Record<EntityKind, string> = {
+  system: "var(--color-kind-system)",
+  "bounded-context": "var(--color-kind-bounded-context)",
+  term: "var(--color-kind-term)",
+  invariant: "var(--color-kind-invariant)",
+  seam: "var(--color-kind-seam)",
+  "boundary-rule": "var(--color-kind-boundary-rule)",
+  decision: "var(--color-kind-decision)",
+  surface: "var(--color-kind-surface)",
+  region: "var(--color-kind-region)",
+};
+
 export function formatLineRange(lineStart?: number, lineEnd?: number): string {
   if (!lineStart) return "";
   if (lineEnd && lineEnd !== lineStart) return `${lineStart}–${lineEnd}`;
