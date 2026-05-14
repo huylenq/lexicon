@@ -177,7 +177,11 @@ type ChildKey = typeof CHILD_KEYS[number];
 export interface FileRanges {
   root: Range;
   totalLines: number;
-  byKey: Partial<Record<ChildKey, Record<string, Range>>>;
+  // Top-level CHILD_KEYS map to their own slug→Range; nested ranges for
+  // kernel children use synthesized keys (`sharedKernels/<kid>/terms`,
+  // `sharedKernels/<kid>/invariants`) so kernel-owned atoms get accurate
+  // "Open file" line ranges rather than the kernel's outer range.
+  byKey: Record<string, Record<string, Range>>;
 }
 
 function computeFileRanges(
@@ -204,9 +208,12 @@ function computeFileRanges(
     };
   }
 
-  for (const key of CHILD_KEYS) {
-    const seq = root.get(key, true);
-    if (!seq || !isSeq(seq)) continue;
+  const indexSeq = (
+    seq: ReturnType<typeof root.get>,
+    pathPrefix: string,
+    onItem?: (item: unknown, idValue: string) => void,
+  ): Record<string, Range> | null => {
+    if (!seq || !isSeq(seq)) return null;
     const byId: Record<string, Range> = {};
     seq.items.forEach((item, idx) => {
       if (!isMap(item)) return;
@@ -223,10 +230,26 @@ function computeFileRanges(
       byId[idValue] = {
         lineStart: lineAt(r[0]),
         lineEnd: lineAt(r[2]),
-        path: `${key}[${idx}]`,
+        path: `${pathPrefix}[${idx}]`,
       };
+      onItem?.(item, idValue);
     });
-    if (Object.keys(byId).length > 0) out.byKey[key] = byId;
+    return Object.keys(byId).length > 0 ? byId : null;
+  };
+
+  for (const key of CHILD_KEYS) {
+    const seq = root.get(key, true);
+    const onItem = key === "sharedKernels"
+      ? (kernelItem: unknown, kid: string) => {
+          if (!isMap(kernelItem)) return;
+          const termsById = indexSeq(kernelItem.get("terms", true), `${key}/${kid}/terms`);
+          if (termsById) out.byKey[`sharedKernels/${kid}/terms`] = termsById;
+          const invById = indexSeq(kernelItem.get("invariants", true), `${key}/${kid}/invariants`);
+          if (invById) out.byKey[`sharedKernels/${kid}/invariants`] = invById;
+        }
+      : undefined;
+    const byId = indexSeq(seq, key, onItem);
+    if (byId) out.byKey[key] = byId;
   }
 
   return out;
@@ -280,6 +303,10 @@ function resolve(
         purpose: data.purpose,
         narrative: data.narrative,
         body: data.body,
+        // relatedAtoms on each omission is left empty here and resolved in
+        // pass 2, when every entity is registered — an omission's relatedAtoms
+        // typically point at terms/invariants that may live in this same file
+        // and aren't all registered yet at this point.
         deliberateOmissions: (data.deliberateOmissions ?? []).map(o => ({
           topic: o.topic,
           reason: o.reason,
@@ -300,12 +327,16 @@ function resolve(
           description: k.description,
           rationale: k.rationale,
         });
+        const kernelTermLoc = (id: string) =>
+          loc(relFile, ranges.byKey[`sharedKernels/${k.id}/terms`]?.[id], ranges.totalLines);
+        const kernelInvLoc = (id: string) =>
+          loc(relFile, ranges.byKey[`sharedKernels/${k.id}/invariants`]?.[id], ranges.totalLines);
         for (const t of k.terms ?? []) {
           register({
             ref: ref("term", `${kernelFqid}/${t.id}`, t.name),
             ownerContextId: null,
             ownerKernelId: k.id,
-            source: rootLoc, // sharedKernel children share the kernel's range; refined in pass 2 if needed
+            source: kernelTermLoc(t.id),
             category: normalizeTermCategory(t.category),
             definition: t.definition,
             rationale: t.rationale,
@@ -324,7 +355,7 @@ function resolve(
             ref: ref("invariant", `${kernelFqid}/invariant/${inv.id}`, inv.name),
             ownerContextId: null,
             ownerKernelId: k.id,
-            source: rootLoc,
+            source: kernelInvLoc(inv.id),
             statement: inv.statement,
             rationale: inv.rationale,
             validationMode: inv.validationMode,

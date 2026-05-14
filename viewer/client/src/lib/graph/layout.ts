@@ -69,13 +69,6 @@ function lensOpts(lens: Lens, hasCrossClusterEdges: boolean): Record<string, str
         "elk.direction": "RIGHT",
         "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
       };
-    case "decisions":
-      return {
-        ...BASE_OPTS,
-        "elk.algorithm": "layered",
-        "elk.direction": "DOWN",
-        "elk.layered.spacing.nodeNodeBetweenLayers": "60",
-      };
     case "surfaces":
       return {
         ...BASE_OPTS,
@@ -134,16 +127,12 @@ export async function layoutModel(
 
   // Partition edges. `affects` edges (ADR → target) form huge fans on lenses
   // where ADRs aren't the subject — drawing them all crams the canvas AND
-  // forces ELK to use `layered` everywhere, sprawling the graph. So on the
-  // ownership and surfaces lenses we keep `affects` edges in the model (the
-  // canvas reveals them on focus) but withhold them from ELK's layout pass.
-  // On the decisions lens, `affects` IS the subject — let ELK see them.
-  //
-  // Narrative edges are always withheld — they're free-prose links and can run
-  // to dozens per source. Letting ELK lay them out would sprawl the graph.
-  const withholdAffects = model.lens !== "decisions";
+  // Narrative edges are always withheld — they're free-prose links and can
+  // run to dozens per source. Letting ELK lay them out would sprawl the graph.
+  // `affects` edges are vestigial v0.2 ADR edges that never emit under v0.3;
+  // the filter clause is kept for the dead-code rip-out (deferred polish pass).
   const layoutEdges = model.edges.filter(
-    e => e.kind !== "narrative" && (e.kind !== "affects" || !withholdAffects),
+    e => e.kind !== "narrative" && e.kind !== "affects",
   );
 
   // Bucket edges by whether their endpoints share a cluster:

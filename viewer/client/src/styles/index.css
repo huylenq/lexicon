@@ -270,9 +270,6 @@
 
   .svg-cluster-fill { fill: color-mix(in srgb, var(--color-paper-2) 50%, transparent); }
   .svg-leaf-fill { fill: var(--color-paper-3); }
-  .svg-leaf-fill-kernel {
-    fill: color-mix(in srgb, var(--color-highlight) 8%, var(--color-paper-3));
-  }
   .svg-grid-minor { stroke: var(--grid-line); fill: none; }
   .svg-grid-major { stroke: var(--grid-line-5); fill: none; }
 

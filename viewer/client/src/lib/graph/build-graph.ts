@@ -252,9 +252,10 @@ function buildOwnership(graph: ResolvedGraph, opts: BuildOpts): GraphModel {
   // Customer-Supplier / Open-Host-Service) draw upstream → downstream;
   // symmetric seams emit a pair of undirected edges between participants.
   if (edgeAllowed("seam", opts)) {
-    for (const e of Object.values(graph.entities)) {
-      if (e.ref.kind !== "seam") continue;
-      if (!has(e.ref.fqid) && !e.ownerContextId) continue;
+    for (const fqid of graph.byKind.seam ?? []) {
+      const e = graph.entities[fqid];
+      if (!e) continue;
+      if (!has(fqid) && !e.ownerContextId) continue;
       if (e.upstream && e.downstream) {
         const a = e.upstream.fqid;
         const b = e.downstream.fqid;
