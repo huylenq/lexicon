@@ -141,7 +141,7 @@ function InvariantBody({ entity, graph }: { entity: ResolvedEntity; graph: Resol
 function SystemBody({ entity, graph }: { entity: ResolvedEntity; graph: ResolvedGraph }) {
   return (
     <div>
-      <NarrativeAndPurpose entity={entity} graph={graph} />
+      <PurposeAndNarrative entity={entity} graph={graph} />
       {entity.body && <Prose text={entity.body} graph={graph} />}
       {entity.overlays && entity.overlays.length > 0 && (
         <OverlaysSection overlays={entity.overlays} graph={graph} />
@@ -156,7 +156,7 @@ function SystemBody({ entity, graph }: { entity: ResolvedEntity; graph: Resolved
 // When a narrative is present, the purpose sits above as a small labelled lede
 // and the narrative carries the drop cap. When there's no narrative, the purpose
 // carries the drop cap.
-export function NarrativeAndPurpose({
+export function PurposeAndNarrative({
   entity,
   graph,
 }: {
@@ -308,7 +308,7 @@ function OmissionsSection({
 function ContextBody({ entity, graph }: { entity: ResolvedEntity; graph: ResolvedGraph }) {
   return (
     <div>
-      <NarrativeAndPurpose entity={entity} graph={graph} />
+      <PurposeAndNarrative entity={entity} graph={graph} />
       {entity.body && (
         <Prose text={entity.body} graph={graph} ownerContextId={entity.ownerContextId} />
       )}

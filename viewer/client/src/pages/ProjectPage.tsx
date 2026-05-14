@@ -11,7 +11,7 @@ import {
 } from "@/lib/inspector";
 import { ResizeHandle, usePersistedWidth } from "@/lib/resize";
 import ContextSidebar from "@/components/ContextSidebar";
-import EntityDetail, { NarrativeAndPurpose } from "@/components/EntityDetail";
+import EntityDetail, { PurposeAndNarrative } from "@/components/EntityDetail";
 import PeekDrawer from "@/components/PeekDrawer";
 import YamlInspector from "@/components/YamlInspector";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -311,7 +311,7 @@ function Welcome({ graph }: { graph: ResolvedGraph }) {
       </h1>
       {sys && (sys.narrative || sys.purpose) && (
         <div className="mb-10" style={{ maxWidth: "62ch" }}>
-          <NarrativeAndPurpose entity={sys} graph={graph} />
+          <PurposeAndNarrative entity={sys} graph={graph} />
         </div>
       )}
       <div className="prose-body text-small text-fg-3 italic">
