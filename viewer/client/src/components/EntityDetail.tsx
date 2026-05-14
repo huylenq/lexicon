@@ -153,9 +153,10 @@ function SystemBody({ entity, graph }: { entity: ResolvedEntity; graph: Resolved
   );
 }
 
-// When a narrative is present, the purpose demotes to a small labelled section
-// underneath. When there's no narrative, the purpose carries the drop cap.
-function NarrativeAndPurpose({
+// When a narrative is present, the purpose sits above as a small labelled lede
+// and the narrative carries the drop cap. When there's no narrative, the purpose
+// carries the drop cap.
+export function NarrativeAndPurpose({
   entity,
   graph,
 }: {
@@ -165,14 +166,6 @@ function NarrativeAndPurpose({
   if (entity.narrative) {
     return (
       <>
-        <section className="mb-12">
-          <Prose
-            text={entity.narrative}
-            graph={graph}
-            ownerContextId={entity.ownerContextId}
-            drop
-          />
-        </section>
         {entity.purpose && (
           <section className="mb-10">
             <div className="smallcap mb-2">Purpose</div>
@@ -183,6 +176,14 @@ function NarrativeAndPurpose({
             />
           </section>
         )}
+        <section className="mb-12">
+          <Prose
+            text={entity.narrative}
+            graph={graph}
+            ownerContextId={entity.ownerContextId}
+            drop
+          />
+        </section>
       </>
     );
   }

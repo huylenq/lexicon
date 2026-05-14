@@ -11,10 +11,9 @@ import {
 } from "@/lib/inspector";
 import { ResizeHandle, usePersistedWidth } from "@/lib/resize";
 import ContextSidebar from "@/components/ContextSidebar";
-import EntityDetail from "@/components/EntityDetail";
+import EntityDetail, { NarrativeAndPurpose } from "@/components/EntityDetail";
 import PeekDrawer from "@/components/PeekDrawer";
 import YamlInspector from "@/components/YamlInspector";
-import Prose from "@/components/Prose";
 import ThemeToggle from "@/components/ThemeToggle";
 import GraphPage from "./GraphPage";
 
@@ -310,9 +309,9 @@ function Welcome({ graph }: { graph: ResolvedGraph }) {
       <h1 className="display-tight text-h1 mb-6 leading-[0.95]">
         {sys ? sys.ref.name : "Lexicon"}
       </h1>
-      {(sys?.narrative || sys?.purpose) && (
+      {sys && (sys.narrative || sys.purpose) && (
         <div className="mb-10" style={{ maxWidth: "62ch" }}>
-          <Prose text={sys.narrative ?? sys.purpose!} graph={graph} drop />
+          <NarrativeAndPurpose entity={sys} graph={graph} />
         </div>
       )}
       <div className="prose-body text-small text-fg-3 italic">
