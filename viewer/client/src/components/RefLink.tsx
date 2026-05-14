@@ -12,7 +12,7 @@ export function RefLabel({ to, label }: { to: EntityRef; label?: string }) {
   const Icon = KIND_ICON[to.kind];
   return (
     <>
-      <Icon size={14} weight="bold" className="text-fg-3 shrink-0" />
+      <Icon size={14} weight="fill" className="text-fg-3 shrink-0 translate-y-[1px]" />
       <InlineCode text={label ?? to.name} />
     </>
   );
@@ -33,7 +33,7 @@ export default function RefLink({
   const paneIndex = usePaneIndex();
   const href = `/p/${projectId}/${to.fqid}${loc.hash}`;
   const title = `${to.kind} · ${to.fqid}`;
-  const baseClass = `ref-link inline-flex items-center gap-1 ${className}`;
+  const baseClass = `ref-link inline-flex items-baseline gap-0.5 ${className}`;
 
   // Inside a stacked-reading pane → dispatch into the stack.
   // Outside (sidebar, etc.) → route nav so the sidebar sets the first pane.
