@@ -1,6 +1,6 @@
 ---
 name: lex-bootstrap
-description: "Run once at adoption time, when a project is being set up to use lexicon for the first time. Trigger when the user says 'set up lexicon', 'adopt lexicon', 'bootstrap lexicon', 'migrate to lexicon', or when lex-ground finds no lexicon/system.yaml and the project has substantive existing docs (ARCHITECTURE.md, RFCs, ADR folders) or non-trivial code. Reads existing docs and code, emits a first-cut set of cold-layer YAML files per the schema in lex-overview, migrates ADR-shaped content into YAML, then interviews the user one decision at a time to resolve gaps and inconsistencies before producing the final triage list. Read lex-overview first."
+description: "Run once at adoption time, when a project is being set up to use lexicon for the first time. Trigger when the user says 'set up lexicon', 'adopt lexicon', 'bootstrap lexicon', 'migrate to lexicon', or when lex-ground finds no lexicon/system.yaml and the project has substantive existing docs (ARCHITECTURE.md, RFCs, ADR folders) or non-trivial code. Reads existing docs and code, emits a first-cut set of cold-layer YAML files per the v0.3 schema in lex-overview, archives ADR-shaped existing docs and lifts their content into rationale fields on the affected atoms, then interviews the user one decision at a time to resolve gaps (term categorization, seam kind classification, subdomain choice) and inconsistencies before producing the final triage list. Read lex-overview first."
 ---
 
 # Lexicon: bootstrap
@@ -49,7 +49,7 @@ Bucket every file you find:
 | Bucket | Cue | Where it goes |
 |---|---|---|
 | **Cold-layer candidate** | Glossary fragments, "principles", architectural invariants, "why X over Y" reasoning, conceptual model descriptions | Distillation source for `system.yaml` and `contexts/<slug>.yaml` |
-| **ADR-like** | "We chose X because Y" prose, decision records, RFCs with a clear decision | Migrate to `lexicon/decisions/ADR-<NNNN>-<slug>.yaml` (Phase 6) |
+| **ADR-like** | "We chose X because Y" prose, decision records, RFCs with a clear decision | Absorb into `rationale:` fields on affected atoms (Phase 6); archive the source under `_pre-migrate-archive/decisions/` for reference |
 | **Hot/feature docs** | Active feature specs, in-flight plans, "next quarter" docs | Move to `lexicon/plans/<feature>/` if active, `lexicon/plans/_archive/` if done |
 | **Reference / runbook** | API docs, deployment guides, onboarding, "how to run X" | **Leave alone.** Not lexicon's domain. Don't touch. |
 | **Stale** | "TODO: clean up" from years ago, abandoned drafts | Surface for the user to decide. Don't auto-delete. |
@@ -60,7 +60,7 @@ Produce the bucketed list as part of the triage report (Phase 9). Don't move fil
 
 Without trying to be exhaustive, surface the project's structural shape:
 
-- **Top-level modules / packages** — the directory layout usually reveals provisional bounded contexts. Each will become a candidate `contexts/<slug>.yaml`, with the directory globs going into the `modules:` field.
+- **Top-level modules / packages** — the directory layout usually reveals provisional bounded contexts. Each will become a candidate `contexts/<slug>.yaml`, with the directory globs going into the `codeModules:` field.
 - **High-frequency identifiers** — class, type, struct, and top-level function names that appear across many files. These are glossary candidates; their file paths become the `symbols` code anchors.
 - **Public surface** — exported types, public APIs, entrypoints. The vocabulary at this surface tends to be the most load-bearing.
 - **Cross-module dependencies** — which modules import which. Hints at whether the seams are clean (low cross-talk) or already tangled (lots of cross-talk).
@@ -107,9 +107,11 @@ For each evidence-backed entry:
 
 - **Glossary terms** — only entries with strong evidence (in docs AND code, used consistently). Each entry includes a short `definition` drawn from existing doc text where possible. Add `symbols:` anchors for the code locations found in Phase 2. Add `disambiguatesFrom:` when Phase 3 surfaced an explicit "X is not Y" passage.
 - **Invariants** — extract from existing doc prose where it asserts "must", "always", "never". Each entry has a `statement` and a `rationale`. Set `validationMode` honestly: `code` if a literal code check could verify it; `linter` if existing tooling (ESLint, axe-core, etc.) catches it; `principle` if it's abstract enough that no automation can verify. Add `constrainsCode:` anchors when the doc names specific files/modules the invariant binds.
-- **Bounded contexts** — `purpose:` is a one-paragraph description drawn from existing doc or inferred from the module's public surface. `modules:` lists the directory globs.
+- **Bounded contexts** — `purpose:` is a one-paragraph description drawn from existing doc or inferred from the module's public surface. `codeModules:` lists the directory globs. Set `subdomain:` (core / supporting / generic) when the doc evidence makes it obvious; leave unset otherwise.
 - **Boundary rules** — extract from prose where docs assert directed rules ("the inference context never writes to the training store"). `from:` and `to:` are context slugs.
-- **Cross-cutting terms / invariants** in `system.yaml` only for entries spanning ≥3 contexts. Two-context terms stay in one of the contexts (whichever owns the concept more strongly), with the other context referencing.
+- **Shared kernels** in `system.yaml` for terms/invariants spanning ≥2 contexts that the contexts genuinely coordinate on (not just happen to use). Each kernel has a name, `participatingContexts`, a `rationale`, and its own `terms`/`invariants`. Two-context terms that are *not* coordinated stay in one of the contexts (whichever owns the concept more strongly), with the other context referencing.
+- **Term categories** — set `category:` (entity / value / service / event / concept) on terms when the doc/code evidence is strong. Leave unset (defaults to `concept`) when uncertain; distillation (Phase 8) is the right place to categorize.
+- **Seam kinds** — set `kind:` on each seam to one of the Evans context-map kinds (`shared-kernel`, `customer-supplier`, `conformist`, `anticorruption-layer`, `open-host-service`, `published-language`, `partnership`, `separate-ways`) when doc/code evidence makes it obvious. Otherwise leave `kind: unknown` — the seam loads with a warning, and the user classifies during distillation.
 - **Design system** (UI projects only): emit a `lexicon/surfaces/<slug>.yaml` per top-level surface, listing regions found in Phase 2. Tag each region's `implementation` as `kind: component` (with `import` path) when the region has its own component file, or `kind: inline` (with `file`, `lineStart`, `lineEnd`) when the region is an inline block with conceptual identity. Tokens and components themselves are bounded-context entries — either their own `contexts/design-system.yaml` if the surface is rich, or cross-cutting entries in `system.yaml` for small projects.
 
 Be honest about what's a guess. The drafted YAML should read like an honest first cut, not a confident model. **Empty sections are more useful than fabricated content** — they're trivially populated during distillation; fake content has to be unwound first. Don't add `TODO:` placeholder strings into prose fields — leave the entire entry out and list the gap in the triage report instead.
@@ -123,28 +125,30 @@ Create:
 ```
 lexicon/
   contexts/
-  decisions/
   surfaces/                    ← only if UI was detected
   retros/
   audits/
   plans/_archive/
 ```
 
-Be defensive — if `lexicon/decisions/` already exists from a prior workflow, leave it alone (Phase 6 will add to it). If `lexicon/plans/` exists with non-lexicon content, surface to the user before merging — don't silently restructure their existing plans folder.
+If `lexicon/plans/` exists with non-lexicon content, surface to the user before merging — don't silently restructure their existing plans folder.
 
-## Phase 6 — Migrate ADR-shaped content
+## Phase 6 — Absorb ADR-shaped content into rationale fields
 
-For each file from Phase 1's "ADR-like" bucket:
+v0.3 has no `decisions/` directory. ADR-shaped existing docs are absorbed in two steps:
 
-- **Already in roughly ADR format** (context, decision, consequences) → emit a YAML file at `lexicon/decisions/ADR-<NNNN>-<slug>.yaml`. Renumber sequentially starting at 0001. Preserve original date as the `date:` field. Map the markdown sections to `context:`, `decision:`, `consequences:`, `alternatives:` fields (multi-line literals). `status:` is `accepted` unless the original explicitly marks it as proposed or superseded.
-- **Prose with embedded decisions** → don't try to auto-extract. Add to triage report: "this doc contains decisions but isn't in ADR shape; user should extract manually during distillation or leave as reference."
-- **RFC with a clear "decision" / "outcome" section** → extract the decision portion as an ADR; leave the original RFC alone (often it has discussion value beyond the decision itself).
+1. **Archive the source.** Move each ADR-like file into `lexicon/_pre-migrate-archive/decisions/`. The originals are preserved verbatim so the user can recover anything; the archive is not loaded by anything.
+2. **Lift content into rationale fields.** For each archived ADR, identify the atom(s) the decision affects:
+   - The ADR's "decision" prose typically justifies one of: an invariant, a seam's kind choice, an aggregate's boundary, a boundary rule, a term's category. Propose lifting the decision text as `rationale:` on that atom.
+   - "Consequences" usually rolls into the same rationale; quote selectively.
+   - "Context" and "Alternatives" are conversational; default to *not* lifting them — they belong in a future development-journal mechanism, which v0.3 deliberately does not have.
+3. **Defer interpretive cases.** When a doc contains embedded decisions in unstructured prose, don't auto-extract — add to the triage report for the user to handle during distillation.
 
 Set `affects:` only when the original doc explicitly names which terms/invariants/contexts the decision touches. Don't guess; missing `affects:` is fine — the user can add it during distillation.
 
-If a supersession relationship is obvious from the source (one ADR explicitly supersedes another), set `supersedes:` on the newer one **and** `supersededBy:` on the older one. Both directions must be set.
+If a supersession relationship is obvious from the source (one ADR explicitly supersedes another), log the chain in the triage report so the user knows what they're losing. v0.3 doesn't carry supersession edges in the model — the rationale on the affected atom is the source of truth.
 
-ADRs are append-only — once migrated, they stay there. Don't edit existing ADR content for style; just preserve and renumber.
+Archived ADRs in `_pre-migrate-archive/decisions/` are append-only references — don't touch them after archival. Rationale lifts go into the cold-layer files; the originals stay frozen.
 
 ## Phase 7 — Triage suggestions for hot/stale docs
 
@@ -158,7 +162,7 @@ Auto-moving feature docs is a high-blast-radius action — they may have URLs, l
 
 ## Phase 8 — Interactive distillation (one decision at a time)
 
-The drafted YAML is on disk but unverified — gaps from Phase 3, drift flags, inconsistencies, unresolved ADR `affects` fields. Earlier versions of this skill stopped here and left a triage report telling the user to come back later. In practice, "later" usually never came.
+The drafted YAML is on disk but unverified — gaps from Phase 3, drift flags, inconsistencies, term categorizations not yet picked, seam kinds left at `unknown`. Earlier versions of this skill stopped here and left a triage report telling the user to come back later. In practice, "later" usually never came.
 
 **Dive into the distillation in the same conversation, by default.** No "want to do this now?" preamble — open with what's about to happen and start. The user can stop at any item boundary with "pause" / "enough for now" / "save the rest for later", and state-on-pause is preserved.
 
@@ -181,9 +185,11 @@ Then go directly into item 1. No table-of-contents preview of upcoming items.
 1. **Inconsistencies** (same term defined differently across docs/code) — highest priority because they corrupt vocabulary downstream.
 2. **Drift flags** (term in docs, missing or renamed in code).
 3. **Evidence gaps** (doc content described an entity, but evidence wasn't strong enough to emit) — one entry at a time. Encourage culling; bootstrap was deliberately conservative, but some gaps are real terms the user can confirm.
-4. **Unresolved invariants** — note in conversation whether a removed invariant *was* real and stopped holding (worth an ADR) or was never real (drift).
+4. **Unresolved invariants** — note in conversation whether a removed invariant *was* real and stopped holding (worth a `rationale:` capturing the historical argument on whatever replaces it) or was never real (drift).
 5. **Bounded-context gaps** — these often take the most conversation per item; that's expected.
-6. **ADR `affects:` fields** — for each migrated ADR, confirm or fill which entities it touches.
+6. **Pending rationale lifts** — for each archived ADR not yet lifted, confirm which atom should absorb the decision argument (or skip and leave archived).
+7. **Seam kinds at `unknown`** — walk each one, ask the user to pick from the Evans context-map enum, and (for asymmetric kinds) which participant is upstream vs. downstream.
+8. **Term categories** — for terms not yet categorized, walk through one at a time: entity / value / service / event / concept. Skip is allowed; defaults to concept.
 7. **Design-system gaps** (UI projects only) — token names, component vocabulary, surface/region names, a11y invariants. Mark for forwarding if the user isn't the design owner.
 8. **File moves** — confirm or decline each recommended move from Phase 7. Apply accepted ones with `git mv`.
 
@@ -237,7 +243,7 @@ Distillation status: <complete | paused mid-<category>: <N> of <T> items resolve
 ## What was created
 - `lexicon/system.yaml` (<N> cross-cutting entries, <C> contexts indexed)
 - `lexicon/contexts/` with <K> context files: <list>
-- `lexicon/decisions/` with <A> ADRs migrated from <sources>
+- `lexicon/_pre-migrate-archive/decisions/` with <A> ADRs archived from <sources>; <L> lifted into rationale fields
 - `lexicon/surfaces/` with <S> surface files (or "no UI surfaces; backend-only")
 - `lexicon/retros/`, `lexicon/audits/`, `lexicon/plans/_archive/` (empty, ready to populate)
 
@@ -251,7 +257,7 @@ Distillation status: <complete | paused mid-<category>: <N> of <T> items resolve
 - Evidence gaps: <N total, A added, C culled, U remaining>
 - Unresolved invariants: <N total, C confirmed, V revised, D dropped, U remaining>
 - Bounded-context gaps: <N total, R resolved, U remaining>
-- ADR `affects:` fields: <N migrated ADRs, F filled, U remaining>
+- ADR rationale lifts: <N archived ADRs, L lifted into rationale fields, R remaining as archive-only>
 - File moves: <N recommended, A accepted (applied via git mv), D declined, U deferred>
 
 ## Deferred items (need follow-up)
@@ -280,7 +286,7 @@ Re-trigger lex-bootstrap with "continue distillation" — it will read this file
 
 One-line chat summary, distillation-aware:
 
-> Bootstrap complete. <N> entities emitted across <F> YAML files; <K> ADRs migrated; <A> file moves applied. Triage report at `lexicon/bootstrap.md`.
+> Bootstrap complete. <N> entities emitted across <F> YAML files; <K> ADRs archived (<L> lifted into rationale); <A> file moves applied. Triage report at `lexicon/bootstrap.md`.
 
 If distillation paused:
 

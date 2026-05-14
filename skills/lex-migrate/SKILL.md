@@ -1,6 +1,6 @@
 ---
 name: lex-migrate
-description: "Schema and structural migration for lexicon-using projects. Detects the project's current cold-layer schema version, computes the chain of per-version deltas needed to reach the latest supported version, and applies each delta in order. Deltas live in `migrations/v<X>-to-v<Y>.md` next to this skill — each describes a specific schema bump (markdown → v0.1 YAML, v0.1 → v0.2 narrative/overlays/links, future bumps). Trigger when the user says 'migrate lexicon', 'upgrade lexicon', 'upgrade to v0.2', 'lexicon doesn't have narrative / overlays / inline links', when system.yaml contains non-canonical top-level keys (e.g. `battery:`), when system.md is present (legacy markdown), or when lex-ground / lex-bootstrap / lex-audit detects structural violations against the latest schema. Read lex-overview first."
+description: "Schema and structural migration for lexicon-using projects. Detects the project's current cold-layer schema version, computes the chain of per-version deltas needed to reach the latest supported version, and applies each delta in order. Deltas live in `migrations/v<X>-to-v<Y>.md` next to this skill — each describes a specific schema bump (markdown → v0.1 YAML, v0.1 → v0.2 narrative/overlays/links, v0.2 → v0.3 DDD-faithful shape). Trigger when the user says 'migrate lexicon', 'upgrade lexicon', 'upgrade to v0.3', 'lexicon doesn't have aggregates / shared kernels / typed seams', when system.yaml contains removed keys (`crossCuttingTerms`, `kind: decision`), when system.md is present (legacy markdown), or when lex-ground / lex-bootstrap / lex-audit detects structural violations against the latest schema. Read lex-overview first."
 ---
 
 # Lexicon: migrate
@@ -17,8 +17,9 @@ The supported deltas, in order:
 
 - **`migrations/v0.x-to-v0.1.md`** — pre-YAML markdown lexicon (`system.md`, `views/*.md`, `decisions/*.md`) → v0.1 YAML (`system.yaml`, `contexts/*.yaml`, `decisions/*.yaml`, `surfaces/*.yaml`). Mechanical conversion; preserves content faithfully.
 - **`migrations/v0.1-to-v0.2.md`** — v0.1 YAML → v0.2 structural conformance. Lifts non-canonical top-level keys (`battery:` → `overlays:`), formalizes `[[fqid]]` inline links, drafts `narrative` at scopes that warrant it, enriches `deliberateOmissions` with `triggers` / `relatedAtoms`.
+- **`migrations/v0.2-to-v0.3.md`** — v0.2 → v0.3 DDD-faithful shape. Removes the `decision` kind (archives ADRs, optional rationale-lift), replaces `crossCuttingTerms` / `crossCuttingInvariants` with typed `sharedKernels`, renames `modules` → `codeModules` (freeing `modules` for Evans-sense concept clusters), introduces `term.category`, typed `seam.kind`, `aggregate` / `module` entity kinds, `subdomain` field, rationale fields. Interactive; the user makes the interpretive calls per item.
 
-The latest supported version is the target of the last delta in the chain (currently **v0.2**).
+The latest supported version is the target of the last delta in the chain (currently **v0.3**).
 
 Each delta file is **self-contained**: it describes its own pre-flight checks, detection phase, apply phases, validate phase, and report-section template. This file is the orchestrator — it picks and chains; the deltas do the work.
 
@@ -39,13 +40,14 @@ A project may also have **mixed schemaVersion** across YAML files (e.g. `system.
 
 The chain is the ordered list of delta files whose source matches the current version and whose target is closer to the latest.
 
-- Current = `v0.x markdown`, latest = v0.2 → chain is `[v0.x-to-v0.1, v0.1-to-v0.2]`.
-- Current = v0.1, latest = v0.2 → chain is `[v0.1-to-v0.2]`.
-- Current = v0.2 (latest) → chain is `[]`. Run the latest delta's **detection phase** anyway to surface violations that exist despite the version claim (e.g. a v0.2 project where someone hand-edited in a non-canonical key after migration). If nothing is found, refuse with: "Already on latest with no structural violations; run `lex-audit` for a backward-flow check."
+- Current = `v0.x markdown`, latest = v0.3 → chain is `[v0.x-to-v0.1, v0.1-to-v0.2, v0.2-to-v0.3]`.
+- Current = v0.1, latest = v0.3 → chain is `[v0.1-to-v0.2, v0.2-to-v0.3]`.
+- Current = v0.2, latest = v0.3 → chain is `[v0.2-to-v0.3]`.
+- Current = v0.3 (latest) → chain is `[]`. Run the latest delta's **detection phase** anyway to surface violations that exist despite the version claim (e.g. a v0.3 project where someone hand-edited in a removed key). If nothing is found, refuse with: "Already on latest with no structural violations; run `lex-audit` for a backward-flow check."
 
 Show the user the chain you computed before applying anything:
 
-> Current: v0.1 → v0.2 (latest). Will apply: `migrations/v0.1-to-v0.2.md`.
+> Current: v0.2 → v0.3 (latest). Will apply: `migrations/v0.2-to-v0.3.md`.
 
 For multi-step chains, the user sees the full sequence and can agree once for the whole chain (typical) or step through with a yes per delta. Default to the per-chain agreement unless the user signals otherwise.
 
@@ -90,10 +92,10 @@ For three or fewer warranting scopes, a single proposal block is fine.
 
 Run when:
 
-- The user explicitly asks ("migrate lexicon", "upgrade lexicon", "upgrade to v0.2", "make this conform").
+- The user explicitly asks ("migrate lexicon", "upgrade lexicon", "upgrade to v0.3", "make this conform").
 - `lex-ground` or `lex-bootstrap` detects `lexicon/system.md` and the user agrees to migrate.
 - `lex-ground` / `lex-audit` reports structural violations against the latest schema and the user agrees to conform.
-- The user describes a gap addressed by a known delta ("lexicon doesn't have narrative", "system.yaml has a `battery:` block").
+- The user describes a gap addressed by a known delta ("lexicon doesn't have aggregates", "system.yaml still has `crossCuttingTerms`").
 
 Don't run when:
 
