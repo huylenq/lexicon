@@ -1,37 +1,32 @@
----
-name: lex-bootstrap
-description: "Run once at adoption time, when a project is being set up to use lexicon for the first time. Trigger when the user says 'set up lexicon', 'adopt lexicon', 'bootstrap lexicon', 'migrate to lexicon', or when lex-ground finds no lexicon/system.yaml and the project has substantive existing docs (ARCHITECTURE.md, RFCs, ADR folders) or non-trivial code. Reads existing docs and code, emits a first-cut set of cold-layer YAML files per the v0.3 schema in lex-overview, archives ADR-shaped existing docs and lifts their content into rationale fields on the affected atoms, then interviews the user one decision at a time to resolve gaps (term categorization, seam kind classification, subdomain choice) and inconsistencies before producing the final triage list. Read lex-overview first."
----
+# Subcommand: adopt
 
-# Lexicon: bootstrap
+Prepares a project for lexicon. One-shot counterpart to the per-session subcommands — run once at adoption, then never again on the same project (except to resume a paused distillation).
 
-This skill prepares a project for lexicon. It is the **one-shot** counterpart to the per-session/per-feature operational skills — run it once at adoption, then never again on the same project.
-
-If you haven't loaded `lex-overview` yet this session, read it first. The schema you emit here is specified there.
+The normative schema you'll emit here lives in `${CLAUDE_SKILL_DIR}/reference/schema.md`; the canonical YAML examples are in `${CLAUDE_SKILL_DIR}/templates/`. Read both before Phase 4.
 
 ## When to run this
 
 Run when:
 
-- The user says they want to adopt lexicon for this project ("set up lexicon", "bootstrap lexicon", "migrate to lexicon", "adopt the lexicon workflow").
-- `lex-ground` fires on a project with no `lexicon/system.yaml` and surfaces "this project should bootstrap first".
+- The user says they want to adopt lexicon for this project ("set up lexicon", "bootstrap lexicon", "adopt the lexicon workflow").
+- `ground` defers here on a project with no `lexicon/system.yaml`.
 - The user is starting a new project and wants the lexicon structure in place from day one (in this case, the doc-audit phases mostly no-op — that's fine).
 
 Don't run when:
 
-- A `lexicon/system.yaml` already exists and is current — that's not bootstrap, that's `lex-audit` territory.
-- A `lexicon/system.yaml` exists but seems out of date — also `lex-audit`, not this skill. Re-bootstrapping over a real `system.yaml` would clobber human-curated content. Refuse.
-- A `lexicon/system.md` exists — the project is on the v0.x markdown layout. Refer to `lex-migrate` first, then re-evaluate.
-- The project is a throwaway script or single-file prototype — lexicon is not free, and very small projects don't benefit. Surface this honestly: "This project looks small enough that lexicon may be overhead. Want me to bootstrap anyway?"
+- A `lexicon/system.yaml` already exists and is current — that's `conform` territory.
+- A `lexicon/system.yaml` exists but seems out of date — also `conform`, not this subcommand. Re-running adopt over a real `system.yaml` would clobber human-curated content. Refuse.
+- A `lexicon/system.md` exists — the project is on the v0.x markdown layout. Refer to `conform`'s structural pass first, then re-evaluate.
+- The project is a throwaway script or single-file prototype — lexicon is not free. Surface this honestly: *"This project looks small enough that lexicon may be overhead. Want me to adopt anyway?"*
 
 ## Pre-flight checks
 
 Before doing anything destructive, confirm:
 
-1. `lexicon/system.yaml` does **not** exist. If it does, stop and surface — the user should consider `lex-audit` (when that skill exists) or hand-edit, not re-bootstrap.
-2. `lexicon/system.md` does **not** exist. If it does, route to `lex-migrate` first.
-3. The user has explicitly opted in. This skill creates a `lexicon/` structure and writes YAML files. Don't run it speculatively.
-4. The repo is in a clean-ish git state, or the user accepts that bootstrap will create unstaged changes. If the working tree has a lot of uncommitted churn, surface it: "Bootstrap will add a `lexicon/` tree and possibly move ADR-shaped files. You have N uncommitted files — want to commit those first, or proceed?"
+1. `lexicon/system.yaml` does **not** exist. If it does, stop and surface — the user should consider `conform` (semantic pass) or hand-edit, not re-adopt.
+2. `lexicon/system.md` does **not** exist. If it does, route to `conform`'s structural pass first.
+3. The user has explicitly opted in. This subcommand creates a `lexicon/` structure and writes YAML files. Don't run it speculatively.
+4. The repo is in a clean-ish git state, or the user accepts that adoption will create unstaged changes. If the working tree has a lot of uncommitted churn, surface it.
 
 ## Phase 1 — Audit existing docs
 
@@ -63,8 +58,8 @@ Without trying to be exhaustive, surface the project's structural shape:
 - **Top-level modules / packages** — the directory layout usually reveals provisional bounded contexts. Each will become a candidate `contexts/<slug>.yaml`, with the directory globs going into the `codeModules:` field.
 - **High-frequency identifiers** — class, type, struct, and top-level function names that appear across many files. These are glossary candidates; their file paths become the `symbols` code anchors.
 - **Public surface** — exported types, public APIs, entrypoints. The vocabulary at this surface tends to be the most load-bearing.
-- **Cross-module dependencies** — which modules import which. Hints at whether the seams are clean (low cross-talk) or already tangled (lots of cross-talk).
-- **UI detection** — before doing the UI-specific scans below, decide whether this project has a UI at all. The question is **judgment, not a checklist**: *does this code put anything in front of a human?* Weigh whatever signal you can find — rendering-purpose files (JSX/TSX, Vue/Svelte components, SwiftUI `View`, `@Composable`, Flutter `Widget`, HTML templates, any CSS/SCSS at all), screenshots in the repo, README prose describing what the user sees, dependency lists naming rendering libraries (React, Vue, lit, `ink`, `rich`, `bubbletea`, …), file/dir names containing `view`/`screen`/`window`/`panel`/`widget`/`component`. Any one of these usually settles it. **Host-embedded UIs are the most common false negative**: Obsidian plugins, VS Code extensions, Figma plugins, browser extensions, Logseq plugins typically inherit tokens, theming, and surface registration from the host — so absence of `tailwind.config`, your own `routes/`, or Storybook does **not** mean backend-only. If there's a rendered tree at all (React/Vue/Svelte/native/template), there's a UI. If the project is genuinely UI-free (pure library, server with no rendered surface, CLI that only emits structured data), skip the next two bullets and the design-system parts of later phases. Edge case: a CLI that invests in layout (colored output, tables, prompts via `ink`/`rich`/`bubbletea` or hand-rolled ANSI) counts as a UI; one that just dumps JSON doesn't. Don't enumerate frameworks looking for membership in a known list — the list always leaks; ask what the code is *for*.
+- **Cross-module dependencies** — which modules import which. Hints at whether the seams are clean (low cross-talk) or already tangled.
+- **UI detection** — before doing UI-specific scans, decide whether this project has a UI at all. The question is **judgment, not a checklist**: *does this code put anything in front of a human?* Weigh whatever signal you can find — rendering-purpose files (JSX/TSX, Vue/Svelte components, SwiftUI `View`, `@Composable`, Flutter `Widget`, HTML templates, CSS/SCSS), screenshots in the repo, README prose describing what the user sees, dependency lists naming rendering libraries (React, Vue, lit, `ink`, `rich`, `bubbletea`, …), file/dir names containing `view`/`screen`/`window`/`panel`/`widget`/`component`. Any one of these usually settles it. **Host-embedded UIs are the most common false negative**: Obsidian plugins, VS Code extensions, Figma plugins, browser extensions, Logseq plugins typically inherit tokens, theming, and surface registration from the host — so absence of `tailwind.config`, your own `routes/`, or Storybook does **not** mean backend-only. If there's a rendered tree at all (React/Vue/Svelte/native/template), there's a UI. If the project is genuinely UI-free (pure library, server with no rendered surface, CLI that only emits structured data), skip the next two bullets and the design-system parts of later phases. Edge case: a CLI that invests in layout (colored output, tables, prompts via `ink`/`rich`/`bubbletea` or hand-rolled ANSI) counts as a UI; one that just dumps JSON doesn't. Don't enumerate frameworks looking for membership in a known list — the list always leaks; ask what the code is *for*.
 - **Design-system surface** (only if UI detection said yes): look for theme/token files (`tailwind.config.{js,ts}`, `theme.{css,ts}`, `tokens/`, `*.tokens.{json,css}`, CSS custom-property declarations, or framework equivalents); component library directories (`components/`, `ui/`, `design-system/`, `widgets/`, framework equivalents); rendering/preview tooling (`.storybook/`, MDX/Ladle/Histoire configs); a11y tooling (`eslint-plugin-jsx-a11y`, `axe-core`, `jest-axe`, Storybook a11y addon, Playwright a11y, platform-native equivalents). These examples are eye-prompts for finding signal, not gates — host-embedded UIs may have none yet still need a real design-system surface (it inherits the host's tokens and registers surfaces through the host's API, but its own region/component vocabulary still belongs in the cold layer).
 - **Surfaces & regions** (only if UI detection said yes): the top-level surface registry. Ask *"what does the user navigate between?"* — that's the surface list, regardless of how the surfaces are wired. Look for route definitions (React Router, Next.js `app/`, SvelteKit `routes/`, Flutter `Navigator`, SwiftUI `NavigationStack`), screen/window managers, TUI screen IDs, print-layout templates, or **host-embedded view registrations** (Obsidian `ItemView`, VS Code `WebviewViewProvider`/`TreeDataProvider`, browser-extension panel registrations) when the host owns navigation. Inside each surface, scan the rendered tree for **named regions** that are *not* extracted into their own component file: `{/* Name */}`-style comments preceding inline blocks (a strong author-intent signal), semantic containers (`<aside>` / `<main>` / `<header>` / `<dialog>`), inline-defined sub-components rendering self-contained pieces, and repeated visual clusters appearing 3+ times across files. Cross-reference with the surface's entry-point file to identify candidate region names and their inline `<file>:<lineStart>–<lineEnd>` ranges.
 
@@ -82,6 +77,8 @@ This is the **highest-signal extraction zone**. For each candidate term collecte
 ## Phase 4 — Emit the draft cold-layer YAML
 
 This is where structured-format discipline matters. **Don't fabricate entries**: every entity that ends up in the YAML must have evidence from Phase 3. Gaps go to the triage report (Phase 9), not into the cold-layer files as placeholder content.
+
+Reference `${CLAUDE_SKILL_DIR}/templates/*.yaml.example` for shape. The normative spec is `${CLAUDE_SKILL_DIR}/reference/schema.md`; examples are illustrative.
 
 ### ID minting
 
@@ -101,17 +98,15 @@ Use top-level module structure as the starting point, but don't be mechanical ab
 
 ### Fill the YAML
 
-Reference `${SKILL_DIR}/templates/*.yaml.example` next to this `SKILL.md` for shape. Resolve `${SKILL_DIR}` based on install mode: `${CLAUDE_PLUGIN_ROOT}/skills/lex-bootstrap/templates/...` for plugin installs, `~/.claude/skills/lex-bootstrap/templates/...` (or project `.claude/skills/lex-bootstrap/templates/...`) for `npx skills` installs. The normative schema spec is `SCHEMA.md` inside the `lex-overview` skill folder (loaded as part of the overview); the examples here are illustrative.
-
 For each evidence-backed entry:
 
 - **Glossary terms** — only entries with strong evidence (in docs AND code, used consistently). Each entry includes a short `definition` drawn from existing doc text where possible. Add `symbols:` anchors for the code locations found in Phase 2. Add `disambiguatesFrom:` when Phase 3 surfaced an explicit "X is not Y" passage.
-- **Invariants** — extract from existing doc prose where it asserts "must", "always", "never". Each entry has a `statement` and a `rationale`. Set `validationMode` honestly: `code` if a literal code check could verify it; `linter` if existing tooling (ESLint, axe-core, etc.) catches it; `principle` if it's abstract enough that no automation can verify. Add `constrainsCode:` anchors when the doc names specific files/modules the invariant binds.
+- **Invariants** — extract from existing doc prose where it asserts "must", "always", "never". Each entry has a `statement` and a `rationale`. Set `validationMode` honestly: `code` if a literal code check could verify it; `linter` if existing tooling catches it; `principle` if it's abstract enough that no automation can verify. Add `constrainsCode:` anchors when the doc names specific files/modules.
 - **Bounded contexts** — `purpose:` is a one-paragraph description drawn from existing doc or inferred from the module's public surface. `codeModules:` lists the directory globs. Set `subdomain:` (core / supporting / generic) when the doc evidence makes it obvious; leave unset otherwise.
 - **Boundary rules** — extract from prose where docs assert directed rules ("the inference context never writes to the training store"). `from:` and `to:` are context slugs.
 - **Shared kernels** in `system.yaml` for terms/invariants spanning ≥2 contexts that the contexts genuinely coordinate on (not just happen to use). Each kernel has a name, `participatingContexts`, a `rationale`, and its own `terms`/`invariants`. Two-context terms that are *not* coordinated stay in one of the contexts (whichever owns the concept more strongly), with the other context referencing.
 - **Term categories** — set `category:` (entity / value / service / event / concept) on terms when the doc/code evidence is strong. Leave unset (defaults to `concept`) when uncertain; distillation (Phase 8) is the right place to categorize.
-- **Seam kinds** — set `kind:` on each seam to one of the Evans context-map kinds (`shared-kernel`, `customer-supplier`, `conformist`, `anticorruption-layer`, `open-host-service`, `published-language`, `partnership`, `separate-ways`) when doc/code evidence makes it obvious. Otherwise leave `kind: unknown` — the seam loads with a warning, and the user classifies during distillation.
+- **Seam kinds** — set `kind:` on each seam to one of the Evans context-map kinds when doc/code evidence makes it obvious. Otherwise leave `kind: unknown` — the seam loads with a warning, and the user classifies during distillation.
 - **Design system** (UI projects only): emit a `lexicon/surfaces/<slug>.yaml` per top-level surface, listing regions found in Phase 2. Tag each region's `implementation` as `kind: component` (with `import` path) when the region has its own component file, or `kind: inline` (with `file`, `lineStart`, `lineEnd`) when the region is an inline block with conceptual identity. Tokens and components themselves are bounded-context entries — either their own `contexts/design-system.yaml` if the surface is rich, or cross-cutting entries in `system.yaml` for small projects.
 
 Be honest about what's a guess. The drafted YAML should read like an honest first cut, not a confident model. **Empty sections are more useful than fabricated content** — they're trivially populated during distillation; fake content has to be unwound first. Don't add `TODO:` placeholder strings into prose fields — leave the entire entry out and list the gap in the triage report instead.
@@ -127,7 +122,7 @@ lexicon/
   contexts/
   surfaces/                    ← only if UI was detected
   retros/
-  audits/
+  audits/                      ← legacy; conform.md is the current report path
   plans/_archive/
 ```
 
@@ -144,8 +139,6 @@ v0.3 has no `decisions/` directory. ADR-shaped existing docs are absorbed in two
    - "Context" and "Alternatives" are conversational; default to *not* lifting them — they belong in a future development-journal mechanism, which v0.3 deliberately does not have.
 3. **Defer interpretive cases.** When a doc contains embedded decisions in unstructured prose, don't auto-extract — add to the triage report for the user to handle during distillation.
 
-Set `affects:` only when the original doc explicitly names which terms/invariants/contexts the decision touches. Don't guess; missing `affects:` is fine — the user can add it during distillation.
-
 If a supersession relationship is obvious from the source (one ADR explicitly supersedes another), log the chain in the triage report so the user knows what they're losing. v0.3 doesn't carry supersession edges in the model — the rationale on the affected atom is the source of truth.
 
 Archived ADRs in `_pre-migrate-archive/decisions/` are append-only references — don't touch them after archival. Rationale lifts go into the cold-layer files; the originals stay frozen.
@@ -154,15 +147,15 @@ Archived ADRs in `_pre-migrate-archive/decisions/` are append-only references �
 
 For files in the "hot/feature docs" and "stale" buckets, **do not auto-move**. Instead, recommend in the triage report:
 
-- For active feature docs: "move `docs/feature-X-spec.md` to `lexicon/plans/<feature-X>/spec.md`?"
-- For done feature docs: "archive `docs/old-redesign-plan.md` to `lexicon/plans/_archive/old-redesign/`?"
-- For stale: "this looks abandoned (last touched 2 years ago, references removed APIs) — archive or delete?"
+- For active feature docs: *"move `docs/feature-X-spec.md` to `lexicon/plans/<feature-X>/spec.md`?"*
+- For done feature docs: *"archive `docs/old-redesign-plan.md` to `lexicon/plans/_archive/old-redesign/`?"*
+- For stale: *"this looks abandoned (last touched 2 years ago, references removed APIs) — archive or delete?"*
 
 Auto-moving feature docs is a high-blast-radius action — they may have URLs, links, or be cited elsewhere. Let the user choose.
 
 ## Phase 8 — Interactive distillation (one decision at a time)
 
-The drafted YAML is on disk but unverified — gaps from Phase 3, drift flags, inconsistencies, term categorizations not yet picked, seam kinds left at `unknown`. Earlier versions of this skill stopped here and left a triage report telling the user to come back later. In practice, "later" usually never came.
+The drafted YAML is on disk but unverified — gaps from Phase 3, drift flags, inconsistencies, term categorizations not yet picked, seam kinds left at `unknown`. Earlier versions of this subcommand stopped here and left a triage report telling the user to come back later. In practice, "later" usually never came.
 
 **Dive into the distillation in the same conversation, by default.** No "want to do this now?" preamble — open with what's about to happen and start. The user can stop at any item boundary with "pause" / "enough for now" / "save the rest for later", and state-on-pause is preserved.
 
@@ -176,7 +169,7 @@ This rule overrides any temptation to "be efficient." Even when several items lo
 
 One sentence to frame, then start with the first item:
 
-> Bootstrap emitted <N> entities across <F> YAML files. Triage queue has <I> inconsistencies, <D> drift flags, and <G> evidence gaps where doc content suggested an entry but evidence was weak. Walking through them one at a time — say 'pause' at any point. Starting with inconsistencies, since those are the highest-cost to leave latent.
+> Adopt emitted <N> entities across <F> YAML files. Triage queue has <I> inconsistencies, <D> drift flags, and <G> evidence gaps where doc content suggested an entry but evidence was weak. Walking through them one at a time — say 'pause' at any point. Starting with inconsistencies, since those are the highest-cost to leave latent.
 
 Then go directly into item 1. No table-of-contents preview of upcoming items.
 
@@ -184,14 +177,14 @@ Then go directly into item 1. No table-of-contents preview of upcoming items.
 
 1. **Inconsistencies** (same term defined differently across docs/code) — highest priority because they corrupt vocabulary downstream.
 2. **Drift flags** (term in docs, missing or renamed in code).
-3. **Evidence gaps** (doc content described an entity, but evidence wasn't strong enough to emit) — one entry at a time. Encourage culling; bootstrap was deliberately conservative, but some gaps are real terms the user can confirm.
+3. **Evidence gaps** — one entry at a time. Encourage culling; bootstrap was deliberately conservative, but some gaps are real terms the user can confirm.
 4. **Unresolved invariants** — note in conversation whether a removed invariant *was* real and stopped holding (worth a `rationale:` capturing the historical argument on whatever replaces it) or was never real (drift).
 5. **Bounded-context gaps** — these often take the most conversation per item; that's expected.
 6. **Pending rationale lifts** — for each archived ADR not yet lifted, confirm which atom should absorb the decision argument (or skip and leave archived).
 7. **Seam kinds at `unknown`** — walk each one, ask the user to pick from the Evans context-map enum, and (for asymmetric kinds) which participant is upstream vs. downstream.
 8. **Term categories** — for terms not yet categorized, walk through one at a time: entity / value / service / event / concept. Skip is allowed; defaults to concept.
-7. **Design-system gaps** (UI projects only) — token names, component vocabulary, surface/region names, a11y invariants. Mark for forwarding if the user isn't the design owner.
-8. **File moves** — confirm or decline each recommended move from Phase 7. Apply accepted ones with `git mv`.
+9. **Design-system gaps** (UI projects only) — token names, component vocabulary, surface/region names, a11y invariants. Mark for forwarding if the user isn't the design owner.
+10. **File moves** — confirm or decline each recommended move from Phase 7. Apply accepted ones with `git mv`.
 
 ### Per-item flow
 
@@ -215,11 +208,11 @@ For each item, in this order:
 
 Don't bulldoze. A simple glossary entry might be 30 seconds; a bounded-context decision can be 15+ minutes for a complex system. Let each item take what it takes.
 
-If the user gives genuinely low-effort answers ("ok", "fine", "sure") across many items in a row, surface it once: "These have been quick confirms — actually reviewing, or want to pause and come back fresher?" Then accept their answer either way; don't moralize.
+If the user gives genuinely low-effort answers ("ok", "fine", "sure") across many items in a row, surface it once: *"These have been quick confirms — actually reviewing, or want to pause and come back fresher?"* Then accept their answer either way; don't moralize.
 
 ### What the user cannot easily punt
 
-Inconsistencies are the highest-value finding. If the user wants to skip one, surface the cost: "Leaving this ambiguous will silently corrupt vocabulary going forward — every retro and ground from now on inherits it. Push through, or accept that cost?" Push once per inconsistency, then accept their decision and move to the next item.
+Inconsistencies are the highest-value finding. If the user wants to skip one, surface the cost: *"Leaving this ambiguous will silently corrupt vocabulary going forward — every retro and ground from now on inherits it. Push through, or accept that cost?"* Push once per inconsistency, then accept their decision and move to the next item.
 
 ### State on pause
 
@@ -227,9 +220,9 @@ If the user pauses mid-distillation:
 
 1. Whatever edits have already been applied (they already are — each item commits its own edit).
 2. Record where we stopped in `lexicon/bootstrap.md`'s "Distillation status" section: how many items in each category were resolved vs. remain, plus a one-line note on the next pending item.
-3. Tell the user how to resume: re-trigger lex-bootstrap with "continue distillation" or run `lex-audit` later — both will read `lexicon/bootstrap.md` and pick up the unresolved items.
+3. Tell the user how to resume: re-trigger `adopt` with "continue distillation" or run `conform` later — both will read `lexicon/bootstrap.md` and pick up the unresolved items.
 
-If lex-bootstrap is re-triggered on a project where `lexicon/system.yaml` already exists *and* `lexicon/bootstrap.md` shows distillation paused, **do not re-bootstrap** — jump straight to Phase 8 and resume from the recorded position, still one item at a time. This is the only legitimate case of re-running lex-bootstrap on a populated project.
+If `adopt` is re-triggered on a project where `lexicon/system.yaml` already exists *and* `lexicon/bootstrap.md` shows distillation paused, **do not re-adopt** — jump straight to Phase 8 and resume from the recorded position, still one item at a time. This is the only legitimate case of re-running adopt on a populated project.
 
 ## Phase 9 — Write the triage report
 
@@ -279,27 +272,27 @@ Distillation status: <complete | paused mid-<category>: <N> of <T> items resolve
 - ...
 
 ## How to resume (only if distillation paused)
-Re-trigger lex-bootstrap with "continue distillation" — it will read this file and pick up where we stopped. Alternatively, `lex-audit` will surface the same deferred items as drift candidates.
+Re-trigger `adopt` with "continue distillation" — it will read this file and pick up where we stopped. Alternatively, `conform` will surface the same deferred items as drift candidates.
 ```
 
 ## Phase 10 — Tell the user
 
 One-line chat summary, distillation-aware:
 
-> Bootstrap complete. <N> entities emitted across <F> YAML files; <K> ADRs archived (<L> lifted into rationale); <A> file moves applied. Triage report at `lexicon/bootstrap.md`.
+> Adoption complete. <N> entities emitted across <F> YAML files; <K> ADRs archived (<L> lifted into rationale); <A> file moves applied. Triage report at `lexicon/bootstrap.md`.
 
 If distillation paused:
 
-> Bootstrap paused mid-<category> after resolving <N> items. <E> entities currently emitted, plus <U> deferred. Next pending: "<one-line description>". Report at `lexicon/bootstrap.md` — resume by re-triggering lex-bootstrap with "continue distillation".
+> Adoption paused mid-<category> after resolving <N> items. <E> entities currently emitted, plus <U> deferred. Next pending: "<one-line description>". Report at `lexicon/bootstrap.md` — resume by re-triggering `/lexicon:adopt` with "continue distillation".
 
 Don't dump the report content into chat. The file is the artifact; chat is the pointer.
 
-## What this skill is NOT
+## What this subcommand is NOT
 
-- **Not a single mechanical pass.** It produces a draft *and runs the distillation interview to resolve it, one decision per conversational turn.* The interview is part of the skill, not homework — unless the user explicitly pauses or punts it, in which case the deferred items are recorded so a follow-up run can pick them up. Multi-decision batching is explicitly forbidden (see Phase 8).
-- **Not a periodic refresh.** For projects already on lexicon where the cold layer is drifting, that's `lex-audit` territory. Re-running bootstrap on a populated `system.yaml` is only legitimate when `lexicon/bootstrap.md` shows distillation paused and the user wants to resume.
+- **Not a single mechanical pass.** It produces a draft *and runs the distillation interview to resolve it, one decision per conversational turn.* The interview is part of the subcommand, not homework — unless the user explicitly pauses or punts it, in which case the deferred items are recorded so a follow-up run can pick them up. Multi-decision batching is explicitly forbidden (see Phase 8).
+- **Not a periodic refresh.** For projects already on lexicon where the cold layer is drifting, that's `conform` territory. Re-running adopt on a populated `system.yaml` is only legitimate when `lexicon/bootstrap.md` shows distillation paused and the user wants to resume.
 - **Not a documentation generator.** It extracts and structures what's already there, then asks the user to resolve what's ambiguous. It doesn't invent content — missing entries are honest signals, not failures.
-- **Not a markdown-to-YAML converter.** A project on the v0.x markdown lexicon goes through `lex-migrate` first, then this skill is not needed (the migration produces a valid YAML cold layer).
+- **Not a markdown-to-YAML converter.** A project on the v0.x markdown lexicon goes through `conform`'s structural pass first, then this subcommand is not needed (the migration produces a valid YAML cold layer).
 
 ## On honesty about the draft
 

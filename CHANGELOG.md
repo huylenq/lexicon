@@ -12,7 +12,63 @@ While in 0.x, breaking project-shape changes bump the minor (0.x.0 → 0.(x+1).0
 
 ## [Unreleased]
 
-### BREAKING
+### BREAKING (v0.11.0)
+
+- **Plugin reshape: seven sibling skills collapse into one `lexicon` skill with six subcommands.** Previous skills (`lex-overview`, `lex-bootstrap`, `lex-ground`, `lex-retro`, `lex-crystallize`, `lex-audit`, `lex-migrate`, `lex-meta`) are gone. The new shape:
+
+  ```
+  .claude-plugin/plugin.json
+  commands/                          ← slash wrappers for TUI autocomplete
+    adopt.md  ground.md  retro.md  crystallize.md  conform.md  evolve.md
+  skills/lexicon/
+    SKILL.md                          ← entry, dispatch on $subcommand, standing rules
+    reference/                        ← single source of truth
+      schema.md  checks.md  rules.md  design.md
+    subcommands/
+      adopt.md  ground.md  retro.md  crystallize.md  conform.md  evolve.md
+    migrations/                       ← per-version deltas, used by conform
+    templates/                        ← YAML examples for adopt
+    validators/                       ← future deterministic scripts
+  ```
+
+  **Slash command renames** (plugin-namespaced, requires `claude --plugin-dir ./lexicon` or `/plugin install`):
+
+  | Old | New |
+  |---|---|
+  | `/lex-bootstrap` | `/lexicon:adopt` |
+  | `/lex-ground` | `/lexicon:ground` |
+  | `/lex-retro` | `/lexicon:retro` |
+  | `/lex-crystallize` | `/lexicon:crystallize` |
+  | `/lex-audit` + `/lex-migrate` | `/lexicon:conform` (merged) |
+  | `/lex-meta` | `/lexicon:evolve` |
+  | `/lex-overview` | — (no slash; reference content lives in `skills/lexicon/reference/`, read on demand) |
+
+  The skill itself is `user-invocable: false`; the six slash commands are how users invoke it explicitly. The model still auto-fires the skill based on the holistic description in `SKILL.md`.
+
+- **`lex-audit` and `lex-migrate` merged into `conform`.** The split was over-articulated: both asked "does the cold layer conform to the latest schema?" — audit asked it against current code (semantic drift), migrate asked it against the schema spec (structural drift). `/lexicon:conform` runs a unified two-pass check: structural pass detects schema-version drift and offers to apply the migration delta chain mechanically; semantic pass re-validates the cold layer against current code and produces a read-only triage list. Single report at `lexicon/conform.md` replaces the prior `lexicon/audits/audit-<iso>.md` and `lexicon/migrate.md`. Old `audits/` directories from existing projects remain valid as archive locations.
+
+- **`lex-overview` disappears as a skill; its content lifts into reference files.** The schema spec lives at `skills/lexicon/reference/schema.md`; the six structural checks at `reference/checks.md`; the rules of engagement at `reference/rules.md`; the design rationale at `reference/design.md` (was `DESIGN-v0.3.md` at repo root). No more "load lex-overview first" two-hop — subcommands read reference files directly via `${CLAUDE_SKILL_DIR}/reference/<name>.md`.
+
+- **Shared resources centralized at `skills/lexicon/`.** Templates (`templates/system.yaml.example`, etc.) moved from `skills/lex-bootstrap/templates/` to `skills/lexicon/templates/`. Migrations (`migrations/v0.x-to-v0.1.md`, etc.) moved from `skills/lex-migrate/migrations/` to `skills/lexicon/migrations/`. `validators/` directory added (empty) as the home for future deterministic schema-validation scripts.
+
+- **`lexicon-prefs.md` references removed from skill bodies.** The file at the repo root is kept as a deprecated artifact but is no longer referenced by any subcommand. Calibration corrections flow through `/lexicon:evolve` (writes directly into the responsible reference or subcommand file). The file may be removed entirely in a future cleanup pass.
+
+- **Installation:** plugin-only is now the supported install path. The `npx skills add` flow no longer applies — the single-skill shape with shared `reference/` and `migrations/` directories assumes plugin layout. Use `claude --plugin-dir ./lexicon` for local development or `/plugin install github:huylenq/lexicon`.
+
+### Changed (v0.11.0)
+
+- The `lexicon` skill description is holistic and user-facing rather than internal-bookkeeping. It pitches what lexicon is and when to fire, not what other skills it depends on.
+- Subcommand bodies trim duplicated standing rules and structural-check definitions, deferring to `reference/rules.md` and `reference/checks.md` respectively.
+- `conform`'s report includes both structural and semantic findings under a single header. The report overwrites on each run; archival is via git history (or `audits/conform-<iso>.md` if the user wants to keep specific reports).
+- `evolve`'s body adds a defensive check: if the dispatch reached evolve by inference rather than explicit `/lexicon:evolve` invocation, stop and ask the user before proceeding. Compensates for the loss of mechanical `disable-model-invocation` enforcement that the slash-only `lex-meta` skill provided.
+
+### Migration path
+
+There is no automated migration for the seven-skill → single-skill collapse — the change is to the **plugin's** shape, not the project's. Existing `lexicon/` directories in user projects continue to work unchanged. Users who had the plugin installed via `npx skills add` need to reinstall via plugin form (`/plugin install` or `claude --plugin-dir`).
+
+If a project had `lexicon/audits/audit-*.md` files, they remain valid as historical archives but are no longer the active path; `lexicon/conform.md` is the current report destination.
+
+### Previous BREAKING (v0.10.0)
 
 - **Schema v0.2 → v0.3, DDD-faithful shape.** The cold-layer schema is reshaped to follow Eric Evans' Domain-Driven Design building blocks faithfully. The bump is breaking: the viewer's loader fails fast on `schemaVersion: "0.1"` or `"0.2"` files with a `LoadIssue` pointing at `lex-migrate`. The full design rationale, rejected alternatives, and deferred work live in `DESIGN-v0.3.md` at the repo root.
 

@@ -92,7 +92,7 @@ export async function loadLexicon(projectRoot: string): Promise<ResolvedGraph> {
     if (result.data.schemaVersion !== SCHEMA_VERSION) {
       issues.push({
         file,
-        message: `schemaVersion ${result.data.schemaVersion} is older than ${SCHEMA_VERSION}; run \`lex-migrate\` to upgrade`,
+        message: `schemaVersion ${result.data.schemaVersion} is older than ${SCHEMA_VERSION}; run \`/lexicon:conform\` to upgrade`,
         severity: "error",
       });
       outdatedDetected = true;
@@ -124,7 +124,7 @@ async function walkYaml(dir: string): Promise<string[]> {
   const nested = await Promise.all(
     entries.map(async e => {
       const full = join(dir, e.name);
-      // Skip archive directories produced by lex-migrate so legacy schema
+      // Skip archive directories produced by /lexicon:conform so legacy schema
       // versions don't fail the project-wide load.
       if (e.isDirectory()) {
         if (e.name.startsWith("_pre-migrate-archive") || e.name === "_archive") return [];

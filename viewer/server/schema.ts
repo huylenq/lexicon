@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-// Cold-layer schema v0.3. The full spec lives in skills/lex-overview/SCHEMA.md
-// and the design rationale lives in DESIGN-v0.3.md at the repo root.
+// Cold-layer schema v0.3. The full spec lives in skills/lexicon/reference/schema.md
+// and the design rationale lives in skills/lexicon/reference/design.md.
 //
 // v0.3 is a breaking restructure over v0.2:
 //   - drops `kind: decision` and the cross-cutting bag on system

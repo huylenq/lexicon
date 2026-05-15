@@ -1,16 +1,16 @@
 # Lexicon cold-layer schema
 
-This file is the **normative specification** of the cold-layer YAML schema. `lex-overview`'s `SKILL.md` loads this file as part of the overview; every other lexicon skill consumes it transitively by virtue of loading `lex-overview` first. Don't read or modify this file in isolation — read `SKILL.md` alongside it for the workflow context that gives the schema meaning.
+This file is the **normative specification** of the cold-layer YAML schema. The `lexicon` SKILL.md and every subcommand that touches the cold layer references it; read it when you're emitting, mutating, or validating cold-layer YAML.
 
-When the schema bumps, this is one of the two source-of-truth surfaces that must update (the other is the viewer's executable schema at `viewer/server/schema.ts`). A new migration delta under `skills/lex-migrate/migrations/v<old>-to-v<new>.md` is also required so existing projects can upgrade — see `CLAUDE.md` at the repo root for the full schema-bump checklist.
+When the schema bumps, this is one of the two source-of-truth surfaces that must update (the other is the viewer's executable schema at `viewer/server/schema.ts`). A new migration delta under `${CLAUDE_SKILL_DIR}/migrations/v<old>-to-v<new>.md` is also required so existing projects can upgrade — see `CLAUDE.md` at the repo root for the full schema-bump checklist.
 
-## Schema specification
+## Current version
 
 The current cold-layer schema is **v0.3**. Every YAML file declares `schemaVersion: "0.3"` at the top.
 
-> **Loader compatibility:** v0.3 is breaking. Files declaring `"0.1"` or `"0.2"` are recognized by the loader, which emits a single `LoadIssue` per file pointing at `lex-migrate`. The loader does **not** attempt partial resolution. Projects on older schemas (including pre-v0.1 markdown) are brought forward by `lex-migrate`; per-version transitions are documented in `skills/lex-migrate/migrations/v<old>-to-v<new>.md`, not here. **This file is the current spec only; historical deltas belong in migration files.**
+> **Loader compatibility:** v0.3 is breaking. Files declaring `"0.1"` or `"0.2"` are recognized by the loader, which emits a single `LoadIssue` per file pointing at the `conform` subcommand. The loader does **not** attempt partial resolution. Projects on older schemas (including pre-v0.1 markdown) are brought forward by `conform`'s structural pass; per-version transitions are documented in `${CLAUDE_SKILL_DIR}/migrations/v<old>-to-v<new>.md`, not here. **This file is the current spec only; historical deltas belong in migration files.**
 
-The full design rationale for the v0.2 → v0.3 bump (what changed and why, what was deliberately not added, what was deferred) lives in `DESIGN-v0.3.md` at the repo root.
+The full design rationale for the v0.2 → v0.3 bump (what changed and why, what was deliberately not added, what was deferred) lives in `${CLAUDE_SKILL_DIR}/reference/design.md`.
 
 ## Conceptual model (DDD vocabulary)
 
@@ -34,8 +34,8 @@ A few fields warrant authoring guidance the entity shapes alone don't convey:
 ### Shared rules
 
 - **IDs are slugs** (`^[a-z0-9][a-z0-9-]*$`). Scoped within their owner (bounded context, shared kernel, or surface); a slug must be unique within its owner file. Across owners the canonical form is `<owner-slug>/<entity-slug>` (fully qualified). Kernel-owned atoms use `kernel/<kernel-slug>/<entity-slug>` for **terms** and `kernel/<kernel-slug>/invariant/<invariant-slug>` for **invariants** — the explicit `invariant/` segment matters and is a common source of dangling-ref bugs when authoring prose by hand. Use the resolver's owner-scoped fallback (a bare sibling slug inside a kernel resolves to the same kernel) to keep cross-references short.
-- **Names are display strings**, mutable. Rename by changing `name`; never change the slug to "fix" a name — that breaks references. If the slug genuinely no longer fits, that's a deliberate `lex-crystallize` operation (rename → cascade).
-- **Refs** in fields like `disambiguatesFrom`, `supersedes` (where it remains), `participants`, `relatedAtoms`, `members`, `consumers` may be written as a short slug when unambiguous in context, or as `<owner-slug>/<entity-slug>` when qualification is needed. Resolvers try both.
+- **Names are display strings**, mutable. Rename by changing `name`; never change the slug to "fix" a name — that breaks references. If the slug genuinely no longer fits, that's a deliberate `crystallize` operation (rename → cascade).
+- **Refs** in fields like `disambiguatesFrom`, `participants`, `relatedAtoms`, `members`, `consumers` may be written as a short slug when unambiguous in context, or as `<owner-slug>/<entity-slug>` when qualification is needed. Resolvers try both.
 - **Prose-bearing fields** (`definition`, `statement`, `rationale`, `body`, `purpose`, `narrative`, `role`, `description`, `identityRule`, `equality`, `returns`, `emittedWhen`, `payload`, the `reason` on a deliberate omission, the `description` on an overlay) carry the human voice. The schema names the slot; it doesn't constrain the content. Multi-line YAML literals (`|` or `>`) are normal. Any prose field may carry `[[fqid]]` interlinks.
 - **`status: deprecated`** is the soft-delete on terms / invariants / seams / aggregates / modules / shared-kernels. Hard delete is allowed when the entity is mistakenly created; git is the audit trail.
 
@@ -244,7 +244,7 @@ The eight Evans context-map relationships, plus `unknown` for un-triaged seams:
 
 For asymmetric kinds the loader expects `upstream` and `downstream`. For symmetric kinds it expects `participants`. For `unknown` either shape is accepted.
 
-The canonical examples ship at `${SKILL_DIR}/templates/*.yaml.example` next to `lex-bootstrap`'s SKILL.md. Examples are reference shapes; the spec above is normative.
+The canonical examples ship at `${CLAUDE_SKILL_DIR}/templates/*.yaml.example`. Examples are reference shapes; the spec above is normative.
 
 ## Anchoring discipline
 
@@ -267,7 +267,7 @@ Every term has a `category`. Defaulting to `concept` is fine for purely scaffold
 - **`event`** — a fact that happened at a point in time, named in past tense (`OrderPlaced`, `PaymentSettled`). Carry `emittedWhen`, `payload`, and (if known) `consumers`.
 - **`concept`** — scaffolding vocabulary: workflow names, design phases, lexicon-internal terms. No code analog expected.
 
-`lex-audit` checks for a smell: if ≥80% of terms in a project are `category: concept` after migration, the schema's gain is being left on the table — surface the list and invite recategorization.
+`conform`'s hygiene sweep checks for a smell: if ≥80% of terms in a project are `category: concept` after migration, the schema's gain is being left on the table — surface the list and invite recategorization.
 
 ### Names with code identifiers
 
