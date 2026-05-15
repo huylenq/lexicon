@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  admin-orders.xml — the admin's order-management surface.
+
+  A second <surface> file. Same shape as storefront.xml but smaller,
+  showing that a project usually carries multiple Surfaces (one per
+  app entry point) rather than cramming everything into one.
+-->
+<surface schema="1.0" id="admin-orders" route="/admin/orders">
+  <name>Admin: Orders</name>
+
+  <body>
+    Internal tool for the operations team to browse, inspect, and
+    refund placed orders. Renders inside the admin shell at
+    `/admin/orders`.
+  </body>
+
+  <region id="orders-table">
+    <name>Orders table</name>
+    <role>Paginated, filterable table of recent orders.</role>
+    <component-impl import="@/admin/orders/OrdersTable" file="src/admin/orders/OrdersTable.tsx"/>
+  </region>
+
+  <region id="order-detail-pane">
+    <name>Order detail pane</name>
+    <role>Right-side pane showing the selected order's line items, payment, and shipment status.</role>
+    <component-impl import="@/admin/orders/OrderDetailPane" file="src/admin/orders/OrderDetailPane.tsx"/>
+  </region>
+
+  <region id="refund-modal">
+    <name>Refund modal</name>
+    <role>Operator-initiated refund flow. Calls into <ref to="billing/settle-payment"/> with a negative amount.</role>
+    <inline-impl file="src/admin/orders/OrderDetailPane.tsx" line-start="184" line-end="241"/>
+  </region>
+</surface>

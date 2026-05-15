@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  billing.xml — the Billing bounded context.
+
+  Demonstrates:
+    - subdomain="generic" (charging credit cards is not differentiating;
+      it's outsourced commodity);
+    - a conformist seam to an external payment-gateway. The gateway
+      isn't modeled as a Shopwell bounded context — refs to it would
+      dangle. The rationale below names the gateway in prose and points
+      the seam <upstream> at billing itself with a comment explaining
+      the convention. (Strict alternative: model the gateway as a
+      separate-ways stub context. The convention here keeps the
+      example honest: when the upstream is out-of-process, the
+      conformist relationship is documented but not graph-encoded.)
+-->
+<bounded-context schema="1.0" id="billing" subdomain="generic">
+  <name>Billing</name>
+
+  <purpose>
+    Invoicing, payment capture, refunds. Consumes
+    <ref to="orders/order-placed"/>, opens an invoice, drives the
+    out-of-process payment gateway, records the resulting
+    <ref to="payment"/>. No business logic about *what* to charge —
+    only *how* to collect.
+  </purpose>
+
+  <code-modules>
+    <path>src/billing/**</path>
+  </code-modules>
+
+  <term id="invoice" category="entity">
+    <name>`Invoice`</name>
+    <definition>
+      A demand for payment, scoped to one Order. Carries the line items
+      as captured at order-placed time, plus tax computed from the
+      <ref to="overlay/tax-jurisdiction"/> overlay. Immutable once
+      issued; amendments produce a new Invoice + credit note pair.
+    </definition>
+    <identity-rule>
+      Stable by `invoiceId`. Invoices have a human-readable serial
+      (`INV-2026-000042`) that is *not* the identity — serials may be
+      renumbered for legal reasons; the invoiceId never changes.
+    </identity-rule>
+    <symbols>
+      <code-anchor file="src/billing/Invoice.ts" symbol="Invoice"/>
+    </symbols>
+  </term>
+
+  <term id="payment" category="entity">
+    <name>`Payment`</name>
+    <definition>
+      The capture record returned by the payment gateway: amount,
+      currency, gateway transaction id, settled-at timestamp. Refunds
+      are negative-amount Payments against the same Invoice.
+    </definition>
+    <identity-rule>
+      Stable by `paymentId`. The gateway transaction id is a
+      *correlation* key, not identity — gateway-side renumbering would
+      not change our paymentId.
+    </identity-rule>
+    <symbols>
+      <code-anchor file="src/billing/Payment.ts" symbol="Payment"/>
+    </symbols>
+  </term>
+
+  <term id="settle-payment" category="service">
+    <name>`settlePayment`</name>
+    <definition>
+      Drives the payment gateway to capture funds for an Invoice. On
+      success, persists a Payment and emits
+      <ref to="payment-settled"/>. On hard failure, marks the Invoice
+      `payment-failed` and emits a separate (unmodeled here) failure
+      event.
+    </definition>
+    <operates-on>
+      <ref to="invoice"/>
+    </operates-on>
+    <returns>
+      `Result&lt;Payment, PaymentFailure&gt;`.
+    </returns>
+  </term>
+
+  <term id="payment-settled" category="event">
+    <name>`PaymentSettled`</name>
+    <definition>
+      Emitted when a Payment lands successfully. The signal Shipping
+      waits on before releasing the order to fulfillment.
+    </definition>
+    <emitted-when>
+      The gateway returns a settled status for a Payment and the row is
+      persisted.
+    </emitted-when>
+    <payload>
+      `{ invoiceId, paymentId, amountMinor, currency, settledAt }`.
+    </payload>
+    <consumers>
+      <ref to="shipping"/>
+    </consumers>
+  </term>
+
+  <invariant id="refund-not-larger-than-paid" mode="code">
+    <name>Refunds cannot exceed captured amount</name>
+    <statement>
+      For any Invoice, `Σ refundedMinor ≤ Σ capturedMinor`. A refund
+      attempt that would breach the inequality is rejected before
+      hitting the gateway.
+    </statement>
+    <rationale>
+      Refunding more than was captured is the kind of mistake that
+      makes for a fraud alert and an awkward customer-support
+      escalation. The gateway will *also* reject most of these, but
+      catching them at our edge keeps the audit log clean and gives
+      the operator a clear error message.
+    </rationale>
+    <constrains-code>
+      <code-anchor file="src/billing/refund.ts" line-start="48" line-end="72" symbol="assertRefundFits"/>
+    </constrains-code>
+  </invariant>
+
+  <!-- Conformist seam: the downstream (Billing) accepts the upstream
+       (payment-gateway)'s model as-is. We don't wrap it in an ACL
+       because the gateway's vocabulary is already the industry
+       lingua-franca (PCI fields, settlement states).
+
+       Convention for out-of-process upstreams: <upstream> points at
+       Billing itself with the rationale naming the external system in
+       prose. A stricter alternative would model the gateway as its
+       own bounded-context stub; pick whichever your team finds
+       easier to live with. -->
+  <seam id="billing-to-gateway" kind="conformist">
+    <name>Billing ↔ External payment gateway</name>
+    <description>
+      Billing accepts the payment gateway's data shapes (PCI-compliant
+      payment-method tokens, ISO-4217 currency codes, settlement
+      status enums) directly. No translation layer. Our `Payment`
+      entity is mostly a renamed projection of the gateway's
+      `Transaction` record.
+    </description>
+    <rationale>
+      Writing an ACL here would mean re-inventing PCI-DSS field names
+      to suit Shopwell's house style — pure cost, no benefit. The
+      gateway's model is well-documented, stable across years, and
+      shared with every PSP integration our payments team has touched.
+      Conforming is the honest move.
+    </rationale>
+    <upstream><ref to="billing"/></upstream>
+    <downstream><ref to="billing"/></downstream>
+  </seam>
+</bounded-context>

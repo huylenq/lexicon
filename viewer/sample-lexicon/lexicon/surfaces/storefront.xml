@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  storefront.xml — the customer-facing browse-and-checkout surface.
+
+  Demonstrates:
+    - <surface> with a `route` attribute (the URL prefix this surface
+      lives at);
+    - <body> prose framing the surface;
+    - regions with BOTH implementation variants:
+      <component-impl> (extracted React component, named import) and
+      <inline-impl> (still an inline JSX block at a specific line
+      range).
+
+  Naming a region gates on conceptual identity — does the team refer to
+  it as a discrete piece? — not on whether it's been extracted into a
+  file. Future extraction becomes a one-element swap, not a vocabulary
+  change.
+-->
+<surface schema="1.0" id="storefront" route="/">
+  <name>Storefront</name>
+
+  <body>
+    The customer-facing app: home, category pages, product detail,
+    cart, checkout. Single-page React app under `src/storefront/`.
+    Regions named below correspond to how the design team talks about
+    the surface in reviews — they precede the component breakdown.
+  </body>
+
+  <!-- Extracted component: <component-impl> carries `import` (the
+       import path, used by tooling that resolves imports) and an
+       optional `file` (the on-disk location for source navigation). -->
+  <region id="nav-bar">
+    <name>Top navigation bar</name>
+    <role>Brand mark, category links, account dropdown, cart-count badge.</role>
+    <component-impl import="@/storefront/ui/NavBar" file="src/storefront/ui/NavBar.tsx"/>
+  </region>
+
+  <region id="product-grid">
+    <name>Product grid</name>
+    <role>Responsive grid of product cards on category and search pages.</role>
+    <component-impl import="@/storefront/ui/ProductGrid" file="src/storefront/ui/ProductGrid.tsx"/>
+  </region>
+
+  <region id="product-detail-hero">
+    <name>Product detail hero</name>
+    <role>Image gallery, name, price, variant selector, add-to-cart button — the page above the fold on a product page.</role>
+    <component-impl import="@/storefront/ui/ProductHero" file="src/storefront/ui/ProductHero.tsx"/>
+  </region>
+
+  <!-- Inline implementation: <inline-impl> carries file + line-start +
+       line-end. The region has a name (the team refers to it) but no
+       extracted component yet. -->
+  <region id="size-guide-drawer">
+    <name>Size guide drawer</name>
+    <role>Slide-in drawer linked from the variant selector; shows the apparel size chart.</role>
+    <inline-impl file="src/storefront/pages/product.tsx" line-start="412" line-end="487"/>
+  </region>
+
+  <region id="cart-drawer">
+    <name>Cart drawer</name>
+    <role>Slide-in mini-cart showing current line items and a "go to checkout" CTA.</role>
+    <component-impl import="@/storefront/ui/CartDrawer" file="src/storefront/ui/CartDrawer.tsx"/>
+  </region>
+
+  <region id="checkout-form">
+    <name>Checkout form</name>
+    <role>Address, shipping method, payment-method picker. Submits to <ref to="orders/place-order"/>.</role>
+    <inline-impl file="src/storefront/pages/checkout.tsx" line-start="62" line-end="298"/>
+  </region>
+</surface>

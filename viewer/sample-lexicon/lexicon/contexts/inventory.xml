@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  inventory.xml — the Inventory bounded context.
+
+  Demonstrates:
+    - subdomain="supporting" (Inventory supports the core selling flow
+      but isn't itself the differentiator);
+    - a symmetric seam (kind="published-language") using <participants>
+      instead of <upstream>/<downstream>. Symmetric seams describe
+      contexts that agree on a shared interchange format and neither
+      side is "above" the other.
+-->
+<bounded-context schema="1.0" id="inventory" subdomain="supporting">
+  <name>Inventory</name>
+
+  <purpose>
+    Tracks what's physically in the warehouse and what's been promised
+    to placed orders. Exposes a reserve/release API; never decides
+    *whether* something is for sale (that's <ref to="context/catalog"/>'s
+    job) or *who* it's promised to (that's <ref to="context/orders"/>'s
+    job).
+  </purpose>
+
+  <code-modules>
+    <path>src/inventory/**</path>
+  </code-modules>
+
+  <term id="stock-item" category="entity">
+    <name>`StockItem`</name>
+    <definition>
+      A (sku, warehouse) pair with a count of available units. One SKU
+      across three warehouses produces three StockItems. The count is
+      *available* — reservations are deducted; raw on-hand is a
+      separate read.
+    </definition>
+    <identity-rule>
+      Stable by `(sku, warehouseId)`. Renaming a warehouse does not
+      change identity; closing a warehouse soft-deletes the StockItems
+      that lived there.
+    </identity-rule>
+    <symbols>
+      <code-anchor file="src/inventory/StockItem.ts" symbol="StockItem"/>
+    </symbols>
+  </term>
+
+  <term id="reservation" category="entity">
+    <name>`Reservation`</name>
+    <definition>
+      A claim on `(sku, quantity)` against one or more StockItems, held
+      for an order in progress. Reservations expire if the order
+      doesn't finalize within the configured TTL (default 15 minutes).
+    </definition>
+    <identity-rule>
+      Stable by `reservationId`. The same Order may hold multiple
+      Reservations across warehouses; the orderId is metadata, not
+      identity.
+    </identity-rule>
+    <symbols>
+      <code-anchor file="src/inventory/Reservation.ts" symbol="Reservation"/>
+    </symbols>
+  </term>
+
+  <term id="check-availability" category="service">
+    <name>`checkAvailability`</name>
+    <definition>
+      Read-only: given `(sku, quantity, optionalWarehouses)`, returns
+      whether the request can be fulfilled and from which StockItems.
+      Does not reserve — for reserve-then-commit semantics use
+      `reserveStock` (not modeled as a term here; lives in
+      `src/inventory/api.ts`).
+    </definition>
+    <operates-on>
+      <ref to="stock-item"/>
+    </operates-on>
+    <returns>
+      `Result&lt;AvailabilityPlan, OutOfStock&gt;`.
+    </returns>
+  </term>
+
+  <!-- mode="principle": upheld by team discipline, not by code or
+       linter. Discipline-style invariants are honest about their
+       enforcement model — see also kernel/identity/invariant/
+       money-currency-monotone. -->
+  <invariant id="reservation-expires" mode="principle">
+    <name>Reservations always expire</name>
+    <statement>
+      No Reservation lives indefinitely. The TTL is set at creation;
+      the cleanup worker enforces it. A Reservation found alive past
+      its TTL is a bug, not a configuration option.
+    </statement>
+    <rationale>
+      Permanent reservations turn into ghost stock: counted as
+      unavailable but never paid for, never shipped, never released.
+      Once allowed, they accumulate and the store visibly oversells
+      while warehouses sit on units. The TTL is what makes the
+      reserve/release loop self-healing.
+    </rationale>
+  </invariant>
+
+  <!-- Symmetric seam: kind="published-language". Contexts agree on a
+       shared interchange format (here, the OrderPlaced event payload).
+       Carry <participants> instead of upstream/downstream. -->
+  <seam id="event-bus" kind="published-language">
+    <name>Order-events published language</name>
+    <description>
+      The shape of <ref to="orders/order-placed"/> is treated as a
+      versioned shared format. Orders is the canonical producer;
+      Inventory, Billing, and Shipping consume it; the format is owned
+      jointly (a version bump requires sign-off from every consumer).
+    </description>
+    <rationale>
+      An asymmetric seam here would imply one side dictates the format
+      to the other, but in practice every consumer's needs feed into
+      version bumps — Inventory wants the reservation IDs, Billing
+      wants the currency-explicit total, Shipping wants the address ref.
+      Naming the format as a published language matches how the team
+      actually negotiates change.
+    </rationale>
+    <participants>
+      <ref to="orders"/>
+      <ref to="inventory"/>
+      <ref to="billing"/>
+      <ref to="shipping"/>
+    </participants>
+  </seam>
+</bounded-context>

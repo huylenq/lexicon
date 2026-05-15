@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  shipping.xml — the Shipping bounded context.
+
+  Smallest context in the sample. Demonstrates:
+    - subdomain="supporting";
+    - a customer-supplier seam (asymmetric: Shipping commits to what
+      Orders needs, with coordinated planning);
+    - a partnership seam (symmetric: Shipping and Inventory coordinate
+      release timing together, neither dominant).
+-->
+<bounded-context schema="1.0" id="shipping" subdomain="supporting">
+  <name>Shipping</name>
+
+  <purpose>
+    Schedules and tracks parcels for paid orders. Subscribes to
+    <ref to="orders/order-placed"/> for "what's been ordered" and to
+    <ref to="billing/payment-settled"/> for "ok to ship now." Owns
+    carrier selection and tracking-number assignment.
+  </purpose>
+
+  <code-modules>
+    <path>src/shipping/**</path>
+  </code-modules>
+
+  <term id="shipment" category="entity">
+    <name>`Shipment`</name>
+    <definition>
+      A physical parcel handed to a carrier, scoped to one Order.
+      Multi-warehouse orders may split into multiple Shipments — the
+      Order has many Shipments, the Shipment has one Order.
+    </definition>
+    <identity-rule>
+      Stable by `shipmentId`. Carrier-assigned tracking numbers are
+      metadata, not identity (the same Shipment may be re-labelled if
+      a carrier reroute requires it).
+    </identity-rule>
+    <symbols>
+      <code-anchor file="src/shipping/Shipment.ts" symbol="Shipment"/>
+    </symbols>
+  </term>
+
+  <term id="schedule-shipment" category="service">
+    <name>`scheduleShipment`</name>
+    <definition>
+      Selects a carrier, generates a label, and records the resulting
+      Shipment. Called once <ref to="billing/payment-settled"/> fires
+      for the Order's Invoice.
+    </definition>
+    <operates-on>
+      <ref to="shipment"/>
+    </operates-on>
+    <returns>
+      `Result&lt;Shipment, NoCarrierAvailable&gt;`.
+    </returns>
+  </term>
+
+  <!-- Customer-supplier: asymmetric, coordinated planning. Shipping
+       (downstream) depends on what Orders (upstream) emits; Orders
+       commits to keeping Shipping's needs in mind when versioning the
+       event payload. Distinct from open-host-service: there, Catalog
+       publishes to *any* consumer with no per-consumer coordination.
+       Here, the two teams plan together. -->
+  <seam id="orders-to-shipping" kind="customer-supplier">
+    <name>Orders → Shipping</name>
+    <description>
+      Shipping is Orders' downstream customer for the OrderPlaced event
+      stream and for the Order read API. Orders' team commits to
+      Shipping's needs in roadmap discussions; Shipping doesn't dictate
+      Orders' model, but Orders won't ship a version bump that breaks
+      Shipping without coordinating.
+    </description>
+    <rationale>
+      An open-host-service relationship would mean Orders publishes
+      without coordination and any breakage is on the consumer. The
+      reality is that Shipping is the only consumer with a hard
+      operational SLA — losing the event stream means parcels don't
+      ship, which is more expensive than coordinating release timing.
+    </rationale>
+    <upstream><ref to="orders"/></upstream>
+    <downstream><ref to="shipping"/></downstream>
+  </seam>
+
+  <!-- Partnership: symmetric. Both contexts plan together as equals.
+       Carry <participants> instead of upstream/downstream. -->
+  <seam id="shipping-inventory-release" kind="partnership">
+    <name>Shipping ↔ Inventory release coordination</name>
+    <description>
+      Shipping commits a Reservation to a real shipment; Inventory
+      converts the Reservation to a stock deduction. Neither side
+      drives the other — the release moment is co-designed (a Shipping
+      label generation must always pair with a stock commit; a stock
+      commit without a label is a bug; both are caught at the joint
+      seam).
+    </description>
+    <rationale>
+      Asymmetric framings here would falsely privilege one team's
+      schedule. The release is a joint operation; partnership names
+      that honestly.
+    </rationale>
+    <participants>
+      <ref to="shipping"/>
+      <ref to="inventory"/>
+    </participants>
+  </seam>
+</bounded-context>

@@ -1,0 +1,243 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  orders.xml — the Orders bounded context.
+
+  This is the densest file in the sample. It demonstrates:
+    - all four code-mapped term categories again, with slightly more
+      realistic shapes (an event with consumers spanning three
+      contexts; a service that returns a non-trivial result);
+    - mode="code" *and* mode="linter" invariants (catalog.xml has code;
+      system.xml has principle);
+    - an <aggregate> with root, members, and a referenced invariant —
+      transactional consistency boundary;
+    - an anticorruption-layer seam (Orders → Inventory) translating
+      Inventory's `StockItem` vocabulary into Orders' `LineItem` /
+      `Reserved` view, isolating Orders from Inventory's churn.
+
+  The aggregate is the heart of the context: read it last, after the
+  terms and invariants it references make sense.
+-->
+<bounded-context schema="1.0" id="orders" subdomain="core">
+  <name>Orders</name>
+
+  <purpose>
+    The transactional spine of the store. Owns the checkout flow from
+    cart to placed order, the LineItem value type, and the canonical
+    OrderPlaced event every downstream consumes.
+  </purpose>
+
+  <code-modules>
+    <path>src/orders/**</path>
+    <path>src/api/orders/**</path>
+  </code-modules>
+
+  <term id="cart" category="entity">
+    <name>`Cart`</name>
+    <definition>
+      A mutable pre-checkout container for a customer's intended
+      purchase. Lives for at most 30 days from last update; abandoned
+      carts are not orders and do not appear in any report.
+    </definition>
+    <identity-rule>
+      Stable by `cartId`. A Cart survives session boundaries (signed-in
+      customers) but a fresh anonymous session begins a new Cart.
+    </identity-rule>
+    <symbols>
+      <code-anchor file="src/orders/Cart.ts" symbol="Cart"/>
+    </symbols>
+  </term>
+
+  <term id="line-item" category="value">
+    <name>`LineItem`</name>
+    <definition>
+      A single row in a Cart or Order: `{sku, quantity, unitPriceAtAdd}`.
+      The price is captured at add-to-cart time, not at checkout — a
+      price change between add and checkout does not silently reprice
+      the customer's basket.
+    </definition>
+    <equality>
+      Two LineItems are equal iff their `sku`, `quantity`, *and*
+      `unitPriceAtAdd` match. Adding the same SKU twice produces one
+      line with `quantity += 1`, not two lines — see
+      <ref to="invariant/cart-line-items-unique-sku"/>.
+    </equality>
+    <symbols>
+      <code-anchor file="src/orders/LineItem.ts" symbol="LineItem"/>
+    </symbols>
+  </term>
+
+  <term id="order" category="entity">
+    <name>`Order`</name>
+    <definition>
+      An immutable record of a placed order. The transition
+      `Cart → Order` is one-way: once placed, line items, prices, and
+      shipping address are frozen. Refunds and cancellations live on
+      <ref to="billing/payment"/>, not by mutating the Order.
+    </definition>
+    <identity-rule>
+      Stable by `orderId` (UUID v7, monotonically increasing — used as
+      the natural sort key for "most recent orders" reads).
+    </identity-rule>
+    <symbols>
+      <code-anchor file="src/orders/Order.ts" symbol="Order"/>
+      <code-anchor file="src/orders/Order.ts" line-start="120" line-end="180" symbol="OrderSchema"/>
+    </symbols>
+  </term>
+
+  <term id="place-order" category="service">
+    <name>`placeOrder`</name>
+    <definition>
+      The checkout operation. Atomically: reserves stock through the
+      <ref to="orders-to-inventory"/> seam, freezes the Cart's line
+      items, computes the total, persists the Order, emits
+      <ref to="order-placed"/>. Returns the new Order or a typed
+      rejection (`OutOfStock`, `PriceChanged`, `InvalidPayment`).
+    </definition>
+    <operates-on>
+      <ref to="cart"/>
+    </operates-on>
+    <returns>
+      `Result&lt;Order, PlaceOrderRejection&gt;`. Rejections are
+      enumerated; surprises are bugs.
+    </returns>
+    <symbols>
+      <code-anchor file="src/orders/placeOrder.ts" symbol="placeOrder"/>
+    </symbols>
+  </term>
+
+  <term id="order-placed" category="event">
+    <name>`OrderPlaced`</name>
+    <definition>
+      The published event marking the Cart-to-Order transition. The
+      single fanout point downstreams use to start their own work —
+      billing opens an invoice, inventory commits the reservation,
+      shipping schedules a shipment.
+    </definition>
+    <emitted-when>
+      <ref to="place-order"/> succeeds and the Order has been
+      persisted. Never emitted speculatively.
+    </emitted-when>
+    <payload>
+      `{ orderId, customerId, lineItems: SKU[], totalMinor, currency,
+      placedAt }`. Anything else (shipping address, payment method) is
+      fetched by the consumer from the Orders read API.
+    </payload>
+    <consumers>
+      <ref to="billing"/>
+      <ref to="inventory"/>
+      <ref to="shipping"/>
+    </consumers>
+  </term>
+
+  <!-- mode="code": the invariant is enforced by an executable check.
+       Carry <constrains-code> pointing at the enforcement site. -->
+  <invariant id="order-total-equals-line-sum" mode="code">
+    <name>Order total equals sum of line totals</name>
+    <statement>
+      For every Order, `total = Σ(lineItem.quantity ×
+      lineItem.unitPriceAtAdd) + shippingMinor + taxMinor`. The
+      equality holds in minor-unit integers exactly — no rounding
+      drift.
+    </statement>
+    <rationale>
+      The Order total is what the customer pays and what every
+      downstream report sums. A drift between total and line sum is the
+      kind of bug that hides for months in dashboards before someone
+      audits a single Order by hand. Re-deriving and asserting at place
+      time is cheap insurance.
+    </rationale>
+    <constrains-code>
+      <code-anchor file="src/orders/placeOrder.ts" line-start="240" line-end="268" symbol="assertTotalEqualsLineSum"/>
+    </constrains-code>
+  </invariant>
+
+  <!-- mode="linter": enforceable by a lint rule, not by domain code.
+       Carry <constrains-code> pointing at the rule (or its
+       configuration). -->
+  <invariant id="cart-line-items-unique-sku" mode="linter">
+    <name>Cart never has two line items with the same SKU</name>
+    <statement>
+      Adding the same <ref to="catalog/sku"/> to a Cart twice produces
+      one LineItem with `quantity += 1`, not two LineItems. A Cart with
+      duplicate SKUs is a bug.
+    </statement>
+    <rationale>
+      Duplicate SKU lines break the line-sum invariant above
+      (rounding-different unitPriceAtAdd values create rows that look
+      identical but don't sum) and confuse the checkout UI (which
+      collapses on display anyway, hiding the bug). Catching this at
+      the add-to-cart call site is cheaper than after.
+    </rationale>
+    <constrains-code>
+      <code-anchor file="eslint-rules/no-duplicate-sku-add.js"/>
+    </constrains-code>
+  </invariant>
+
+  <!-- aggregate: transactional consistency cluster.
+       <root> MUST point at an entity-category term (the loader
+       enforces this).
+       <members> lists the entities/values that update together as a
+       unit.
+       <invariants> lists the invariants that hold across the cluster. -->
+  <aggregate id="order-aggregate">
+    <name>Order aggregate</name>
+    <root><ref to="order"/></root>
+    <members>
+      <ref to="line-item"/>
+    </members>
+    <invariants>
+      <ref to="invariant/order-total-equals-line-sum"/>
+    </invariants>
+    <rationale>
+      The Order and its LineItems are persisted together or not at all.
+      Concurrent modifications to the same Order are rejected with an
+      optimistic-concurrency error rather than merged. The aggregate
+      boundary is what makes "order-placed event is never out of sync
+      with the persisted order" a tractable invariant.
+    </rationale>
+  </aggregate>
+
+  <!-- seam, asymmetric kind="anticorruption-layer". Use when the
+       downstream context (here, Orders) cannot afford to take the
+       upstream model on its own terms — the upstream's vocabulary or
+       shape would corrupt the downstream if let in directly. The ACL
+       translates at the boundary. -->
+  <seam id="orders-to-inventory" kind="anticorruption-layer">
+    <name>Orders ↔ Inventory</name>
+    <description>
+      Orders never thinks in `StockItem` or `Reservation` — those are
+      Inventory's atoms. At checkout, Orders calls Inventory through an
+      ACL that translates `(sku, quantity)` requests into Inventory's
+      Reservation model and translates the response back into Orders'
+      `LineItemReserved` / `LineItemOutOfStock` outcomes. The ACL lives
+      in `src/orders/inventoryClient.ts`.
+    </description>
+    <rationale>
+      Inventory's model is rich (multi-warehouse stock pools, backorder
+      flags, reservation expiry windows) but irrelevant to Orders'
+      checkout step. Letting that vocabulary bleed into Orders would
+      make every Orders test depend on Inventory's full state machine.
+      The ACL lets Inventory evolve its model freely; only the ACL
+      contract needs to keep up.
+    </rationale>
+    <upstream><ref to="inventory"/></upstream>
+    <downstream><ref to="orders"/></downstream>
+  </seam>
+
+  <boundary-rule id="no-direct-stock-mutation">
+    <rule>
+      Orders never writes to Inventory's data store. Reservations are
+      created and released only through the Inventory API exposed via
+      the ACL above.
+    </rule>
+    <from><ref to="orders"/></from>
+    <to><ref to="inventory"/></to>
+    <rationale>
+      Direct writes from Orders would let two contexts race on the same
+      stock row and would scatter reservation logic across both
+      codebases. Routing all stock changes through Inventory is what
+      makes the reservation-expires invariant in
+      <ref to="inventory/invariant/reservation-expires"/> tractable.
+    </rationale>
+  </boundary-rule>
+</bounded-context>

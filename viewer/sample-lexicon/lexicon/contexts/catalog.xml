@@ -1,0 +1,279 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  catalog.xml — the Catalog bounded context.
+
+  Demonstrates:
+    - all four code-mapped term categories (entity, value, service, event)
+      plus one purely conceptual term;
+    - <disambiguates-from> to separate Product from ProductVariant;
+    - <symbols> with and without line ranges;
+    - an open-host-service seam (Catalog is the publisher; downstreams
+      conform to its shape);
+    - a directional <boundary-rule> that complements the seam;
+    - an Evans-sense <module> that groups Product, ProductVariant, SKU
+      as a "product tree" cluster.
+
+  See orders.xml for an aggregate, linter-mode invariant, and the
+  anticorruption-layer seam; inventory.xml for a symmetric
+  published-language seam; shipping.xml for customer-supplier.
+
+  Reference enum (read once, then use the table from
+  reference/schema.md):
+    seam kind             direction     used in
+    shared-kernel         symmetric     system.xml (as a kernel element)
+    open-host-service     asymmetric    this file (catalog → orders)
+    anticorruption-layer  asymmetric    orders.xml (orders → inventory)
+    published-language    symmetric     inventory.xml (event bus)
+    customer-supplier     asymmetric    shipping.xml (orders → shipping)
+    conformist            asymmetric    billing.xml (→ external gateway)
+    partnership           symmetric     shipping.xml (shipping ↔ inventory)
+    separate-ways         symmetric     not in this sample (see schema.md)
+-->
+<bounded-context schema="1.0" id="catalog" subdomain="core">
+  <name>Catalog</name>
+
+  <purpose>
+    The browse-and-discover surface of the store. Owns product
+    vocabulary, variant structure, and the SKU value type that every
+    other context uses to refer to "the thing being sold."
+  </purpose>
+
+  <!-- code-modules: the directory globs in the codebase this context
+       owns. conform's audit uses these to flag drift (e.g. a Catalog
+       term whose symbols all sit outside src/catalog/**). -->
+  <code-modules>
+    <path>src/catalog/**</path>
+    <path>src/api/catalog/**</path>
+  </code-modules>
+
+  <!-- category="entity": stable identity that survives attribute
+       changes. Carry <identity-rule> to record what gives that
+       identity. -->
+  <term id="product" category="entity">
+    <name>`Product`</name>
+    <definition>
+      A thing the store sells, abstracted from its purchasable variants.
+      "iPhone 17 Pro" is a Product; "iPhone 17 Pro / 256GB / Titanium" is
+      a <ref to="product-variant"/>. Customers browse Products; they buy
+      Variants.
+    </definition>
+    <identity-rule>
+      Stable by `productId` (UUID, issued on creation). A Product
+      survives renames, description rewrites, and variant churn.
+    </identity-rule>
+    <disambiguates-from>
+      <ref to="product-variant"/>
+    </disambiguates-from>
+    <symbols>
+      <code-anchor file="src/catalog/Product.ts" symbol="Product"/>
+      <code-anchor file="src/catalog/Product.ts" line-start="14" line-end="48" symbol="ProductSchema"/>
+    </symbols>
+  </term>
+
+  <term id="product-variant" category="entity">
+    <name>`ProductVariant`</name>
+    <definition>
+      A specific purchasable form of a Product — a (size, colour,
+      configuration) tuple resolved to one SKU and one price. Stock,
+      shipping weight, and tax classification live on the Variant, not
+      the Product.
+    </definition>
+    <identity-rule>
+      Stable by `(productId, variantId)`. A Variant's SKU may change
+      across business reorganizations; the variantId never does.
+    </identity-rule>
+    <disambiguates-from>
+      <ref to="product"/>
+      <ref to="sku"/>
+    </disambiguates-from>
+    <symbols>
+      <code-anchor file="src/catalog/ProductVariant.ts" symbol="ProductVariant"/>
+    </symbols>
+  </term>
+
+  <!-- category="value": equality is structural. Carry <equality>. -->
+  <term id="sku" category="value">
+    <name>`SKU`</name>
+    <definition>
+      A short opaque string identifying a Variant for fulfillment
+      purposes. Used by every downstream context (Orders, Inventory,
+      Shipping) as the cross-context handle for "the thing being sold."
+      Distinct from <ref to="product-variant"/>'s identity: a Variant
+      *has* a SKU, but a Variant might exist briefly with no SKU
+      assigned (during onboarding).
+    </definition>
+    <equality>
+      By string value. Uppercase ASCII; hyphens allowed; max 32 chars.
+    </equality>
+    <symbols>
+      <code-anchor file="src/catalog/SKU.ts" symbol="SKU"/>
+    </symbols>
+  </term>
+
+  <!-- category="service": a stateless domain operation. Carry
+       <operates-on> (what it acts on) and <returns> (what it produces).
+       Application/infrastructure services don't earn term slots — only
+       domain services do. -->
+  <term id="categorize-product" category="service">
+    <name>`categorizeProduct`</name>
+    <definition>
+      Assigns a Product to a taxonomy node (electronics/phones,
+      apparel/shoes/running, …) based on its attributes and the active
+      taxonomy version. The taxonomy is part of the Catalog model;
+      external taxonomies (Google Shopping Categories, FB Catalog Feed)
+      are mapped at the integration boundary, not here.
+    </definition>
+    <operates-on>
+      <ref to="product"/>
+    </operates-on>
+    <returns>
+      A taxonomy-node fqid plus a confidence score in [0, 1]. Confidence
+      below 0.6 routes to manual review.
+    </returns>
+    <symbols>
+      <code-anchor file="src/catalog/categorize.ts" symbol="categorizeProduct"/>
+    </symbols>
+  </term>
+
+  <!-- category="event": a fact that happened, named in past tense.
+       Carry <emitted-when>, <payload>, and (when known) <consumers>. -->
+  <term id="product-listed" category="event">
+    <name>`ProductListed`</name>
+    <definition>
+      Emitted when a Product transitions from `draft` to `published` and
+      becomes visible on the storefront. The event is the public signal
+      for downstreams to start indexing, pricing, and stock-checking.
+    </definition>
+    <emitted-when>
+      `Product.status` transitions `draft → published`, and at least one
+      <ref to="product-variant"/> with a non-null <ref to="sku"/> exists.
+    </emitted-when>
+    <payload>
+      `{ productId, defaultVariantId, listedAt }`. The full Product
+      snapshot is fetched via the open-host-service seam below; the
+      event carries pointers, not state.
+    </payload>
+    <consumers>
+      <ref to="orders"/>
+      <ref to="inventory"/>
+      <ref to="shipping"/>
+    </consumers>
+  </term>
+
+  <!-- category="concept": purely conceptual scaffolding. No code
+       analog expected. Use sparingly — when ≥80% of a project's terms
+       are concept, conform flags the schema's gain as left on the
+       table. -->
+  <term id="published-state" category="concept">
+    <name>Published state</name>
+    <definition>
+      The conceptual condition under which a Product appears in the
+      storefront browse surface and a Variant becomes purchasable. Not
+      a single enum field — depends on Product.status, Variant.sku
+      presence, and the active taxonomy. Modeled as a concept rather
+      than a value because the calculation isn't a single function.
+    </definition>
+  </term>
+
+  <!-- A deprecated term, soft-deleted via status="deprecated". Hard
+       delete is allowed when the entity was a mistake; soft delete
+       preserves the slug so existing references keep resolving.
+       Surfaced in the viewer with a deprecation badge. -->
+  <term id="bundle" category="entity" status="deprecated">
+    <name>`Bundle`</name>
+    <definition>
+      Historical: a fixed pre-priced group of Variants sold as one SKU
+      (e.g. "starter kit"). Replaced in 2025 by promotion-based bundling
+      managed in the (unmodeled) Promotions context. The slug is
+      retained because legacy events and historical orders still
+      reference it.
+    </definition>
+  </term>
+
+  <!-- mode="code": the invariant is enforced by code. Carry
+       <constrains-code> with the call sites/files that hold the line. -->
+  <invariant id="sku-unique-per-store" mode="code">
+    <name>SKU is unique across the catalog</name>
+    <statement>
+      No two <ref to="product-variant"/>s share a <ref to="sku"/>. The
+      uniqueness constraint is enforced at write time, not after.
+    </statement>
+    <rationale>
+      Duplicate SKUs break every downstream — Inventory can't tell which
+      stock pool to deduct from; Orders can't decide which Variant a
+      LineItem refers to. Catching duplicates at write time is much
+      cheaper than reconciling after.
+    </rationale>
+    <constrains-code>
+      <code-anchor file="src/catalog/repo.ts" line-start="88" line-end="112" symbol="assertSkuUnique"/>
+      <code-anchor file="db/migrations/0014_sku_unique_index.sql"/>
+    </constrains-code>
+  </invariant>
+
+  <!-- seam: the structural joint between contexts. Use
+       open-host-service when one context publishes a stable
+       integration surface and any downstream can consume it without
+       per-downstream coordination. Asymmetric kind → <upstream> +
+       <downstream>. -->
+  <seam id="catalog-as-host" kind="open-host-service">
+    <name>Catalog ↔ Downstreams</name>
+    <description>
+      Catalog exposes a stable read-only API: list products, fetch by
+      productId, fetch by SKU. Orders, Inventory, Shipping all consume
+      this API without negotiating with Catalog's team. New downstreams
+      can be added without changing Catalog.
+    </description>
+    <rationale>
+      Catalog's data shape changes slowly relative to the rate at which
+      downstreams want to read it. Publishing a public read surface and
+      requiring downstreams to conform decouples the release cadence
+      and keeps Catalog from carrying knowledge of every consumer.
+    </rationale>
+    <upstream><ref to="catalog"/></upstream>
+    <downstream><ref to="orders"/></downstream>
+  </seam>
+
+  <!-- boundary-rule: a directional normative statement that complements
+       the seam. Seams describe *structure*; rules describe *policy*.
+       This rule names what must not happen across the seam above. -->
+  <boundary-rule id="no-writes-from-downstreams">
+    <rule>
+      No downstream context writes to Catalog data. Orders cannot
+      retroactively rename a Product; Inventory cannot mark a Variant
+      unavailable in the Catalog model.
+    </rule>
+    <from><ref to="orders"/></from>
+    <to><ref to="catalog"/></to>
+    <rationale>
+      Letting downstreams mutate Catalog would push consumer-specific
+      concerns into the public model and silently break other
+      consumers. Stock state belongs in <ref to="context/inventory"/>;
+      sale availability belongs in Orders' projection of Catalog —
+      neither belongs in Catalog itself.
+    </rationale>
+  </boundary-rule>
+
+  <!-- module: an Evans-sense concept cluster. Use when a context has
+       enough atoms that natural subgroups are worth naming. Skip
+       otherwise. Distinct from <aggregate> (which has transactional
+       consistency semantics) — a module is purely a thinking tool. -->
+  <module id="product-tree">
+    <name>Product tree</name>
+    <description>
+      The Product → Variant → SKU chain. Read together when reasoning
+      about how the store represents "what's for sale." Other atoms
+      (categorize, listings) attach to this chain but aren't part of
+      its core shape.
+    </description>
+    <members>
+      <ref to="product"/>
+      <ref to="product-variant"/>
+      <ref to="sku"/>
+    </members>
+    <rationale>
+      Beginners coming to the codebase often miss that SKU is a value
+      type, not an entity — the module groups them visibly so the
+      identity/value distinction shows up at the cluster level.
+    </rationale>
+  </module>
+</bounded-context>

@@ -1,0 +1,214 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Shopwell — a fictional e-commerce platform used as the golden example
+  for the lexicon v1.0 schema. Every element and attribute described in
+  reference/schema.md appears at least once across this file and its
+  siblings under contexts/ and surfaces/.
+
+  This is not a real codebase. The <code-anchor> file paths are
+  illustrative; treat them as documentation, not navigation. The point
+  is to read this file alongside reference/schema.md and recognize each
+  construct in the wild.
+
+  Tour: this file holds the system-level vocabulary — the contexts
+  index, one shared kernel (Identity), one overlay (tax-jurisdiction),
+  and two deliberate-omissions. Per-context atoms live in contexts/.
+  UI vocabulary lives in surfaces/.
+-->
+<system schema="1.0" id="shopwell">
+  <name>Shopwell</name>
+
+  <purpose>
+    A small online store: customers browse a product catalog, place
+    orders, pay invoices, and receive shipments. Five bounded contexts —
+    Catalog, Orders, Inventory, Billing, Shipping — coordinated through
+    a shared Identity kernel.
+  </purpose>
+
+  <!-- <narrative> is optional, used when the system-level story benefits
+       from a multi-paragraph walk-through. Inline <ref/> elements
+       resolve through the same graph the structural slots use. -->
+  <narrative>
+    A customer browses <ref to="context/catalog"/> and adds a
+    <ref to="catalog/product-variant"/> to their <ref to="orders/cart"/>.
+    Checkout calls <ref to="orders/place-order"/>, which reserves stock
+    through the <ref to="orders/orders-to-inventory"/> seam — an
+    anticorruption layer that translates between Orders' `LineItem`
+    vocabulary and Inventory's `StockItem` vocabulary. Once the
+    reservation lands, Orders publishes <ref to="orders/order-placed"/>;
+    <ref to="context/billing"/> consumes the event to open an
+    <ref to="billing/invoice"/>, and <ref to="context/shipping"/> picks
+    up the same event to schedule a shipment.
+
+    Two cross-cutting values live in the <ref to="kernel/identity"/>
+    shared kernel rather than being re-declared in each context. A
+    duplicated `Money` struct would inevitably drift — on currency-code
+    casing, on rounding, on whether negative amounts are allowed. The
+    kernel makes the sharing explicit and load-bearing.
+  </narrative>
+
+  <!-- The contexts index. Each <ref> must resolve to a file under
+       contexts/<slug>.xml (or to a context defined inline; not used
+       here). The order here drives the catalog navigation in the
+       viewer's reading-room surface. -->
+  <contexts>
+    <ref to="catalog"/>
+    <ref to="orders"/>
+    <ref to="inventory"/>
+    <ref to="billing"/>
+    <ref to="shipping"/>
+  </contexts>
+
+  <!-- shared-kernel: vocabulary that multiple contexts coordinate on,
+       lifted out of any single context. Use a kernel when the
+       alternative is replicated drift; prefer a seam (especially
+       anticorruption-layer) when contexts can safely keep their own
+       model. The kernel's terms and invariants are fqid'd as
+       kernel/<kernel-id>/<term-id> and
+       kernel/<kernel-id>/invariant/<invariant-id>. -->
+  <shared-kernel id="identity">
+    <name>Identity kernel</name>
+    <description>
+      Cross-context values: how customers are named, how money is
+      denominated. Every context references these directly; no context
+      redeclares them.
+    </description>
+    <participating-contexts>
+      <ref to="catalog"/>
+      <ref to="orders"/>
+      <ref to="inventory"/>
+      <ref to="billing"/>
+      <ref to="shipping"/>
+    </participating-contexts>
+    <rationale>
+      `Money` re-declared per context would diverge on rounding, on
+      currency-code casing, on negative-amount handling. Lifting it (and
+      `CustomerId`) to a kernel makes one definition load-bearing for
+      every context that uses it, and gives a single home for the
+      arithmetic invariant below.
+    </rationale>
+
+    <!-- category="value": equality is by attributes, not by identity.
+         Value terms carry <equality>; entity terms carry <identity-rule>;
+         see catalog.xml and orders.xml for both shapes. -->
+    <term id="customer-id" category="value">
+      <name>`CustomerId`</name>
+      <definition>
+        A stable opaque string identifying one customer across every
+        context. Issued by the (out-of-process) identity service at
+        signup; never reused, never reassigned.
+      </definition>
+      <equality>
+        By string value, case-sensitive.
+      </equality>
+      <symbols>
+        <code-anchor file="src/identity/CustomerId.ts" symbol="CustomerId"/>
+      </symbols>
+    </term>
+
+    <term id="money" category="value">
+      <name>`Money`</name>
+      <definition>
+        An amount paired with a currency code:
+        `{amount: bigint, currency: "USD" | "EUR" | "GBP"}`. Amounts are
+        integer minor units (cents) to avoid float drift. Negative
+        amounts represent refunds.
+      </definition>
+      <equality>
+        Two Money values are equal iff their `amount` and `currency`
+        match. Arithmetic across mismatched currencies is forbidden —
+        see <ref to="kernel/identity/invariant/money-currency-monotone"/>.
+      </equality>
+      <symbols>
+        <code-anchor file="src/identity/Money.ts" symbol="Money"/>
+        <code-anchor file="src/identity/Money.ts" line-start="42" line-end="76" symbol="add/sub/compare"/>
+      </symbols>
+    </term>
+
+    <!-- mode="principle": the invariant is upheld by team discipline,
+         not by code or a linter. See orders.xml for mode="code" and
+         mode="linter" examples. -->
+    <invariant id="money-currency-monotone" mode="principle">
+      <name>Money operations preserve currency</name>
+      <statement>
+        Adding, subtracting, or comparing Money values requires both
+        operands to share a currency. No implicit conversion. Mixing
+        currencies is a programming error, not a runtime fallback.
+      </statement>
+      <rationale>
+        Implicit FX conversion at arithmetic sites hides the rate, the
+        rounding rule, and the moment in time the rate applied. Forcing
+        explicit conversion at boundaries (where the rate is named)
+        keeps Money predictable end-to-end.
+      </rationale>
+    </invariant>
+  </shared-kernel>
+
+  <!-- overlay: lexicon's extension beyond Evans' core/supporting/generic
+       subdomain triad. Use for installation-specific policy that
+       doesn't belong inside any one bounded context. The overlay's
+       degenerate <invariant> (no id, no name) is intentional — it
+       captures policy without growing the atom graph. -->
+  <overlay id="tax-jurisdiction">
+    <name>Tax jurisdiction overlay</name>
+    <description>
+      Per-deployment tax behavior. The same Shopwell binary serves
+      multiple regions; the overlay is the seam where regional tax law
+      enters the system without polluting <ref to="context/billing"/>'s
+      core model.
+    </description>
+    <items>
+      <item>EU deployments compute VAT at invoice time, with reverse-charge for B2B.</item>
+      <item>US deployments compute sales tax per shipping address; no central rate table is canonical.</item>
+      <item>UK deployments behave like EU for VAT but use a separate registration-number namespace.</item>
+    </items>
+    <invariant>
+      <statement>
+        The overlay supplies tax rates; <ref to="billing/invoice"/>
+        never hardcodes a percentage.
+      </statement>
+      <rationale>
+        Hardcoded rates leak the deployment's tax regime into a context
+        that should be installation-agnostic. The overlay is the only
+        place rates live.
+      </rationale>
+    </invariant>
+  </overlay>
+
+  <!-- deliberate-omission: anti-content. Names what's intentionally not
+       in the model and why, with concrete triggers for when to revisit.
+       <related-atoms> wires the omission into the graph so a reader
+       browsing those atoms sees the nearby boundary. -->
+  <deliberate-omission>
+    <topic>Cross-customer recommendations and analytics</topic>
+    <reason>
+      Shopwell does not model recommendation engines or cross-customer
+      behavioral analytics. They would require a sixth context with its
+      own consent model and data-retention rules — out of scope for the
+      demo, and a substantial product decision rather than a technical
+      one.
+    </reason>
+    <trigger>The product team commits to a recommendations roadmap.</trigger>
+    <trigger>A regulatory requirement (e.g. GDPR cohort-tracking rules) forces explicit modeling.</trigger>
+    <related-atoms>
+      <ref to="kernel/identity/customer-id"/>
+    </related-atoms>
+  </deliberate-omission>
+
+  <deliberate-omission>
+    <topic>Multi-currency wallets per customer</topic>
+    <reason>
+      A customer might want to hold balances in multiple currencies and
+      pay invoices from a chosen wallet. Today every
+      <ref to="billing/payment"/> settles in the invoice's currency
+      only; FX happens at the payment gateway, not inside Shopwell. The
+      wallet feature would require a ledger model that
+      <ref to="context/billing"/> doesn't have.
+    </reason>
+    <trigger>A high-volume B2B customer asks to settle EU and UK invoices from a single GBP wallet.</trigger>
+    <related-atoms>
+      <ref to="kernel/identity/money"/>
+      <ref to="kernel/identity/invariant/money-currency-monotone"/>
+    </related-atoms>
+  </deliberate-omission>
+</system>
