@@ -5,7 +5,7 @@ import KindBadge from "./KindBadge";
 import RefLink from "./RefLink";
 import CodeAnchorBadge from "./CodeAnchorBadge";
 import InlineCode from "./InlineCode";
-import { Marginalia, MarginaliaItem } from "./Marginalia";
+import { Facets, FacetItem } from "./Facets";
 import Prose from "./Prose";
 import {
   isInspectorChord,
@@ -18,6 +18,7 @@ export default function EntityDetail({
   entity,
   graph,
   passive = false,
+  onClose,
 }: {
   entity: ResolvedEntity;
   graph: ResolvedGraph;
@@ -26,6 +27,11 @@ export default function EntityDetail({
    * inspector retargeting and the ⌘' open chord. Other panes pass `passive`.
    */
   passive?: boolean;
+  /**
+   * When provided, the header renders a × button that calls this. The stack
+   * passes it only for closable panes (not the root pane).
+   */
+  onClose?: () => void;
 }) {
   const { isOpen, target, open: openInspector } = useInspector();
   const entityRef = useRef(entity);
@@ -51,52 +57,64 @@ export default function EntityDetail({
   }, [isOpen, openInspector, passive]);
 
   return (
-    <article className="grid grid-cols-12 gap-12 py-12 px-12">
-      <div className="col-span-8 min-w-0">
-        <Header entity={entity} />
-        <Body entity={entity} graph={graph} />
-      </div>
-      <div className="col-span-4 min-w-0">
-        <Margin entity={entity} graph={graph} />
-      </div>
+    <article className="entity-article">
+      <Header entity={entity} onClose={onClose} />
+      <EntityFacets entity={entity} graph={graph} />
+      <Body entity={entity} graph={graph} />
     </article>
   );
 }
 
-function Header({ entity }: { entity: ResolvedEntity }) {
+function Header({ entity, onClose }: { entity: ResolvedEntity; onClose?: () => void }) {
   const { target, toggle } = useInspector();
   const isActive = target?.fqid === entity.ref.fqid;
   const lineLabel = `L${formatLineRange(entity.source.lineStart, entity.source.lineEnd)}`;
 
   return (
-    <header className="mb-10 flex items-start gap-6">
-      <div className="flex-1 min-w-0">
-        <div className="mb-3 flex items-center gap-3">
-          <KindBadge kind={entity.ref.kind} size={18} />
-          {entity.ref.kind === "term" && entity.category && (
-            <span className="mono text-micro text-fg-3 uppercase tracking-widest">{entity.category}</span>
-          )}
-          {entity.ref.kind === "bounded-context" && entity.subdomain && (
-            <span className="mono text-micro text-fg-3 uppercase tracking-widest">{entity.subdomain}</span>
-          )}
-          {entity.ref.kind === "seam" && entity.seamKind && (
-            <span className="mono text-micro text-fg-3 uppercase tracking-widest">{entity.seamKind}</span>
+    <header className="entity-pane-header">
+      <div className="flex items-start gap-4">
+        <div className="flex-1 min-w-0">
+          <div className="mb-3 flex items-center gap-3">
+            <KindBadge kind={entity.ref.kind} size={18} />
+            {entity.ref.kind === "term" && entity.category && (
+              <span className="mono text-micro text-fg-3 uppercase tracking-widest">{entity.category}</span>
+            )}
+            {entity.ref.kind === "bounded-context" && entity.subdomain && (
+              <span className="mono text-micro text-fg-3 uppercase tracking-widest">{entity.subdomain}</span>
+            )}
+            {entity.ref.kind === "seam" && entity.seamKind && (
+              <span className="mono text-micro text-fg-3 uppercase tracking-widest">{entity.seamKind}</span>
+            )}
+          </div>
+          <h1 className="display-tight text-h1 leading-[0.95] mb-3">
+            <InlineCode text={entity.title ?? entity.ref.name} />
+          </h1>
+          <div className="mono text-small text-fg-3">{entity.ref.fqid}</div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            className="inspector-pull"
+            data-active={isActive}
+            title="Inspect specimen source (⌘ ')"
+            onClick={() => toggle(toInspectorTarget(entity))}
+          >
+            <span className="inspector-pull-file">{entity.source.file}</span>
+            <span className="inspector-pull-range">{lineLabel}</span>
+          </button>
+          {onClose && (
+            <button
+              className="entity-pane-close"
+              title="Close pane"
+              onClick={(e) => {
+                e.stopPropagation();
+                onClose();
+              }}
+            >
+              ×
+            </button>
           )}
         </div>
-        <h1 className="display-tight text-h1 leading-[0.95] mb-3">
-          <InlineCode text={entity.title ?? entity.ref.name} />
-        </h1>
-        <div className="mono text-small text-fg-3">{entity.ref.fqid}</div>
       </div>
-      <button
-        className="inspector-pull shrink-0"
-        data-active={isActive}
-        title="Inspect YAML source (⌘ ')"
-        onClick={() => toggle(toInspectorTarget(entity))}
-      >
-        <span>Specimen</span>
-        <span className="inspector-pull-range">{lineLabel}</span>
-      </button>
     </header>
   );
 }
@@ -609,7 +627,7 @@ function SharedKernelBody({ entity, graph }: { entity: ResolvedEntity; graph: Re
   );
 }
 
-function Margin({ entity, graph }: { entity: ResolvedEntity; graph: ResolvedGraph }) {
+function EntityFacets({ entity, graph }: { entity: ResolvedEntity; graph: ResolvedGraph }) {
   const anchors = [
     ...(entity.symbols ?? []),
     ...(entity.constrainsCode ?? []),
@@ -627,65 +645,60 @@ function Margin({ entity, graph }: { entity: ResolvedEntity; graph: ResolvedGrap
     : null;
 
   return (
-    <Marginalia>
+    <Facets>
       {surfaceOwner && (
-        <MarginaliaItem label="Surface"><RefLink to={surfaceOwner.ref} /></MarginaliaItem>
+        <FacetItem label="Surface"><RefLink to={surfaceOwner.ref} /></FacetItem>
       )}
       {contextOwner && (
-        <MarginaliaItem label="Context"><RefLink to={contextOwner.ref} /></MarginaliaItem>
+        <FacetItem label="Context"><RefLink to={contextOwner.ref} /></FacetItem>
       )}
       {kernelOwner && (
-        <MarginaliaItem label="Kernel"><RefLink to={kernelOwner.ref} /></MarginaliaItem>
+        <FacetItem label="Kernel"><RefLink to={kernelOwner.ref} /></FacetItem>
       )}
       {entity.upstream && (
-        <MarginaliaItem label="Upstream"><RefLink to={entity.upstream} /></MarginaliaItem>
+        <FacetItem label="Upstream"><RefLink to={entity.upstream} /></FacetItem>
       )}
       {entity.downstream && (
-        <MarginaliaItem label="Downstream"><RefLink to={entity.downstream} /></MarginaliaItem>
+        <FacetItem label="Downstream"><RefLink to={entity.downstream} /></FacetItem>
       )}
       {entity.participants && entity.participants.length > 0 && (
-        <MarginaliaItem label="Participants">
+        <FacetItem label="Participants">
           {entity.participants.map(r => (
-            <RefLink key={r.fqid} to={r} className="block" />
+            <RefLink key={r.fqid} to={r} />
           ))}
-        </MarginaliaItem>
+        </FacetItem>
       )}
       {entity.validationMode && (
-        <MarginaliaItem label="Validation">
+        <FacetItem label="Validation">
           <span className="mono text-small text-fg-2">{entity.validationMode}</span>
-        </MarginaliaItem>
+        </FacetItem>
       )}
       {entity.disambiguatesFrom && entity.disambiguatesFrom.length > 0 && (
-        <MarginaliaItem label="Not to be confused with">
+        <FacetItem label="Not to be confused with">
           {entity.disambiguatesFrom.map(r => (
-            <RefLink key={r.fqid} to={r} className="block" />
+            <RefLink key={r.fqid} to={r} />
           ))}
-        </MarginaliaItem>
+        </FacetItem>
       )}
       {entity.status && (
-        <MarginaliaItem label="Status">
+        <FacetItem label="Status">
           <span className="mono text-small text-fg-2">{entity.status}</span>
-        </MarginaliaItem>
+        </FacetItem>
       )}
       {anchors.length > 0 && (
-        <MarginaliaItem label="Code">
+        <FacetItem label="Code">
           {anchors.map((a, i) => (
-            <div key={i} className="mt-1">
-              <CodeAnchorBadge anchor={a} origin={entity.ref} />
-            </div>
+            <CodeAnchorBadge key={i} anchor={a} origin={entity.ref} />
           ))}
-        </MarginaliaItem>
+        </FacetItem>
       )}
       {entity.codeModules && entity.codeModules.length > 0 && (
-        <MarginaliaItem label="Code modules">
+        <FacetItem label="Code modules">
           {entity.codeModules.map((m, i) => (
-            <div key={i} className="mono text-small text-fg-2">{m}</div>
+            <span key={i} className="mono text-small text-fg-2">{m}</span>
           ))}
-        </MarginaliaItem>
+        </FacetItem>
       )}
-      <MarginaliaItem label="Source">
-        <div className="mono text-micro text-fg-3 break-all">{entity.source.file}</div>
-      </MarginaliaItem>
-    </Marginalia>
+    </Facets>
   );
 }

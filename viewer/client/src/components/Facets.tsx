@@ -1,20 +1,27 @@
-import type { ReactNode } from "react";
+import { Children, type ReactNode } from "react";
 
-export function Marginalia({ children }: { children: ReactNode }) {
-  return <aside className="marginalia space-y-7 pt-3">{children}</aside>;
+export function Facets({ children }: { children: ReactNode }) {
+  return <dl className="entity-facets">{children}</dl>;
 }
 
-export function MarginaliaItem({
+export function FacetItem({
   label,
   children,
 }: {
   label: string;
   children: ReactNode;
 }) {
+  const items = Children.toArray(children);
   return (
-    <div>
-      <div className="smallcap mb-2">{label}</div>
-      <div className="space-y-1">{children}</div>
-    </div>
+    <>
+      <dt className="smallcap">{label}</dt>
+      <dd>
+        {items.map((child, i) => (
+          <span key={i} className="facet-value">
+            {child}
+          </span>
+        ))}
+      </dd>
+    </>
   );
 }

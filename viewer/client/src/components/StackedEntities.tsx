@@ -126,26 +126,28 @@ export default function StackedEntities({ graph, panes }: Props) {
           >
             <CollapsedTitle entity={entity} />
             {!isCollapsed && (
-              <>
-                <PaneChrome
-                  index={idx}
-                  entity={entity}
-                  canClose={resolved.length > 1 && idx > 0}
-                />
-                <PaneIndexProvider index={idx}>
-                  <div className="entity-pane-body">
-                    <EntityDetail entity={entity} graph={graph} passive={!isLast} />
-                    {backlinksOfPane.length > 0 && (
-                      <BacklinkList
-                        backlinks={backlinksOfPane}
-                        graph={graph}
-                        openFqids={openFqids}
-                        placement="inline"
-                      />
-                    )}
-                  </div>
-                </PaneIndexProvider>
-              </>
+              <PaneIndexProvider index={idx}>
+                <div className="entity-pane-body">
+                  <EntityDetail
+                    entity={entity}
+                    graph={graph}
+                    passive={!isLast}
+                    onClose={
+                      resolved.length > 1 && idx > 0
+                        ? () => stack?.closePane(idx)
+                        : undefined
+                    }
+                  />
+                  {backlinksOfPane.length > 0 && (
+                    <BacklinkList
+                      backlinks={backlinksOfPane}
+                      graph={graph}
+                      openFqids={openFqids}
+                      placement="inline"
+                    />
+                  )}
+                </div>
+              </PaneIndexProvider>
             )}
           </article>
         );
@@ -167,38 +169,6 @@ function CollapsedTitle({ entity }: { entity: ResolvedEntity }) {
     <div className="entity-pane-strip">
       <KindBadge kind={entity.ref.kind} size={16} />
       <div className="entity-pane-strip-name">{entity.title ?? entity.ref.name}</div>
-    </div>
-  );
-}
-
-function PaneChrome({
-  index,
-  entity,
-  canClose,
-}: {
-  index: number;
-  entity: ResolvedEntity;
-  canClose: boolean;
-}) {
-  const stack = useStack();
-  return (
-    <div className="entity-pane-chrome">
-      <KindBadge kind={entity.ref.kind} size={13} />
-      <button
-        className="entity-pane-close"
-        title="Close pane"
-        onClick={(e) => {
-          e.stopPropagation();
-          if (canClose) stack?.closePane(index);
-        }}
-        // First-pane: keep the slot so chrome stays the same height across
-        // panes, but hide it from view + AT.
-        aria-hidden={!canClose}
-        tabIndex={canClose ? 0 : -1}
-        style={canClose ? undefined : { visibility: "hidden", pointerEvents: "none" }}
-      >
-        ×
-      </button>
     </div>
   );
 }

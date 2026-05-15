@@ -161,16 +161,16 @@
     color: var(--color-mark-2);
     text-decoration-color: color-mix(in srgb, var(--ref-color) 90%, transparent);
   }
-  /* Marginalia entries are list-like and short — the underline is noise.
+  /* Facet entries are list-like and short — the underline is noise.
      Inline ref-links inside prose (definitions, narratives) still get it. */
-  .marginalia .ref-link {
+  .entity-facets .ref-link {
     text-decoration-line: none;
   }
   .ref-link > svg {
     /* Inline display means no flex baseline tools — pin the icon manually. */
     display: inline-block;
     vertical-align: -2px;
-    margin-right: 1px;
+    margin-right: 4px;
     transition: filter 120ms ease;
   }
   .ref-link:hover > svg {
@@ -251,7 +251,6 @@
     font-family: var(--font-body);
     line-height: 1.55;
     color: var(--color-fg);
-    max-width: 62ch;
   }
   .prose-body p + p { margin-top: 0.85em; }
 
@@ -571,6 +570,19 @@
     background: var(--color-mark);
     box-shadow: 0 0 0 1px var(--color-paper);
   }
+  .inspector-pull-file {
+    font-size: 0.6875rem;
+    letter-spacing: 0.04em;
+    text-transform: none;
+    color: var(--color-fg-2);
+    max-width: 22ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .inspector-pull[data-active="true"] .inspector-pull-file {
+    color: color-mix(in srgb, var(--color-paper) 90%, transparent);
+  }
   .inspector-pull-range {
     font-size: 0.6875rem;
     letter-spacing: 0.04em;
@@ -715,25 +727,16 @@
     white-space: nowrap;
   }
 
-  .entity-pane-chrome {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 6px 12px 6px 16px;
-    border-bottom: 1px solid var(--color-rule);
-    background: var(--color-paper-2);
-    flex-shrink: 0;
-  }
   .entity-pane-close {
-    width: 22px;
-    height: 22px;
+    width: 24px;
+    height: 24px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     border: 1px solid var(--color-rule);
     background: transparent;
     color: var(--color-fg-3);
-    font-size: 14px;
+    font-size: 15px;
     line-height: 1;
     cursor: pointer;
     transition: all 120ms ease;
@@ -748,6 +751,49 @@
     flex: 1;
     overflow-y: auto;
     min-height: 0;
+  }
+
+  .entity-article {
+    padding: 0 3rem 3rem;
+  }
+
+  /* Sticky title strip keeps kind/title/fqid/Specimen/× visible while the
+     body scrolls. Background must be opaque so prose doesn't bleed through. */
+  .entity-pane-header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--color-paper);
+    padding: 1.5rem 0 1rem;
+    border-bottom: 1px solid var(--color-rule);
+    margin-bottom: 1.25rem;
+  }
+
+  /* Facet rows: label column auto-sized, value column flows inline with
+     `·` separators between siblings. Wraps when narrow. */
+  .entity-facets {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    column-gap: 1rem;
+    row-gap: 0.4rem;
+    margin-bottom: 2rem;
+    align-items: baseline;
+  }
+  .entity-facets dt {
+    align-self: baseline;
+  }
+  .entity-facets dd {
+    margin: 0;
+    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0 0.5rem;
+  }
+  .entity-facets .facet-value + .facet-value::before {
+    content: "·";
+    color: var(--color-fg-3);
+    margin-right: 0.5rem;
   }
 
   /* Right-edge backlink column — sits at the tail of the stack, scrolls
