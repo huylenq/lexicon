@@ -200,7 +200,7 @@ export default function YamlInspector({
           ) : (
             <Editor
               height="100%"
-              language="yaml"
+              language={langForFile(target.file)}
               value={text}
               onMount={onMount}
               options={EDITOR_OPTIONS}
@@ -331,6 +331,17 @@ function ToolDivider() {
   return <span className="slab-tool-div" aria-hidden />;
 }
 
+const LANG_BY_EXT: Record<string, string> = {
+  yaml: "yaml", yml: "yaml",
+  xml: "xml", xsd: "xml",
+  json: "json", md: "markdown",
+};
+
+function langForFile(file: string): string {
+  const ext = file.split(".").pop()?.toLowerCase() ?? "";
+  return LANG_BY_EXT[ext] ?? "plaintext";
+}
+
 // "terms[2]" → ["terms", "[2]"]; "" → []
 function formatBreadcrumb(path: string): string[] {
   if (!path) return [];
@@ -447,6 +458,14 @@ function buildTheme(p: ThemePalette): MonacoEditor.IStandaloneThemeData {
       { token: "tag", foreground: p.accent },
       { token: "key", foreground: p.key, fontStyle: "bold" },
       { token: "type.yaml", foreground: p.key, fontStyle: "bold" },
+      { token: "tag.xml", foreground: p.accent },
+      { token: "metatag.xml", foreground: p.comment },
+      { token: "metatag.content.xml", foreground: p.accent },
+      { token: "attribute.name.xml", foreground: p.key, fontStyle: "bold" },
+      { token: "attribute.value.xml", foreground: p.text },
+      { token: "string.xml", foreground: p.text },
+      { token: "delimiter.xml", foreground: p.comment },
+      { token: "comment.xml", foreground: p.comment, fontStyle: "italic" },
     ],
     colors: {
       "editor.background": p.bg,
