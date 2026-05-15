@@ -333,7 +333,7 @@ function useGlobalShortcut(key: string, fn: () => void) {
 function Welcome({ graph }: { graph: ResolvedGraph }) {
   const sys = graph.system;
   return (
-    <div className="p-12 max-w-3xl">
+    <div className="h-full overflow-y-auto p-12 max-w-3xl">
       <div className="smallcap mb-3">Reading room</div>
       <h1 className="display-tight text-h1 mb-6 leading-[0.95]">
         {sys ? sys.ref.name : "Lexicon"}
