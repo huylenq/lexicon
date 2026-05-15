@@ -5,6 +5,7 @@ import type { editor as MonacoEditor } from "monaco-editor";
 import { api } from "@/lib/api";
 import { useInspector } from "@/lib/inspector";
 import { KIND_LABEL, KIND_ICON, KIND_COLOR_VAR, formatLineRange } from "@/lib/kinds";
+import { langForFile } from "@/lib/monaco-lang";
 import type { ResolvedGraph, YamlSibling } from "@/lib/types";
 import KindBadge from "./KindBadge";
 
@@ -329,17 +330,6 @@ function ToolButton({
 
 function ToolDivider() {
   return <span className="slab-tool-div" aria-hidden />;
-}
-
-const LANG_BY_EXT: Record<string, string> = {
-  yaml: "yaml", yml: "yaml",
-  xml: "xml", xsd: "xml",
-  json: "json", md: "markdown",
-};
-
-function langForFile(file: string): string {
-  const ext = file.split(".").pop()?.toLowerCase() ?? "";
-  return LANG_BY_EXT[ext] ?? "plaintext";
 }
 
 // "terms[2]" → ["terms", "[2]"]; "" → []

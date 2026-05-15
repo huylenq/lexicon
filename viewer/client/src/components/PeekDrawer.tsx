@@ -4,18 +4,7 @@ import type { editor as MonacoEditor } from "monaco-editor";
 import { api } from "@/lib/api";
 import { usePeek, type Peek } from "@/lib/peek";
 import { formatLineRange } from "@/lib/kinds";
-
-const LANG_BY_EXT: Record<string, string> = {
-  ts: "typescript", tsx: "typescript", js: "javascript", jsx: "javascript",
-  md: "markdown", yaml: "yaml", yml: "yaml", json: "json", xml: "xml", xsd: "xml",
-  py: "python", go: "go", rs: "rust", swift: "swift", java: "java",
-  css: "css", html: "html", sh: "shell",
-};
-
-function langForFile(file: string) {
-  const ext = file.split(".").pop()?.toLowerCase() ?? "";
-  return LANG_BY_EXT[ext] ?? "plaintext";
-}
+import { langForFile } from "@/lib/monaco-lang";
 
 function defineTheme(monaco: Monaco) {
   monaco.editor.defineTheme("lexicon-ink", {
