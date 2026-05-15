@@ -2,30 +2,30 @@
 
 Prepares a project for lexicon. One-shot counterpart to the per-session subcommands — run once at adoption, then never again on the same project (except to resume a paused distillation).
 
-The normative schema you'll emit here lives in `${CLAUDE_SKILL_DIR}/reference/schema.md`; the canonical YAML examples are in `${CLAUDE_SKILL_DIR}/templates/`. Read both before Phase 4.
+The normative schema you'll emit here lives in `${CLAUDE_SKILL_DIR}/reference/schema.md`; the canonical XML examples are in `${CLAUDE_SKILL_DIR}/templates/`. Read both before Phase 4.
 
 ## When to run this
 
 Run when:
 
 - The user says they want to adopt lexicon for this project ("set up lexicon", "bootstrap lexicon", "adopt the lexicon workflow").
-- `ground` defers here on a project with no `lexicon/system.yaml`.
+- `ground` defers here on a project with no `lexicon/system.xml`.
 - The user is starting a new project and wants the lexicon structure in place from day one (in this case, the doc-audit phases mostly no-op — that's fine).
 
 Don't run when:
 
-- A `lexicon/system.yaml` already exists and is current — that's `conform` territory.
-- A `lexicon/system.yaml` exists but seems out of date — also `conform`, not this subcommand. Re-running adopt over a real `system.yaml` would clobber human-curated content. Refuse.
-- A `lexicon/system.md` exists — the project is on the v0.x markdown layout. Refer to `conform`'s structural pass first, then re-evaluate.
+- A `lexicon/system.xml` already exists and is current — that's `conform` territory.
+- A `lexicon/system.xml` exists but seems out of date — also `conform`, not this subcommand. Re-running adopt over a real `system.xml` would clobber human-curated content. Refuse.
+- A `lexicon/system.md` or older YAML `lexicon/system.yaml` exists — the project is on a pre-v1.0 schema. Refer to `conform`'s structural pass first, then re-evaluate.
 - The project is a throwaway script or single-file prototype — lexicon is not free. Surface this honestly: *"This project looks small enough that lexicon may be overhead. Want me to adopt anyway?"*
 
 ## Pre-flight checks
 
 Before doing anything destructive, confirm:
 
-1. `lexicon/system.yaml` does **not** exist. If it does, stop and surface — the user should consider `conform` (semantic pass) or hand-edit, not re-adopt.
-2. `lexicon/system.md` does **not** exist. If it does, route to `conform`'s structural pass first.
-3. The user has explicitly opted in. This subcommand creates a `lexicon/` structure and writes YAML files. Don't run it speculatively.
+1. `lexicon/system.xml` does **not** exist. If it does, stop and surface — the user should consider `conform` (semantic pass) or hand-edit, not re-adopt.
+2. `lexicon/system.md` does **not** exist (pre-v0.1 markdown era) and `lexicon/system.yaml` does **not** exist (pre-v1.0 YAML era). If either does, route to `conform`'s structural pass first.
+3. The user has explicitly opted in. This subcommand creates a `lexicon/` structure and writes XML files. Don't run it speculatively.
 4. The repo is in a clean-ish git state, or the user accepts that adoption will create unstaged changes. If the working tree has a lot of uncommitted churn, surface it.
 
 ## Phase 1 — Audit existing docs
@@ -43,7 +43,7 @@ Bucket every file you find:
 
 | Bucket | Cue | Where it goes |
 |---|---|---|
-| **Cold-layer candidate** | Glossary fragments, "principles", architectural invariants, "why X over Y" reasoning, conceptual model descriptions | Distillation source for `system.yaml` and `contexts/<slug>.yaml` |
+| **Cold-layer candidate** | Glossary fragments, "principles", architectural invariants, "why X over Y" reasoning, conceptual model descriptions | Distillation source for `system.xml` and `contexts/<slug>.xml` |
 | **ADR-like** | "We chose X because Y" prose, decision records, RFCs with a clear decision | Absorb into `rationale:` fields on affected atoms (Phase 6); archive the source under `_pre-migrate-archive/decisions/` for reference |
 | **Hot/feature docs** | Active feature specs, in-flight plans, "next quarter" docs | Move to `lexicon/plans/<feature>/` if active, `lexicon/plans/_archive/` if done |
 | **Reference / runbook** | API docs, deployment guides, onboarding, "how to run X" | **Leave alone.** Not lexicon's domain. Don't touch. |
@@ -55,7 +55,7 @@ Produce the bucketed list as part of the triage report (Phase 9). Don't move fil
 
 Without trying to be exhaustive, surface the project's structural shape:
 
-- **Top-level modules / packages** — the directory layout usually reveals provisional bounded contexts. Each will become a candidate `contexts/<slug>.yaml`, with the directory globs going into the `codeModules:` field.
+- **Top-level modules / packages** — the directory layout usually reveals provisional bounded contexts. Each will become a candidate `contexts/<slug>.xml`, with the directory globs going into the `codeModules:` field.
 - **High-frequency identifiers** — class, type, struct, and top-level function names that appear across many files. These are glossary candidates; their file paths become the `symbols` code anchors.
 - **Public surface** — exported types, public APIs, entrypoints. The vocabulary at this surface tends to be the most load-bearing.
 - **Cross-module dependencies** — which modules import which. Hints at whether the seams are clean (low cross-talk) or already tangled.
@@ -70,15 +70,15 @@ Use whatever tools fit (rg, ast-grep, ctags, the project's language tooling). Do
 This is the **highest-signal extraction zone**. For each candidate term collected from docs (Phase 1) and code (Phase 2):
 
 - **In docs AND code, used consistently** → strong glossary candidate. Real ubiquitous-language territory. The code references become the term's `symbols` anchors.
-- **In docs only** → drift. Either the term was renamed in code, or the doc describes a concept that's not actually implemented. **Don't add to the YAML.** Flag for the triage report.
+- **In docs only** → drift. Either the term was renamed in code, or the doc describes a concept that's not actually implemented. **Don't add to the XML.** Flag for the triage report.
 - **In code only** → either too low-level to glossary (most internal class names), or genuine domain vocabulary the docs missed. Apply judgment: if the term appears in public API or in many files, it's probably a real concept. If it's a single-file utility class, skip it.
 - **Inconsistent definitions** — same term used differently in different docs, or in docs vs code. Highest-priority flag for the user — this is exactly the kind of silent drift lexicon exists to surface. Don't pick a definition unilaterally; defer to Phase 8.
 
-## Phase 4 — Emit the draft cold-layer YAML
+## Phase 4 — Emit the draft cold-layer XML
 
-This is where structured-format discipline matters. **Don't fabricate entries**: every entity that ends up in the YAML must have evidence from Phase 3. Gaps go to the triage report (Phase 9), not into the cold-layer files as placeholder content.
+This is where structured-format discipline matters. **Don't fabricate entries**: every entity that ends up in the XML must have evidence from Phase 3. Gaps go to the triage report (Phase 9), not into the cold-layer files as placeholder content.
 
-Reference `${CLAUDE_SKILL_DIR}/templates/*.yaml.example` for shape. The normative spec is `${CLAUDE_SKILL_DIR}/reference/schema.md`; examples are illustrative.
+Reference `${CLAUDE_SKILL_DIR}/templates/*.xml.example` for shape. The normative spec is `${CLAUDE_SKILL_DIR}/reference/schema.md`; examples are illustrative.
 
 ### ID minting
 
@@ -91,27 +91,27 @@ Reference `${CLAUDE_SKILL_DIR}/templates/*.yaml.example` for shape. The normativ
 
 Decide which provisional bounded contexts the project has. Each context becomes:
 
-- A one-line entry in `system.yaml`'s `contexts:` list.
-- A file at `lexicon/contexts/<slug>.yaml` *if* it owns ≥3 entries (terms/invariants/seams/rules combined). Small contexts stay as the index line only.
+- A one-line entry in `system.xml`'s `contexts:` list.
+- A file at `lexicon/contexts/<slug>.xml` *if* it owns ≥3 entries (terms/invariants/seams/rules combined). Small contexts stay as the index line only.
 
 Use top-level module structure as the starting point, but don't be mechanical about it — a single module might host two contexts, or two modules might be one context. Apply judgment.
 
-### Fill the YAML
+### Fill the XML
 
 For each evidence-backed entry:
 
-- **Glossary terms** — only entries with strong evidence (in docs AND code, used consistently). Each entry includes a short `definition` drawn from existing doc text where possible. Add `symbols:` anchors for the code locations found in Phase 2. Add `disambiguatesFrom:` when Phase 3 surfaced an explicit "X is not Y" passage.
-- **Invariants** — extract from existing doc prose where it asserts "must", "always", "never". Each entry has a `statement` and a `rationale`. Set `validationMode` honestly: `code` if a literal code check could verify it; `linter` if existing tooling catches it; `principle` if it's abstract enough that no automation can verify. Add `constrainsCode:` anchors when the doc names specific files/modules.
-- **Bounded contexts** — `purpose:` is a one-paragraph description drawn from existing doc or inferred from the module's public surface. `codeModules:` lists the directory globs. Set `subdomain:` (core / supporting / generic) when the doc evidence makes it obvious; leave unset otherwise.
-- **Boundary rules** — extract from prose where docs assert directed rules ("the inference context never writes to the training store"). `from:` and `to:` are context slugs.
-- **Shared kernels** in `system.yaml` for terms/invariants spanning ≥2 contexts that the contexts genuinely coordinate on (not just happen to use). Each kernel has a name, `participatingContexts`, a `rationale`, and its own `terms`/`invariants`. Two-context terms that are *not* coordinated stay in one of the contexts (whichever owns the concept more strongly), with the other context referencing.
-- **Term categories** — set `category:` (entity / value / service / event / concept) on terms when the doc/code evidence is strong. Leave unset (defaults to `concept`) when uncertain; distillation (Phase 8) is the right place to categorize.
-- **Seam kinds** — set `kind:` on each seam to one of the Evans context-map kinds when doc/code evidence makes it obvious. Otherwise leave `kind: unknown` — the seam loads with a warning, and the user classifies during distillation.
-- **Design system** (UI projects only): emit a `lexicon/surfaces/<slug>.yaml` per top-level surface, listing regions found in Phase 2. Tag each region's `implementation` as `kind: component` (with `import` path) when the region has its own component file, or `kind: inline` (with `file`, `lineStart`, `lineEnd`) when the region is an inline block with conceptual identity. Tokens and components themselves are bounded-context entries — either their own `contexts/design-system.yaml` if the surface is rich, or cross-cutting entries in `system.yaml` for small projects.
+- **Glossary terms** — only entries with strong evidence (in docs AND code, used consistently). Each `<term>` includes a short `<definition>` drawn from existing doc text where possible. Add `<symbols>` with `<code-anchor>` children for the code locations found in Phase 2. Add `<disambiguates-from>` with `<ref to="..."/>` children when Phase 3 surfaced an explicit "X is not Y" passage.
+- **Invariants** — extract from existing doc prose where it asserts "must", "always", "never". Each `<invariant>` has a `<statement>` and a `<rationale>`. Set the `mode=` attribute honestly: `code` if a literal code check could verify it; `linter` if existing tooling catches it; `principle` if it's abstract enough that no automation can verify. Add `<constrains-code>` anchors when the doc names specific files/modules.
+- **Bounded contexts** — `<purpose>` is a one-paragraph description drawn from existing doc or inferred from the module's public surface. `<code-modules>` with `<path>` children lists the directory globs. Set the `subdomain=` attribute (core / supporting / generic) when the doc evidence makes it obvious; leave unset otherwise.
+- **Boundary rules** — extract from prose where docs assert directed rules ("the inference context never writes to the training store"). `<from>` and `<to>` carry single `<ref to="..."/>` elements pointing at contexts.
+- **Shared kernels** in `system.xml` for terms/invariants spanning ≥2 contexts that the contexts genuinely coordinate on (not just happen to use). Each `<shared-kernel>` has a `<name>`, `<participating-contexts>` with `<ref/>` children, a `<rationale>`, and its own `<term>`/`<invariant>` siblings. Two-context terms that are *not* coordinated stay in one of the contexts (whichever owns the concept more strongly), with the other context referencing.
+- **Term categories** — set the `category=` attribute (entity / value / service / event / concept) on terms when the doc/code evidence is strong. Leave unset (defaults to `concept`) when uncertain; distillation (Phase 8) is the right place to categorize.
+- **Seam kinds** — set the `kind=` attribute on each `<seam>` to one of the Evans context-map kinds when doc/code evidence makes it obvious. Otherwise leave `kind="unknown"` — the seam loads with a warning, and the user classifies during distillation.
+- **Design system** (UI projects only): emit a `lexicon/surfaces/<slug>.xml` per top-level surface, listing `<region>` elements found in Phase 2. Tag each region's implementation as `<component-impl import="..." file="..."/>` when the region has its own component file, or `<inline-impl file="..." line-start="..." line-end="..."/>` when the region is an inline block with conceptual identity. Tokens and components themselves are bounded-context entries — either their own `contexts/design-system.xml` if the surface is rich, or cross-cutting entries in `system.xml` for small projects.
 
-Be honest about what's a guess. The drafted YAML should read like an honest first cut, not a confident model. **Empty sections are more useful than fabricated content** — they're trivially populated during distillation; fake content has to be unwound first. Don't add `TODO:` placeholder strings into prose fields — leave the entire entry out and list the gap in the triage report instead.
+Be honest about what's a guess. The drafted XML should read like an honest first cut, not a confident model. **Empty sections are more useful than fabricated content** — they're trivially populated during distillation; fake content has to be unwound first. Don't add `TODO:` placeholder strings into prose elements — leave the entire entry out and list the gap in the triage report instead.
 
-If the draft `system.yaml` would exceed ~500 lines, partition into more per-context files until it fits.
+If the draft `system.xml` would exceed ~500 lines, partition into more per-context files until it fits.
 
 ## Phase 5 — Set up the directory structure
 
@@ -155,7 +155,7 @@ Auto-moving feature docs is a high-blast-radius action — they may have URLs, l
 
 ## Phase 8 — Interactive distillation (one decision at a time)
 
-The drafted YAML is on disk but unverified — gaps from Phase 3, drift flags, inconsistencies, term categorizations not yet picked, seam kinds left at `unknown`. Earlier versions of this subcommand stopped here and left a triage report telling the user to come back later. In practice, "later" usually never came.
+The drafted XML is on disk but unverified — gaps from Phase 3, drift flags, inconsistencies, term categorizations not yet picked, seam kinds left at `unknown`. Earlier versions of this subcommand stopped here and left a triage report telling the user to come back later. In practice, "later" usually never came.
 
 **Dive into the distillation in the same conversation, by default.** No "want to do this now?" preamble — open with what's about to happen and start. The user can stop at any item boundary with "pause" / "enough for now" / "save the rest for later", and state-on-pause is preserved.
 
@@ -169,7 +169,7 @@ This rule overrides any temptation to "be efficient." Even when several items lo
 
 One sentence to frame, then start with the first item:
 
-> Adopt emitted <N> entities across <F> YAML files. Triage queue has <I> inconsistencies, <D> drift flags, and <G> evidence gaps where doc content suggested an entry but evidence was weak. Walking through them one at a time — say 'pause' at any point. Starting with inconsistencies, since those are the highest-cost to leave latent.
+> Adopt emitted <N> entities across <F> XML files. Triage queue has <I> inconsistencies, <D> drift flags, and <G> evidence gaps where doc content suggested an entry but evidence was weak. Walking through them one at a time — say 'pause' at any point. Starting with inconsistencies, since those are the highest-cost to leave latent.
 
 Then go directly into item 1. No table-of-contents preview of upcoming items.
 
@@ -194,7 +194,7 @@ For each item, in this order:
 2. **Give just enough context** to decide — the conflicting definitions, the code reference, the candidate fix. 2–4 short lines is usually right. Don't preview the next item.
 3. **Ask one question.** For glossary entries: "add / cull / rewrite?" For invariants: "still holds / revise / drop?" For inconsistencies: "canonical definition? or distinct concepts?" Free-form answers welcome.
 4. **Wait for the user's answer.** Do not present a second item in the same message.
-5. **Apply the edit** to the appropriate YAML file. Single Edit call per item where possible. Typed mutations only — don't rewrite whole files.
+5. **Apply the edit** to the appropriate XML file. Single Edit call per item where possible. Typed mutations only — don't rewrite whole files.
 6. **One-line confirmation** of what changed, then move to the next item *in a new turn*.
 
 ### Anti-patterns to avoid
@@ -222,11 +222,11 @@ If the user pauses mid-distillation:
 2. Record where we stopped in `lexicon/bootstrap.md`'s "Distillation status" section: how many items in each category were resolved vs. remain, plus a one-line note on the next pending item.
 3. Tell the user how to resume: re-trigger `adopt` with "continue distillation" or run `conform` later — both will read `lexicon/bootstrap.md` and pick up the unresolved items.
 
-If `adopt` is re-triggered on a project where `lexicon/system.yaml` already exists *and* `lexicon/bootstrap.md` shows distillation paused, **do not re-adopt** — jump straight to Phase 8 and resume from the recorded position, still one item at a time. This is the only legitimate case of re-running adopt on a populated project.
+If `adopt` is re-triggered on a project where `lexicon/system.xml` already exists *and* `lexicon/bootstrap.md` shows distillation paused, **do not re-adopt** — jump straight to Phase 8 and resume from the recorded position, still one item at a time. This is the only legitimate case of re-running adopt on a populated project.
 
 ## Phase 9 — Write the triage report
 
-Write `lexicon/bootstrap.md` *after* Phase 8 completes (or pauses) — it reflects the post-distillation state. The report is markdown (human-facing), not YAML. Shape:
+Write `lexicon/bootstrap.md` *after* Phase 8 completes (or pauses) — it reflects the post-distillation state. The report is markdown (human-facing), not XML. Shape:
 
 ```markdown
 # Bootstrap report
@@ -234,7 +234,7 @@ Run on: <iso timestamp>
 Distillation status: <complete | paused mid-<category>: <N> of <T> items resolved, next pending: "<one-line description>">
 
 ## What was created
-- `lexicon/system.yaml` (<N> cross-cutting entries, <C> contexts indexed)
+- `lexicon/system.xml` (<N> cross-cutting entries, <C> contexts indexed)
 - `lexicon/contexts/` with <K> context files: <list>
 - `lexicon/_pre-migrate-archive/decisions/` with <A> ADRs archived from <sources>; <L> lifted into rationale fields
 - `lexicon/surfaces/` with <S> surface files (or "no UI surfaces; backend-only")
@@ -279,7 +279,7 @@ Re-trigger `adopt` with "continue distillation" — it will read this file and p
 
 One-line chat summary, distillation-aware:
 
-> Adoption complete. <N> entities emitted across <F> YAML files; <K> ADRs archived (<L> lifted into rationale); <A> file moves applied. Triage report at `lexicon/bootstrap.md`.
+> Adoption complete. <N> entities emitted across <F> XML files; <K> ADRs archived (<L> lifted into rationale); <A> file moves applied. Triage report at `lexicon/bootstrap.md`.
 
 If distillation paused:
 
@@ -290,9 +290,9 @@ Don't dump the report content into chat. The file is the artifact; chat is the p
 ## What this subcommand is NOT
 
 - **Not a single mechanical pass.** It produces a draft *and runs the distillation interview to resolve it, one decision per conversational turn.* The interview is part of the subcommand, not homework — unless the user explicitly pauses or punts it, in which case the deferred items are recorded so a follow-up run can pick them up. Multi-decision batching is explicitly forbidden (see Phase 8).
-- **Not a periodic refresh.** For projects already on lexicon where the cold layer is drifting, that's `conform` territory. Re-running adopt on a populated `system.yaml` is only legitimate when `lexicon/bootstrap.md` shows distillation paused and the user wants to resume.
+- **Not a periodic refresh.** For projects already on lexicon where the cold layer is drifting, that's `conform` territory. Re-running adopt on a populated `system.xml` is only legitimate when `lexicon/bootstrap.md` shows distillation paused and the user wants to resume.
 - **Not a documentation generator.** It extracts and structures what's already there, then asks the user to resolve what's ambiguous. It doesn't invent content — missing entries are honest signals, not failures.
-- **Not a markdown-to-YAML converter.** A project on the v0.x markdown lexicon goes through `conform`'s structural pass first, then this subcommand is not needed (the migration produces a valid YAML cold layer).
+- **Not a format-migration shim.** A project on a pre-v1.0 lexicon (v0.x markdown or v0.1/v0.2/v0.3 YAML) goes through `conform`'s structural pass first, then this subcommand is not needed (the migration produces a valid v1.0 XML cold layer).
 
 ## On honesty about the draft
 

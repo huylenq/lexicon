@@ -4,9 +4,9 @@ Run at the start of substantive work. Reads the cold layer, declares scope in co
 
 ## Pre-flight
 
-If `lexicon/system.yaml` doesn't exist, **stop and surface**:
+If `lexicon/system.xml` doesn't exist, **stop and surface**:
 
-> This project doesn't have lexicon docs yet. Bootstrapping is a one-shot setup — it scans existing docs and code, drafts a first-cut `system.yaml`, absorbs ADR-shaped content into rationale fields, and produces a triage list. That's a different subcommand (`adopt`). Want to:
+> This project doesn't have lexicon docs yet. Bootstrapping is a one-shot setup — it scans existing docs and code, drafts a first-cut `system.xml`, absorbs ADR-shaped content into rationale fields, and produces a triage list. That's a different subcommand (`adopt`). Want to:
 > (a) run `adopt` now and come back to the original task after,
 > (b) skip lexicon for this session and not be asked again, or
 > (c) work without lexicon just for now (still ask next session)?
@@ -15,27 +15,27 @@ Don't try to bootstrap inline here — the doc-audit and code-audit phases are t
 
 If the user picks (b), drop a `.lexicon-skip` marker file at the repo root so future sessions don't re-prompt. If (c), proceed with the task ungrounded; this is a graceful fallback, not the intended flow.
 
-If `lexicon/system.yaml` declares `schemaVersion: "0.1"` or `"0.2"`, or `lexicon/system.md` exists, defer to `conform` first.
+If `lexicon/system.xml` is on a pre-v1.0 schema, or `lexicon/system.yaml`/`lexicon/system.md` exists (older formats), defer to `conform` first.
 
 ## The grounding ritual
 
-### 1. Read `lexicon/system.yaml` end to end
+### 1. Read `lexicon/system.xml` end to end
 
-Don't skim. The whole point of this layer is to be small enough to read every session. If it's grown past ~500 lines, surface that — the project may want to partition into `lexicon/contexts/<slug>.yaml` files.
+Don't skim. The whole point of this layer is to be small enough to read every session. If it's grown past ~500 lines, surface that — the project may want to partition into `lexicon/contexts/<slug>.xml` files.
 
 ### 2. Read the relevant context file(s)
 
-If `lexicon/contexts/` exists, also read the file(s) matching the bounded context of the work being done. The `contexts:` index in `system.yaml` lists the available slugs. **Don't load every context file eagerly** — that defeats the partitioning. Identify the relevant context(s) (from the task description, the files about to change, or by asking the user) and load only those. When in doubt about context, ask before guessing.
+If `lexicon/contexts/` exists, also read the file(s) matching the bounded context of the work being done. The `contexts:` index in `system.xml` lists the available slugs. **Don't load every context file eagerly** — that defeats the partitioning. Identify the relevant context(s) (from the task description, the files about to change, or by asking the user) and load only those. When in doubt about context, ask before guessing.
 
 If `lexicon/surfaces/` exists and the work touches UI, load the relevant surface file(s).
 
 ### 3. Declare scope in conversation
 
-State, in chat, what you're about to do — using vocabulary from `system.yaml` and the loaded context files. Cover:
+State, in chat, what you're about to do — using vocabulary from `system.xml` and the loaded context files. Cover:
 
 - **Task** — one paragraph, in the user's words.
-- **Bounded context** — which context from `system.yaml` this work lives in. If a per-context file exists for it (`lexicon/contexts/<slug>.yaml`), name it. If unclear, say so explicitly.
-- **Vocabulary in play** — the glossary terms (from `system.yaml` or the owning context file) you expect to use, and how they apply here. If shared kernels are in play, name them.
+- **Bounded context** — which context from `system.xml` this work lives in. If a per-context file exists for it (`lexicon/contexts/<slug>.xml`), name it. If unclear, say so explicitly.
+- **Vocabulary in play** — the glossary terms (from `system.xml` or the owning context file) you expect to use, and how they apply here. If shared kernels are in play, name them.
 - **Invariants you're depending on** — restate the relevant invariants in your own words, so misreadings surface now rather than after the diff.
 - **Files likely to change** — short list with one-line "why" each.
 - **Out of scope** — what this task is explicitly NOT doing, especially adjacent things that could tempt scope creep.
@@ -66,7 +66,7 @@ Genuinely mechanical work doesn't need full grounding:
 
 For these, briefly acknowledge ("trivial: <description>") and proceed. `retro` may still run at the end and produce a one-line log; that's fine.
 
-If you're tempted to call something "trivial" but it touches a file mentioned in `system.yaml` or a context file's `codeModules:`, it's not trivial. Run the full grounding.
+If you're tempted to call something "trivial" but it touches a file mentioned in `system.xml` or a context file's `codeModules:`, it's not trivial. Run the full grounding.
 
 ## What this subcommand is not
 
@@ -77,4 +77,4 @@ If you're tempted to call something "trivial" but it touches a file mentioned in
 
 ## On honesty about uncertainty
 
-The most useful output of this subcommand is often a flag: *"I read `system.yaml` but I'm not sure which bounded context this task lives in."* That's not a failure — that's grounding working. It surfaces ambiguity at the cheapest possible time. Resist the temptation to pick a context confidently when you're guessing.
+The most useful output of this subcommand is often a flag: *"I read `system.xml` but I'm not sure which bounded context this task lives in."* That's not a failure — that's grounding working. It surfaces ambiguity at the cheapest possible time. Resist the temptation to pick a context confidently when you're guessing.

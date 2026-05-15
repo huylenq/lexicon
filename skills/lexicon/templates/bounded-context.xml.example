@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  lexicon/contexts/<slug>.xml — one bounded context's owned vocabulary.
+  Holds: terms, invariants, seams, boundary rules, aggregates, modules
+  (Evans-sense concept clusters) owned by this context. Shared sub-models
+  across contexts live as <shared-kernel> on lexicon/system.xml.
+
+  This file shows concrete example content. Replace project-specific names,
+  slugs, and prose with your own; the structure is the spec.
+-->
+<bounded-context schema="1.0" id="inference" subdomain="core">
+  <name>Inference</name>
+
+  <purpose>
+    One paragraph: what this context is for, what it owns conceptually.
+  </purpose>
+
+  <!-- Optional: directory globs or paths in the codebase that this context
+       owns. Used by audit to verify the context-to-code mapping. -->
+  <code-modules>
+    <path>src/inference/**</path>
+  </code-modules>
+
+  <term id="finding" category="entity">
+    <name>Finding</name>
+    <definition>
+      Short definition.
+    </definition>
+    <disambiguates-from>
+      <ref to="reporting/observation"/>
+    </disambiguates-from>
+    <symbols>
+      <code-anchor file="src/inference/finding.ts" symbol="Finding"/>
+    </symbols>
+    <identity-rule>
+      Stable by (image-id, model-version, region-id).
+    </identity-rule>
+  </term>
+
+  <term id="confidence-score" category="value">
+    <name>ConfidenceScore</name>
+    <definition>
+      ...
+    </definition>
+    <equality>
+      When two instances are interchangeable.
+    </equality>
+  </term>
+
+  <term id="score-finding" category="service">
+    <name>scoreFinding</name>
+    <definition>
+      A stateless domain operation.
+    </definition>
+    <operates-on>
+      <ref to="finding"/>
+    </operates-on>
+    <returns>
+      What the operation produces.
+    </returns>
+  </term>
+
+  <term id="finding-emitted" category="event">
+    <name>FindingEmitted</name>
+    <definition>
+      A fact that happened, named in past tense.
+    </definition>
+    <emitted-when>
+      The triggering condition.
+    </emitted-when>
+    <payload>
+      What the event carries.
+    </payload>
+    <consumers>
+      <ref to="billing"/>
+    </consumers>
+  </term>
+
+  <invariant id="no-write-to-training" mode="code">
+    <name>Inference never writes to the training store</name>
+    <statement>
+      The property that must hold.
+    </statement>
+    <rationale>
+      Why it matters; what breaks if violated.
+    </rationale>
+    <constrains-code>
+      <code-anchor file="src/inference/pipeline.ts" line-start="100" line-end="140" symbol="runInference"/>
+    </constrains-code>
+  </invariant>
+
+  <seam id="inference-to-billing" kind="anticorruption-layer">
+    <name>Inference ↔ Billing</name>
+    <description>
+      A structural joint between modules or contexts. Distinct from a
+      boundary rule — a seam is structural, a rule is normative.
+    </description>
+    <rationale>
+      Why this kind, why this direction.
+    </rationale>
+    <!-- Asymmetric kinds carry upstream + downstream. Symmetric kinds
+         (shared-kernel, published-language, partnership, separate-ways)
+         carry participants instead. -->
+    <upstream><ref to="inference"/></upstream>
+    <downstream><ref to="billing"/></downstream>
+  </seam>
+
+  <boundary-rule id="no-cross-training-writes">
+    <rule>
+      A directional normative rule.
+      Example: "Inference never writes to the training store."
+    </rule>
+    <from><ref to="inference"/></from>
+    <to><ref to="training"/></to>
+    <rationale>
+      Why this rule.
+    </rationale>
+  </boundary-rule>
+
+  <aggregate id="finding-cluster">
+    <name>Finding cluster</name>
+    <root><ref to="finding"/></root>
+    <members>
+      <ref to="confidence-score"/>
+    </members>
+    <invariants>
+      <ref to="no-write-to-training"/>
+    </invariants>
+    <rationale>
+      Why this cluster, why this root.
+    </rationale>
+  </aggregate>
+
+  <!-- Evans-sense concept clusters. Use when a context has enough atoms
+       that natural subgroups are worth naming. Skip otherwise. -->
+  <module id="scoring-pipeline">
+    <name>Scoring pipeline</name>
+    <description>
+      The cohesion that holds these atoms together.
+    </description>
+    <members>
+      <ref to="finding"/>
+      <ref to="confidence-score"/>
+      <ref to="score-finding"/>
+    </members>
+  </module>
+</bounded-context>

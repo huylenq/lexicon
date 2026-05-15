@@ -19,8 +19,8 @@ If unsure whether a stopping point has been reached, lean toward running. The co
 
 Read, in this order:
 
-1. `lexicon/system.yaml` — the cold-layer root.
-2. The relevant `lexicon/contexts/*.yaml` and `lexicon/surfaces/*.yaml` — whichever the session was working in.
+1. `lexicon/system.xml` — the cold-layer root.
+2. The relevant `lexicon/contexts/*.xml` and `lexicon/surfaces/*.xml` — whichever the session was working in.
 3. The actual code diff for this session (`git diff` against the session's start point if known, otherwise summarize touched files from the conversation history).
 4. The conversation history itself — the scope declaration `ground` produced lives here, not in any file. If `ground` didn't run, note that.
 
@@ -61,7 +61,7 @@ Outcome: <silent | drift-flagged | rationale-candidate | drift+rationale>
 ### <Short label>
 - **What we observed**: <plain language. "We introduced a `ScanQueue` concept that isn't in the glossary, used it consistently across three files, and it sits between the Inference and Storage contexts.">
 - **Why it might matter**: <why this is worth surfacing to crystallize, not just letting code carry the meaning.>
-- **Suggested target(s)**: <lexicon/system.yaml and/or lexicon/contexts/<slug>.yaml>
+- **Suggested target(s)**: <lexicon/system.xml and/or lexicon/contexts/<slug>.xml>
 - **Confidence**: <low | medium | high>
 
 ## Notes for future sweeps

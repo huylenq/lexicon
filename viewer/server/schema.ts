@@ -1,246 +1,221 @@
-import { z } from "zod";
-
-// Cold-layer schema v0.3. The full spec lives in skills/lexicon/reference/schema.md
-// and the design rationale lives in skills/lexicon/reference/design.md.
+// Cold-layer schema v1.0. The normative spec lives in
+// skills/lexicon/reference/schema.md and the design rationale (for the
+// pre-v1.0 substrate the model still rests on) lives in
+// skills/lexicon/reference/design.md. The XSD documentation artifact lives
+// at skills/lexicon/reference/schema.xsd.
 //
-// v0.3 is a breaking restructure over v0.2:
-//   - drops `kind: decision` and the cross-cutting bag on system
-//   - introduces sharedKernel, aggregate, module (Evans-sense) entity kinds
-//   - typed seam.kind (8 context-map kinds + unknown)
-//   - term.category discriminator (entity | value | service | event | concept)
-//   - subdomain field on bounded-context
-//   - renames bounded-context.modules → codeModules; modules slot now holds
-//     Evans-sense concept clusters
+// v1.0 is a breaking restructure over v0.3:
+//   - File format flips from YAML to XML
+//   - Root element name carries the file kind (no `kind:` field)
+//   - Cross-refs are structural <ref to="..."/> elements everywhere; no
+//     [[fqid]] prose syntax
+//   - kebab-case element names; attributes for identity and small enums
 //
-// Files declaring "0.1" or "0.2" are recognized (the literal is in the union)
-// but the loader emits a "needs migration" issue and stops resolving. v0.3 is
-// the only fully-supported version.
+// Files declaring an older schemaVersion (YAML at "0.1"/"0.2"/"0.3", or
+// pre-v0.1 markdown) emit a single "needs migration" issue and the loader
+// stops resolving. v1.0 is the only fully-supported version.
+//
+// This file holds:
+//   - SCHEMA_VERSION constant
+//   - Typed interfaces representing the parsed shape of each file kind.
+//     The XML traversal in loader.ts builds these from xast trees.
+//   - ResolvedGraph / ResolvedEntity types — the loader's API surface,
+//     consumed by index.ts and mirrored in viewer/client/src/lib/types.ts.
+//   - Asymmetric/symmetric seam-kind sets (used by both loader and
+//     renderer).
 
-export const SCHEMA_VERSION = "0.3" as const;
-const schemaVersion = z.union([z.literal("0.1"), z.literal("0.2"), z.literal("0.3")]);
+import type { Element as XastElement } from "xast";
 
-// ---------------- shared primitives ----------------
+export const SCHEMA_VERSION = "1.0" as const;
+export type SchemaVersion = typeof SCHEMA_VERSION;
 
-const slug = z.string().regex(/^[a-z0-9][a-z0-9-]*$/, "must be kebab-case slug");
+// ---------------- primitive types ----------------
 
-const codeAnchor = z.object({
-  file: z.string(),
-  lineStart: z.number().int().positive().optional(),
-  lineEnd: z.number().int().positive().optional(),
-  symbol: z.string().optional(),
-});
-export type CodeAnchor = z.infer<typeof codeAnchor>;
+export interface CodeAnchor {
+  file: string;
+  lineStart?: number;
+  lineEnd?: number;
+  symbol?: string;
+}
 
-const fqRef = z.string(); // "context/slug" or "slug" — resolver fills in.
+export type TermCategory = "entity" | "value" | "service" | "event" | "concept";
 
-// ---------------- term ----------------
+export type SeamKind =
+  | "shared-kernel"
+  | "customer-supplier"
+  | "conformist"
+  | "anticorruption-layer"
+  | "open-host-service"
+  | "published-language"
+  | "partnership"
+  | "separate-ways"
+  | "unknown";
 
-const termCategory = z.enum(["entity", "value", "service", "event", "concept"]);
-export type TermCategory = z.infer<typeof termCategory>;
+export type SubdomainKind = "core" | "supporting" | "generic" | "overlay";
 
-const termShape = z.object({
-  id: slug,
-  name: z.string(),
-  category: termCategory.optional(), // resolver defaults to "concept"
-  definition: z.string(),
-  disambiguatesFrom: z.array(fqRef).optional(),
-  symbols: z.array(codeAnchor).optional(),
-  rationale: z.string().optional(),
-  body: z.string().optional(),
-  status: z.string().optional(),
-  // category-specific (all optional; render conditionally)
-  identityRule: z.string().optional(),       // entity
-  equality: z.string().optional(),           // value
-  operatesOn: z.array(fqRef).optional(),     // service
-  returns: z.string().optional(),            // service
-  emittedWhen: z.string().optional(),        // event
-  payload: z.string().optional(),            // event
-  consumers: z.array(fqRef).optional(),      // event
-});
+export type InvariantMode = "code" | "linter" | "principle";
 
-// ---------------- invariant ----------------
+// ---------------- parsed-file shapes ----------------
+//
+// These mirror the post-parse, pre-resolve shape the v0.3 zod schemas used
+// to produce. The XML traversal in loader.ts builds them from xast. Field
+// names stay camelCase in TypeScript-land even though the XML uses
+// kebab-case element names; the traversal handles the translation.
 
-const invariantShape = z.object({
-  id: slug,
-  name: z.string(),
-  statement: z.string(),
-  rationale: z.string().optional(),
-  validationMode: z.enum(["code", "linter", "principle"]).optional(),
-  constrainsCode: z.array(codeAnchor).optional(),
-  body: z.string().optional(),
-  status: z.string().optional(),
-});
+export interface TermShape {
+  id: string;
+  name: string;
+  category?: TermCategory;       // defaults to "concept" in the loader
+  definition: string;
+  disambiguatesFrom?: string[];  // raw fqids; resolver fills in EntityRefs
+  symbols?: CodeAnchor[];
+  rationale?: string;
+  body?: string;
+  status?: string;
+  // category-specific (all optional)
+  identityRule?: string;         // entity
+  equality?: string;             // value
+  operatesOn?: string[];         // service
+  returns?: string;              // service
+  emittedWhen?: string;          // event
+  payload?: string;              // event
+  consumers?: string[];          // event
+}
 
-// ---------------- seam ----------------
+export interface InvariantShape {
+  id: string;
+  name?: string;
+  statement: string;
+  rationale?: string;
+  validationMode?: InvariantMode;
+  constrainsCode?: CodeAnchor[];
+  body?: string;
+  status?: string;
+}
 
-const seamKind = z.enum([
-  "shared-kernel",
-  "customer-supplier",
-  "conformist",
-  "anticorruption-layer",
-  "open-host-service",
-  "published-language",
-  "partnership",
-  "separate-ways",
-  "unknown",
-]);
-export type SeamKind = z.infer<typeof seamKind>;
+export interface SeamShape {
+  id: string;
+  name: string;
+  kind?: SeamKind;
+  description: string;
+  rationale?: string;
+  upstream?: string;
+  downstream?: string;
+  participants?: string[];
+  status?: string;
+}
 
-const seamShape = z.object({
-  id: slug,
-  name: z.string(),
-  kind: seamKind.optional(), // resolver defaults to "unknown"
-  description: z.string(),
-  rationale: z.string().optional(),
-  // asymmetric kinds: customer-supplier, conformist, anticorruption-layer, open-host-service
-  upstream: fqRef.optional(),
-  downstream: fqRef.optional(),
-  // symmetric kinds: shared-kernel, published-language, partnership, separate-ways
-  participants: z.array(fqRef).optional(),
-  status: z.string().optional(),
-});
+export interface AggregateShape {
+  id: string;
+  name: string;
+  root: string;
+  members?: string[];
+  invariants?: string[];
+  rationale?: string;
+  status?: string;
+}
 
-// ---------------- aggregate ----------------
+export interface ModuleShape {
+  id: string;
+  name: string;
+  description: string;
+  members?: string[];
+  rationale?: string;
+  status?: string;
+}
 
-const aggregateShape = z.object({
-  id: slug,
-  name: z.string(),
-  root: fqRef,
-  members: z.array(fqRef).optional(),
-  invariants: z.array(fqRef).optional(),
-  rationale: z.string().optional(),
-  status: z.string().optional(),
-});
+export interface BoundaryRuleShape {
+  id: string;
+  rule: string;
+  from?: string;
+  to?: string;
+  rationale?: string;
+}
 
-// ---------------- module (Evans-sense concept cluster) ----------------
+export interface SharedKernelShape {
+  id: string;
+  name: string;
+  description?: string;
+  participatingContexts?: string[];
+  rationale?: string;
+  terms?: TermShape[];
+  invariants?: InvariantShape[];
+}
 
-const moduleShape = z.object({
-  id: slug,
-  name: z.string(),
-  description: z.string(),
-  members: z.array(fqRef).optional(),
-  rationale: z.string().optional(),
-  status: z.string().optional(),
-});
+export interface OverlayInvariantShape {
+  statement: string;
+  rationale?: string;
+}
 
-// ---------------- boundary rule ----------------
+export interface OverlayShape {
+  id: string;
+  name: string;
+  description?: string;
+  items?: string[];
+  invariants?: OverlayInvariantShape[];
+}
 
-const boundaryRuleShape = z.object({
-  id: slug,
-  rule: z.string(),
-  from: fqRef.optional(),
-  to: fqRef.optional(),
-  rationale: z.string().optional(),
-});
+export interface DeliberateOmissionShape {
+  topic: string;
+  reason: string;
+  triggers?: string[];
+  relatedAtoms?: string[];
+}
 
-// ---------------- bounded context ----------------
+export interface SystemFile {
+  kind: "system";
+  schemaVersion: SchemaVersion;
+  id: string;
+  name: string;
+  purpose?: string;
+  narrative?: string;
+  body?: string;
+  contexts?: string[];
+  sharedKernels?: SharedKernelShape[];
+  deliberateOmissions?: DeliberateOmissionShape[];
+  overlays?: OverlayShape[];
+}
 
-const subdomainKind = z.enum(["core", "supporting", "generic", "overlay"]);
-export type SubdomainKind = z.infer<typeof subdomainKind>;
+export interface BoundedContextFile {
+  kind: "bounded-context";
+  schemaVersion: SchemaVersion;
+  id: string;
+  name: string;
+  subdomain?: SubdomainKind;
+  purpose?: string;
+  narrative?: string;
+  codeModules?: string[];
+  body?: string;
+  terms?: TermShape[];
+  invariants?: InvariantShape[];
+  seams?: SeamShape[];
+  boundaryRules?: BoundaryRuleShape[];
+  aggregates?: AggregateShape[];
+  modules?: ModuleShape[];
+}
 
-const boundedContextFile = z.object({
-  schemaVersion,
-  kind: z.literal("bounded-context"),
-  id: slug,
-  name: z.string(),
-  subdomain: subdomainKind.optional(),
-  purpose: z.string().optional(),
-  narrative: z.string().optional(),
-  codeModules: z.array(z.string()).optional(), // renamed from `modules` in v0.2
-  body: z.string().optional(),
-  terms: z.array(termShape).optional(),
-  invariants: z.array(invariantShape).optional(),
-  seams: z.array(seamShape).optional(),
-  boundaryRules: z.array(boundaryRuleShape).optional(),
-  aggregates: z.array(aggregateShape).optional(),
-  modules: z.array(moduleShape).optional(), // Evans-sense; renamed-collision-free in v0.3
-});
-export type BoundedContextFile = z.infer<typeof boundedContextFile>;
+export type RegionImpl =
+  | { kind: "component"; import: string; file?: string }
+  | { kind: "inline"; file: string; lineStart: number; lineEnd: number };
 
-// ---------------- shared kernel ----------------
+export interface RegionShape {
+  id: string;
+  name: string;
+  role: string;
+  implementation: RegionImpl;
+}
 
-const sharedKernelShape = z.object({
-  id: slug,
-  name: z.string(),
-  description: z.string().optional(),
-  participatingContexts: z.array(fqRef).optional(),
-  rationale: z.string().optional(),
-  terms: z.array(termShape).optional(),
-  invariants: z.array(invariantShape).optional(),
-});
+export interface SurfaceFile {
+  kind: "surface";
+  schemaVersion: SchemaVersion;
+  id: string;
+  name: string;
+  route?: string;
+  body?: string;
+  regions?: RegionShape[];
+}
 
-// ---------------- system root ----------------
-
-const systemFile = z.object({
-  schemaVersion,
-  kind: z.literal("system"),
-  id: slug,
-  name: z.string(),
-  purpose: z.string().optional(),
-  narrative: z.string().optional(),
-  body: z.string().optional(),
-  contexts: z.array(fqRef).optional(),
-  sharedKernels: z.array(sharedKernelShape).optional(),
-  deliberateOmissions: z.array(z.object({
-    topic: z.string(),
-    reason: z.string(),
-    triggers: z.array(z.string()).optional(),
-    relatedAtoms: z.array(fqRef).optional(),
-  })).optional(),
-  overlays: z.array(z.object({
-    id: slug,
-    name: z.string(),
-    description: z.string().optional(),
-    items: z.array(z.string()).optional(),
-    invariants: z.array(z.object({
-      statement: z.string(),
-      rationale: z.string().optional(),
-    })).optional(),
-  })).optional(),
-});
-export type SystemFile = z.infer<typeof systemFile>;
-
-// ---------------- surfaces & regions ----------------
-
-const regionImpl = z.discriminatedUnion("kind", [
-  z.object({
-    kind: z.literal("component"),
-    import: z.string(),
-    file: z.string().optional(),
-  }),
-  z.object({
-    kind: z.literal("inline"),
-    file: z.string(),
-    lineStart: z.number().int().positive(),
-    lineEnd: z.number().int().positive(),
-  }),
-]);
-export type RegionImpl = z.infer<typeof regionImpl>;
-
-const surfaceFile = z.object({
-  schemaVersion,
-  kind: z.literal("surface"),
-  id: slug,
-  name: z.string(),
-  route: z.string().optional(),
-  body: z.string().optional(),
-  regions: z.array(z.object({
-    id: slug,
-    name: z.string(),
-    role: z.string(),
-    implementation: regionImpl,
-  })).optional(),
-});
-export type SurfaceFile = z.infer<typeof surfaceFile>;
-
-// ---------------- union ----------------
-
-export const lexiconFile = z.discriminatedUnion("kind", [
-  systemFile,
-  boundedContextFile,
-  surfaceFile,
-]);
-export type LexiconFile = z.infer<typeof lexiconFile>;
+export type LexiconFile = SystemFile | BoundedContextFile | SurfaceFile;
 
 // ---------------- resolved graph (post-load) ----------------
 
@@ -259,13 +234,8 @@ export type EntityKind =
 
 export interface EntityRef {
   kind: EntityKind;
-  fqid: string; // fully-qualified id, unique across the graph
+  fqid: string;
   name: string;
-}
-
-export interface OverlayInvariant {
-  statement: string;
-  rationale?: string;
 }
 
 export interface Overlay {
@@ -273,7 +243,7 @@ export interface Overlay {
   name: string;
   description?: string;
   items?: string[];
-  invariants?: OverlayInvariant[];
+  invariants?: OverlayInvariantShape[];
 }
 
 export interface DeliberateOmission {
@@ -284,19 +254,23 @@ export interface DeliberateOmission {
 }
 
 export interface SourceLocation {
-  file: string; // relative to project root
+  file: string;
   lineStart: number;
   lineEnd: number;
-  // Dot/bracket structural path inside the YAML doc — e.g. "" for the
-  // root atom, "terms[2]" for a child, "overlays[0]" for an overlay entry.
   path: string;
 }
 
 export interface ResolvedEntity {
   ref: EntityRef;
-  ownerContextId: string | null;       // bounded-context id, or null
-  ownerKernelId?: string | null;       // shared-kernel id, or null/undefined
+  ownerContextId: string | null;
+  ownerKernelId?: string | null;
   source: SourceLocation;
+
+  // Back-reference to the xast node this entity was parsed from. Optional
+  // — set during pass 1 to enable future editor-mode navigation
+  // (AST↔model) and to avoid offset arithmetic when locating spans. The
+  // viewer's read path doesn't depend on it; treat it as advisory metadata.
+  xastNode?: XastElement;
 
   // shared prose fields (rendered if present, by kind)
   definition?: string;
@@ -304,25 +278,25 @@ export interface ResolvedEntity {
   rationale?: string;
   body?: string;
   narrative?: string;
-  // Resolved + de-duped `[[fqid]]` mentions from `narrative`, in prose order.
+  // Resolved + de-duped inline refs from `narrative`, in prose order.
   narrativeRefs?: EntityRef[];
   purpose?: string;
   description?: string;
 
   // anchors (invariants & terms)
-  validationMode?: "code" | "linter" | "principle";
+  validationMode?: InvariantMode;
   symbols?: CodeAnchor[];
   constrainsCode?: CodeAnchor[];
 
   // term
   category?: TermCategory;
-  identityRule?: string;          // entity-category
-  equality?: string;              // value-category
-  operatesOn?: EntityRef[];       // service-category
-  returns?: string;               // service-category
-  emittedWhen?: string;           // event-category
-  payload?: string;               // event-category
-  consumers?: EntityRef[];        // event-category
+  identityRule?: string;
+  equality?: string;
+  operatesOn?: EntityRef[];
+  returns?: string;
+  emittedWhen?: string;
+  payload?: string;
+  consumers?: EntityRef[];
   disambiguatesFrom?: EntityRef[];
 
   // seam
@@ -344,7 +318,6 @@ export interface ResolvedEntity {
   containedKernelTerms?: EntityRef[];
   containedKernelInvariants?: EntityRef[];
 
-  // status (soft-delete on most atom kinds)
   status?: string;
 
   // surface / region
@@ -381,15 +354,12 @@ export interface LoadIssue {
 
 export interface ResolvedGraph {
   system: ResolvedEntity | null;
-  entities: Record<string, ResolvedEntity>; // keyed by fqid
-  byKind: Record<EntityKind, string[]>; // fqids
+  entities: Record<string, ResolvedEntity>;
+  byKind: Record<EntityKind, string[]>;
   issues: LoadIssue[];
   projectRoot: string;
 }
 
-// Asymmetric seam kinds expect upstream + downstream; symmetric expect
-// participants. Used by the loader for validation and the renderer for
-// direction rendering.
 export const ASYMMETRIC_SEAM_KINDS: ReadonlySet<SeamKind> = new Set([
   "customer-supplier",
   "conformist",

@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<surface schema="1.0" id="reading-room" route="/p/:projectId/*">
+  <name>Reading room</name>
+
+  <body>
+    The default view for an opened project. Three-pane shell with a top strip
+    carrying view-toggle / refresh / entity count. List-and-detail navigation:
+    pick an entity from the left catalog, read it in the center, click code
+    anchors to open Monaco peeks on the right. The "specimen" mode — beautiful
+    for reading one entity in depth.
+  </body>
+
+  <region id="top-strip">
+    <name>Top strip</name>
+    <role>
+      Cross-surface chrome: ← Lexicon back-link, project name (Fraunces, h3),
+      project root (mono, vellum-3), then right-aligned view toggle (Reading /
+      Graph), entity-count smallcap, and Refresh button.
+    </role>
+    <inline-impl file="client/src/pages/ProjectPage.tsx" line-start="78" line-end="99"/>
+  </region>
+
+  <region id="context-sidebar">
+    <name>Context sidebar</name>
+    <role>
+      Left catalog. Hierarchical: System (+ cross-cutting terms/invariants) →
+      Bounded contexts (each with terms / invariants / seams / boundary rules)
+      → Decisions → Surfaces (each with regions). Active entry gets the
+      `.active-rule` oxide rail. Surfaces drift flags (load issues) at the
+      bottom under a top rule.
+    </role>
+    <component-impl import="@/components/ContextSidebar" file="client/src/components/ContextSidebar.tsx"/>
+  </region>
+
+  <region id="entity-detail">
+    <name>Entity detail</name>
+    <role>
+      Center "specimen" column. 8-of-12-column body with smallcap kind label,
+      h1 display-tight name, fqid in mono, then kind-specific prose
+      (definition / statement+rationale / context-decision-consequences-
+      alternatives for ADRs, etc.). Right 4-of-12 marginalia rail.
+    </role>
+    <component-impl import="@/components/EntityDetail" file="client/src/components/EntityDetail.tsx"/>
+  </region>
+
+  <region id="marginalia">
+    <name>Marginalia rail</name>
+    <role>
+      4-column right rail inside the detail. Owner ref, validation mode,
+      disambiguatesFrom, affects, supersedes / superseded-by, code anchors
+      (each opens a peek), modules, source-file path. Calm; no headings,
+      just smallcap labels.
+    </role>
+    <component-impl import="@/components/Marginalia" file="client/src/components/Marginalia.tsx"/>
+  </region>
+
+  <region id="peek-drawer">
+    <name>Peek drawer</name>
+    <role>
+      Right column, shown when peeks are open. Monaco editors with
+      `lexicon-ink` theme; multiple peeks stack vertically. Drawer width
+      persists via `usePersistedWidth`. Cross-surface — shared with the graph
+      view through `PeekProvider`.
+    </role>
+    <component-impl import="@/components/PeekDrawer" file="client/src/components/PeekDrawer.tsx"/>
+  </region>
+</surface>

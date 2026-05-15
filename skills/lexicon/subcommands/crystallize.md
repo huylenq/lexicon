@@ -33,7 +33,7 @@ Read:
    - `## Structural drift` sections (real flags worth absorbing).
    - `## Notes for future sweeps` (sub-flag-threshold patterns that may have crossed the line cumulatively).
 3. **Cross-check with git.** Run `git log --since=<marker>` and `git diff <commit-at-marker>..HEAD` over the relevant code paths. Catches drift the retros missed (skipped retros, silent renames the structural checks didn't flag).
-4. **The cold layer.** `lexicon/system.yaml` plus whichever `lexicon/contexts/*.yaml` and `lexicon/surfaces/*.yaml` files the diff touches. Don't load every file — read what's relevant to the diff.
+4. **The cold layer.** `lexicon/system.xml` plus whichever `lexicon/contexts/*.xml` and `lexicon/surfaces/*.xml` files the diff touches. Don't load every file — read what's relevant to the diff.
 
 This is a bigger read than a retro. Take the time on it. **Crystallization done badly is worse than crystallization skipped** — a wrong glossary entry is harder to remove than a missing one is to add.
 
@@ -85,43 +85,51 @@ When a `rename` carries a **semantic shift** (the new name implies a different d
 > ## Crystallization proposal
 > Period: `<marker timestamp>` → now
 > Retros considered: `<N>` (`<list of timestamps or a range>`)
-> Targets: `<comma-separated list of YAML files>`
+> Targets: `<comma-separated list of XML files>`
 >
 > ### Summary
 > <2-3 sentences: what does the system do now that it didn't before, or what did we learn that wasn't captured?>
 >
 > ### Mutations
 >
-> **`lexicon/contexts/inference.yaml`**
+> **`lexicon/contexts/inference.xml`**
 > - `create` term `scan-queue`
+>   ```xml
+>   <term id="scan-queue" category="value">
+>     <name>scan queue</name>
+>     <definition>
+>       Ordered buffer holding inference jobs between intake and the worker
+>       pool. Distinct from <ref to="job-queue"/> (per-worker).
+>     </definition>
+>     <disambiguates-from><ref to="job-queue"/></disambiguates-from>
+>     <symbols>
+>       <code-anchor file="src/inference/scan_queue.ts" symbol="ScanQueue"/>
+>     </symbols>
+>   </term>
 >   ```
->   definition: ordered buffer holding inference jobs between intake and the worker pool. Distinct from job-queue (per-worker).
->   disambiguatesFrom: [inference/job-queue]
->   symbols:
->     - file: src/inference/scan_queue.ts
->       symbol: ScanQueue
->   ```
-> - `update` term `worker`, field `definition`
+> - `update` term `worker`, element `<definition>`
 >   ```diff
->   - definition: a process that pulls jobs from the queue and runs the model.
->   + definition: a worker process that pulls jobs from scan-queue and runs the model. Holds a per-worker job-queue while running.
+>   - <definition>A process that pulls jobs from the queue and runs the model.</definition>
+>   + <definition>A worker process that pulls jobs from <ref to="scan-queue"/> and runs the model. Holds a per-worker job-queue while running.</definition>
 >   ```
-> - `rename` term `inference/worker` → `inference/run-worker`  *(cascades: 3 refs in inference.yaml, 1 in billing.yaml)*
+> - `rename` term `inference/worker` → `inference/run-worker`  *(cascades: 3 refs in inference.xml, 1 in billing.xml)*
 >
-> **`lexicon/contexts/inference.yaml`** (rationale lift)
+> **`lexicon/contexts/inference.xml`** (rationale lift)
 > - `add-rationale` invariant `inference/scan-queue-bound`
->   ```
->   The bound exists because intake bursts can outpace worker throughput by 5–10x;
->   without a queue the system either drops jobs (silent failure) or backpressures
->   intake (cascading outage). 1k is small enough to flush on a worker restart and
->   large enough to absorb the observed burst pattern.
+>   ```xml
+>   <rationale>
+>     The bound exists because intake bursts can outpace worker throughput by
+>     5–10x; without a queue the system either drops jobs (silent failure) or
+>     backpressures intake (cascading outage). 1k is small enough to flush on a
+>     worker restart and large enough to absorb the observed burst pattern.
+>   </rationale>
 >   ```
 >
 > ### Confidence: <low | medium | high>
 >
 > Apply this? (yes / revise / no)
 
-Per-mutation rendering should make the *structural intent* obvious; prose diffs show *what the human cares about*. Don't dump the full YAML for every change — show only what's mutating, and let the user trust the cascade for mechanical reference updates.
+Per-mutation rendering should make the *structural intent* obvious; prose diffs show *what the human cares about*. Don't dump the full XML for every change — show only what's mutating, and let the user trust the cascade for mechanical reference updates.
 
 If the project has many context files and the mutation set spans more than half of them, that's a sign the period saw a model shift, not just incremental drift. Surface it: *"this crystallization touches <N> of <M> contexts — does the partitioning still feel right, or has the model moved?"*
 

@@ -12,6 +12,46 @@ While in 0.x, breaking project-shape changes bump the minor (0.x.0 → 0.(x+1).0
 
 ## [Unreleased]
 
+### BREAKING (v1.0.0) — YAML to XML representation flip
+
+- **Cold-layer files flip from YAML to XML.** `lexicon/system.yaml`, `lexicon/contexts/*.yaml`, and `lexicon/surfaces/*.yaml` become `system.xml`, `contexts/*.xml`, `surfaces/*.xml`. Existing projects upgrade via `/lexicon:conform`, which applies the new `skills/lexicon/migrations/v0.3-to-v1.0.md` delta. Originals are archived under `lexicon/_pre-migrate-archive/v0.3-to-v1.0/`.
+
+- **Element names are the ontological types.** `<system>`, `<bounded-context>`, `<term>`, `<invariant>`, `<seam>`, `<boundary-rule>`, `<aggregate>`, `<module>`, `<shared-kernel>`, `<surface>`, `<region>`, `<overlay>`, `<deliberate-omission>` — no `kind:` discriminator field; the element name carries it. Sub-discriminations stay as attributes (term `category=`, invariant `mode=`, seam `kind=`, context `subdomain=`).
+
+- **Cross-references are uniform `<ref to="fqid"/>` elements.** No `[[fqid]]` prose-link syntax in v1.0. Inside prose, refs are inline (mixed content); in structural slots, they sit inside semantic wrappers (`<contexts>`, `<members>`, `<participating-contexts>`, `<related-atoms>`, `<disambiguates-from>`, `<operates-on>`, `<consumers>`, `<constrains-code>` for anchors). Graph builders walk all `<ref>` nodes mechanically.
+
+- **Field renames:**
+  - `disambiguatesFrom` → `<disambiguates-from>` with `<ref/>` children.
+  - `validationMode` → `mode=` attribute on `<invariant>`.
+  - `constrainsCode` → `<constrains-code>` with `<code-anchor/>` children.
+  - `codeModules` → `<code-modules>` with `<path>` children.
+  - `lineStart` / `lineEnd` → `line-start=` / `line-end=` attributes on `<code-anchor>` and `<inline-impl>`.
+  - `participatingContexts` → `<participating-contexts>` with `<ref/>` children.
+  - `relatedAtoms` → `<related-atoms>` with `<ref/>` children.
+  - `identityRule` → `<identity-rule>` child element.
+  - `emittedWhen` → `<emitted-when>` child element.
+  - `operatesOn` → `<operates-on>` with `<ref/>` children.
+  - Region `implementation: {kind: component|inline}` discriminated union → distinct `<component-impl>` / `<inline-impl>` elements.
+  - `schemaVersion: "0.3"` field → `schema="1.0"` attribute on root element.
+
+- **Schema artifact shipped.** `skills/lexicon/reference/schema.xsd` ships as a real XSD file (the kind `xmllint` or `monaco-xml` can consume directly). v1.0 doesn't run it at load time — the viewer's TypeScript traversal is authoritative for runtime validation. The XSD exists as documentation and future-editor-mode tooling input.
+
+- **Viewer rewrite.** `viewer/server/loader.ts` rewritten on `xast-util-from-xml` + hand-rolled traversal. Removed dependencies: `yaml`, `zod`. Added: `xast-util-from-xml`, `xast-util-to-xml`. The three-pass resolver structure (register → typed refs → prose refs) is preserved. `parseLexiconFile(xast)` is now exported as a public primitive for future single-file validation paths.
+
+- **xast-aware resolved entities.** Every `ResolvedEntity` carries an optional `xastNode?: XastElement` reference back to the parsed AST. Read-only viewer doesn't depend on it; future editor mode (planned but not built) will use it for AST↔model navigation. Cheap memory cost; high future-mode leverage.
+
+- **Diagnostic collection, not throwing.** The loader's traversal collects every parse/structural diagnostic into `LoadIssue[]` rather than stopping on first error. The viewer renders the issue list alongside whatever the graph could resolve.
+
+- **Canonical serialization conventions.** Pinned in `schema.md`: 2-space indent; attribute order `id` → structural enums → semantic; short elements one-line, prose elements multi-line; entity escapes (`&lt;`, `&gt;`, `&amp;`) inside prose; single trailing newline at EOF. v1.0 templates, the migration delta's output, and any future write path emit consistent XML.
+
+- **Dogfood: viewer/lexicon migrated.** The viewer's own cold layer is now v1.0 XML (8 files, 66 entities, validated against the XSD and the runtime loader).
+
+- **Templates flipped.** `skills/lexicon/templates/*.yaml.example` removed; `*.xml.example` added as the new reference shapes for `adopt`.
+
+- **Subcommand bodies updated.** All six subcommands (`adopt`, `ground`, `retro`, `crystallize`, `conform`, `evolve`) and `SKILL.md` updated for file-extension references, schema-version detection, and v1.0 vocabulary. `conform`'s supported-deltas list gains v0.3→v1.0.
+
+- **Soft pavers for future editor mode.** Specific design choices preserve a low-friction path for the planned in-viewer editor: XSD as a real artifact (not docs prose), `xast-util-to-xml` for the write path, `parseLexiconFile` as a public primitive, `xastNode?` back-refs, diagnostic collection, canonical serialization conventions, schema-version as root attribute. Editor-mode functionality itself is **not built** — the read-only invariant in `viewer/lexicon/system.xml` stays.
+
 ### BREAKING (v0.11.0)
 
 - **Plugin reshape: seven sibling skills collapse into one `lexicon` skill with six subcommands.** Previous skills (`lex-overview`, `lex-bootstrap`, `lex-ground`, `lex-retro`, `lex-crystallize`, `lex-audit`, `lex-migrate`, `lex-meta`) are gone. The new shape:

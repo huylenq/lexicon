@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  lexicon/surfaces/<slug>.xml — one UI surface and its named regions.
+  A region earns a name when the team refers to it as a discrete piece,
+  regardless of whether it's been factored into a component file.
+  Implementation status is a sum type (<component-impl> vs <inline-impl>),
+  not a gate on naming.
+
+  This file shows concrete example content. Replace project-specific names,
+  slugs, and prose with your own; the structure is the spec.
+-->
+<surface schema="1.0" id="reading-room" route="/p/:id/read">
+  <name>Reading room</name>
+
+  <body>
+    Optional prose: what this surface is for, when it appears, who navigates
+    to it.
+  </body>
+
+  <!-- Region with an extracted component file. -->
+  <region id="sidebar">
+    <name>Sidebar</name>
+    <role>One-line description of the region's role.</role>
+    <component-impl import="@/ui/Sidebar" file="src/ui/Sidebar.tsx"/>
+  </region>
+
+  <!-- Region that's still an inline block. -->
+  <region id="header-strip">
+    <name>Header strip</name>
+    <role>One-line description.</role>
+    <inline-impl file="src/pages/compose.tsx" line-start="973" line-end="987"/>
+  </region>
+</surface>

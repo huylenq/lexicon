@@ -154,4 +154,4 @@ The whole exchange takes three or four turns because the conversation already ca
 
 `evolve` is the inverse of every other subcommand: where they take the bundle as authoritative and reshape the project, `evolve` takes the project session as authoritative and reshapes the bundle. It is the only self-evolve mechanism the bundle has; everything else (retros, crystallize, conform) evolves the *project's* cold layer, not the bundle itself.
 
-Because of that asymmetry, `evolve` doesn't write to any project file. It does not append to retros, does not update `.last-crystallized`, does not touch `lexicon/system.yaml`. Its entire output is in the lexicon bundle repo and a confirmation message in chat.
+Because of that asymmetry, `evolve` doesn't write to any project file. It does not append to retros, does not update `.last-crystallized`, does not touch `lexicon/system.xml`. Its entire output is in the lexicon bundle repo and a confirmation message in chat.

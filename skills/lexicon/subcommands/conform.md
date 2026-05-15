@@ -11,15 +11,15 @@ This subcommand replaces the previous `lex-audit` and `lex-migrate` pair. The me
 
 Run when:
 
-- The user explicitly asks: *"audit lexicon"*, *"sanity-check the docs"*, *"is the cold layer still accurate?"*, *"check for drift"*, *"conform"*, *"migrate lexicon"*, *"upgrade lexicon"*, *"upgrade to v0.3"*.
-- The user describes a schema-shape gap: *"lexicon doesn't have aggregates"*, *"system.yaml still has `crossCuttingTerms`"*, *"we don't have typed seams"*.
+- The user explicitly asks: *"audit lexicon"*, *"sanity-check the docs"*, *"is the cold layer still accurate?"*, *"check for drift"*, *"conform"*, *"migrate lexicon"*, *"upgrade lexicon"*, *"upgrade to v1.0"*.
+- The user describes a schema-shape gap: *"lexicon is still on YAML"*, *"system.xml uses old camelCase fields"*, *"we don't have structural refs yet"*.
 - A natural cadence: quarterly, after a large merge, before a planning session, before a release.
 - `ground` or `adopt` detects schema-version drift and the user agrees to address it.
-- Suspicion is high that drift has accumulated — long stretches without crystallizations, retros that flagged the same thing repeatedly without action, a `system.yaml` that hasn't changed in many merges despite obvious code evolution.
+- Suspicion is high that drift has accumulated — long stretches without crystallizations, retros that flagged the same thing repeatedly without action, a `system.xml` that hasn't changed in many merges despite obvious code evolution.
 
 Don't run when:
 
-- Neither `lexicon/system.md` nor `lexicon/system.yaml` exists — that's `adopt` territory.
+- None of `lexicon/system.md`, `lexicon/system.yaml`, or `lexicon/system.xml` exists — that's `adopt` territory.
 - The project hasn't done substantive work since the last conform (check the report timestamps). Running back-to-back rarely produces new signal.
 - The user is mid-task and just wants to ground for it — that's `ground`, much lighter weight.
 
@@ -28,20 +28,22 @@ If unsure whether to run a full conform or a targeted check, ask: *"Full conform
 ## Pre-flight
 
 1. Confirm `lexicon/` exists. If it doesn't, defer to `adopt`.
-2. If `lexicon/system.md` exists (markdown-era), the structural pass will need to convert it to YAML first. Surface to the user before doing anything destructive: *"This project is on the markdown lexicon (v0.x). Conform will convert it to v0.3 YAML in three steps (v0.x → v0.1 → v0.2 → v0.3). Recommend a `git commit` first. Proceed?"*
-3. If both `lexicon/system.md` and `lexicon/system.yaml` exist, stop and surface — the user picks canonical.
-4. If a recent `lexicon/conform.md` exists, read its tail — knowing what was flagged last time and what the user's response was changes how to weight similar flags this time.
+2. If `lexicon/system.md` exists (markdown-era v0.x), the structural pass will need to convert it through every delta to reach the latest. Surface to the user before doing anything destructive: *"This project is on the markdown lexicon (v0.x). Conform will convert it to v1.0 XML in four steps (v0.x → v0.1 → v0.2 → v0.3 → v1.0). Recommend a `git commit` first. Proceed?"*
+3. If `lexicon/system.yaml` exists (pre-v1.0 YAML era), the structural pass will run the v0.3-to-v1.0 delta (plus any earlier deltas needed to reach v0.3 first). Recommend a `git commit` first.
+4. If multiple of `lexicon/system.md`, `lexicon/system.yaml`, `lexicon/system.xml` coexist, stop and surface — the user picks canonical.
+5. If a recent `lexicon/conform.md` exists, read its tail — knowing what was flagged last time and what the user's response was changes how to weight similar flags this time.
 
 ## Detect the current schema version
 
 Walk `lexicon/` and determine:
 
-1. **`lexicon/system.yaml` exists** — read its `schemaVersion:` field. That value (`"0.1"`, `"0.2"`, `"0.3"`) is the project's current version for structural-pass purposes.
-2. **`lexicon/system.md` exists, `lexicon/system.yaml` does not** — project is on the pre-YAML markdown era. Treat as `v0.x markdown`.
-3. **Both exist** — inconsistent state. Stopped at pre-flight; user picks canonical.
-4. **Neither exists** — defer to `adopt`.
+1. **`lexicon/system.xml` exists** — read its `schema=` attribute on the root element. That value (`"1.0"`) is the project's current version for structural-pass purposes. If older XML files coexist or the attribute is missing, treat as pre-v1.0.
+2. **`lexicon/system.yaml` exists, `lexicon/system.xml` does not** — read its `schemaVersion:` field. That value (`"0.1"`, `"0.2"`, `"0.3"`) is the project's current version.
+3. **`lexicon/system.md` exists, neither YAML nor XML does** — project is on the pre-YAML markdown era. Treat as `v0.x markdown`.
+4. **Multiple coexist** — inconsistent state. Stopped at pre-flight; user picks canonical.
+5. **None exists** — defer to `adopt`.
 
-A project may have **mixed schemaVersion** across YAML files (e.g. `system.yaml: "0.2"` but some `contexts/*.yaml: "0.1"`). The loader accepts both, and the v0.1 → v0.2 delta is additive, so this is fine in practice. Treat the project's current version as the **lowest schemaVersion** among its YAML files for chain-computation purposes — that way the chain runs the v0.1 → v0.2 delta if any file is still on v0.1, and the delta's apply phases skip files that are already conformant.
+A project may have **mixed schemaVersion** across YAML files (e.g. `system.yaml: "0.2"` but some `contexts/*.yaml: "0.1"`). The pre-v1.0 loader accepted both, and the v0.1 → v0.2 delta is additive, so this is fine in practice. Treat the project's current version as the **lowest schemaVersion** among its files for chain-computation purposes — that way the chain runs the v0.1 → v0.2 delta if any file is still on v0.1, and the delta's apply phases skip files that are already conformant.
 
 ## Compute the structural chain
 
@@ -52,17 +54,19 @@ The supported deltas, in order:
 - **`migrations/v0.x-to-v0.1.md`** — pre-YAML markdown lexicon (`system.md`, `views/*.md`, `decisions/*.md`) → v0.1 YAML.
 - **`migrations/v0.1-to-v0.2.md`** — v0.1 YAML → v0.2 structural conformance (overlays, narrative, `[[fqid]]` interlinks).
 - **`migrations/v0.2-to-v0.3.md`** — v0.2 → v0.3 DDD-faithful shape (removed `decision` kind, typed `sharedKernels`, `term.category`, `seam.kind`, `aggregate`, `module`, `subdomain`, `rationale` fields).
+- **`migrations/v0.3-to-v1.0.md`** — v0.3 YAML → v1.0 XML representation flip (element names as ontology types; uniform `<ref to="fqid"/>` everywhere; canonical serialization).
 
 Chain examples:
 
-- Current = `v0.x markdown`, latest = v0.3 → chain is `[v0.x-to-v0.1, v0.1-to-v0.2, v0.2-to-v0.3]`.
-- Current = v0.1, latest = v0.3 → chain is `[v0.1-to-v0.2, v0.2-to-v0.3]`.
-- Current = v0.2, latest = v0.3 → chain is `[v0.2-to-v0.3]`.
-- Current = v0.3 (latest) → chain is `[]`. Skip directly to the semantic pass; structural section of the report reads "Up to date — no structural changes needed."
+- Current = `v0.x markdown`, latest = v1.0 → chain is `[v0.x-to-v0.1, v0.1-to-v0.2, v0.2-to-v0.3, v0.3-to-v1.0]`.
+- Current = v0.1, latest = v1.0 → chain is `[v0.1-to-v0.2, v0.2-to-v0.3, v0.3-to-v1.0]`.
+- Current = v0.2, latest = v1.0 → chain is `[v0.2-to-v0.3, v0.3-to-v1.0]`.
+- Current = v0.3, latest = v1.0 → chain is `[v0.3-to-v1.0]`.
+- Current = v1.0 (latest) → chain is `[]`. Skip directly to the semantic pass; structural section of the report reads "Up to date — no structural changes needed."
 
 Show the user the chain you computed before applying anything:
 
-> Current: v0.2 → v0.3 (latest). Structural pass will apply: `migrations/v0.2-to-v0.3.md`.
+> Current: v0.3 → v1.0 (latest). Structural pass will apply: `migrations/v0.3-to-v1.0.md`.
 > Will also run the semantic pass after.
 
 For multi-step structural chains, the user sees the full sequence and can agree once for the whole chain (typical) or step through with a yes per delta. Default to per-chain agreement unless the user signals otherwise.
@@ -102,7 +106,7 @@ Phases 1–4 below are the inversion of checks 1–4. Phases 5–7 are conform-s
 
 ### Phase B1 — Glossary validation (inverts check 1 + check 2)
 
-For each term in `system.yaml`'s glossary AND each `lexicon/contexts/*.yaml` and `lexicon/surfaces/*.yaml`:
+For each term in `system.xml`'s glossary AND each `lexicon/contexts/*.xml` and `lexicon/surfaces/*.xml`:
 
 - **Literal grep first.** Search the codebase for the term as identifier (class, type, function, constant) and as string literal.
 - **If literal grep finds nothing**, don't immediately flag. Try variants: plural, related forms (`Worker` → `WorkerPool`, `enqueueWorker`), kebab/snake/camel transformations. The concept may still be present under a slightly different surface.
@@ -122,7 +126,7 @@ For surfaces with regions, validate each region's `implementation:`:
 
 ### Phase B2 — UL ownership validation
 
-The ownership rule says every term has *exactly one* owning location — a single context file *or* a shared kernel on `system.yaml`. When this drifts, the same term gets defined twice and the definitions slowly diverge.
+The ownership rule says every term has *exactly one* owning location — a single context file *or* a shared kernel on `system.xml`. When this drifts, the same term gets defined twice and the definitions slowly diverge.
 
 For each term:
 
@@ -135,7 +139,7 @@ This is a high-value, mechanical check.
 
 ### Phase B3 — Invariant validation (inverts check 3)
 
-For each invariant in `system.yaml` and each `lexicon/contexts/*.yaml`:
+For each invariant in `system.xml` and each `lexicon/contexts/*.xml`:
 
 - Re-read the relevant code (use the invariant's `constrainsCode:` anchors if present; otherwise infer scope from wording or ask the user).
 - Honestly ask: **would this invariant still hold if I read the current code with fresh eyes?**
@@ -150,11 +154,11 @@ For each invariant in `system.yaml` and each `lexicon/contexts/*.yaml`:
 
 This is the highest-stakes semantic phase. Be conservative — flag with evidence, don't assert.
 
-For accessibility invariants in a `surfaces/*.yaml`, prefer running existing tooling (ESLint `jsx-a11y`, `axe-core`, Storybook a11y addon, Playwright a11y) over re-deriving by hand. Tooling output folds into this phase as evidence.
+For accessibility invariants in a `surfaces/*.xml`, prefer running existing tooling (ESLint `jsx-a11y`, `axe-core`, Storybook a11y addon, Playwright a11y) over re-deriving by hand. Tooling output folds into this phase as evidence.
 
 ### Phase B4 — Bounded context validation (inverts check 4)
 
-Compare the bounded contexts named in `system.yaml`'s `contexts:` index against the actual module/folder structure and import graph:
+Compare the bounded contexts named in `system.xml`'s `contexts:` index against the actual module/folder structure and import graph:
 
 - **Contexts with no clear code mapping**: flag as either renamed or dissolved.
 - **Code modules that don't fit any named context**: flag as candidate new contexts. A new top-level package or service with multiple files and a clean import boundary often means a context emerged.
@@ -171,17 +175,18 @@ Mechanical, no judgment required:
 - **Crystallization cadence**: read `lexicon/.last-crystallized`. If missing, or older than ~60 days while `lexicon/retros/` shows substantive recent activity, that's a strong signal `crystallize` is being skipped.
 - **Stale conform reports**: a previous `lexicon/conform.md` older than ~90 days with un-addressed findings (no corresponding cold-layer edits afterward).
 - **Anchor coverage**: count cold-layer entries missing their anchoring fields. These don't crash the loader, but they mean the cold layer has drifted toward "glossary" and away from "verifiable spec".
-  - Terms without `symbols:` whose `definition` mentions a file, class, function, or `code-style identifier`. Report `<count>` and list the first 10 fqids.
-  - Invariants without `constrainsCode:` or without `validationMode:`. Report `<count>` and list the first 10. An invariant with `validationMode: principle` and no `constrainsCode:` is fine; an invariant with `validationMode: code` and no anchors is a hole.
-  - Atoms with rationale-shaped slots empty: seams with `kind:` set but no `rationale:`, aggregates with no `rationale:`, invariants with `validationMode: principle` and no `rationale:`. Rationale-emptiness isn't a parse error — it's a thinking-debt indicator.
-  - Terms with `category: concept` (or absent) that have `symbols:` pointing at a real code identifier — strong signal the term is actually an entity / value / service / event and should be re-categorized.
-- **Schema-stripped fields on system.yaml**: re-parse `lexicon/system.yaml` as raw YAML and diff its top-level keys against the v0.3 canonical set: `schemaVersion, kind, id, name, purpose, narrative, body, contexts, sharedKernels, overlays, deliberateOmissions`. Anything else is invisible to the loader and should be migrated or removed. Common offenders: `crossCuttingTerms`, `crossCuttingInvariants` (the structural pass should have lifted these to `sharedKernels`); `inlineContexts`, `crossCuttingSeams`, `crossCuttingBoundaryRules`, `battery`.
-- **Schema-stripped fields on contexts/*.yaml**: diff each context file's top-level keys against `schemaVersion, kind, id, name, subdomain, purpose, narrative, codeModules, body, terms, invariants, seams, boundaryRules, aggregates, modules`. A `modules:` value that is `string[]` (rather than an array of objects) is a pre-v0.3 remnant — should have been renamed to `codeModules` by the migration.
+  - Terms without `<symbols>` whose `<definition>` mentions a file, class, function, or `code-style identifier`. Report `<count>` and list the first 10 fqids.
+  - Invariants without `<constrains-code>` or without `mode=` attribute. Report `<count>` and list the first 10. An invariant with `mode="principle"` and no `<constrains-code>` is fine; an invariant with `mode="code"` and no anchors is a hole.
+  - Atoms with rationale-shaped slots empty: seams with `kind=` set but no `<rationale>`, aggregates with no `<rationale>`, invariants with `mode="principle"` and no `<rationale>`. Rationale-emptiness isn't a parse error — it's a thinking-debt indicator.
+  - Terms with `category="concept"` (or absent) that have `<symbols>` pointing at a real code identifier — strong signal the term is actually an entity / value / service / event and should be re-categorized.
+- **Stripped elements on system.xml**: parse `lexicon/system.xml` and check the top-level element set against the v1.0 canonical children of `<system>`: `<name>`, `<purpose>`, `<narrative>`, `<body>`, `<contexts>`, `<shared-kernel>` (repeated), `<overlay>` (repeated), `<deliberate-omission>` (repeated). Anything else is invisible to the loader and should be migrated or removed.
+- **Stripped elements on contexts/*.xml**: check each context file's top-level child set against the v1.0 canonical children of `<bounded-context>`: `<name>`, `<purpose>`, `<narrative>`, `<code-modules>`, `<body>`, and the atom elements `<term>`, `<invariant>`, `<seam>`, `<boundary-rule>`, `<aggregate>`, `<module>` (each repeated). A stray `<modules>` wrapper element is a pre-v1.0 remnant — atoms sit as direct siblings in v1.0, no list wrapper.
+- **Stripped attributes**: scan for unknown attributes on each element kind against the XSD's allowed attribute set (`${CLAUDE_SKILL_DIR}/reference/schema.xsd`). Unknown attributes are silently dropped by the loader; surface them.
 - **Orphaned `decisions/` directory**: v0.3 has no `decisions/` slot. If `lexicon/decisions/` still exists, flag for cleanup — the migration was supposed to archive its contents under `_pre-migrate-archive/`.
 
 ### Phase B6 — Distillation completion check
 
-Sanity check: how many `<!-- TODO -->` markers or empty placeholder prose fields remain across `system.yaml` and `lexicon/contexts/*.yaml`?
+Sanity check: how many `<!-- TODO -->` XML comments or empty placeholder prose elements remain across `system.xml` and `lexicon/contexts/*.xml`?
 
 - **0–2 remaining (across all cold-layer files)**: healthy, post-adoption distillation happened.
 - **3–10 remaining**: surface; some sections are still placeholder content. Each one weakens the rest of the workflow.
@@ -204,7 +209,7 @@ Write `lexicon/conform.md` (overwriting any previous one — old reports archive
 # Conform report
 Run on: <iso timestamp>
 Scope: <full | targeted: structural-only | semantic-only | glossary | invariants | hygiene | …>
-Detected schema version: <vX (or "v0.x markdown" or "mixed: vX in system.yaml, vY in some context files")>
+Detected schema version: <vX (or "v0.x markdown" or "mixed: vX in system.{yaml,xml}, vY in some context files")>
 Structural chain applied: <list of deltas, or "none — already at latest">
 Time since last conform: <N days, or "first conform">
 
@@ -223,12 +228,12 @@ Time since last conform: <N days, or "first conform">
 ### Validate phase
 - <files re-parsed>: <pass | failed: <reason>>
 
-(If the chain was empty: "Already at v0.3 — no structural changes needed.")
+(If the chain was empty: "Already at v1.0 — no structural changes needed.")
 
 ## Semantic pass
 
 ### Glossary findings
-- *Healthy*: <count> entries (across system.yaml and all contexts/surfaces)
+- *Healthy*: <count> entries (across system.xml and all contexts/surfaces)
 - *Drifted name*: <Term> (defined in <file>) — appears in code as <other identifier>; rename glossary or code?
 - *Dead*: <Term> (defined in <file>) — no code presence found, even in related forms; remove from glossary?
 - *Definition mismatch* (high priority): <Term> (defined in <file>) — glossary says X, code uses as Y
@@ -250,7 +255,7 @@ Time since last conform: <N days, or "first conform">
 - ...
 
 ### Bounded context findings
-- Contexts in system.yaml with no clear code mapping: <list>
+- Contexts in system.xml with no clear code mapping: <list>
 - Code modules not fitting any named context (candidate new contexts): <list>
 - Boundaries showing leakage: <pair> — new shared imports at <files>
 - Seams still at `kind: unknown`: <count, list of fqids>
@@ -316,7 +321,7 @@ The conform report stays at `lexicon/conform.md` until the next run overwrites i
 
 ## Adding a new migration delta
 
-When the cold-layer schema bumps (v0.3 → v0.4, …), add a new file `${CLAUDE_SKILL_DIR}/migrations/v<old>-to-v<new>.md` following the structure of the existing deltas:
+When the cold-layer schema bumps (v1.0 → v1.1, …), add a new file `${CLAUDE_SKILL_DIR}/migrations/v<old>-to-v<new>.md` following the structure of the existing deltas:
 
 - A short prose preamble (what the version bump captures, why the delta exists).
 - A **pre-flight checks** section for delta-specific guards.

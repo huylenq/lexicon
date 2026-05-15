@@ -1,16 +1,18 @@
 # Lexicon cold-layer schema
 
-This file is the **normative specification** of the cold-layer YAML schema. The `lexicon` SKILL.md and every subcommand that touches the cold layer references it; read it when you're emitting, mutating, or validating cold-layer YAML.
+This file is the **normative specification** of the cold-layer XML schema. The `lexicon` SKILL.md and every subcommand that touches the cold layer references it; read it when you're emitting, mutating, or validating cold-layer XML.
 
 When the schema bumps, this is one of the two source-of-truth surfaces that must update (the other is the viewer's executable schema at `viewer/server/schema.ts`). A new migration delta under `${CLAUDE_SKILL_DIR}/migrations/v<old>-to-v<new>.md` is also required so existing projects can upgrade — see `CLAUDE.md` at the repo root for the full schema-bump checklist.
 
+A hand-authored XSD lives alongside this file at `${CLAUDE_SKILL_DIR}/reference/schema.xsd`. It is a real schema artifact (the kind `xmllint` or `monaco-xml` can consume directly), but v1.0 does not run it at load time — the TypeScript traversal in the viewer's loader is authoritative for runtime validation. The XSD mirrors this spec for the parts it can express (element containment, attribute requirements, simple ID/IDREF cross-refs); semantic rules that XSD can't express (e.g., "an aggregate's invariants must reference fields owned by entities in the aggregate") live in the TypeScript traversal only.
+
 ## Current version
 
-The current cold-layer schema is **v0.3**. Every YAML file declares `schemaVersion: "0.3"` at the top.
+The current cold-layer schema is **v1.0**. Every XML file declares `schema="1.0"` as an attribute on its root element.
 
-> **Loader compatibility:** v0.3 is breaking. Files declaring `"0.1"` or `"0.2"` are recognized by the loader, which emits a single `LoadIssue` per file pointing at the `conform` subcommand. The loader does **not** attempt partial resolution. Projects on older schemas (including pre-v0.1 markdown) are brought forward by `conform`'s structural pass; per-version transitions are documented in `${CLAUDE_SKILL_DIR}/migrations/v<old>-to-v<new>.md`, not here. **This file is the current spec only; historical deltas belong in migration files.**
+> **Loader compatibility:** v1.0 is breaking. v0.3 YAML files are recognized by the loader, which emits a single `LoadIssue` per file pointing at the `conform` subcommand. The loader does **not** attempt partial resolution. Projects on older schemas (including pre-v1.0 YAML and pre-v0.1 markdown) are brought forward by `conform`'s structural pass; per-version transitions are documented in `${CLAUDE_SKILL_DIR}/migrations/v<old>-to-v<new>.md`, not here. **This file is the current spec only; historical deltas belong in migration files.**
 
-The full design rationale for the v0.2 → v0.3 bump (what changed and why, what was deliberately not added, what was deferred) lives in `${CLAUDE_SKILL_DIR}/reference/design.md`.
+The full design rationale for the YAML → XML representation flip in v1.0 (what changed and why, what was deliberately not added, what was deferred) lives in the repo-root `CLAUDE.md` and the migration delta. The pre-v1.0 design rationale (Evans-faithfulness, term categories, seam kinds, aggregates, shared kernels) is preserved in `${CLAUDE_SKILL_DIR}/reference/design.md`.
 
 ## Conceptual model (DDD vocabulary)
 
@@ -21,218 +23,304 @@ The schema is a faithful encoding of Eric Evans' Domain-Driven Design building b
 
 Everything else follows Evans: ubiquitous language inside bounded contexts; entities, value objects, services, and domain events as term categories; aggregates with roots; shared kernels for inter-context coordination; the eight context-map relationship kinds as the seam `kind` enum; subdomains classified as core / supporting / generic, plus an `overlay` tier for installation-specific contexts that don't fit Evans' three (a lexicon extension to handle platform-vs-installation overlays).
 
-### Notes on selected fields
+## XML format conventions
 
-A few fields warrant authoring guidance the entity shapes alone don't convey:
+The v1.0 representation makes the ontology structural. Internalize these conventions before authoring or mutating files.
 
-- **`narrative`** (on `system`, `bounded-context`) — multi-paragraph prose that carries the throughline *above* the atom layout: lifecycle, disambiguation argument, how a request moves through this context. Typically 3–5 paragraphs. Atoms keep their crisp definitions; narrative is the layer above them. A project that doesn't need narrative (single-context CLI tool, ~10 atoms total) leaves the field absent — it's optional everywhere.
-- **`rationale`** (on `invariant`, `term`, `seam`, `aggregate`, `module`, `shared-kernel`, `boundary-rule`) — the **argument that justifies the model choice**, not a description of the choice. An invariant whose statement says "X must hold" and whose rationale repeats "because X must hold" carries no signal — rewrite or delete. Historical narrative ("we picked this in March because of a deadline") belongs in a development journal, which this schema deliberately does not have; rationale captures the timeless argument, not the chronology.
-- **`overlays`** (on `system`) — first-class slot for the platform-vs-installation overlay (a platform is domain-agnostic, but this particular installation adds a medical / legal / retail set of components, resources, and invariants). One overlay = `{id, name, description?, items?, invariants?}`. Backend-only / single-installation projects leave the field empty, same as `surfaces/`.
-- **`deliberateOmissions[].triggers`, `.relatedAtoms`** — `triggers: [<string>]` says "revisit when X happens"; `relatedAtoms: [<fqRef>]` points at the atoms the omission gestures at (e.g. a `term/macro` whose only purpose is to mark the absent-but-named concept). Both optional.
-- **`[[fqid]]` inline links** — valid in any prose-bearing field. Form: `[[fqid]]` or `[[fqid|display label]]`. The fqid resolves with the same fallback chain as structured refs (owner-scoped first, then common shorthands, then qualified split). Dangling links surface as warning `LoadIssue`s — same severity as a dangling `disambiguatesFrom`. **Authoring rule:** when prose in a narrative or rationale names another atom, use `[[fqid]]` so the link graph stays machine-traversable. Reserve plain backticks for code identifiers, not entity references.
+### Element name is the ontological type
 
-### Shared rules
+Element names *are* the kind discriminator. No separate `kind` field. Root element identifies the file:
+
+- `<system>` — the cold-layer root.
+- `<bounded-context>` — one bounded context.
+- `<surface>` — one UI surface.
+
+Atom elements identify the entity kind: `<term>`, `<invariant>`, `<seam>`, `<boundary-rule>`, `<aggregate>`, `<module>`, `<shared-kernel>`, `<region>`. Container elements identify structure: `<overlay>`, `<deliberate-omission>`. Anchor elements identify code links: `<code-anchor>`.
+
+Sub-discriminations that the v1.0 schema keeps as attributes (not as element names): term `category`, invariant `mode`, seam `kind`, subdomain classification. These are enum-typed attributes on their owning element. Promoting them to element types is a future-version concern.
+
+### Attributes for identity and small enums; children for substance
+
+Attributes carry: `id` (slug, required on identifiable atoms), `schema` (root only, "1.0"), enum-typed discriminators (`category`, `kind`, `mode`), structural attributes on anchors (`file`, `line-start`, `line-end`, `symbol`, `import`), reference targets (`to`, `ref`).
+
+Children carry: prose (`<purpose>`, `<narrative>`, `<definition>`, `<statement>`, `<rationale>`, `<role>`, `<description>`, `<identity-rule>`, `<equality>`, `<returns>`, `<emitted-when>`, `<payload>`, `<reason>`, `<topic>`, `<trigger>`, `<name>`), structural slots (`<contexts>`, `<members>`, `<participants>`, …), and other atoms.
+
+### Cross-references are uniform `<ref to="fqid"/>` elements
+
+Every reference uses the same element shape: `<ref to="<fqid>"/>`. Self-closing. The `to` attribute carries the fqid; the wrapping context (either a structural slot like `<participating-contexts>` or an inline position inside prose) supplies the semantic interpretation.
+
+Inside prose (mixed content):
+```xml
+<definition>
+  A stable identifier, see <ref to="kernel/viewer-vocabulary/peek"/> for
+  the related drawer concept.
+</definition>
+```
+
+Inside a structural slot:
+```xml
+<participating-contexts>
+  <ref to="lexicon-loading"/>
+  <ref to="project-registry"/>
+</participating-contexts>
+```
+
+The graph builder walks all `<ref>` nodes mechanically. The fqid syntax is unchanged from v0.3 — slugs, `kernel/<kernel-slug>/<term-slug>`, `<context-slug>/invariant/<slug>`, etc. The resolver's owner-scoped fallback chain still applies, so a bare `<ref to="foo"/>` inside a context resolves to that context's `foo` atom without qualification.
+
+There is no `[[fqid]]` syntax in v1.0. Refs are structural everywhere.
+
+### Wrappers only when grouping is semantic
+
+Wrappers like `<contexts>`, `<participating-contexts>`, `<members>` exist because the list is a typed slot (the wrapper says "what kind of refs go here"). But `<term>` and `<invariant>` sit as direct siblings inside `<shared-kernel>` or `<bounded-context>` — no `<terms>` or `<invariants>` wrapper, because the element name disambiguates and the wrapper adds no ontology.
+
+The exception: `<symbols>` wraps a list of `<code-anchor>` elements. The wrapper is retained for parser symmetry with v0.3 and because "this term's set of code anchors" is a meaningful grouping.
+
+### Soft-delete via `status` attribute
+
+`status="deprecated"` on `<term>`, `<invariant>`, `<seam>`, `<aggregate>`, `<module>`, `<shared-kernel>` is the soft-delete. Hard delete is allowed when the entity was mistakenly created; git is the audit trail.
+
+## Canonical serialization conventions
+
+The v1.0 templates, the migration delta's output, and any future write path (editor mode) all emit XML conforming to these rules. Reading code is permissive (xast accepts anything well-formed); writing code is strict.
+
+- **Indent: 2 spaces.** No tabs.
+- **One trailing newline at EOF.** No trailing whitespace on any line.
+- **Attribute order on each element:** `id` first; then schema/structural attributes (`schema`, `category`, `kind`, `mode`, `status`, `subdomain`, `route`); then semantic attributes (`file`, `line-start`, `line-end`, `symbol`, `import`, `to`, `ref`); then `name=` last when present as an attribute (rare — most atoms carry `<name>` as a child).
+- **Short elements on one line.** An element with no children (or a single self-closing child) and short attributes fits on one line: `<code-anchor file="src/foo.ts" symbol="bar"/>`, `<ref to="context/slug"/>`.
+- **Prose-content elements multi-line.** `<definition>`, `<rationale>`, `<purpose>`, `<narrative>`, `<statement>`, `<role>`, `<description>`, `<identity-rule>`, `<equality>`, `<returns>`, `<emitted-when>`, `<payload>`, `<reason>`, `<topic>`, `<trigger>` always render with content indented and the closing tag on its own line, even when content is short — preserves diff clarity.
+- **Inline `<ref/>` in prose stays inline.** No line breaks around inline refs within a prose-content element; the surrounding text flows.
+- **Entity escapes for `<`, `>`, `&`** inside prose content (`&lt;`, `&gt;`, `&amp;`). Use sparingly — prose rarely needs literal angle brackets. CDATA sections are accepted by the parser but conventions discourage them for readability.
+
+## Shared rules
 
 - **IDs are slugs** (`^[a-z0-9][a-z0-9-]*$`). Scoped within their owner (bounded context, shared kernel, or surface); a slug must be unique within its owner file. Across owners the canonical form is `<owner-slug>/<entity-slug>` (fully qualified). Kernel-owned atoms use `kernel/<kernel-slug>/<entity-slug>` for **terms** and `kernel/<kernel-slug>/invariant/<invariant-slug>` for **invariants** — the explicit `invariant/` segment matters and is a common source of dangling-ref bugs when authoring prose by hand. Use the resolver's owner-scoped fallback (a bare sibling slug inside a kernel resolves to the same kernel) to keep cross-references short.
-- **Names are display strings**, mutable. Rename by changing `name`; never change the slug to "fix" a name — that breaks references. If the slug genuinely no longer fits, that's a deliberate `crystallize` operation (rename → cascade).
-- **Refs** in fields like `disambiguatesFrom`, `participants`, `relatedAtoms`, `members`, `consumers` may be written as a short slug when unambiguous in context, or as `<owner-slug>/<entity-slug>` when qualification is needed. Resolvers try both.
-- **Prose-bearing fields** (`definition`, `statement`, `rationale`, `body`, `purpose`, `narrative`, `role`, `description`, `identityRule`, `equality`, `returns`, `emittedWhen`, `payload`, the `reason` on a deliberate omission, the `description` on an overlay) carry the human voice. The schema names the slot; it doesn't constrain the content. Multi-line YAML literals (`|` or `>`) are normal. Any prose field may carry `[[fqid]]` interlinks.
-- **`status: deprecated`** is the soft-delete on terms / invariants / seams / aggregates / modules / shared-kernels. Hard delete is allowed when the entity is mistakenly created; git is the audit trail.
+- **Names are display strings**, mutable. The `<name>` element carries the display string for an atom. Rename by changing `<name>`; never change the `id` attribute to "fix" a name — that breaks references. If the slug genuinely no longer fits, that's a deliberate `crystallize` operation (rename → cascade).
+- **Refs** are uniformly `<ref to="<fqid>"/>`. The `to` attribute may be a bare slug when unambiguous in context, or a fully-qualified fqid when qualification is needed. Resolvers try both.
+- **Prose-bearing elements** (`<definition>`, `<statement>`, `<rationale>`, `<purpose>`, `<narrative>`, `<role>`, `<description>`, `<identity-rule>`, `<equality>`, `<returns>`, `<emitted-when>`, `<payload>`, `<reason>`, `<topic>`, `<trigger>`) carry the human voice. The schema names the slot; it doesn't constrain the content. Mixed content (text interleaved with `<ref/>` elements) is the norm.
 
-### File kinds
+## File kinds
 
-| `kind:` | File location | Aggregate |
+| Root element | File location | Aggregate |
 |---|---|---|
-| `system` | `lexicon/system.yaml` | Root; contexts index, shared kernels, overlays, deliberate omissions |
-| `bounded-context` | `lexicon/contexts/<slug>.yaml` | One context; its owned terms, invariants, seams, boundary rules, aggregates, modules |
-| `surface` | `lexicon/surfaces/<slug>.yaml` | One UI surface; its regions |
+| `<system>` | `lexicon/system.xml` | Root; contexts index, shared kernels, overlays, deliberate omissions |
+| `<bounded-context>` | `lexicon/contexts/<slug>.xml` | One context; its owned terms, invariants, seams, boundary rules, aggregates, modules |
+| `<surface>` | `lexicon/surfaces/<slug>.xml` | One UI surface; its regions |
 
-The `lexicon/decisions/` directory is not part of v0.3. ADR-shaped content is captured as `rationale` on the atoms the argument touches; historical-decision capture is deferred to a future skill.
+The `lexicon/decisions/` directory is not part of v1.0 (and was not part of v0.3). ADR-shaped content is captured as `<rationale>` on the atoms the argument touches; historical-decision capture is deferred to a future skill.
 
-### Entity shapes (annotated)
+## Entity shapes (annotated)
 
-```yaml
-# system.yaml
-schemaVersion: "0.3"
-kind: system
-id: <project-slug>
-name: <Project name>
-purpose: |
-  One paragraph: what this system does, for whom. Stays as a teaser even
-  when `narrative` is present.
-narrative: |                    # optional — the throughline
-  Multi-paragraph prose tying the contexts and shared kernels into a story.
-  Use `[[fqid]]` interlinks: `[[context/foo]]`, `[[kernel/identity]]`,
-  `[[kernel/identity/user-id]]`.
-contexts:                       # list of <context-slug>s (or context/<slug>)
-  - <slug>
-sharedKernels:                  # named shared sub-models across ≥2 contexts
-  - id: <slug>
-    name: <Display>
-    description: |
+### `system.xml`
+
+```xml
+<system schema="1.0" id="<project-slug>">
+  <name><Project name></name>
+
+  <purpose>
+    One paragraph: what this system does, for whom. Stays as a teaser even
+    when narrative is present.
+  </purpose>
+
+  <narrative>
+    Multi-paragraph prose tying the contexts and shared kernels into a
+    story. Inline refs flow inside prose: <ref to="context/foo"/>,
+    <ref to="kernel/identity"/>, <ref to="kernel/identity/user-id"/>.
+  </narrative>
+
+  <contexts>
+    <ref to="<context-slug>"/>
+  </contexts>
+
+  <!-- Named shared sub-models across ≥2 contexts. -->
+  <shared-kernel id="<kernel-slug>">
+    <name><Display></name>
+    <description>
       What this kernel covers; what swapping it out would change.
-    participatingContexts:
-      - <context-ref>
-    rationale: |
+    </description>
+    <participating-contexts>
+      <ref to="<context-slug>"/>
+    </participating-contexts>
+    <rationale>
       Why these contexts share this model rather than each owning their
       own or routing through an ACL.
-    terms:                      # see term shape below; category-aware
-      - id: <slug>
-        name: <Display>
-        category: value         # entity | value | service | event | concept
-        definition: |
-          ...
-        # category-specific fields optional; see term shape
-    invariants:                 # see invariant shape below
-      - id: <slug>
-        name: <Display>
-        statement: |
-          ...
-        rationale: |
-          ...
-overlays:                       # optional — installation-specific tier
-  - id: <slug>                  # e.g. medical-battery, retail-battery
-    name: <Display>
-    description: |              # may carry [[fqid]] interlinks
-      Why this overlay exists; what swapping it out would and wouldn't change.
-    items:                      # optional free-form bulleted list
-      - <string>
-    invariants:                 # optional, scoped to this overlay
-      - statement: |
-          ...
-        rationale: |
-          ...
-deliberateOmissions:
-  - topic: <Short>
-    reason: |
-      Why this is omitted, with optional [[fqid]] interlinks.
-    triggers:                   # optional — what would prompt a revisit
-      - <Short, concrete signal>
-    relatedAtoms:               # optional — atoms this gestures at
-      - <fqRef>
+    </rationale>
+
+    <term id="<slug>" category="value">
+      <name><Display></name>
+      <definition>...</definition>
+      <equality>When two instances are interchangeable.</equality>
+    </term>
+
+    <invariant id="<slug>" mode="principle">
+      <name><Display></name>
+      <statement>...</statement>
+      <rationale>...</rationale>
+    </invariant>
+  </shared-kernel>
+
+  <!-- Optional: installation-specific tier (lexicon's overlay extension). -->
+  <overlay id="<slug>">
+    <name><Display></name>
+    <description>
+      Why this overlay exists; what swapping it out would change.
+      Inline refs welcome: <ref to="..."/>.
+    </description>
+    <items>
+      <item>Free-form bulleted entry</item>
+    </items>
+    <invariant>
+      <statement>...</statement>
+      <rationale>...</rationale>
+    </invariant>
+  </overlay>
+
+  <deliberate-omission>
+    <topic><Short></topic>
+    <reason>
+      Why this is omitted, with inline <ref to="..."/> as needed.
+    </reason>
+    <trigger><Short, concrete signal></trigger>
+    <related-atoms>
+      <ref to="<fqid>"/>
+    </related-atoms>
+  </deliberate-omission>
+</system>
 ```
 
-```yaml
-# contexts/<slug>.yaml
-schemaVersion: "0.3"
-kind: bounded-context
-id: <slug>                      # must match filename slug
-name: <Display>
-subdomain: core                 # optional: core | supporting | generic | overlay
-purpose: |
-  One-paragraph framing — stays as a teaser even when `narrative` is present.
-narrative: |                    # optional — the local lifecycle / flow
-  Multi-paragraph prose walking the context's atoms in story order. Use
-  `[[fqid]]` interlinks; owner-scoped lookups resolve sibling slugs without
-  qualification — `[[seam/foo]]` finds the seam in this same context.
-codeModules:                    # optional: code globs/paths this context owns
-  - src/<module>/**
-terms:
-  - id: <slug>
-    name: <Display>
-    category: entity            # entity | value | service | event | concept
-    definition: |
-      ...
-    disambiguatesFrom: [<ref>, ...]
-    symbols:                    # optional code anchors
-      - file: <repo-relative path>
-        lineStart: <int>        # optional
-        lineEnd: <int>          # optional
-        symbol: <human label>   # optional
-    rationale: |                # optional — why this term is in the model
-      ...
-    # category-specific fields (all optional; render conditionally)
-    identityRule: |             # entity only
-      What gives an instance its stable identity.
-    equality: |                 # value only
-      When two instances are interchangeable.
-    operatesOn: [<term-ref>, ...]  # service only
-    returns: |                  # service only
-      ...
-    emittedWhen: |              # event only
-      The triggering condition.
-    payload: |                  # event only
-      What the event carries.
-    consumers: [<ref>, ...]     # event only — contexts or service-terms that react
-invariants:
-  - id: <slug>
-    name: <Display>
-    statement: |
-      ...
-    rationale: |
-      ...
-    validationMode: code|linter|principle
-    constrainsCode: [<anchor>, ...]
-aggregates:                     # optional — transactional-consistency clusters
-  - id: <slug>
-    name: <Display>
-    root: <term-ref>            # must be an entity-category term
-    members: [<term-ref>, ...]  # entity + value terms inside the boundary
-    invariants: [<invariant-ref>, ...]  # the transactional invariants
-    rationale: |
-      Why this cluster, why this root.
-modules:                        # optional — Evans-sense concept clusters
-  - id: <slug>
-    name: <Display>
-    description: |
-      ...
-    members: [<ref>, ...]       # terms, invariants, aggregates in this cluster
-    rationale: |
-      Why this grouping — what cohesion holds these atoms together.
-seams:
-  - id: <slug>
-    name: <Display>
-    kind: anticorruption-layer  # see seam kind enum below
-    description: |
-      ...
-    rationale: |                # optional — why this kind, why this direction
-      ...
-    # asymmetric kinds (customer-supplier, conformist, anticorruption-layer,
-    # open-host-service) carry upstream + downstream:
-    upstream: <context-ref>
-    downstream: <context-ref>
-    # symmetric kinds (shared-kernel, published-language, partnership,
-    # separate-ways) carry participants instead:
-    participants: [<context-ref>, ...]
-boundaryRules:
-  - id: <slug>
-    rule: |
-      <Plain-language directional rule>
-    from: <context-ref>
-    to: <context-ref>
-    rationale: |                # optional — why this rule
-      ...
+### `contexts/<slug>.xml`
+
+```xml
+<bounded-context schema="1.0" id="<slug>" subdomain="core">
+  <name><Display></name>
+
+  <purpose>
+    One-paragraph framing — stays as a teaser even when narrative is
+    present.
+  </purpose>
+
+  <narrative>
+    Multi-paragraph prose walking the context's atoms in story order.
+    Owner-scoped lookups resolve sibling slugs without qualification — a
+    bare <ref to="foo"/> inside this context finds this context's foo.
+  </narrative>
+
+  <!-- Optional: code globs/paths this context owns. -->
+  <code-modules>
+    <path>src/<module>/**</path>
+  </code-modules>
+
+  <term id="<slug>" category="entity">
+    <name><Display></name>
+    <definition>...</definition>
+    <disambiguates-from>
+      <ref to="<ref>"/>
+    </disambiguates-from>
+    <symbols>
+      <code-anchor file="<repo-relative path>" line-start="<int>" line-end="<int>" symbol="<human label>"/>
+    </symbols>
+    <rationale>Optional — why this term is in the model.</rationale>
+    <!-- Category-specific elements; all optional, render conditionally. -->
+    <identity-rule>What gives an instance its stable identity. (entity only)</identity-rule>
+    <equality>When two instances are interchangeable. (value only)</equality>
+    <operates-on><ref to="<term-ref>"/></operates-on>          <!-- service only -->
+    <returns>...</returns>                                       <!-- service only -->
+    <emitted-when>The triggering condition.</emitted-when>       <!-- event only -->
+    <payload>What the event carries.</payload>                   <!-- event only -->
+    <consumers><ref to="<ref>"/></consumers>                     <!-- event only -->
+  </term>
+
+  <invariant id="<slug>" mode="code">
+    <name><Display></name>
+    <statement>...</statement>
+    <rationale>...</rationale>
+    <constrains-code>
+      <code-anchor file="<path>" line-start="<int>" line-end="<int>" symbol="<label>"/>
+    </constrains-code>
+  </invariant>
+
+  <!-- Optional: transactional-consistency clusters. -->
+  <aggregate id="<slug>">
+    <name><Display></name>
+    <root><ref to="<term-ref>"/></root>           <!-- must point at entity-category term -->
+    <members>
+      <ref to="<term-ref>"/>                       <!-- entity + value terms only -->
+    </members>
+    <invariants>
+      <ref to="<invariant-ref>"/>
+    </invariants>
+    <rationale>Why this cluster, why this root.</rationale>
+  </aggregate>
+
+  <!-- Optional: Evans-sense concept clusters. -->
+  <module id="<slug>">
+    <name><Display></name>
+    <description>...</description>
+    <members>
+      <ref to="<ref>"/>
+    </members>
+    <rationale>Why this grouping — what cohesion holds these atoms together.</rationale>
+  </module>
+
+  <seam id="<slug>" kind="anticorruption-layer">
+    <name><Display></name>
+    <description>...</description>
+    <rationale>Why this kind, why this direction.</rationale>
+    <!-- Asymmetric kinds carry upstream + downstream: -->
+    <upstream><ref to="<context-ref>"/></upstream>
+    <downstream><ref to="<context-ref>"/></downstream>
+    <!-- Symmetric kinds carry participants instead: -->
+    <!--
+    <participants>
+      <ref to="<context-ref>"/>
+    </participants>
+    -->
+  </seam>
+
+  <boundary-rule id="<slug>">
+    <rule>Plain-language directional rule.</rule>
+    <from><ref to="<context-ref>"/></from>
+    <to><ref to="<context-ref>"/></to>
+    <rationale>Why this rule.</rationale>
+  </boundary-rule>
+</bounded-context>
 ```
 
-```yaml
-# surfaces/<slug>.yaml
-schemaVersion: "0.3"
-kind: surface
-id: <slug>
-name: <Display>
-route: <route-or-screen-id>     # optional
-body: |
-  ...
-regions:
-  - id: <slug>
-    name: <Display>
-    role: |
-      One-line description.
-    implementation:
-      kind: component             # OR kind: inline
-      import: "@/ui/Sidebar"      # when kind: component
-      file: <repo-relative path>  # required when kind: inline
-      lineStart: <int>            # required when kind: inline
-      lineEnd: <int>              # required when kind: inline
+### `surfaces/<slug>.xml`
+
+```xml
+<surface schema="1.0" id="<slug>" route="<route-or-screen-id>">
+  <name><Display></name>
+
+  <body>
+    Optional prose: what this surface is for, when it appears, who
+    navigates to it.
+  </body>
+
+  <region id="<slug>">
+    <name><Display></name>
+    <role>One-line description.</role>
+    <!-- Implementation variant: extracted component. -->
+    <component-impl import="@/ui/Sidebar" file="src/ui/Sidebar.tsx"/>
+  </region>
+
+  <region id="<other-slug>">
+    <name><Display></name>
+    <role>One-line description.</role>
+    <!-- Implementation variant: inline block. -->
+    <inline-impl file="src/pages/compose.tsx" line-start="973" line-end="987"/>
+  </region>
+</surface>
 ```
 
-### Seam kind enum
+The two implementation variants are distinct element types (`<component-impl>` vs `<inline-impl>`), not an `<implementation>` wrapper with a `kind` attribute — this is one place where the element-name-as-ontology rule pays off cleanly. A region carries exactly one of the two.
 
-The eight Evans context-map relationships, plus `unknown` for un-triaged seams:
+## Seam kind enum
+
+The eight Evans context-map relationships, plus `unknown` for un-triaged seams. Carried as the `kind` attribute on `<seam>`:
 
 | `kind` | Direction | Meaning |
 |---|---|---|
-| `shared-kernel` | symmetric | References a `shared-kernel` entity; both sides maintain a shared sub-model in lockstep |
+| `shared-kernel` | symmetric | References a `<shared-kernel>` entity; both sides maintain a shared sub-model in lockstep |
 | `customer-supplier` | asymmetric | Upstream commits to downstream's needs; coordinated planning |
 | `conformist` | asymmetric | Downstream takes upstream's model as-is, no translation |
 | `anticorruption-layer` | asymmetric | Downstream translates upstream's model at the boundary to protect its own |
@@ -242,42 +330,45 @@ The eight Evans context-map relationships, plus `unknown` for un-triaged seams:
 | `separate-ways` | symmetric | Explicit non-integration; the contexts deliberately ignore each other |
 | `unknown` | either | Default for un-triaged seams; surfaced by loader as a warning |
 
-For asymmetric kinds the loader expects `upstream` and `downstream`. For symmetric kinds it expects `participants`. For `unknown` either shape is accepted.
+For asymmetric kinds the loader expects `<upstream>` and `<downstream>` children. For symmetric kinds it expects `<participants>`. For `unknown` either shape is accepted.
 
-The canonical examples ship at `${CLAUDE_SKILL_DIR}/templates/*.yaml.example`. Examples are reference shapes; the spec above is normative.
+Canonical examples ship at `${CLAUDE_SKILL_DIR}/templates/*.xml.example`. Examples are reference shapes; the spec above is normative.
 
 ## Anchoring discipline
 
-The schema's optional fields (`symbols`, `constrainsCode`, `validationMode`, `disambiguatesFrom`, `rationale`) are *optional in the parser, expected in practice*. Skipping them turns the cold layer into a glossary divorced from the code — a doc that ages without the project, the exact failure mode lexicon is built to prevent.
+The schema's optional elements (`<symbols>`, `<constrains-code>`, the `mode` attribute, `<disambiguates-from>`, `<rationale>`) are *optional in the parser, expected in practice*. Skipping them turns the cold layer into a glossary divorced from the code — a doc that ages without the project, the exact failure mode lexicon is built to prevent.
 
-Treat the fields as defaults-to-fill, not nice-to-haves:
+Treat the elements as defaults-to-fill, not nice-to-haves:
 
-- **`symbols` on a term** — every term that maps to a code identifier gets at least one anchor. The anchor is what makes the term verifiable: a reader (human or agent) can jump from the glossary to the implementation and check whether they still align. A term about a class or function with no `symbols` is a smell — either the term is purely conceptual (category=concept, no code analog) or the anchor is missing.
-- **`constrainsCode` + `validationMode` on an invariant** — if the invariant is enforceable by code or linter, list the call sites/files and set `validationMode: code` or `linter`. If it's a judgment call only humans uphold, set `validationMode: principle` and document it as such. Empty `validationMode` is the worst of both worlds: the reader can't tell whether to look for tooling or to trust the team.
-- **`rationale` on the atoms that carry it** — without rationale, a seam kind is a label without an argument; an aggregate is a cluster without a justification; a shared kernel is "stuff we share" without "why we share it." Rationale is what makes the model defensible. Missing rationale isn't a parse error; it's a thinking debt.
-- **`disambiguatesFrom` on a term** — whenever two terms collide (same word, different meanings; same shape, different scope), record the pair. The graph view renders these as visible edges, and the reader sees the distinction before they conflate the concepts.
+- **`<symbols>` on a term** — every term that maps to a code identifier gets at least one `<code-anchor>`. The anchor is what makes the term verifiable: a reader (human or agent) can jump from the glossary to the implementation and check whether they still align. A term about a class or function with no `<symbols>` is a smell — either the term is purely conceptual (`category="concept"`, no code analog) or the anchor is missing.
+- **`<constrains-code>` + `mode="code"|"linter"` on an invariant** — if the invariant is enforceable by code or linter, list the call sites/files and set `mode="code"` or `mode="linter"`. If it's a judgment call only humans uphold, set `mode="principle"` and document it as such. An empty `mode` is the worst of both worlds: the reader can't tell whether to look for tooling or to trust the team.
+- **`<rationale>` on the atoms that carry it** — without rationale, a seam kind is a label without an argument; an aggregate is a cluster without a justification; a shared kernel is "stuff we share" without "why we share it." Rationale is what makes the model defensible. Missing rationale isn't a parse error; it's a thinking debt.
+- **`<disambiguates-from>` on a term** — whenever two terms collide (same word, different meanings; same shape, different scope), record the pair. The graph view renders these as visible edges, and the reader sees the distinction before they conflate the concepts.
 
 ### Term category discipline
 
-Every term has a `category`. Defaulting to `concept` is fine for purely scaffolding vocabulary, but for a term that maps to actual code, picking the right category matters:
+Every term has a `category` attribute. Defaulting to `concept` is fine for purely scaffolding vocabulary, but for a term that maps to actual code, picking the right category matters:
 
-- **`entity`** — the thing has stable identity that survives attribute changes. A `Customer` with a renamed email is still the same customer. Carry `identityRule` to record what gives that identity.
-- **`value`** — interchangeable by attributes. Two `Money` instances with the same `(amount, currency)` are the same money. Carry `equality` to state the equality semantics.
-- **`service`** — a stateless operation acting on entities and values. Domain services only; application/infrastructure services are code-organization concerns and don't earn a model slot. Carry `operatesOn` and `returns`.
-- **`event`** — a fact that happened at a point in time, named in past tense (`OrderPlaced`, `PaymentSettled`). Carry `emittedWhen`, `payload`, and (if known) `consumers`.
+- **`entity`** — the thing has stable identity that survives attribute changes. A `Customer` with a renamed email is still the same customer. Carry `<identity-rule>` to record what gives that identity.
+- **`value`** — interchangeable by attributes. Two `Money` instances with the same `(amount, currency)` are the same money. Carry `<equality>` to state the equality semantics.
+- **`service`** — a stateless operation acting on entities and values. Domain services only; application/infrastructure services are code-organization concerns and don't earn a model slot. Carry `<operates-on>` and `<returns>`.
+- **`event`** — a fact that happened at a point in time, named in past tense (`OrderPlaced`, `PaymentSettled`). Carry `<emitted-when>`, `<payload>`, and (if known) `<consumers>`.
 - **`concept`** — scaffolding vocabulary: workflow names, design phases, lexicon-internal terms. No code analog expected.
 
-`conform`'s hygiene sweep checks for a smell: if ≥80% of terms in a project are `category: concept` after migration, the schema's gain is being left on the table — surface the list and invite recategorization.
+`conform`'s hygiene sweep checks for a smell: if ≥80% of terms in a project are `category="concept"` after migration, the schema's gain is being left on the table — surface the list and invite recategorization.
 
 ### Names with code identifiers
 
-A `name` field may contain backtick-wrapped runs to mark code-identifier substrings, markdown-style. Examples:
+A `<name>` element may contain backtick-wrapped runs to mark code-identifier substrings, markdown-style. Examples:
 
-```yaml
-- id: cn-helper
-  name: "`cn(...)`"
-- id: theme-inline
-  name: "`@theme inline` ⇄ raw tokens"
+```xml
+<term id="cn-helper" category="service">
+  <name>`cn(...)`</name>
+</term>
+
+<term id="theme-inline" category="concept">
+  <name>`@theme inline` ⇄ raw tokens</name>
+</term>
 ```
 
 The viewer renders backtick-wrapped runs in monospace, so the visual distinction between "an English phrase about code" and "a code identifier verbatim" survives into the UI. Use backticks deliberately when the name *is* (or contains) a code symbol; don't sprinkle them for emphasis.

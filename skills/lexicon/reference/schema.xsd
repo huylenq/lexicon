@@ -1,0 +1,381 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Lexicon cold-layer schema v1.0
+  Hand-authored to mirror skills/lexicon/reference/schema.md.
+
+  Status: documentation-grade artifact. v1.0 does not run this at load
+  time (the viewer's TypeScript traversal at viewer/server/loader.ts is
+  authoritative). Ships for future editor-mode tooling (monaco-xml,
+  xmllint) to consume as a static asset.
+
+  XSD expresses what it can: element containment, attribute requirements,
+  enum-typed attributes, simple ID/IDREF cross-refs. Semantic rules that
+  XSD can't express (e.g., "an aggregate's invariants must reference
+  fields owned by entities in the aggregate," fqid resolution against the
+  project graph) live in the TypeScript traversal only.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+
+  <!-- ====================================================================
+       Shared simple types
+       ==================================================================== -->
+
+  <xs:simpleType name="schemaVersion">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="1.0"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="slug">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[a-z0-9][a-z0-9-]*"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="fqid">
+    <!-- Either a bare slug or a slash-qualified path. Resolver applies
+         the owner-scoped fallback chain. -->
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[a-z0-9][a-z0-9/_-]*"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="termCategory">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="entity"/>
+      <xs:enumeration value="value"/>
+      <xs:enumeration value="service"/>
+      <xs:enumeration value="event"/>
+      <xs:enumeration value="concept"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="invariantMode">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="code"/>
+      <xs:enumeration value="linter"/>
+      <xs:enumeration value="principle"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="seamKind">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="shared-kernel"/>
+      <xs:enumeration value="customer-supplier"/>
+      <xs:enumeration value="conformist"/>
+      <xs:enumeration value="anticorruption-layer"/>
+      <xs:enumeration value="open-host-service"/>
+      <xs:enumeration value="published-language"/>
+      <xs:enumeration value="partnership"/>
+      <xs:enumeration value="separate-ways"/>
+      <xs:enumeration value="unknown"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="subdomainKind">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="core"/>
+      <xs:enumeration value="supporting"/>
+      <xs:enumeration value="generic"/>
+      <xs:enumeration value="overlay"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="statusKind">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="active"/>
+      <xs:enumeration value="deprecated"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- ====================================================================
+       Reference and anchor primitives
+       ==================================================================== -->
+
+  <xs:complexType name="Ref">
+    <xs:attribute name="to" type="fqid" use="required"/>
+  </xs:complexType>
+
+  <xs:complexType name="CodeAnchor">
+    <xs:attribute name="file" type="xs:string" use="required"/>
+    <xs:attribute name="line-start" type="xs:int" use="optional"/>
+    <xs:attribute name="line-end" type="xs:int" use="optional"/>
+    <xs:attribute name="symbol" type="xs:string" use="optional"/>
+  </xs:complexType>
+
+  <!-- Mixed-content prose: text interleaved with inline <ref/> elements. -->
+  <xs:complexType name="Prose" mixed="true">
+    <xs:sequence>
+      <xs:element name="ref" type="Ref" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- A list of <ref/> children. -->
+  <xs:complexType name="RefList">
+    <xs:sequence>
+      <xs:element name="ref" type="Ref" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- A list of <code-anchor/> children. -->
+  <xs:complexType name="AnchorList">
+    <xs:sequence>
+      <xs:element name="code-anchor" type="CodeAnchor" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- ====================================================================
+       Atom: <term>
+       ==================================================================== -->
+
+  <xs:complexType name="Term">
+    <xs:all>
+      <xs:element name="name" type="xs:string"/>
+      <xs:element name="definition" type="Prose"/>
+      <xs:element name="disambiguates-from" type="RefList" minOccurs="0"/>
+      <xs:element name="symbols" type="AnchorList" minOccurs="0"/>
+      <xs:element name="rationale" type="Prose" minOccurs="0"/>
+      <!-- Category-specific (all optional). -->
+      <xs:element name="identity-rule" type="Prose" minOccurs="0"/>
+      <xs:element name="equality" type="Prose" minOccurs="0"/>
+      <xs:element name="operates-on" type="RefList" minOccurs="0"/>
+      <xs:element name="returns" type="Prose" minOccurs="0"/>
+      <xs:element name="emitted-when" type="Prose" minOccurs="0"/>
+      <xs:element name="payload" type="Prose" minOccurs="0"/>
+      <xs:element name="consumers" type="RefList" minOccurs="0"/>
+    </xs:all>
+    <xs:attribute name="id" type="slug" use="required"/>
+    <xs:attribute name="category" type="termCategory" use="required"/>
+    <xs:attribute name="status" type="statusKind" default="active"/>
+  </xs:complexType>
+
+  <!-- ====================================================================
+       Atom: <invariant>
+       ==================================================================== -->
+
+  <xs:complexType name="Invariant">
+    <xs:all>
+      <xs:element name="name" type="xs:string" minOccurs="0"/>
+      <xs:element name="statement" type="Prose"/>
+      <xs:element name="rationale" type="Prose" minOccurs="0"/>
+      <xs:element name="constrains-code" type="AnchorList" minOccurs="0"/>
+    </xs:all>
+    <xs:attribute name="id" type="slug" use="optional"/>
+    <xs:attribute name="mode" type="invariantMode" use="optional"/>
+    <xs:attribute name="status" type="statusKind" default="active"/>
+  </xs:complexType>
+
+  <!-- ====================================================================
+       Atom: <seam>
+       ==================================================================== -->
+
+  <xs:complexType name="Seam">
+    <xs:all>
+      <xs:element name="name" type="xs:string"/>
+      <xs:element name="description" type="Prose"/>
+      <xs:element name="rationale" type="Prose" minOccurs="0"/>
+      <!-- Asymmetric kinds use upstream/downstream; symmetric use participants. -->
+      <xs:element name="upstream" type="RefList" minOccurs="0"/>
+      <xs:element name="downstream" type="RefList" minOccurs="0"/>
+      <xs:element name="participants" type="RefList" minOccurs="0"/>
+    </xs:all>
+    <xs:attribute name="id" type="slug" use="required"/>
+    <xs:attribute name="kind" type="seamKind" use="required"/>
+    <xs:attribute name="status" type="statusKind" default="active"/>
+  </xs:complexType>
+
+  <!-- ====================================================================
+       Atom: <boundary-rule>
+       ==================================================================== -->
+
+  <xs:complexType name="BoundaryRule">
+    <xs:all>
+      <xs:element name="rule" type="Prose"/>
+      <xs:element name="from" type="RefList"/>
+      <xs:element name="to" type="RefList"/>
+      <xs:element name="rationale" type="Prose" minOccurs="0"/>
+    </xs:all>
+    <xs:attribute name="id" type="slug" use="required"/>
+  </xs:complexType>
+
+  <!-- ====================================================================
+       Atom: <aggregate>
+       ==================================================================== -->
+
+  <xs:complexType name="Aggregate">
+    <xs:all>
+      <xs:element name="name" type="xs:string"/>
+      <xs:element name="root" type="RefList"/>
+      <xs:element name="members" type="RefList"/>
+      <xs:element name="invariants" type="RefList" minOccurs="0"/>
+      <xs:element name="rationale" type="Prose" minOccurs="0"/>
+    </xs:all>
+    <xs:attribute name="id" type="slug" use="required"/>
+    <xs:attribute name="status" type="statusKind" default="active"/>
+  </xs:complexType>
+
+  <!-- ====================================================================
+       Atom: <module>  (Evans-sense concept cluster)
+       ==================================================================== -->
+
+  <xs:complexType name="Module">
+    <xs:all>
+      <xs:element name="name" type="xs:string"/>
+      <xs:element name="description" type="Prose"/>
+      <xs:element name="members" type="RefList"/>
+      <xs:element name="rationale" type="Prose" minOccurs="0"/>
+    </xs:all>
+    <xs:attribute name="id" type="slug" use="required"/>
+    <xs:attribute name="status" type="statusKind" default="active"/>
+  </xs:complexType>
+
+  <!-- ====================================================================
+       Atom: <shared-kernel>
+       ==================================================================== -->
+
+  <xs:complexType name="SharedKernel">
+    <xs:sequence>
+      <xs:element name="name" type="xs:string"/>
+      <xs:element name="description" type="Prose"/>
+      <xs:element name="participating-contexts" type="RefList"/>
+      <xs:element name="rationale" type="Prose" minOccurs="0"/>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:element name="term" type="Term"/>
+        <xs:element name="invariant" type="Invariant"/>
+      </xs:choice>
+    </xs:sequence>
+    <xs:attribute name="id" type="slug" use="required"/>
+    <xs:attribute name="status" type="statusKind" default="active"/>
+  </xs:complexType>
+
+  <!-- ====================================================================
+       Container: <overlay>
+       ==================================================================== -->
+
+  <xs:complexType name="Overlay">
+    <xs:sequence>
+      <xs:element name="name" type="xs:string"/>
+      <xs:element name="description" type="Prose"/>
+      <xs:element name="items" minOccurs="0">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="item" type="xs:string" minOccurs="0" maxOccurs="unbounded"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="invariant" type="Invariant" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:attribute name="id" type="slug" use="required"/>
+  </xs:complexType>
+
+  <!-- ====================================================================
+       Container: <deliberate-omission>
+       ==================================================================== -->
+
+  <xs:complexType name="DeliberateOmission">
+    <xs:sequence>
+      <xs:element name="topic" type="xs:string"/>
+      <xs:element name="reason" type="Prose"/>
+      <xs:element name="trigger" type="xs:string" minOccurs="0" maxOccurs="unbounded"/>
+      <xs:element name="related-atoms" type="RefList" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- ====================================================================
+       Atom: <region> (surface child)
+       ==================================================================== -->
+
+  <xs:complexType name="ComponentImpl">
+    <xs:attribute name="import" type="xs:string" use="required"/>
+    <xs:attribute name="file" type="xs:string" use="optional"/>
+  </xs:complexType>
+
+  <xs:complexType name="InlineImpl">
+    <xs:attribute name="file" type="xs:string" use="required"/>
+    <xs:attribute name="line-start" type="xs:int" use="required"/>
+    <xs:attribute name="line-end" type="xs:int" use="required"/>
+  </xs:complexType>
+
+  <xs:complexType name="Region">
+    <xs:sequence>
+      <xs:element name="name" type="xs:string"/>
+      <xs:element name="role" type="Prose"/>
+      <xs:choice>
+        <xs:element name="component-impl" type="ComponentImpl"/>
+        <xs:element name="inline-impl" type="InlineImpl"/>
+      </xs:choice>
+    </xs:sequence>
+    <xs:attribute name="id" type="slug" use="required"/>
+  </xs:complexType>
+
+  <!-- ====================================================================
+       Root: <system>
+       ==================================================================== -->
+
+  <xs:element name="system">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="name" type="xs:string"/>
+        <xs:element name="purpose" type="Prose"/>
+        <xs:element name="narrative" type="Prose" minOccurs="0"/>
+        <xs:element name="contexts" type="RefList" minOccurs="0"/>
+        <xs:element name="shared-kernel" type="SharedKernel" minOccurs="0" maxOccurs="unbounded"/>
+        <xs:element name="overlay" type="Overlay" minOccurs="0" maxOccurs="unbounded"/>
+        <xs:element name="deliberate-omission" type="DeliberateOmission" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+      <xs:attribute name="schema" type="schemaVersion" use="required"/>
+      <xs:attribute name="id" type="slug" use="required"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- ====================================================================
+       Root: <bounded-context>
+       ==================================================================== -->
+
+  <xs:element name="bounded-context">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="name" type="xs:string"/>
+        <xs:element name="purpose" type="Prose"/>
+        <xs:element name="narrative" type="Prose" minOccurs="0"/>
+        <xs:element name="code-modules" minOccurs="0">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="path" type="xs:string" minOccurs="0" maxOccurs="unbounded"/>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+        <!-- Atoms in any order, any count. -->
+        <xs:choice minOccurs="0" maxOccurs="unbounded">
+          <xs:element name="term" type="Term"/>
+          <xs:element name="invariant" type="Invariant"/>
+          <xs:element name="seam" type="Seam"/>
+          <xs:element name="boundary-rule" type="BoundaryRule"/>
+          <xs:element name="aggregate" type="Aggregate"/>
+          <xs:element name="module" type="Module"/>
+        </xs:choice>
+      </xs:sequence>
+      <xs:attribute name="schema" type="schemaVersion" use="required"/>
+      <xs:attribute name="id" type="slug" use="required"/>
+      <xs:attribute name="subdomain" type="subdomainKind" use="optional"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- ====================================================================
+       Root: <surface>
+       ==================================================================== -->
+
+  <xs:element name="surface">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="name" type="xs:string"/>
+        <xs:element name="body" type="Prose" minOccurs="0"/>
+        <xs:element name="region" type="Region" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+      <xs:attribute name="schema" type="schemaVersion" use="required"/>
+      <xs:attribute name="id" type="slug" use="required"/>
+      <xs:attribute name="route" type="xs:string" use="optional"/>
+    </xs:complexType>
+  </xs:element>
+
+</xs:schema>

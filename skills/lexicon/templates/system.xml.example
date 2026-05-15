@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  lexicon/system.xml — the cold-layer root file.
+  Holds: shared kernels (named cross-context coordination), contexts index,
+  overlays, deliberate omissions. Per-context entries live in
+  lexicon/contexts/<slug>.xml. Soft ceiling: ~500 lines.
+
+  This file shows concrete example content. Replace project-specific names,
+  slugs, and prose with your own; the structure is the spec.
+-->
+<system schema="1.0" id="my-project">
+  <name>My Project</name>
+
+  <purpose>
+    One paragraph: what this system does, for whom.
+  </purpose>
+
+  <!-- Index of bounded contexts. Each slug matches a file under
+       lexicon/contexts/<slug>.xml when the context owns ≥3 entries; small
+       contexts may be index-only. -->
+  <contexts>
+    <ref to="inference"/>
+    <ref to="billing"/>
+  </contexts>
+
+  <!-- Named shared sub-models across ≥2 contexts that the contexts
+       deliberately coordinate on (not just happen to use). -->
+  <shared-kernel id="identity">
+    <name>Identity kernel</name>
+    <description>
+      What this kernel covers; what coordination it demands across the
+      participating contexts.
+    </description>
+    <participating-contexts>
+      <ref to="inference"/>
+      <ref to="billing"/>
+    </participating-contexts>
+    <rationale>
+      Why these contexts share this model rather than each owning their own
+      or routing through an anticorruption layer.
+    </rationale>
+
+    <term id="user-id" category="value">
+      <name>UserId</name>
+      <definition>
+        A short definition. Honest about what the term means; honest about
+        what it does not mean.
+      </definition>
+      <equality>
+        When two instances are interchangeable.
+      </equality>
+    </term>
+
+    <invariant id="user-id-immutable" mode="principle">
+      <name>UserId is immutable</name>
+      <statement>
+        The property that must hold across the kernel.
+      </statement>
+      <rationale>
+        Why it matters; what breaks when it's violated.
+      </rationale>
+    </invariant>
+  </shared-kernel>
+
+  <!-- Topics deliberately not in the model, with reasons. Anti-content:
+       marks the boundary by naming what's intentionally outside. -->
+  <deliberate-omission>
+    <topic>Short topic line</topic>
+    <reason>
+      Why this is intentionally not specified.
+    </reason>
+  </deliberate-omission>
+</system>

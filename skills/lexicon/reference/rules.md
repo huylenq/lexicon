@@ -1,12 +1,12 @@
 # Rules of engagement
 
-Applies whenever a project has `lexicon/system.yaml`. The terse version lives in `SKILL.md`'s "Standing rules"; this file covers the edge cases.
+Applies whenever a project has `lexicon/system.xml`. The terse version lives in `SKILL.md`'s "Standing rules"; this file covers the edge cases.
 
-## 1. Read `system.yaml` first (and relevant context files)
+## 1. Read `system.xml` first (and relevant context files)
 
-Before substantive work, read `system.yaml` end to end. It's small by design — under ~500 lines. If it's longer, surface to the user as a sign the cold doc is rotting (or that the project has outgrown one file and should partition into `contexts/<slug>.yaml`).
+Before substantive work, read `system.xml` end to end. It's small by design — under ~500 lines. If it's longer, surface to the user as a sign the cold doc is rotting (or that the project has outgrown one file and should partition into `contexts/<slug>.xml`).
 
-If `lexicon/contexts/` exists, also read the context file(s) matching the bounded context of the work being done. `system.yaml`'s `contexts` index lists the available slugs. Loading every context file eagerly defeats the partitioning — load only what's relevant. When in doubt, ask the user which context the work is in.
+If `lexicon/contexts/` exists, also read the context file(s) matching the bounded context of the work being done. `system.xml`'s `<contexts>` index lists the available slugs. Loading every context file eagerly defeats the partitioning — load only what's relevant. When in doubt, ask the user which context the work is in.
 
 If `lexicon/surfaces/` exists and the work touches UI, load the relevant surface file(s) too.
 
@@ -14,11 +14,11 @@ If `lexicon/surfaces/` exists and the work touches UI, load the relevant surface
 
 For any task that isn't strictly mechanical (typo fixes in comments, dependency version bumps with no API change, log-message wording tweaks, local-variable renames), run the `ground` subcommand before writing or modifying code. Skipping grounding is the most common source of silent drift.
 
-If you're tempted to call something "trivial" but it touches a file mentioned in `system.yaml` or a context file, it's not trivial — run the full grounding.
+If you're tempted to call something "trivial" but it touches a file mentioned in `system.xml` or a context file, it's not trivial — run the full grounding.
 
 ## 3. Surface contradictions
 
-If the cold-layer YAML contradicts the code or the user's request, **stop and surface it before proceeding**. Don't quietly work around it. Don't hallucinate that the doc is right.
+If the cold-layer XML contradicts the code or the user's request, **stop and surface it before proceeding**. Don't quietly work around it. Don't hallucinate that the doc is right.
 
 The same applies during `crystallize`: if the existing cold layer contains entries that look mutually inconsistent (a term defined two different ways across contexts, an aggregate's `members:` pointing at a deleted term, a seam whose `upstream`/`downstream` refer to nonexistent contexts), surface it before proposing the new mutation set. Don't smooth it over silently.
 
@@ -40,9 +40,9 @@ If you suspect drift has accumulated (many retros since the last `.last-crystall
 
 ## 6. Cold-layer edits go through `crystallize`
 
-Don't edit `lexicon/system.yaml`, `lexicon/contexts/*.yaml`, or `lexicon/surfaces/*.yaml` as a drive-by side effect of unrelated work. Cold-layer changes are deliberate: propose the typed mutations in conversation, get explicit approval, then apply. `crystallize` is the subcommand that does this; outside of it, leave the cold layer alone.
+Don't edit `lexicon/system.xml`, `lexicon/contexts/*.xml`, or `lexicon/surfaces/*.xml` as a drive-by side effect of unrelated work. Cold-layer changes are deliberate: propose the typed mutations in conversation, get explicit approval, then apply. `crystallize` is the subcommand that does this; outside of it, leave the cold layer alone.
 
-Direct edits ARE fine when the user explicitly asks for them — *"fix this typo in system.yaml"*, *"add `ScanQueue` to the glossary now"*. The rule is against silent drive-by edits, not against deliberate small ones. A one-line edit the user asked for doesn't need the full `crystallize` ritual.
+Direct edits ARE fine when the user explicitly asks for them — *"fix this typo in system.xml"*, *"add `ScanQueue` to the glossary now"*. The rule is against silent drive-by edits, not against deliberate small ones. A one-line edit the user asked for doesn't need the full `crystallize` ritual.
 
 This applies to the design-system files too. Adding "just one more shade of blue" to the token list, or naming a new component inline, is a cold-layer edit — route through `crystallize` like any other vocabulary addition.
 
@@ -62,7 +62,7 @@ Cross-project overrides (the role the old `lexicon-prefs.md` played) are not mai
 
 If a project has no `lexicon/` folder, surface once near the start of substantive work: *"This project doesn't have lexicon docs. Want to run `adopt`?"* — and respect a "no" by not asking again that session. Use a `.lexicon-skip` marker file at the repo root if the user wants the skip to persist across sessions.
 
-If a project's `lexicon/` declares an older `schemaVersion:` (`"0.1"` or `"0.2"`) or has `lexicon/system.md` (markdown-era v0.x), surface once: *"This project is on lexicon schema vX; v0.3 is current. Want to run `conform` first?"* Respect a "no"; the operational subcommands won't run cleanly until structural migration happens, and the viewer (if used) will refuse to render the project.
+If a project's `lexicon/` is on an older schema (v0.3 YAML, v0.2 YAML, v0.1 YAML, or pre-v0.1 markdown `lexicon/system.md`), surface once: *"This project is on lexicon schema vX; v1.0 is current. Want to run `conform` first?"* Respect a "no"; the operational subcommands won't run cleanly until structural migration happens, and the viewer (if used) will refuse to render the project.
 
 The workflow is opt-in per project. Small scripts, throwaway prototypes, and exploratory notebooks usually don't benefit.
 

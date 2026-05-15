@@ -4,9 +4,9 @@ This file is for a future Claude Code session opening this repo to work on lexic
 
 If you're an agent reading this: read it before proposing changes to the skill description, subcommand bodies, reference files, or plugin structure. The current shape is the result of several rounds of pushback on plausible-but-wrong defaults; understanding *why* those defaults were rejected matters more than the surface decisions.
 
-Lexicon-the-plugin is not a domain codebase, so the cold-doc shape (`lexicon/system.yaml` + bounded contexts + invariants) doesn't apply at the repo root — the artifact being maintained here is a coherent skill body with shared reference material, not a running system with executable invariants. This file plays the role `system.yaml` would play for a coding project: capturing the design rationale that's hard to recover from the skill files alone.
+Lexicon-the-plugin is not a domain codebase, so the cold-doc shape (`lexicon/system.xml` + bounded contexts + invariants) doesn't apply at the repo root — the artifact being maintained here is a coherent skill body with shared reference material, not a running system with executable invariants. This file plays the role `system.xml` would play for a coding project: capturing the design rationale that's hard to recover from the skill files alone.
 
-The `viewer/` subproject is different. It's an actual app (a local web app for browsing cold layers) with its own domain, and it carries its own `viewer/lexicon/` cold layer, bootstrapped via `/lexicon:adopt` on that subdirectory. When working inside `viewer/`, the normal lexicon workflow applies: `/lexicon:ground` reads `viewer/lexicon/system.yaml`, retros land in `viewer/lexicon/retros/`, crystallize updates the viewer's cold layer. This file (at the repo root) governs the plugin; `viewer/lexicon/` governs the viewer app.
+The `viewer/` subproject is different. It's an actual app (a local web app for browsing cold layers) with its own domain, and it carries its own `viewer/lexicon/` cold layer, bootstrapped via `/lexicon:adopt` on that subdirectory. When working inside `viewer/`, the normal lexicon workflow applies: `/lexicon:ground` reads `viewer/lexicon/system.xml`, retros land in `viewer/lexicon/retros/`, crystallize updates the viewer's cold layer. This file (at the repo root) governs the plugin; `viewer/lexicon/` governs the viewer app.
 
 ---
 
@@ -20,7 +20,7 @@ Working with a coding agent over long sessions, the same problems repeat:
 
 Lexicon's bet: **a small, living document captures the invariant parts of the system** (vocabulary, bounded contexts, "why"s), and a workflow forces both human and agent to ground in it before work and update it deliberately when learning happens.
 
-The DDD heritage matters. The single most load-bearing element is **ubiquitous language** — the same nouns appear in `system.yaml`, in conversation, and in code. Everything else (invariants, contexts, rationale) rests on having the words right.
+The DDD heritage matters. The single most load-bearing element is **ubiquitous language** — the same nouns appear in `system.xml`, in conversation, and in code. Everything else (invariants, contexts, rationale) rests on having the words right.
 
 ---
 
@@ -28,7 +28,7 @@ The DDD heritage matters. The single most load-bearing element is **ubiquitous l
 
 This vocabulary recurs throughout the design. Internalize it before changing things.
 
-- **Cold layer** — `lexicon/system.yaml` plus optional `contexts/<slug>.yaml` and `surfaces/<slug>.yaml`. Glossary, invariants, bounded contexts, "why"s. Evolves at the speed of *learning*, not the speed of typing. Small (under ~500 lines per file). Edits go through `/lexicon:crystallize`: propose in conversation, get the user's yes, apply.
+- **Cold layer** — `lexicon/system.xml` plus optional `contexts/<slug>.xml` and `surfaces/<slug>.xml`. Glossary, invariants, bounded contexts, "why"s. Evolves at the speed of *learning*, not the speed of typing. Small (under ~500 lines per file). Edits go through `/lexicon:crystallize`: propose in conversation, get the user's yes, apply.
 - **Hot layer** — per-feature plans in `lexicon/plans/<feature>/`. Born when work starts, absorbed (crystallized) or discarded when work lands.
 - **Code** — the executable spec. Evolves freely.
 
@@ -36,7 +36,7 @@ Two temperatures of session artifacts, distinguished by who reads them:
 
 | Temperature | Where | When read | Volume |
 |---|---|---|---|
-| Cold | `system.yaml`, `contexts/`, `surfaces/` | Every session start | Small, slow-growing |
+| Cold | `system.xml`, `contexts/`, `surfaces/` | Every session start | Small, slow-growing |
 | Cool | `retros/` | Aggregated by `crystallize` when the user triggers it; otherwise unread | High volume |
 
 The cool tier exists deliberately. It's there to **make the question get asked** ("did anything material happen this session?") without demanding human attention. Don't be tempted to delete or downsize it — its uselessness in any single session *is* its value, and `crystallize` reads it when the user runs it.
@@ -55,12 +55,12 @@ skills/
   lexicon/                         ← the only skill
     SKILL.md                        ← entry, dispatch on $subcommand, standing rules
     reference/                      ← single source of truth, read on demand
-      schema.md  checks.md  rules.md  design.md
+      schema.md  schema.xsd  checks.md  rules.md  design.md
     subcommands/                    ← lifecycle bodies, loaded by dispatch
       adopt.md  ground.md  retro.md  crystallize.md  conform.md  evolve.md
     migrations/                     ← per-version deltas, used by conform's structural pass
-      v0.x-to-v0.1.md  v0.1-to-v0.2.md  v0.2-to-v0.3.md
-    templates/                      ← YAML examples for adopt
+      v0.x-to-v0.1.md  v0.1-to-v0.2.md  v0.2-to-v0.3.md  v0.3-to-v1.0.md
+    templates/                      ← XML examples for adopt
     validators/                     ← future deterministic schema validators (empty for now)
 ```
 
@@ -82,11 +82,11 @@ Resolution: pull the specification into `skills/lexicon/reference/` as real file
 
 ### Cost 2: Description budget vs. coherent description
 
-The seven descriptions were internally-bookkeeping language ("Defines the shared rules, the cold-layer YAML schema, and the structural checks the other skills depend on"). For an agent that doesn't already know lexicon, they're worse than useless — they assume the vocabulary they're supposed to introduce.
+The seven descriptions were internally-bookkeeping language ("Defines the shared rules, the cold-layer schema, and the structural checks the other skills depend on"). For an agent that doesn't already know lexicon, they're worse than useless — they assume the vocabulary they're supposed to introduce.
 
-A single holistic description on the lexicon skill ("Living domain-driven documentation. A small cold-layer YAML doc captures vocabulary, invariants, bounded contexts; ground before substantive work, retro at stopping points, crystallize on user's call, conform periodically") gives the model a real conceptual handle. The plugin-level pitch in `plugin.json` carries the "what is lexicon" weight together.
+A single holistic description on the lexicon skill ("Living domain-driven documentation. A small cold-layer XML doc captures vocabulary, invariants, bounded contexts; ground before substantive work, retro at stopping points, crystallize on user's call, conform periodically") gives the model a real conceptual handle. The plugin-level pitch in `plugin.json` carries the "what is lexicon" weight together.
 
-Most of the seven triggers fired from the same conceptual moment anyway — "this project has `lexicon/system.yaml`" — and phase selection was genuinely session-state-dependent in ways description-based triggering couldn't capture. One description, dispatch from session context, is the right shape.
+Most of the seven triggers fired from the same conceptual moment anyway — "this project has `lexicon/system.xml`" — and phase selection was genuinely session-state-dependent in ways description-based triggering couldn't capture. One description, dispatch from session context, is the right shape.
 
 ### Cost 3: lex-audit and lex-migrate were the same primitive
 
@@ -180,13 +180,13 @@ This pairs naturally with the absence of a Stop hook: there's no good "session e
 
 Design systems and DDD's ubiquitous language are the same primitive applied to different surfaces — both are "the same nouns must appear in code, in conversation, and in the cold doc, or alignment drifts." The failure modes rhyme exactly: silent renaming (`Card` → `Tile` → `Panel`), invariants that quietly erode (the focus-state contract), boundary leaks (raw `<button>` escaping the wrapper component).
 
-Concretely: design vocabulary is fields in `system.yaml` (tokens, components, layout primitives, interaction patterns, a11y invariants) plus dedicated `surfaces/<slug>.yaml` files for named layout zones. Backend-only projects skip these entirely. The structural checks gain design-system signals (hex literal outside the token file; new component file; raw HTML escaping the wrapper layer; a11y invariant touched) — no new checks; `reference/checks.md` names them per check, and retro / crystallize / conform inherit automatically.
+Concretely: design vocabulary is fields in `system.xml` (tokens, components, layout primitives, interaction patterns, a11y invariants) plus dedicated `surfaces/<slug>.xml` files for named layout zones. Backend-only projects skip these entirely. The structural checks gain design-system signals (hex literal outside the token file; new component file; raw HTML escaping the wrapper layer; a11y invariant touched) — no new checks; `reference/checks.md` names them per check, and retro / crystallize / conform inherit automatically.
 
 ### Why design vocabulary gained a surfaces/regions tier
 
 v0.6.0's tiers (tokens, components, layout primitives, interaction patterns, a11y invariants) didn't cover the **named layout zones inside a specific surface** — "the right sidebar of the composer view," "the header strip of the run page." Real use surfaced this: "I have no idea how to call the right sidebar in the composer view." Without names, the team and agent can't refer to these regions precisely; retros can't flag drift in them.
 
-The key separation: **conceptual identity is the naming gate, implementation status is metadata.** A region earns a name when the team refers to it as a discrete piece — even if its code is still an inline JSX block. v0.9.0's YAML schema encodes this directly: `Region.implementation` is a field that distinguishes extracted components from inline blocks (with file:line anchors). A future extraction becomes a field update, not a vocabulary change.
+The key separation: **conceptual identity is the naming gate, implementation status is metadata.** A region earns a name when the team refers to it as a discrete piece — even if its code is still an inline JSX block. v1.0's schema encodes this directly: a region carries exactly one of `<component-impl>` or `<inline-impl>` as a child element, with file:line attributes on the inline variant. A future extraction becomes a single-element swap, not a vocabulary change.
 
 The pathology to watch: surfaces/regions sections bloating to the size of the rendered tree. The conversational-referent rule ("the team refers to it as a discrete piece") is the trim discipline.
 
@@ -239,9 +239,9 @@ When the cold-layer schema bumps (v0.3 → v0.4, …), the work is:
 
 Step 3 is the load-bearing one. Without a delta file, `conform`'s structural pass cannot upgrade existing projects to the new version. **Every schema bump ships a delta.**
 
-### Why deltas are markdown, not YAML
+### Why deltas are markdown, not XML
 
-A delta is a runbook for an agent — natural-language phases, decision rules with rationale, examples of good/bad outcomes. YAML would force the substance into prose-in-strings anyway, with worse formatting. The cold-layer artifacts the deltas *produce* are YAML; the deltas themselves are prose because they're instructions for a reader.
+A delta is a runbook for an agent — natural-language phases, decision rules with rationale, examples of good/bad outcomes. XML (or YAML) would force the substance into prose-in-strings anyway, with worse formatting. The cold-layer artifacts the deltas *produce* are XML (since v1.0); the deltas themselves are prose because they're instructions for a reader.
 
 The same applies to retros, conform reports, adoption reports, and the migration report sections: all markdown, because they're meant for human (and agent) reading, not for the cold-layer's typed graph. Plan files under `lexicon/plans/<feature>/` are the other exception — markdown for the same reason.
 
@@ -291,7 +291,7 @@ If conform + crystallize both go neglected, lexicon has no recourse. The right a
 
 ### Validators
 
-`skills/lexicon/validators/` is empty. The first script will likely be a deterministic YAML validator for v0.3 — schema check, ref resolution, duplicate-slug detection, seam-direction sanity. Adoption candidates: invoked by `conform` ahead of the semantic pass to short-circuit when files don't parse; invoked by `crystallize` after applying mutations to verify the result.
+`skills/lexicon/validators/` is empty. The first script will likely be a deterministic XML validator for v1.0 — running `xmllint --schema reference/schema.xsd` against project XML, then a richer TypeScript pass for ref resolution, duplicate-slug detection, seam-direction sanity (semantics XSD can't express). Adoption candidates: invoked by `conform` ahead of the semantic pass to short-circuit when files don't parse; invoked by `crystallize` after applying mutations to verify the result.
 
 The design question: is the validator authoritative (its output is the source of truth for structural validity) or advisory (the loader is still authoritative, validator is faster)? Probably advisory — the viewer's loader at `viewer/server/loader.ts` is already the source of truth for structural validity; a script would be a faster cross-check.
 
@@ -331,7 +331,7 @@ If you're a future agent helping iterate on lexicon:
 
 - **Imperative mood** for instructions ("Read X", "Write Y to Z").
 - **Honest hedging** about uncertainty ("If unclear, surface this to the user — that's a real signal, not a failure").
-- **Counter-examples** for behavior that's tempting but wrong ("If you're tempted to call something 'trivial' but it touches an entity in `system.yaml`, it's not trivial").
+- **Counter-examples** for behavior that's tempting but wrong ("If you're tempted to call something 'trivial' but it touches an entity in `system.xml`, it's not trivial").
 - **Cross-references by full subcommand name** (`crystallize`, not just "the next subcommand").
 - **No bullet-point soup.** Prose where possible. Lists only where the items are genuinely parallel.
-- **Pushy descriptions** in the YAML frontmatter, but **measured prose** in the body. The frontmatter has to compete for trigger; the body has to be clear.
+- **Pushy descriptions** in the SKILL.md YAML frontmatter, but **measured prose** in the body. The frontmatter has to compete for trigger; the body has to be clear. (Note: SKILL.md frontmatter stays YAML — Claude Code's skill loader expects that format; only the lexicon cold-layer files flipped to XML in v1.0.)

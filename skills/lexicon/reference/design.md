@@ -1,11 +1,13 @@
 # Lexicon cold-layer schema v0.3 — DDD faithfulness
 
+> **Status under v1.0:** This document is the historical design contract for the v0.2 → v0.3 schema bump. The DDD substrate it describes (entity kinds, term categories, seam kinds, aggregates, shared kernels, subdomains, the deliberate exclusions) **carries through into v1.0 unchanged**. What v1.0 changes is the *representation* (YAML → XML with element-names-as-ontology and structural `<ref>` everywhere), not the model. The v1.0 design rationale lives in the repo-root `CLAUDE.md` and in `${CLAUDE_SKILL_DIR}/migrations/v0.3-to-v1.0.md`. Code-block examples below are shown in v0.3 YAML for historical accuracy; for the v1.0 XML rendering of the same concepts, see `${CLAUDE_SKILL_DIR}/reference/schema.md` and the templates under `${CLAUDE_SKILL_DIR}/templates/*.xml.example`.
+
 This document is the design contract for the v0.2 → v0.3 schema bump. It exists to:
 
 1. Pin every decision in one place before any code, schema, or skill body changes.
 2. Survive the bump as a record of *why* — what was rejected, what is deferred, what is load-bearing.
 
-It is **not** a normative spec. The normative spec lives in `skills/lex-overview/SCHEMA.md`; this document explains the shape that file is about to take.
+It is **not** a normative spec. The normative spec lives in `${CLAUDE_SKILL_DIR}/reference/schema.md`; this document explains the shape that file is about to take.
 
 If, while implementing, you discover a constraint the doc didn't anticipate — stop and amend the doc before writing the code. The cost of an inconsistent migration delta after pilots run is much higher than the cost of editing this file.
 
