@@ -443,7 +443,7 @@
     z-index: 100;
   }
   .tip-wrap:hover::after,
-  .tip-wrap:focus-within::after {
+  .tip-wrap:has(:focus-visible)::after {
     opacity: 1;
     transition: opacity 120ms ease 120ms;
   }
@@ -451,7 +451,7 @@
      (inline entity-link FQIDs — icon already conveys the kind).
      Disappearance stays quick. */
   .tip-wrap--slow:hover::after,
-  .tip-wrap--slow:focus-within::after {
+  .tip-wrap--slow:has(:focus-visible)::after {
     transition: opacity 120ms ease 1500ms;
   }
 
@@ -679,6 +679,36 @@
   .entity-pane.is-flashing {
     animation: pane-flash 900ms ease-out;
   }
+
+  /* Transient pane: lives in its own grid column next to the graph. Shows the
+     graph's current selection as a preview. Double-click anywhere on it
+     promotes the entity into the committed stack on the right. */
+  .transient-pane {
+    background: var(--color-paper);
+    border-right: 1px dashed var(--color-rule);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .transient-pane-label {
+    position: absolute;
+    top: 0.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: var(--font-mono, monospace);
+    font-size: 0.6875rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-fg-3);
+    pointer-events: none;
+    z-index: 3;
+  }
+  .transient-pane-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
   @keyframes pane-flash {
     0%   { box-shadow: 0 0 0 2px var(--color-mark), -8px 0 16px -12px rgba(0, 0, 0, 0.18); }
     100% { box-shadow: 0 0 0 0  transparent, -8px 0 16px -12px rgba(0, 0, 0, 0.18); }
@@ -767,6 +797,94 @@
     padding: 1.5rem 0 1rem;
     border-bottom: 1px solid var(--color-rule);
     margin-bottom: 1.25rem;
+  }
+
+  /* Edge rail: the closed state of a collapsible panel. Always anchored to
+     the panel's grid track, so its position IS the panel's position. Reads as
+     architectural annotation rather than a control — rotated monospace caps
+     in the same register as the smallcap labels used throughout. */
+  .edge-rail {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.625rem;
+    background: var(--color-paper);
+    cursor: pointer;
+    user-select: none;
+    transition: background 140ms ease, color 140ms ease;
+    /* Subtle inner shadow on the inner edge so the rail reads as "pushed in"
+       relative to the live workspace. */
+    box-shadow: inset -1px 0 0 0 transparent;
+  }
+  .edge-rail:hover {
+    background: var(--color-paper-2);
+  }
+  .edge-rail:hover .edge-rail-label,
+  .edge-rail:hover .edge-rail-hotkey {
+    color: var(--color-fg);
+  }
+  .edge-rail-label {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--color-fg-3);
+    transition: color 140ms ease;
+  }
+  .edge-rail-hotkey {
+    font-family: var(--font-mono);
+    font-size: 0.5625rem;
+    color: var(--color-fg-3);
+    opacity: 0.55;
+    /* Small bracketed mark so it reads as a glyph not a letter of the label */
+    transition: color 140ms ease, opacity 140ms ease;
+  }
+  .edge-rail-hotkey::before { content: "["; }
+  .edge-rail-hotkey::after  { content: "]"; }
+  .edge-rail:hover .edge-rail-hotkey { opacity: 0.85; }
+
+  /* Collapse chevron: discreet affordance at the top-OUTER corner of an open
+     panel. Outer so the rail visually emerges from the same spot when the
+     user clicks it — continuity of geography. */
+  .panel-collapse {
+    position: absolute;
+    top: 0.5rem;
+    left: 0.5rem;
+    width: 1.5rem;
+    height: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--color-fg-3);
+    background: transparent;
+    cursor: pointer;
+    z-index: 10;
+    opacity: 0.45;
+    border-radius: 2px;
+    transition: opacity 140ms ease, background 140ms ease, color 140ms ease;
+  }
+  .panel-collapse:hover {
+    opacity: 1;
+    background: var(--color-paper-2);
+    color: var(--color-fg);
+  }
+
+  /* Corner strip: kind chip top-left, source pull + close top-right.
+     Mirrors the graph detail rail's chrome strip so the entity view feels
+     the same regardless of which surface introduced it. */
+  .entity-pane-corner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.875rem;
   }
 
   /* Facet rows: label column auto-sized, value column flows inline with
