@@ -113,7 +113,11 @@ export async function layoutModel(
   const astarCellSize = opts.astarCellSize ?? DEFAULT_ASTAR_CELL_SIZE;
   const astarTurnPenalty = opts.astarTurnPenalty ?? DEFAULT_ASTAR_TURN_PENALTY;
   const astarReuseFactor = opts.astarReuseFactor ?? DEFAULT_ASTAR_REUSE_FACTOR;
-  // Build ELK tree: top-level nodes hold their children. Edges go on the root.
+  // Build ELK tree: top-level nodes hold their children. Edges attach to the
+  // lowest common ancestor of their endpoints — putting an intra-cluster edge
+  // at root makes ELK with INCLUDE_CHILDREN anchor the section to the cluster
+  // boundary instead of the leaf rectangles, producing visibly dangling stubs
+  // (see edges.test.ts).
   const byId = new Map<string, GraphNode>();
   for (const n of model.nodes) byId.set(n.id, n);
 
@@ -167,10 +171,12 @@ export async function layoutModel(
   const clusterUsesLayered = (clusterId: string | "__root") =>
     clustersNeedingLayered.has(clusterId);
 
+  const elkById = new Map<string, ElkNode>();
   const toElk = (n: GraphNode): ElkNode => {
     const kids = childrenByParent.get(n.id) ?? [];
     const isCluster = n.isCluster || kids.length > 0;
     const node: ElkNode = { id: n.id };
+    elkById.set(n.id, node);
     if (isCluster) {
       const useLayered = clusterUsesLayered(n.id);
       // Stub contexts (medical-knowledge-integration etc.) often have zero
@@ -215,11 +221,40 @@ export async function layoutModel(
 
   const roots = (childrenByParent.get(undefined) ?? []).map(toElk);
 
-  const elkEdges: ElkExtendedEdge[] = layoutEdges.map(e => ({
-    id: e.id,
-    sources: [e.source],
-    targets: [e.target],
-  }));
+  // LCA(source, target): the deepest cluster id that contains both endpoints,
+  // or undefined when the endpoints have no common ancestor cluster (→ root).
+  // Endpoints that are themselves clusters count as their own ancestor chain
+  // start, so a seam between two bounded-contexts lands at root, as expected.
+  const ancestors = (id: string): string[] => {
+    const chain: string[] = [];
+    let cur: string | undefined = byId.get(id)?.parent;
+    while (cur) {
+      chain.push(cur);
+      cur = byId.get(cur)?.parent;
+    }
+    return chain;
+  };
+  const lcaOf = (s: string, t: string): string | undefined => {
+    const sSet = new Set(ancestors(s));
+    for (const a of ancestors(t)) if (sSet.has(a)) return a;
+    return undefined;
+  };
+
+  const rootEdges: ElkExtendedEdge[] = [];
+  for (const e of layoutEdges) {
+    const elkEdge: ElkExtendedEdge = {
+      id: e.id,
+      sources: [e.source],
+      targets: [e.target],
+    };
+    const owner = lcaOf(e.source, e.target);
+    const ownerNode = owner ? elkById.get(owner) : undefined;
+    if (ownerNode) {
+      (ownerNode.edges ??= []).push(elkEdge);
+    } else {
+      rootEdges.push(elkEdge);
+    }
+  }
 
   // ELK mutates input in place, so we always feed it a fresh deep copy. This
   // matters in dev (React strict mode runs effects twice) but is also a sensible
@@ -228,7 +263,7 @@ export async function layoutModel(
     id: "root",
     layoutOptions: lensOpts(model.lens, clusterUsesLayered("__root")),
     children: roots,
-    edges: elkEdges,
+    edges: rootEdges,
   });
   const result = await elk.layout(rootGraph);
 
