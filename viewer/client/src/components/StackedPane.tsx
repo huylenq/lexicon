@@ -10,7 +10,7 @@ import { buildBacklinkIndex, type Backlink } from "@/lib/backlinks";
 import { PaneIndexProvider, useStack } from "@/lib/stack";
 import KindBadge from "./KindBadge";
 import Tip from "./Tip";
-import EntityDetail from "./EntityDetail";
+import Pane from "./Pane";
 import { RefLabel } from "./RefLink";
 
 interface Props {
@@ -18,7 +18,7 @@ interface Props {
   panes: string[]; // fqids in left-to-right order
 }
 
-export default function StackedEntities({ graph, panes }: Props) {
+export default function StackedPane({ graph, panes }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const stack = useStack();
   const [collapsedSet, setCollapsedSet] = useState<Set<number>>(new Set());
@@ -39,7 +39,7 @@ export default function StackedEntities({ graph, panes }: Props) {
     const container = containerRef.current;
     if (!container) return;
     if (panes.length > prevCountRef.current) {
-      const els = container.querySelectorAll<HTMLElement>(".entity-pane");
+      const els = container.querySelectorAll<HTMLElement>(".pane");
       const target = els[panes.length - 1];
       if (target) {
         target.scrollIntoView({ behavior: "smooth", inline: "end", block: "nearest" });
@@ -56,7 +56,7 @@ export default function StackedEntities({ graph, panes }: Props) {
     const { index } = stack.flashSignal;
     const container = containerRef.current;
     if (!container) return;
-    const target = container.querySelectorAll<HTMLElement>(".entity-pane")[index];
+    const target = container.querySelectorAll<HTMLElement>(".pane")[index];
     if (!target) return;
     target.scrollIntoView({ behavior: "smooth", inline: "nearest", block: "nearest" });
     target.classList.remove("is-flashing");
@@ -75,7 +75,7 @@ export default function StackedEntities({ graph, panes }: Props) {
     const update = () => {
       const scrollLeft = container.scrollLeft;
       const next = new Set<number>();
-      const els = container.querySelectorAll<HTMLElement>(".entity-pane");
+      const els = container.querySelectorAll<HTMLElement>(".pane");
       els.forEach((el, i) => {
         if (i === els.length - 1) return; // last pane never collapses
         const paneRight = el.offsetLeft + el.offsetWidth;
@@ -97,7 +97,7 @@ export default function StackedEntities({ graph, panes }: Props) {
   const revealCollapsed = useCallback((index: number) => {
     const container = containerRef.current;
     if (!container) return;
-    const target = container.querySelectorAll<HTMLElement>(".entity-pane")[index];
+    const target = container.querySelectorAll<HTMLElement>(".pane")[index];
     if (!target) return;
     // Position the pane just past the leading strip stack.
     const targetScroll = Math.max(0, target.offsetLeft - index * 40 - 20);
@@ -112,7 +112,7 @@ export default function StackedEntities({ graph, panes }: Props) {
   const backlinksOfLast = backlinkIndex[lastEntity.ref.fqid] ?? [];
 
   return (
-    <div ref={containerRef} className="stacked-entities">
+    <div ref={containerRef} className="stacked-pane">
       {resolved.map(({ fqid, idx, entity }) => {
         const isCollapsed = collapsedSet.has(idx);
         const isLast = idx === resolved.length - 1;
@@ -120,15 +120,15 @@ export default function StackedEntities({ graph, panes }: Props) {
         return (
           <article
             key={fqid}
-            className={`entity-pane${isCollapsed ? " is-collapsed" : ""}`}
+            className={`pane${isCollapsed ? " is-collapsed" : ""}`}
             style={{ left: `${idx * 40}px` }}
             onClick={isCollapsed ? () => revealCollapsed(idx) : undefined}
           >
             <CollapsedTitle entity={entity} />
             {!isCollapsed && (
               <PaneIndexProvider index={idx}>
-                <div className="entity-pane-body">
-                  <EntityDetail
+                <div className="pane-body">
+                  <Pane
                     entity={entity}
                     graph={graph}
                     passive={!isLast}
@@ -166,9 +166,9 @@ export default function StackedEntities({ graph, panes }: Props) {
 
 function CollapsedTitle({ entity }: { entity: ResolvedEntity }) {
   return (
-    <div className="entity-pane-strip">
+    <div className="pane-strip">
       <KindBadge kind={entity.ref.kind} size={16} />
-      <div className="entity-pane-strip-name">{entity.title ?? entity.ref.name}</div>
+      <div className="pane-strip-name">{entity.title ?? entity.ref.name}</div>
     </div>
   );
 }
@@ -247,13 +247,13 @@ function BacklinkCard({
     if (!stack || !linked) return;
     const idx = stack.paneIndexOf(ref.fqid);
     if (idx < 0) return;
-    const container = document.querySelector<HTMLElement>(".stacked-entities");
-    const target = container?.querySelectorAll<HTMLElement>(".entity-pane")[idx];
+    const container = document.querySelector<HTMLElement>(".stacked-pane");
+    const target = container?.querySelectorAll<HTMLElement>(".pane")[idx];
     target?.classList.add("is-hover-highlight");
   };
   const onMouseLeave = () => {
     document
-      .querySelectorAll<HTMLElement>(".entity-pane.is-hover-highlight")
+      .querySelectorAll<HTMLElement>(".pane.is-hover-highlight")
       .forEach(el => el.classList.remove("is-hover-highlight"));
   };
 

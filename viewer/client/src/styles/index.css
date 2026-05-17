@@ -527,7 +527,7 @@
   }
 
   /* ────────────────────────────────────────────────────────────────────────
-     INSPECTOR TAB — the affordance on the right edge of EntityDetail that
+     INSPECTOR TAB — the affordance on the right edge of Pane that
      opens the slab. Designed to read as a "drawer pull" — a small vertical
      tab in mono, with a chinagraph-amber accent and an L-range chip when
      the entity's source range is known.
@@ -623,7 +623,7 @@
      vertical titles, sticky-positioned at the left so they remain reachable.
      The right-edge column lists the last pane's backlinks.              */
 
-  .stacked-entities {
+  .stacked-pane {
     --pane-width: 880px;
     --pane-strip-width: 40px;
     height: 100%;
@@ -635,7 +635,7 @@
     scroll-padding-left: calc(var(--pane-strip-width) * 4);
   }
 
-  .entity-pane {
+  .pane {
     flex: 0 0 var(--pane-width);
     width: var(--pane-width);
     min-width: var(--pane-width);
@@ -654,17 +654,17 @@
     overflow: hidden;
     transition: flex-basis 240ms ease, min-width 240ms ease, width 240ms ease;
   }
-  .entity-pane:first-of-type {
+  .pane:first-of-type {
     border-left: 0;
     box-shadow: none;
   }
   /* When ghost cards float to the right, the arrows need a wall to land on.
      Use :has() so this only kicks in when a .backlink-column actually
      follows — keeps the right edge clean in single-pane mode. */
-  .entity-pane:has(+ .backlink-column) {
+  .pane:has(+ .backlink-column) {
     border-right: 1px solid var(--color-rule);
   }
-  .entity-pane.is-collapsed {
+  .pane.is-collapsed {
     flex: 0 0 var(--pane-strip-width);
     width: var(--pane-strip-width);
     min-width: var(--pane-strip-width);
@@ -672,11 +672,11 @@
     background: var(--color-paper-2);
     z-index: 2;
   }
-  .entity-pane.is-collapsed:hover {
+  .pane.is-collapsed:hover {
     background: var(--color-paper-3);
   }
 
-  .entity-pane.is-flashing {
+  .pane.is-flashing {
     animation: pane-flash 900ms ease-out;
   }
 
@@ -717,12 +717,12 @@
   /* Passive hover outline — painted by direct-DOM toggling from a linked
      backlink card's onMouseEnter/Leave. No scroll, no animation, just a
      visual tie between "this ghost" and "that pane already in the stack". */
-  .entity-pane.is-hover-highlight {
+  .pane.is-hover-highlight {
     outline: 2px solid color-mix(in srgb, var(--color-mark) 70%, transparent);
     outline-offset: -2px;
   }
 
-  .entity-pane-strip {
+  .pane-strip {
     display: none;
     width: 100%;
     height: 100%;
@@ -733,10 +733,10 @@
     padding: 16px 0;
     color: var(--color-fg-3);
   }
-  .entity-pane.is-collapsed .entity-pane-strip {
+  .pane.is-collapsed .pane-strip {
     display: flex;
   }
-  .entity-pane-strip-kind {
+  .pane-strip-kind {
     font-family: var(--font-mono);
     font-size: 0.625rem;
     letter-spacing: 0.22em;
@@ -745,7 +745,7 @@
     transform: rotate(180deg);
     color: var(--color-fg-3);
   }
-  .entity-pane-strip-name {
+  .pane-strip-name {
     font-family: var(--font-display, var(--font-body));
     font-size: 0.95rem;
     writing-mode: vertical-rl;
@@ -757,7 +757,7 @@
     white-space: nowrap;
   }
 
-  .entity-pane-close {
+  .pane-close {
     width: 24px;
     height: 24px;
     display: inline-flex;
@@ -771,25 +771,25 @@
     cursor: pointer;
     transition: all 120ms ease;
   }
-  .entity-pane-close:hover {
+  .pane-close:hover {
     color: var(--color-paper);
     background: var(--color-fg);
     border-color: var(--color-fg);
   }
 
-  .entity-pane-body {
+  .pane-body {
     flex: 1;
     overflow-y: auto;
     min-height: 0;
   }
 
-  .entity-article {
+  .pane-article {
     padding: 0 3rem 3rem;
   }
 
   /* Sticky title strip keeps kind/title/fqid/Specimen/× visible while the
      body scrolls. Background must be opaque so prose doesn't bleed through. */
-  .entity-pane-header {
+  .pane-header {
     position: sticky;
     top: 0;
     z-index: 2;
@@ -879,7 +879,7 @@
   /* Corner strip: kind chip top-left, source pull + close top-right.
      Mirrors the graph detail rail's chrome strip so the entity view feels
      the same regardless of which surface introduced it. */
-  .entity-pane-corner {
+  .pane-corner {
     display: flex;
     align-items: center;
     justify-content: space-between;

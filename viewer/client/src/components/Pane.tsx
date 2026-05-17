@@ -14,7 +14,7 @@ import {
   useInspector,
 } from "@/lib/inspector";
 
-export default function EntityDetail({
+export default function Pane({
   entity,
   graph,
   passive = false,
@@ -57,7 +57,7 @@ export default function EntityDetail({
   }, [isOpen, openInspector, passive]);
 
   return (
-    <article className="entity-article">
+    <article className="pane-article">
       <Header entity={entity} onClose={onClose} />
       <EntityFacets entity={entity} graph={graph} />
       <Body entity={entity} graph={graph} />
@@ -71,25 +71,20 @@ function Header({ entity, onClose }: { entity: ResolvedEntity; onClose?: () => v
   const lineLabel = `L${formatLineRange(entity.source.lineStart, entity.source.lineEnd)}`;
 
   return (
-    <header className="entity-pane-header">
-      <div className="flex items-start gap-4">
-        <div className="flex-1 min-w-0">
-          <div className="mb-3 flex items-center gap-3">
-            <KindBadge kind={entity.ref.kind} size={18} />
-            {entity.ref.kind === "term" && entity.category && (
-              <span className="mono text-micro text-fg-3 uppercase tracking-widest">{entity.category}</span>
-            )}
-            {entity.ref.kind === "bounded-context" && entity.subdomain && (
-              <span className="mono text-micro text-fg-3 uppercase tracking-widest">{entity.subdomain}</span>
-            )}
-            {entity.ref.kind === "seam" && entity.seamKind && (
-              <span className="mono text-micro text-fg-3 uppercase tracking-widest">{entity.seamKind}</span>
-            )}
-          </div>
-          <h1 className="display-tight text-h1 leading-[0.95] mb-3">
-            <InlineCode text={entity.title ?? entity.ref.name} />
-          </h1>
-          <div className="mono text-small text-fg-3">{entity.ref.fqid}</div>
+    <header className="pane-header">
+      {/* Corner strip: kind chip anchored top-left, source pull + close top-right. */}
+      <div className="pane-corner">
+        <div className="flex items-center gap-2 min-w-0">
+          <KindBadge kind={entity.ref.kind} size={16} />
+          {entity.ref.kind === "term" && entity.category && (
+            <span className="mono text-micro text-fg-3 uppercase tracking-widest truncate">{entity.category}</span>
+          )}
+          {entity.ref.kind === "bounded-context" && entity.subdomain && (
+            <span className="mono text-micro text-fg-3 uppercase tracking-widest truncate">{entity.subdomain}</span>
+          )}
+          {entity.ref.kind === "seam" && entity.seamKind && (
+            <span className="mono text-micro text-fg-3 uppercase tracking-widest truncate">{entity.seamKind}</span>
+          )}
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <button
@@ -103,7 +98,7 @@ function Header({ entity, onClose }: { entity: ResolvedEntity; onClose?: () => v
           </button>
           {onClose && (
             <button
-              className="entity-pane-close"
+              className="pane-close"
               title="Close pane"
               onClick={(e) => {
                 e.stopPropagation();
@@ -115,6 +110,10 @@ function Header({ entity, onClose }: { entity: ResolvedEntity; onClose?: () => v
           )}
         </div>
       </div>
+      <h1 className="display-tight text-h1 leading-[0.95] mb-3">
+        <InlineCode text={entity.title ?? entity.ref.name} />
+      </h1>
+      <div className="mono text-small text-fg-3">{entity.ref.fqid}</div>
     </header>
   );
 }

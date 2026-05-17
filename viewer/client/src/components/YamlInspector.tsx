@@ -144,7 +144,7 @@ export default function YamlInspector({
         kind: s.kind,
       });
     } else {
-      // EntityDetail's retarget effect will sync the slab once the route changes.
+      // Pane's retarget effect will sync the slab once the route changes.
       navigate(`/p/${projectId}/${encodeURIComponent(s.fqid)}`);
     }
   };
