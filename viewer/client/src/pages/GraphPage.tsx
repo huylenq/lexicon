@@ -1,23 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
 import type { EntityKind, LexiconResponse, ResolvedEntity } from "@/lib/types";
-import { buildModel, LENSES, type EdgeKind, type Lens } from "@/lib/graph/build-graph";
+import { buildModel, type EdgeKind, type Lens } from "@/lib/graph/build-graph";
 import {
   layoutModel,
   DEFAULT_BUNDLE_TENSION,
   DEFAULT_ASTAR_CELL_SIZE,
   DEFAULT_ASTAR_TURN_PENALTY,
   DEFAULT_ASTAR_REUSE_FACTOR,
-  type AffectsRouting,
+  DEFAULT_NARRATIVE_ROUTING,
+  type NarrativeRouting,
   type LayoutResult,
 } from "@/lib/graph/layout";
 import { FILTERABLE_KINDS } from "@/lib/kinds";
 import GraphCanvas from "@/components/graph/GraphCanvas";
 import GraphFilterBar from "@/components/graph/GraphFilterBar";
-import GraphDetailRail from "@/components/graph/GraphDetailRail";
 import LayoutOptionsPanel from "@/components/graph/LayoutOptionsPanel";
 import type { ThreadStop } from "@/components/graph/NarrativeThread";
-import { ResizeHandle, usePersistedWidth } from "@/lib/resize";
+import { useStack } from "@/lib/stack";
 import {
   isInspectorChord,
   isTypingTarget,
@@ -26,10 +25,7 @@ import {
 } from "@/lib/inspector";
 
 const DEFAULT_KINDS: EntityKind[] = FILTERABLE_KINDS.map(k => k.id);
-const DEFAULT_EDGES: EdgeKind[] = ["disambiguates", "affects", "supersedes"];
-
-const isLens = (s: string | undefined): s is Lens =>
-  !!s && (LENSES as readonly string[]).includes(s);
+const DEFAULT_EDGES: EdgeKind[] = ["disambiguates", "seam", "narrative"];
 
 function makeSetToggle<T>(setter: React.Dispatch<React.SetStateAction<Set<T>>>) {
   return (k: T) =>
@@ -42,22 +38,20 @@ function makeSetToggle<T>(setter: React.Dispatch<React.SetStateAction<Set<T>>>) 
 
 export default function GraphPage({
   resp,
-  lens: lensProp,
+  lens,
+  onLensChange,
 }: {
   resp: LexiconResponse;
-  lens?: string;
+  lens: Lens;
+  onLensChange: (l: Lens) => void;
 }) {
-  const navigate = useNavigate();
-  const { projectId } = useParams();
-  const id = Number(projectId);
-
-  const lens: Lens = isLens(lensProp) ? lensProp : "ownership";
+  const stack = useStack();
 
   const [kinds, setKinds] = useState<Set<EntityKind>>(new Set(DEFAULT_KINDS));
   const [edges, setEdges] = useState<Set<EdgeKind>>(new Set(DEFAULT_EDGES));
   const [contextFilter, setContextFilter] = useState<Set<string>>(new Set());
-  const [affectsRouting, setAffectsRouting] = useState<AffectsRouting>("bundle");
-  const [affectsFocusOnly, setAffectsFocusOnly] = useState(false);
+  const [narrativeRouting, setNarrativeRouting] = useState<NarrativeRouting>(DEFAULT_NARRATIVE_ROUTING);
+  const [narrativeFocusOnly, setNarrativeFocusOnly] = useState(false);
   const [bundleTension, setBundleTension] = useState(DEFAULT_BUNDLE_TENSION);
   const [astarParams, setAstarParams] = useState({
     cellSize: DEFAULT_ASTAR_CELL_SIZE,
@@ -81,7 +75,7 @@ export default function GraphPage({
   useEffect(() => {
     let cancelled = false;
     layoutModel(model, {
-      affectsRouting,
+      narrativeRouting,
       bundleTension,
       astarCellSize: astarParams.cellSize,
       astarTurnPenalty: astarParams.turnPenalty,
@@ -99,10 +93,9 @@ export default function GraphPage({
     return () => {
       cancelled = true;
     };
-  }, [model, affectsRouting, bundleTension, astarParams]);
+  }, [model, narrativeRouting, bundleTension, astarParams]);
 
-  // Search: apply to layout result by dimming non-matching nodes (handled by parent style filter).
-  // We translate "search match → select that node" so the canvas highlights neighbors.
+  // Search → select-first-match drives the canvas highlight + transient pane.
   useEffect(() => {
     if (!search.trim()) return;
     const lower = search.toLowerCase();
@@ -111,31 +104,27 @@ export default function GraphPage({
         e.ref.name.toLowerCase().includes(lower) ||
         e.ref.fqid.toLowerCase().includes(lower)
     );
-    if (hit) setSelectedId(hit.ref.fqid);
-  }, [search, resp.graph.entities]);
+    if (hit) {
+      setSelectedId(hit.ref.fqid);
+      stack?.setTransient(hit.ref.fqid);
+    }
+  }, [search, resp.graph.entities, stack]);
 
   const selectedEntity = useMemo<ResolvedEntity | null>(
     () => (selectedId ? resp.graph.entities[selectedId] ?? null : null),
     [selectedId, resp.graph.entities],
   );
 
-  // Read the inspector target at fire-time via a ref so the listener doesn't
-  // rebind on every selection change or SSE refresh (graph.system / entities
-  // both swap references when resp is replaced).
+  // Inspector target follows the canvas selection (with a system fallback).
   const inspectTargetRef = useRef<ResolvedEntity | null>(null);
   inspectTargetRef.current = selectedEntity ?? resp.graph.system;
 
-  // Keyboard shortcuts
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        navigate(`/p/${id}/`);
-        return;
-      }
       if (isTypingTarget(e.target)) return;
       if (isInspectorChord(e)) {
         e.preventDefault();
-        if (inspectorOpen) return; // close is handled at the page shell
+        if (inspectorOpen) return;
         const t = inspectTargetRef.current;
         if (t) openInspector(toInspectorTarget(t));
         return;
@@ -150,7 +139,7 @@ export default function GraphPage({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [id, navigate, inspectorOpen, openInspector]);
+  }, [inspectorOpen, openInspector]);
 
   const toggleKind = makeSetToggle(setKinds);
   const toggleEdge = makeSetToggle(setEdges);
@@ -164,11 +153,6 @@ export default function GraphPage({
         .map(e => ({ id: e.ownerContextId!, name: e.ref.name })),
     [resp.graph]
   );
-
-  const onLensChange = (l: Lens) => {
-    setSelectedId(null);
-    navigate(`/p/${id}/graph/${l}`);
-  };
 
   // Stops include the selected entity itself plus each `narrativeRefs` target
   // present in the current layout. Refs are pre-resolved by the loader; this
@@ -191,39 +175,41 @@ export default function GraphPage({
     return stops;
   }, [narrativeThreadEnabled, selectedEntity, layout]);
 
-  const railRef = useRef<HTMLElement>(null);
-  const rail = usePersistedWidth({
-    key: "lexicon.graphDetailRailWidth", defaultPx: 352 /* 22rem */, minPx: 240, maxFrac: 0.5,
-  });
+  const handleSelect = (fqid: string | null) => {
+    setSelectedId(fqid);
+    stack?.setTransient(fqid);
+  };
+
+  const handleActivate = (fqid: string) => {
+    if (!stack) return;
+    if (stack.transient === fqid) {
+      stack.promoteTransient();
+      return;
+    }
+    // pushPane handles the "already in stack" case by flashing the existing pane.
+    stack.pushPane(fqid, stack.panes.length - 1);
+  };
 
   return (
-    <div
-      className="flex-1 min-h-0 grid"
-      style={{
-        gridTemplateColumns: `minmax(0, 1fr) ${rail.width}px`,
-        gridTemplateRows: "auto 1fr",
-      }}
-    >
-      <div style={{ gridColumn: "1 / span 2" }}>
-        <GraphFilterBar
-          lens={lens}
-          onLensChange={onLensChange}
-          kinds={kinds}
-          onToggleKind={toggleKind}
-          contexts={contexts}
-          contextFilter={contextFilter}
-          onToggleContext={toggleContext}
-          edges={edges}
-          onToggleEdge={toggleEdge}
-          layoutPanelOpen={layoutPanelOpen}
-          onToggleLayoutPanel={() => setLayoutPanelOpen(b => !b)}
-          search={search}
-          onSearchChange={setSearch}
-          searchRef={searchRef}
-        />
-      </div>
+    <div className="flex-1 min-h-0 flex flex-col relative">
+      <GraphFilterBar
+        lens={lens}
+        onLensChange={onLensChange}
+        kinds={kinds}
+        onToggleKind={toggleKind}
+        contexts={contexts}
+        contextFilter={contextFilter}
+        onToggleContext={toggleContext}
+        edges={edges}
+        onToggleEdge={toggleEdge}
+        layoutPanelOpen={layoutPanelOpen}
+        onToggleLayoutPanel={() => setLayoutPanelOpen(b => !b)}
+        search={search}
+        onSearchChange={setSearch}
+        searchRef={searchRef}
+      />
 
-      <main className="min-w-0 min-h-0 relative">
+      <main className="flex-1 min-w-0 min-h-0 relative">
         {layoutErr ? (
           <div className="p-6 mono text-small text-mark-2">Layout error: {layoutErr}</div>
         ) : !layout ? (
@@ -234,9 +220,9 @@ export default function GraphPage({
           <GraphCanvas
             layout={layout}
             selectedId={selectedId}
-            onSelect={setSelectedId}
-            onActivate={fqid => navigate(`/p/${id}/${fqid}`)}
-            affectsFocusOnly={affectsFocusOnly}
+            onSelect={handleSelect}
+            onActivate={handleActivate}
+            narrativeFocusOnly={narrativeFocusOnly}
             narrativeThread={narrativeThread}
           />
         )}
@@ -245,26 +231,10 @@ export default function GraphPage({
             Nothing to draw at this lens / filter combination.
           </div>
         )}
-      </main>
 
-      <aside ref={railRef} className="relative border-l rule min-w-0 min-h-0 flex flex-col">
-        <ResizeHandle
-          side="left"
-          panelRef={railRef}
-          onResize={rail.setLive}
-          onCommit={rail.commit}
-        />
-        <div className="flex-1 min-h-0 overflow-hidden">
-          <GraphDetailRail
-            entity={selectedEntity}
-            graph={resp.graph}
-            projectId={id}
-            onClose={() => setSelectedId(null)}
-          />
-        </div>
         {layoutPanelOpen && (
           <div
-            className="border-t rule shrink-0 flex flex-col min-h-0"
+            className="absolute right-0 bottom-0 left-0 border-t rule bg-paper shadow-lg flex flex-col min-h-0"
             style={{ maxHeight: "60%" }}
           >
             <div className="px-4 py-2 border-b rule flex items-center justify-between">
@@ -278,20 +248,20 @@ export default function GraphPage({
               </button>
             </div>
             <LayoutOptionsPanel
-              affectsRouting={affectsRouting}
-              onAffectsRoutingChange={setAffectsRouting}
+              narrativeRouting={narrativeRouting}
+              onNarrativeRoutingChange={setNarrativeRouting}
               bundleTension={bundleTension}
               onBundleTensionChange={setBundleTension}
               astarParams={astarParams}
               onAstarParamsChange={setAstarParams}
-              affectsFocusOnly={affectsFocusOnly}
-              onToggleAffectsFocusOnly={() => setAffectsFocusOnly(b => !b)}
+              narrativeFocusOnly={narrativeFocusOnly}
+              onToggleNarrativeFocusOnly={() => setNarrativeFocusOnly(b => !b)}
               narrativeThread={narrativeThreadEnabled}
               onToggleNarrativeThread={() => setNarrativeThreadEnabled(b => !b)}
             />
           </div>
         )}
-      </aside>
+      </main>
     </div>
   );
 }

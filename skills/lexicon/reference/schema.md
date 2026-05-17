@@ -145,6 +145,14 @@ The `lexicon/decisions/` directory is not part of v1.0 (and was not part of v0.3
       own or routing through an ACL.
     </rationale>
 
+    <!-- Optional multi-paragraph walk-through. Inline <ref/> elements
+         become narrative edges to their targets, same as on
+         <bounded-context>. -->
+    <narrative>
+      How participating contexts coordinate around the kernel's atoms,
+      with inline <ref to="<kernel-slug>/<term-slug>"/> mentions.
+    </narrative>
+
     <term id="<slug>" category="value">
       <name><Display></name>
       <definition>...</definition>

@@ -26,6 +26,30 @@
     OrderPlaced event every downstream consumes.
   </purpose>
 
+  <!-- <narrative> on a bounded-context is optional prose that turns the
+       checkout walk-through into graph edges (every inline <ref/>
+       becomes a `narrative` edge from this context to the target).
+       Useful when the per-atom definitions are correct but the flow
+       across them isn't obvious from any single atom. -->
+  <narrative>
+    Checkout starts when a customer freezes their <ref to="cart"/> at
+    <ref to="place-order"/>. The service reserves stock through the
+    <ref to="orders-to-inventory"/> anticorruption layer, which
+    translates Orders' <ref to="line-item"/> view into
+    <ref to="inventory/stock-item"/> terms so neither context has to
+    learn the other's vocabulary. Once every line reserves, Orders
+    emits <ref to="order-placed"/>; <ref to="context/billing"/> opens
+    an <ref to="billing/invoice"/> from that event, and
+    <ref to="context/shipping"/> schedules a shipment in parallel.
+
+    Money flows through the <ref to="kernel/identity/money"/> kernel
+    value, so a price captured at add-to-cart time survives the trip
+    to Billing without re-denominating. The whole flow respects
+    <ref to="invariant/order-total-equals-line-sum"/>: the order total
+    is the sum of its line items, computed at place-order and never
+    silently mutated downstream.
+  </narrative>
+
   <code-modules>
     <path>src/orders/**</path>
     <path>src/api/orders/**</path>

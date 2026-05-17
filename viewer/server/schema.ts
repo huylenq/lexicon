@@ -138,6 +138,7 @@ export interface SharedKernelShape {
   description?: string;
   participatingContexts?: string[];
   rationale?: string;
+  narrative?: string;
   terms?: TermShape[];
   invariants?: InvariantShape[];
 }

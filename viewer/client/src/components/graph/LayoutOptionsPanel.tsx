@@ -1,19 +1,21 @@
-import type { AffectsRouting } from "@/lib/graph/layout";
+import { useEffect, useRef } from "react";
+import type { NarrativeRouting } from "@/lib/graph/layout";
 
-// Paradigm is the user-facing grouping: Bundle and Straight are leaves,
-// Orthogonal is a parent that picks between Elbow and A*. We derive it from
-// the underlying AffectsRouting value rather than holding parallel state.
-type Paradigm = "bundle" | "orthogonal" | "straight";
-type OrthogonalAlgo = "elbow" | "astar";
+// Top-level branch: where narrative edges get routed.
+//   * "elk"         — submit narrative to ELK with structural edges
+//   * "post-layout" — withhold narrative, route in a second pass with the
+//                     selected tactic (HEB / A* / Elbow)
+type TopLevel = "elk" | "post-layout";
+type Tactic = Exclude<NarrativeRouting, "elk">;
 
-function paradigmOf(r: AffectsRouting): Paradigm {
-  if (r === "bundle") return "bundle";
-  if (r === "straight") return "straight";
-  return "orthogonal";
-}
-function orthogonalAlgoOf(r: AffectsRouting): OrthogonalAlgo {
-  return r === "astar" ? "astar" : "elbow";
-}
+const TACTICS: { id: Tactic; label: string }[] = [
+  { id: "heb", label: "HEB" },
+  { id: "astar", label: "A*" },
+  { id: "elbow", label: "Elbow" },
+];
+
+const topLevelOf = (r: NarrativeRouting): TopLevel =>
+  r === "elk" ? "elk" : "post-layout";
 
 interface AstarParams {
   cellSize: number;
@@ -22,8 +24,8 @@ interface AstarParams {
 }
 
 interface Props {
-  affectsRouting: AffectsRouting;
-  onAffectsRoutingChange: (r: AffectsRouting) => void;
+  narrativeRouting: NarrativeRouting;
+  onNarrativeRoutingChange: (r: NarrativeRouting) => void;
 
   bundleTension: number;
   onBundleTensionChange: (n: number) => void;
@@ -31,123 +33,128 @@ interface Props {
   astarParams: AstarParams;
   onAstarParamsChange: (p: AstarParams) => void;
 
-  affectsFocusOnly: boolean;
-  onToggleAffectsFocusOnly: () => void;
+  narrativeFocusOnly: boolean;
+  onToggleNarrativeFocusOnly: () => void;
 
   narrativeThread: boolean;
   onToggleNarrativeThread: () => void;
 }
 
 export default function LayoutOptionsPanel(props: Props) {
-  const paradigm = paradigmOf(props.affectsRouting);
-  const algo = orthogonalAlgoOf(props.affectsRouting);
+  const topLevel = topLevelOf(props.narrativeRouting);
+  // Remember the most-recent post-layout tactic so toggling ELK → Post-layout
+  // restores the user's last pick instead of always snapping back to HEB.
+  const lastTacticRef = useRef<Tactic>(
+    props.narrativeRouting === "elk" ? "heb" : props.narrativeRouting,
+  );
+  useEffect(() => {
+    if (props.narrativeRouting !== "elk") {
+      lastTacticRef.current = props.narrativeRouting;
+    }
+  }, [props.narrativeRouting]);
 
-  const setParadigm = (p: Paradigm) => {
-    if (p === "bundle") props.onAffectsRoutingChange("bundle");
-    else if (p === "straight") props.onAffectsRoutingChange("straight");
-    else props.onAffectsRoutingChange(algo); // restore last-used orthogonal algo
+  const setTopLevel = (t: TopLevel) => {
+    if (t === "elk") props.onNarrativeRoutingChange("elk");
+    else props.onNarrativeRoutingChange(lastTacticRef.current);
   };
-  const setAlgo = (a: OrthogonalAlgo) => props.onAffectsRoutingChange(a);
+  const setTactic = (t: Tactic) => props.onNarrativeRoutingChange(t);
 
-  // Every sub-control is always rendered. Interacting with a sub-control
-  // (slider, sub-radio) auto-activates its paradigm/algo — so the user can
-  // poke at any value without first clicking the parent radio. Only the radio
-  // dot changes when switching paradigms; no elements appear or disappear.
-  const ensureBundle = () => {
-    if (paradigm !== "bundle") props.onAffectsRoutingChange("bundle");
+  // Auto-activate helpers: interacting with a tactic-specific control flips
+  // top-level to Post-layout and the tactic to the one that owns the control.
+  // Lets the user poke any slider without first clicking the parent radio.
+  const ensureTactic = (t: Tactic) => {
+    if (props.narrativeRouting !== t) props.onNarrativeRoutingChange(t);
   };
   const updateAstar = (patch: Partial<AstarParams>) => {
     props.onAstarParamsChange({ ...props.astarParams, ...patch });
-    if (props.affectsRouting !== "astar") props.onAffectsRoutingChange("astar");
+    ensureTactic("astar");
   };
+
+  const tacticActive = (t: Tactic) =>
+    topLevel === "post-layout" && props.narrativeRouting === t;
 
   return (
     <div className="px-4 py-3 flex flex-col gap-4 overflow-y-auto">
-      <Section label="Routing">
-        <Group active={paradigm === "straight"}>
+      <Section label="Narrative routing">
+        <Group active={topLevel === "elk"}>
           <Radio
-            checked={paradigm === "straight"}
-            onChange={() => setParadigm("straight")}
-            label="Straight"
+            checked={topLevel === "elk"}
+            onChange={() => setTopLevel("elk")}
+            label="ELK"
           />
         </Group>
 
-        <Group active={paradigm === "bundle"}>
+        <Group active={topLevel === "post-layout"}>
           <Radio
-            checked={paradigm === "bundle"}
-            onChange={() => setParadigm("bundle")}
-            label="Bundle (HEB)"
+            checked={topLevel === "post-layout"}
+            onChange={() => setTopLevel("post-layout")}
+            label="Post-layout"
           />
           <SubBlock>
-            <Slider
-              label="Tension"
-              value={props.bundleTension}
-              min={0}
-              max={1}
-              step={0.05}
-              onChange={v => {
-                props.onBundleTensionChange(v);
-                ensureBundle();
-              }}
-            />
-          </SubBlock>
-        </Group>
+            <div className="flex flex-col gap-2">
+              <div className="flex gap-3">
+                {TACTICS.map(t => (
+                  <Radio
+                    key={t.id}
+                    checked={tacticActive(t.id)}
+                    onChange={() => setTactic(t.id)}
+                    label={t.label}
+                    size="small"
+                  />
+                ))}
+              </div>
 
-        <Group active={paradigm === "orthogonal"}>
-          <Radio
-            checked={paradigm === "orthogonal"}
-            onChange={() => setParadigm("orthogonal")}
-            label="Orthogonal"
-          />
-          <SubBlock>
-            <div className="flex gap-3 mb-2">
-              <Radio
-                checked={paradigm === "orthogonal" && algo === "elbow"}
-                onChange={() => props.onAffectsRoutingChange("elbow")}
-                label="Elbow"
-                size="small"
-              />
-              <Radio
-                checked={paradigm === "orthogonal" && algo === "astar"}
-                onChange={() => props.onAffectsRoutingChange("astar")}
-                label="A* (Pathfind)"
-                size="small"
-              />
+              <TacticBlock active={tacticActive("heb")} label="HEB tuning">
+                <Slider
+                  label="Tension"
+                  value={props.bundleTension}
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  onChange={v => {
+                    props.onBundleTensionChange(v);
+                    ensureTactic("heb");
+                  }}
+                />
+              </TacticBlock>
+
+              <TacticBlock active={tacticActive("astar")} label="A* tuning">
+                <Slider
+                  label="Cell size"
+                  value={props.astarParams.cellSize}
+                  min={6}
+                  max={24}
+                  step={1}
+                  unit="px"
+                  onChange={v => updateAstar({ cellSize: v })}
+                />
+                <Slider
+                  label="Turn penalty"
+                  value={props.astarParams.turnPenalty}
+                  min={0}
+                  max={6}
+                  step={0.25}
+                  onChange={v => updateAstar({ turnPenalty: v })}
+                />
+                <Slider
+                  label="Reuse factor"
+                  value={props.astarParams.reuseFactor}
+                  min={0.05}
+                  max={1}
+                  step={0.05}
+                  onChange={v => updateAstar({ reuseFactor: v })}
+                />
+              </TacticBlock>
             </div>
-            <Slider
-              label="Cell size"
-              value={props.astarParams.cellSize}
-              min={6}
-              max={24}
-              step={1}
-              unit="px"
-              onChange={v => updateAstar({ cellSize: v })}
-            />
-            <Slider
-              label="Turn penalty"
-              value={props.astarParams.turnPenalty}
-              min={0}
-              max={6}
-              step={0.25}
-              onChange={v => updateAstar({ turnPenalty: v })}
-            />
-            <Slider
-              label="Reuse factor"
-              value={props.astarParams.reuseFactor}
-              min={0.05}
-              max={1}
-              step={0.05}
-              onChange={v => updateAstar({ reuseFactor: v })}
-            />
           </SubBlock>
         </Group>
       </Section>
 
       <Section label="Visibility">
         <Checkbox
-          checked={props.affectsFocusOnly}
-          onChange={props.onToggleAffectsFocusOnly}
-          label="Show affects only when focused"
+          checked={props.narrativeFocusOnly}
+          onChange={props.onToggleNarrativeFocusOnly}
+          label="Show narrative only when focused"
         />
         <Checkbox
           checked={props.narrativeThread}
@@ -159,14 +166,32 @@ export default function LayoutOptionsPanel(props: Props) {
   );
 }
 
-// Visually de-emphasizes a group of controls when its paradigm isn't active.
-// Controls remain interactive — interacting with one auto-activates the group.
 function Group({ active, children }: { active: boolean; children: React.ReactNode }) {
   return (
     <div
       className="flex flex-col gap-1.5 transition-opacity duration-150"
       style={{ opacity: active ? 1 : 0.55 }}
     >
+      {children}
+    </div>
+  );
+}
+
+function TacticBlock({
+  active,
+  label,
+  children,
+}: {
+  active: boolean;
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      className="flex flex-col gap-1 transition-opacity duration-150"
+      style={{ opacity: active ? 1 : 0.5 }}
+    >
+      <div className="smallcap" style={{ fontSize: "0.65rem" }}>{label}</div>
       {children}
     </div>
   );

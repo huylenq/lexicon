@@ -9,7 +9,6 @@ interface Props {
   selected: boolean;
   dimmed: boolean;
   highlighted: boolean;
-  badgeCount?: number;
   onClick: () => void;
   onDoubleClick: () => void;
   onMouseEnter: () => void;
@@ -139,7 +138,6 @@ function LeafNode({
   selected,
   dimmed,
   highlighted,
-  badgeCount,
   onClick,
   onDoubleClick,
   onMouseEnter,
@@ -191,27 +189,7 @@ function LeafNode({
       >
         {renderNameTspans(truncateName(node.name, Math.floor(node.width / 7)))}
       </text>
-      {badgeCount !== undefined && badgeCount > 0 && (
-        <AffectsBadge x={node.width - 8} y={16} count={badgeCount} />
-      )}
     </g>
-  );
-}
-
-function AffectsBadge({ x, y, count }: { x: number; y: number; count: number }) {
-  return (
-    <text
-      x={x}
-      y={y}
-      textAnchor="end"
-      className="mono"
-      fontSize={9}
-      letterSpacing="0.14em"
-      fill="var(--color-highlight)"
-      opacity={0.75}
-    >
-      +{count}
-    </text>
   );
 }
 

@@ -88,6 +88,22 @@
       arithmetic invariant below.
     </rationale>
 
+    <!-- Kernels can carry a narrative too — inline <ref/> mentions
+         become narrative edges from the kernel to each target. Use it
+         to walk through how participating contexts coordinate around
+         the kernel's atoms. -->
+    <narrative>
+      Every participating context — <ref to="context/catalog"/>,
+      <ref to="context/orders"/>, <ref to="context/inventory"/>,
+      <ref to="context/billing"/>, <ref to="context/shipping"/> —
+      consumes <ref to="money"/> and <ref to="customer-id"/> directly
+      from this kernel. The arithmetic constraint in
+      <ref to="invariant/money-currency-monotone"/> is the load-bearing
+      reason `Money` lives here: a duplicated struct would inevitably
+      drift on rounding or on which mixed-currency operations are
+      allowed, and the drift would surface as bugs at the seams.
+    </narrative>
+
     <!-- category="value": equality is by attributes, not by identity.
          Value terms carry <equality>; entity terms carry <identity-rule>;
          see catalog.xml and orders.xml for both shapes. -->

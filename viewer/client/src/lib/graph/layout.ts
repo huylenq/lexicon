@@ -78,16 +78,26 @@ function lensOpts(lens: Lens, hasCrossClusterEdges: boolean): Record<string, str
   }
 }
 
-export type AffectsRouting = "bundle" | "elbow" | "astar" | "straight";
+// How narrative edges are routed. Two top-level branches:
+//   * "elk"   — submit narrative to ELK alongside structural edges.
+//   * post-layout (one of "heb" | "astar" | "elbow") — withhold from ELK,
+//     route in a second pass with the chosen tactic.
+//
+// Straight-line is not a user-selectable tactic: it survives only as the
+// implicit fallback for edges ELK didn't route. Picking "elk" gives ELK
+// orthogonal routing and falls through to straight-clipped lines when ELK
+// can't route.
+export type NarrativeRouting = "elk" | "heb" | "astar" | "elbow";
 
 export interface LayoutOptions {
-  // How withheld `affects` edges (those not laid out by ELK) are routed:
-  //   * "bundle"   — HEB curves through parent-cluster chain (default).
-  //   * "elbow"    — orthogonal HVH/VHV polyline with one shared midline.
-  //   * "astar"    — orthogonal A* path through canvas whitespace.
-  //   * "straight" — direct line clipped to node rectangles.
-  affectsRouting?: AffectsRouting;
-  // Bundle HEB: pull strength of interior control points toward the straight
+  //   * "elk"   — ELK lays out narrative alongside structural edges.
+  //   * "heb"   — hierarchical edge bundling; curves through parent-chain
+  //               ancestors so refs sharing a kernel/context visibly bundle.
+  //   * "astar" — orthogonal A* path through canvas whitespace; channel
+  //               reuse spatially bundles edges that share corridors.
+  //   * "elbow" — orthogonal HVH/VHV polyline, no bundling.
+  narrativeRouting?: NarrativeRouting;
+  // HEB: pull strength of interior control points toward the straight
   // baseline. 1 = full bundle through cluster centers; 0 = straight line.
   bundleTension?: number;
   // A* grid resolution in canvas px. Smaller = finer paths, more compute.
@@ -103,16 +113,18 @@ export const DEFAULT_BUNDLE_TENSION = 0.85;
 export const DEFAULT_ASTAR_CELL_SIZE = 12;
 export const DEFAULT_ASTAR_TURN_PENALTY = 3.0;
 export const DEFAULT_ASTAR_REUSE_FACTOR = 0.3;
+export const DEFAULT_NARRATIVE_ROUTING: NarrativeRouting = "heb";
 
 export async function layoutModel(
   model: GraphModel,
   opts: LayoutOptions = {},
 ): Promise<LayoutResult> {
-  const affectsRouting: AffectsRouting = opts.affectsRouting ?? "bundle";
+  const narrativeRouting: NarrativeRouting = opts.narrativeRouting ?? DEFAULT_NARRATIVE_ROUTING;
   const bundleTension = opts.bundleTension ?? DEFAULT_BUNDLE_TENSION;
   const astarCellSize = opts.astarCellSize ?? DEFAULT_ASTAR_CELL_SIZE;
   const astarTurnPenalty = opts.astarTurnPenalty ?? DEFAULT_ASTAR_TURN_PENALTY;
   const astarReuseFactor = opts.astarReuseFactor ?? DEFAULT_ASTAR_REUSE_FACTOR;
+  const withholdNarrative = narrativeRouting !== "elk";
   // Build ELK tree: top-level nodes hold their children. Edges attach to the
   // lowest common ancestor of their endpoints — putting an intra-cluster edge
   // at root makes ELK with INCLUDE_CHILDREN anchor the section to the cluster
@@ -129,14 +141,14 @@ export async function layoutModel(
     childrenByParent.set(key, arr);
   }
 
-  // Partition edges. `affects` edges (ADR → target) form huge fans on lenses
-  // where ADRs aren't the subject — drawing them all crams the canvas AND
-  // Narrative edges are always withheld — they're free-prose links and can
-  // run to dozens per source. Letting ELK lay them out would sprawl the graph.
-  // `affects` edges are vestigial v0.2 ADR edges that never emit under v0.3;
-  // the filter clause is kept for the dead-code rip-out (deferred polish pass).
+  // Partition edges. Narrative refs can run to dozens per source and would
+  // sprawl the structural layout if ELK accommodated them all; the post-layout
+  // tactics (HEB / A* / elbow) exist for that reason. When `narrativeRouting`
+  // is "elk", we skip the withhold and let ELK route narrative alongside
+  // disambiguates / seam — accepts the sprawl risk in exchange for one
+  // unified routing pass.
   const layoutEdges = model.edges.filter(
-    e => e.kind !== "narrative" && e.kind !== "affects",
+    e => !(withholdNarrative && e.kind === "narrative"),
   );
 
   // Bucket edges by whether their endpoints share a cluster:
@@ -318,25 +330,23 @@ export async function layoutModel(
     edges.push({ ...e, points: [] });
   }
 
-  // A* shares one channel-reuse map across all routed edges. Narrative edges
-  // (~hundreds per project) would saturate it and pull affects edges into
-  // narrative bundles, so they're always routed as `bundle` instead — see the
-  // per-edge fallback below.
-  if (affectsRouting === "astar") {
+  // A* pre-pass for narrative edges when that tactic is selected. Sorted
+  // deterministically so the channel-reuse outcomes are stable across runs.
+  if (narrativeRouting === "astar") {
     const gridW = (result as ElkNode).width ?? 800;
     const gridH = (result as ElkNode).height ?? 600;
-    const affectsEdges = edges
-      .filter(e => e.kind === "affects" && e.points.length === 0)
+    const narrativeEdges = edges
+      .filter(e => e.kind === "narrative" && e.points.length === 0)
       .sort((p, q) => (p.source + ">" + p.target).localeCompare(q.source + ">" + q.target));
-    astarRouteAffects(affectsEdges, nodes, gridW, gridH, byIdPos, {
+    astarRouteEdges(narrativeEdges, nodes, gridW, gridH, byIdPos, {
       cellSize: astarCellSize,
       turnPenalty: astarTurnPenalty,
       reuseFactor: astarReuseFactor,
     });
   }
 
-  // Parent-chain memo. Many `affects` edges share a source ADR, so its chain
-  // gets reused across edges within one layout pass.
+  // Parent-chain memo. Narrative refs often share a source context/kernel,
+  // so its chain gets reused across edges within one layout pass.
   const chainCache = new Map<string, string[]>();
   const chainOf = (startId: string): string[] => {
     const cached = chainCache.get(startId);
@@ -353,26 +363,25 @@ export async function layoutModel(
     return path;
   };
 
-  // fallback for edges without ELK sections.
-  //   * `affects` edges (withheld from ELK on non-decisions lenses): route as a
-  //     hierarchical-edge-bundling curve through the parent chains of the two
-  //     endpoints, so multiple affects edges that share cluster ancestors visually
-  //     bundle through the same midline.
-  //   * other edges: straight line between the rectangle boundaries of the
-  //     endpoints (not their centers — center-to-center extrudes through node
-  //     bodies). Skips edges between overlapping rectangles, which would
-  //     otherwise render as a backwards short orphan segment because each
-  //     "exit" point lands past the other rectangle's center.
+  // Fallback for edges without ELK sections. Narrative under each post-layout
+  // tactic gets routed here; everything else falls through to a straight line
+  // between rectangle boundaries (not centers — center-to-center extrudes
+  // through node bodies). Overlapping rectangles are skipped, since their
+  // "exit" points land past each other's centers and would render as a
+  // backwards short orphan segment.
+  //   * narrative + "heb"   → bundleControlPoints, marked bundled
+  //   * narrative + "elbow" → elbowRoute (orthogonal HVH/VHV)
+  //   * narrative + "astar" → already routed by the pre-pass above; an edge
+  //                            with no points means A* found no path, falls
+  //                            through to straight
+  //   * narrative + "elk"   → already routed by ELK; doesn't reach this loop
   for (const e of edges) {
     if (e.points.length > 0) continue;
     const a = byIdPos.get(e.source);
     const b = byIdPos.get(e.target);
     if (!a || !b) continue;
 
-    const isFanout = e.kind === "affects" || e.kind === "narrative";
-    // Narrative always bundles; see the A* note above.
-    const routing = e.kind === "narrative" ? "bundle" : affectsRouting;
-    if (isFanout && routing === "bundle") {
+    if (e.kind === "narrative" && narrativeRouting === "heb") {
       const ctrl = bundleControlPoints(a, b, byIdPos, bundleTension, chainOf);
       if (ctrl.length < 2) continue;
       // Clip endpoints to the node rectangles, pointing toward the *next*
@@ -389,7 +398,7 @@ export async function layoutModel(
       continue;
     }
 
-    if (isFanout && routing === "elbow") {
+    if (e.kind === "narrative" && narrativeRouting === "elbow") {
       const pts = elbowRoute(a, b);
       if (pts) {
         e.points = pts;
@@ -398,7 +407,7 @@ export async function layoutModel(
       // else fall through to straight
     }
 
-    // "astar" was handled by the batch pre-pass above; if it didn't set points
+    // "astar" was handled by the pre-pass above; if it didn't set points
     // (no path found), this edge falls through to the straight-line fallback.
 
     const { x: ax, y: ay } = center(a);
@@ -428,8 +437,8 @@ export async function layoutModel(
 // Walks each endpoint up to the root through its parent chain, finds the
 // lowest common ancestor, and emits centers along: source → ancestors of
 // source up to LCA → LCA → ancestors of target down to target. When edges
-// share an ancestor chain (e.g. multiple `affects` edges from the ADR cluster
-// to the same bounded context), those shared middle points collapse and the
+// share an ancestor chain (e.g. multiple narrative refs from one bounded
+// context to atoms in another), those shared middle points collapse and the
 // rendered curves overlap there — that's the bundling effect.
 //
 // Interior points are pulled toward the straight source→target baseline by a
@@ -490,7 +499,7 @@ function bundleControlPoints(
 }
 
 // =========================================================================
-// A* orthogonal router for `affects` edges.
+// A* orthogonal router — spatial bundling via channel reuse.
 //
 // Quantizes the canvas to a grid (CELL_SIZE px per cell), marks leaf-node
 // rectangles as blocked (clusters stay traversable so paths can enter/exit
@@ -500,8 +509,10 @@ function bundleControlPoints(
 // instead of carving independent paths. The result is an orthogonal polyline
 // per edge, with parallel edges naturally bundling along shared lanes.
 //
-// Edges are processed in deterministic order (lex sort on source+target) so
-// channel-reuse outcomes are stable across runs.
+// Kind-agnostic: works on whatever edge set the caller passes (today,
+// narrative under `narrativeRouting === "astar"`). Edges are processed in
+// deterministic order (lex sort on source+target) so channel-reuse outcomes
+// are stable across runs.
 // =========================================================================
 
 // How much the reuse multiplier drops per prior crossing. With `reuseFactor`
@@ -529,15 +540,15 @@ interface AStarGrid {
   usage: Uint16Array;
 }
 
-function astarRouteAffects(
-  affectsEdges: PositionedEdge[],
+function astarRouteEdges(
+  edgesToRoute: PositionedEdge[],
   nodes: PositionedNode[],
   width: number,
   height: number,
   byId: Map<string, PositionedNode>,
   params: AStarParams,
 ): void {
-  if (affectsEdges.length === 0) return;
+  if (edgesToRoute.length === 0) return;
   const cellSize = params.cellSize;
   const cols = Math.ceil(width / cellSize) + 2;
   const rows = Math.ceil(height / cellSize) + 2;
@@ -565,7 +576,7 @@ function astarRouteAffects(
     }
   }
 
-  for (const edge of affectsEdges) {
+  for (const edge of edgesToRoute) {
     const src = byId.get(edge.source);
     const tgt = byId.get(edge.target);
     if (!src || !tgt) continue;

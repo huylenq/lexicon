@@ -410,6 +410,7 @@ function parseSharedKernel(el: XastElement, file: string, issues: LoadIssue[]): 
     description: renderProse(firstChild(el, "description")),
     participatingContexts: refList(firstChild(el, "participating-contexts")),
     rationale: renderProse(firstChild(el, "rationale")),
+    narrative: renderProse(firstChild(el, "narrative")),
     terms: childElements(el, "term").map(t => parseTerm(t, file, issues)),
     invariants: childElements(el, "invariant").map(i => parseInvariant(i, file, issues)),
   };
@@ -821,11 +822,15 @@ function resolve(
         register({
           ref: ref("shared-kernel", kernelFqid, k.name),
           ownerContextId: null,
-          ownerKernelId: null,
+          // Self-ownership so bare slugs in the kernel's own narrative
+          // (e.g. `money`) resolve against its child atoms, symmetric
+          // with how a bounded-context owns itself for the same reason.
+          ownerKernelId: k.id,
           source: childLoc("sharedKernels", k.id),
           xastNode: kernelXast,
           description: k.description,
           rationale: k.rationale,
+          narrative: k.narrative,
         });
         const kernelTermLoc = (id: string) =>
           loc(relFile, ranges.byKey[`sharedKernels/${k.id}/terms`]?.[id], ranges.totalLines);
@@ -1226,7 +1231,7 @@ function resolve(
     "boundary-rule": ["statement", "rationale"],
     aggregate: ["rationale"],
     module: ["description", "rationale"],
-    "shared-kernel": ["description", "rationale"],
+    "shared-kernel": ["description", "rationale", "narrative"],
     surface: ["body"],
     region: ["role"],
   };

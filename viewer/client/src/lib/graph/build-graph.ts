@@ -11,13 +11,7 @@ export type EdgeKind =
   | "seam"
   | "boundary-rule"
   | "contains"
-  | "narrative"
-  // `affects` and `supersedes` were ADR edges in v0.2; v0.3 removed ADRs so
-  // no edge of these kinds is emitted. The names remain in the union so the
-  // layout-routing infrastructure (A* fan-out router, focus-only toggles)
-  // still typechecks; a polish pass can rip the dead code later.
-  | "affects"
-  | "supersedes";
+  | "narrative";
 
 export interface GraphNode {
   id: string;            // fqid

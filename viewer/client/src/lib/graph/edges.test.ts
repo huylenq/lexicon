@@ -3,7 +3,7 @@
 // within ENDPOINT_TOLERANCE_PX of the matching node's boundary.
 
 import "./elk-node-setup";
-import { describe, test, expect } from "bun:test";
+import { beforeAll, describe, test, expect } from "bun:test";
 import { join } from "node:path";
 
 import {
@@ -13,7 +13,12 @@ import {
   type GraphModel,
   type GraphNode,
 } from "./build-graph";
-import { layoutModel, type LayoutResult, type PositionedNode } from "./layout";
+import {
+  layoutModel,
+  type LayoutOptions,
+  type LayoutResult,
+  type PositionedNode,
+} from "./layout";
 import { loadLexicon } from "../../../../server/loader.ts";
 import type { ResolvedGraph as ServerResolvedGraph } from "../../../../server/schema.ts";
 import type { ResolvedGraph as ClientResolvedGraph } from "../types";
@@ -53,12 +58,12 @@ function validateLayout(model: GraphModel, layout: LayoutResult): EdgeProblem[] 
   const modelNodeIds = new Set(model.nodes.map(n => n.id));
   const positioned = new Map(layout.nodes.map(n => [n.id, n]));
 
-  // Withheld kinds: build-graph emits these but layout deliberately skips
-  // them (narrative + the vestigial `affects` union member). They land in
-  // layout.edges with `points: []` only when the post-pass also skipped them
-  // (no source, no target, or `bundleControlPoints` produced fewer than two).
-  // We DO validate narrative edges when they have points — the bundle fallback
-  // is meant to produce a control polygon for every emitted narrative.
+  // Narrative edges may be withheld from ELK (when narrativeRouting is one of
+  // the post-layout tactics) and routed by the post-pass instead. They land
+  // in layout.edges with `points: []` only when the post-pass also skipped
+  // them (no source, no target, or `bundleControlPoints` produced fewer than
+  // two). We DO validate narrative edges when they have points — every emitted
+  // narrative is meant to produce a renderable path under any tactic.
   for (const e of layout.edges) {
     // Drop edges whose endpoints aren't in the model at all — those are bugs
     // upstream of layout and surface separately.
@@ -304,10 +309,14 @@ function asClientGraph(g: ServerResolvedGraph): ClientResolvedGraph {
 const SAMPLE_ROOT = join(import.meta.dir, "..", "..", "..", "..", "sample-lexicon");
 const VIEWER_ROOT = join(import.meta.dir, "..", "..", "..", "..");
 
-async function laidOut(projectRoot: string, lens: "ownership" | "surfaces") {
+async function laidOut(
+  projectRoot: string,
+  lens: "ownership" | "surfaces",
+  layoutOpts: LayoutOptions = {},
+) {
   const graph = asClientGraph(await loadLexicon(projectRoot));
   const model = buildModel(graph, lens);
-  const layout = await layoutModel(model);
+  const layout = await layoutModel(model, layoutOpts);
   return { graph, model, layout };
 }
 
@@ -379,16 +388,86 @@ describe("buildModel — sample-lexicon emission coverage", () => {
     expect(kernelSourced.length).toBeGreaterThanOrEqual(1);
   });
 
-  test("vestigial kinds: no `affects` or `supersedes` edges emitted", async () => {
-    // v0.2 ADR-era edge kinds; v0.3 dropped ADRs but the union members linger
-    // for typechecking. After the rip-out pass, this test becomes structurally
-    // unnecessary (the kinds won't exist to assert against) — until then, it
-    // catches accidental re-introduction.
-    const { model } = await laidOut(SAMPLE_ROOT, "ownership");
-    expect(edgesOfKind(model, "affects")).toEqual([]);
-    expect(edgesOfKind(model, "supersedes")).toEqual([]);
+});
+
+// ---------- narrative routing tactics ----------
+//
+// Four `narrativeRouting` modes produce four observably different shapes for
+// the same narrative edge set. These tests pin the per-tactic shape so a
+// regression in dispatch (e.g. "elk" silently falling through to "heb") fails
+// loudly.
+
+describe("layoutModel — narrative routing tactics", () => {
+  // Load + build once; each test reuses the same model with a different
+  // routing tactic. Layout is per-test (each tactic produces different
+  // PositionedEdges).
+  let model: GraphModel;
+  beforeAll(async () => {
+    const graph = asClientGraph(await loadLexicon(SAMPLE_ROOT));
+    model = buildModel(graph, "ownership");
+  });
+
+  test('"elk": narrative edges submitted to ELK, not bundled', async () => {
+    // Connectedness is *not* asserted here. Narrative edges in the sample
+    // include cluster-as-endpoint patterns (e.g. kernel → its own child term)
+    // that ELK can't cleanly attach when the edge sits at root with
+    // INCLUDE_CHILDREN — section coords come back in the cluster's local
+    // space and validateLayout flags the endpoints as detached. This is a
+    // pre-existing limitation that only surfaces under "elk" mode (the other
+    // tactics route post-layout in absolute space). HEB remains the default
+    // for that reason.
+    const layout = await layoutModel(model, { narrativeRouting: "elk" });
+    const narrative = layout.edges.filter(e => e.kind === "narrative");
+    expect(narrative.length).toBeGreaterThan(0);
+    // ELK-routed edges never have the bundled flag set (only HEB sets it).
+    for (const e of narrative) {
+      expect(e.bundled ?? false).toBe(false);
+    }
+  });
+
+  test('"heb": narrative edges marked bundled = true', async () => {
+    const layout = await layoutModel(model, { narrativeRouting: "heb" });
+    const narrative = layout.edges.filter(e => e.kind === "narrative");
+    expect(narrative.length).toBeGreaterThan(0);
+    // The HEB fallback always sets bundled=true when control points are emitted.
+    const bundled = narrative.filter(e => e.bundled);
+    expect(bundled.length).toBeGreaterThan(0);
+    expectNoProblems(model, layout);
+  });
+
+  test('"elbow": narrative edges HVH/VHV polylines, not bundled', async () => {
+    const layout = await layoutModel(model, { narrativeRouting: "elbow" });
+    const narrative = layout.edges.filter(e => e.kind === "narrative");
+    expect(narrative.length).toBeGreaterThan(0);
+    // Elbow router produces exactly 4 control points (exit, channel, channel, enter)
+    // for non-overlapping rectangles. None marked bundled.
+    const elbow = narrative.filter(e => e.points.length === 4 && !e.bundled);
+    expect(elbow.length).toBeGreaterThan(0);
+    expectNoProblems(model, layout);
+  });
+
+  test('"astar": narrative edges orthogonal corner-only paths, not bundled', async () => {
+    const layout = await layoutModel(model, { narrativeRouting: "astar" });
+    const narrative = layout.edges.filter(e => e.kind === "narrative");
+    expect(narrative.length).toBeGreaterThan(0);
+    // A*-routed edges are orthogonal polylines (every segment axis-aligned),
+    // not bundled. Verify at least one edge has the orthogonal property.
+    const astarRouted = narrative.filter(e => e.points.length >= 2 && !e.bundled && isOrthogonal(e.points));
+    expect(astarRouted.length).toBeGreaterThan(0);
+    expectNoProblems(model, layout);
   });
 });
+
+// Every consecutive pair shares either x or y (axis-aligned segment).
+function isOrthogonal(points: { x: number; y: number }[]): boolean {
+  for (let i = 1; i < points.length; i++) {
+    const dx = Math.abs(points[i].x - points[i - 1].x);
+    const dy = Math.abs(points[i].y - points[i - 1].y);
+    // Allow a sub-pixel tolerance for floating-point grid quantization noise.
+    if (dx > 0.5 && dy > 0.5) return false;
+  }
+  return true;
+}
 
 describe("layoutModel — sample-lexicon integration", () => {
   test("ownership lens: every emitted edge connects to its endpoints", async () => {

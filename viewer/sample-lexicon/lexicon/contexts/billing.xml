@@ -25,6 +25,30 @@
     only *how* to collect.
   </purpose>
 
+  <!-- Second narrative source in the sample (orders is the other) —
+       multi-source narrative exercises bundle routing across distinct
+       cluster origins. Refs span Billing's own atoms, the upstream
+       Orders context it consumes from, the Identity kernel for Money,
+       and the tax-jurisdiction overlay it depends on. -->
+  <narrative>
+    Billing wakes up on <ref to="orders/order-placed"/>: each event
+    becomes an <ref to="invoice"/> denominated in
+    <ref to="kernel/identity/money"/>, with tax computed from the
+    <ref to="overlay/tax-jurisdiction"/> overlay so the same code path
+    serves EU, US, and UK deployments. The invoice goes to the
+    customer; once they pay, <ref to="settle-payment"/> records a
+    <ref to="payment"/> and publishes <ref to="payment-settled"/> for
+    <ref to="context/orders"/> to mark the order paid.
+
+    Refunds are the symmetric path. They never exceed the captured
+    total — <ref to="invariant/refund-not-larger-than-paid"/> guards
+    against partial-refund drift across multiple credit notes. The
+    payment gateway itself is out-of-process, so the
+    <ref to="billing-to-gateway"/> seam documents the conformist
+    relationship in prose without trying to graph-encode an upstream
+    we don't own.
+  </narrative>
+
   <code-modules>
     <path>src/billing/**</path>
   </code-modules>

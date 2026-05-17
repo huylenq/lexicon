@@ -239,6 +239,7 @@
       <xs:element name="description" type="Prose"/>
       <xs:element name="participating-contexts" type="RefList"/>
       <xs:element name="rationale" type="Prose" minOccurs="0"/>
+      <xs:element name="narrative" type="Prose" minOccurs="0"/>
       <xs:choice minOccurs="0" maxOccurs="unbounded">
         <xs:element name="term" type="Term"/>
         <xs:element name="invariant" type="Invariant"/>

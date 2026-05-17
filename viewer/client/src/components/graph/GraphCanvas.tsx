@@ -9,7 +9,7 @@ interface Props {
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   onActivate: (id: string) => void; // double-click → navigate to detail
-  affectsFocusOnly?: boolean;
+  narrativeFocusOnly?: boolean;
   narrativeThread?: ThreadStop[] | null;
 }
 
@@ -19,7 +19,7 @@ interface Viewport {
   scale: number;
 }
 
-export default function GraphCanvas({ layout, selectedId, onSelect, onActivate, affectsFocusOnly = false, narrativeThread = null }: Props) {
+export default function GraphCanvas({ layout, selectedId, onSelect, onActivate, narrativeFocusOnly = false, narrativeThread = null }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<{ w: number; h: number }>({ w: 800, h: 600 });
   const [viewport, setViewport] = useState<Viewport>({ x: 0, y: 0, scale: 1 });
@@ -57,14 +57,6 @@ export default function GraphCanvas({ layout, selectedId, onSelect, onActivate, 
     clusterNodes: layout.nodes.filter(n => n.isCluster),
     leafNodes: layout.nodes.filter(n => !n.isCluster),
   }), [layout]);
-  const affectsCount = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const e of layout.edges) {
-      if (e.kind !== "affects") continue;
-      m.set(e.source, (m.get(e.source) ?? 0) + 1);
-    }
-    return m;
-  }, [layout]);
   // Dim non-neighbors only when the user has committed to a selection. Hover
   // alone just brightens the focused node — no global dim, no flashing as the
   // cursor crosses the canvas.
@@ -167,12 +159,12 @@ export default function GraphCanvas({ layout, selectedId, onSelect, onActivate, 
             />
           ))}
           {layout.edges.map(e => {
-            // Edges are visible by default; Edges filter chip is the primary
-            // opt-out. The `affectsFocusOnly` toggle re-applies the old
-            // "show only on focus" behavior to `affects` specifically — useful
-            // on dense lenses where the saffron cables become wallpaper.
+            // Edges are visible by default; the Edges filter chip is the
+            // primary opt-out. `narrativeFocusOnly` is a secondary escape
+            // hatch for dense narrative graphs: when on, narrative edges
+            // appear only for the focused node.
             const focused = isEdgeFocused(e.source, e.target);
-            const hidden = e.kind === "affects" && affectsFocusOnly && !focused;
+            const hidden = e.kind === "narrative" && narrativeFocusOnly && !focused;
             return (
               <GraphEdge
                 key={e.id}
@@ -190,7 +182,6 @@ export default function GraphCanvas({ layout, selectedId, onSelect, onActivate, 
               selected={selectedId === n.id}
               highlighted={hoverId === n.id}
               dimmed={!!focusSet && !focusSet.has(n.id)}
-              badgeCount={affectsCount.get(n.id)}
               onClick={() => onSelect(n.id)}
               onDoubleClick={() => onActivate(n.id)}
               onMouseEnter={() => setHoverId(n.id)}
