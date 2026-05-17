@@ -2,12 +2,13 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from "react";
 
-// Horizontal reading stack of entity panes. The leading pane's fqid is encoded
+// Horizontal reading stack of panes. The leading pane's fqid is encoded
 // in the URL path (`/p/:id/<fqid>`); the rest ride in `?stacked=...` query
 // params. State lives in this provider so RefLink (anywhere in the tree under
 // a pane) can dispatch into the stack.
@@ -18,6 +19,12 @@ interface StackCtx {
   closePane: (index: number) => void;
   flashSignal: { index: number; nonce: number } | null;
   paneIndexOf: (fqid: string) => number;
+  // Single-click on a graph node previews the entity in an ephemeral pane
+  // appended to the right of the committed stack. Double-click promotes it
+  // to a committed pane; the next single-click replaces it.
+  transient: string | null;
+  setTransient: (fqid: string | null) => void;
+  promoteTransient: () => void;
 }
 
 const Ctx = createContext<StackCtx | null>(null);
@@ -32,6 +39,13 @@ export function StackProvider({
   children: ReactNode;
 }) {
   const [flashSignal, setFlashSignal] = useState<StackCtx["flashSignal"]>(null);
+  const [transient, setTransientState] = useState<string | null>(null);
+
+  // Clear transient whenever the committed panes change (navigation, promote,
+  // sidebar click, etc.) — keeps the preview slot anchored to the current stack.
+  useEffect(() => {
+    setTransientState(null);
+  }, [panes]);
 
   const pushPane = useCallback<StackCtx["pushPane"]>(
     (fqid, fromIndex) => {
@@ -64,9 +78,40 @@ export function StackProvider({
     [panes],
   );
 
+  const setTransient = useCallback<StackCtx["setTransient"]>(
+    (fqid) => {
+      if (fqid && panes.includes(fqid)) {
+        // Already committed — flash that pane instead of double-rendering it.
+        setFlashSignal({ index: panes.indexOf(fqid), nonce: Date.now() });
+        setTransientState(null);
+        return;
+      }
+      setTransientState(fqid);
+    },
+    [panes],
+  );
+
+  const promoteTransient = useCallback<StackCtx["promoteTransient"]>(() => {
+    if (!transient) return;
+    if (panes.includes(transient)) {
+      setTransientState(null);
+      return;
+    }
+    setPanes([...panes, transient]);
+  }, [transient, panes, setPanes]);
+
   const value = useMemo<StackCtx>(
-    () => ({ panes, pushPane, closePane, flashSignal, paneIndexOf }),
-    [panes, pushPane, closePane, flashSignal, paneIndexOf],
+    () => ({
+      panes,
+      pushPane,
+      closePane,
+      flashSignal,
+      paneIndexOf,
+      transient,
+      setTransient,
+      promoteTransient,
+    }),
+    [panes, pushPane, closePane, flashSignal, paneIndexOf, transient, setTransient, promoteTransient],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

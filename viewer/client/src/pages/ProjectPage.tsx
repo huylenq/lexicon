@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { Sidebar } from "@phosphor-icons/react";
 import { api } from "@/lib/api";
 import type { LexiconResponse, ResolvedGraph } from "@/lib/types";
 import { PeekProvider, usePeek } from "@/lib/peek";
@@ -10,14 +11,15 @@ import {
   useInspector,
 } from "@/lib/inspector";
 import { ResizeHandle, usePersistedWidth } from "@/lib/resize";
-import { StackProvider } from "@/lib/stack";
+import { StackProvider, useStack } from "@/lib/stack";
 import ContextSidebar from "@/components/ContextSidebar";
-import { PurposeAndNarrative } from "@/components/EntityDetail";
-import StackedEntities from "@/components/StackedEntities";
+import Pane, { PurposeAndNarrative } from "@/components/Pane";
+import StackedPane from "@/components/StackedPane";
 import PeekDrawer from "@/components/PeekDrawer";
 import YamlInspector from "@/components/YamlInspector";
 import ThemeToggle from "@/components/ThemeToggle";
 import GraphPage from "./GraphPage";
+import { LENSES, type Lens } from "@/lib/graph/build-graph";
 
 export default function ProjectPage() {
   const { projectId } = useParams();
@@ -32,30 +34,30 @@ export default function ProjectPage() {
   );
 }
 
+const isLens = (s: string | null | undefined): s is Lens =>
+  !!s && (LENSES as readonly string[]).includes(s);
+
 function ProjectShell({ projectId }: { projectId: number }) {
   const [resp, setResp] = useState<LexiconResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [live, setLive] = useState(false);
-  const { peeks } = usePeek();
+  const { peeks, closeAll: closeAllPeeks } = usePeek();
   const { isOpen: inspectorOpen, close: closeInspector } = useInspector();
+  const peekOpen = peeks.length > 0;
+
+  // Mutex: slab and drawer share the right-rail column. Whichever opens last
+  // wins; opening one closes the other.
+  useEffect(() => {
+    if (inspectorOpen) closeAllPeeks();
+  }, [inspectorOpen, closeAllPeeks]);
+  useEffect(() => {
+    if (peekOpen) closeInspector();
+  }, [peekOpen, closeInspector]);
   const loc = useLocation();
   const navigate = useNavigate();
 
-  const sidebarRef = useRef<HTMLElement>(null);
-  const drawerRef = useRef<HTMLElement>(null);
-  const slabRef = useRef<HTMLElement>(null);
-  const sidebar = usePersistedWidth({
-    key: "lexicon.contextSidebarWidth", defaultPx: 272 /* 17rem */, minPx: 200, maxFrac: 0.5,
-  });
-  const drawer = usePersistedWidth({
-    key: "lexicon.peekDrawerWidth", defaultPx: 480 /* 30rem */, minPx: 280, maxFrac: 0.7,
-  });
-  const slab = usePersistedWidth({
-    key: "lexicon.specimenSlabWidth", defaultPx: 560, minPx: 360, maxFrac: 0.7,
-  });
-
-  // Close-side of ⌘'/ESC. The open-side lives in each page because the target
-  // depends on context (selected node, current entity, graph.system fallback).
+  // Close-side of ⌘'/ESC. The open-side lives in each surface because the
+  // target depends on context (focused pane, graph selection, system fallback).
   useEffect(() => {
     if (!inspectorOpen) return;
     const onKey = (e: KeyboardEvent) => {
@@ -71,29 +73,47 @@ function ProjectShell({ projectId }: { projectId: number }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [inspectorOpen, closeInspector]);
 
-  // parse trailing path: either "graph[/<lens>]" or an activeFqid
   const prefix = `/p/${projectId}/`;
   const tail = loc.pathname.startsWith(prefix)
     ? decodeURIComponent(loc.pathname.slice(prefix.length))
     : "";
-  const isGraph = tail === "graph" || tail.startsWith("graph/");
-  const graphLens = isGraph ? tail.slice("graph".length).replace(/^\//, "") || undefined : undefined;
-  const activeFqid = !isGraph && tail ? tail : null;
+  const searchParams = useMemo(() => new URLSearchParams(loc.search), [loc.search]);
 
-  // Stack: leading fqid lives in the path, the rest in ?stacked=...
-  // Memoized so downstream consumers (StackProvider value, StackedEntities'
-  // resolved memo) don't invalidate on every parent re-render.
+  // Legacy redirect: `/p/:id/graph[/:lens]` → `/p/:id/?graph=1[&lens=:lens]`.
+  // Single-shot via useEffect so it runs once per matching URL.
+  useEffect(() => {
+    const m = loc.pathname.match(/^\/p\/[^/]+\/graph(?:\/([^/?]+))?\/?$/);
+    if (!m) return;
+    const params = new URLSearchParams(loc.search);
+    params.set("graph", "1");
+    if (m[1]) params.set("lens", m[1]);
+    navigate(`/p/${projectId}/?${params.toString()}`, { replace: true });
+  }, [loc.pathname, loc.search, projectId, navigate]);
+
+  const isLegacyGraph = /^\/p\/[^/]+\/graph(?:\/[^/?]+)?\/?$/.test(loc.pathname);
+  const activeFqid = !isLegacyGraph && tail ? tail : null;
+
+  const graphOn = searchParams.get("graph") === "1";
+  const lensParam = searchParams.get("lens");
+  const lens: Lens = isLens(lensParam) ? lensParam : "ownership";
+  const sidebarOn = searchParams.get("sidebar") !== "0";
+
+  // Stack: leading fqid in the path, the rest in ?stacked=.
   const panes = useMemo(() => {
-    if (isGraph || !activeFqid) return [];
-    const stacked = new URLSearchParams(loc.search).getAll("stacked");
+    if (!activeFqid) return [];
+    const stacked = searchParams.getAll("stacked");
     return [activeFqid, ...stacked];
-  }, [isGraph, activeFqid, loc.search]);
+  }, [activeFqid, searchParams]);
 
   const setPanes = useCallback(
     (next: string[]) => {
-      if (next.length === 0) return;
       const params = new URLSearchParams(loc.search);
       params.delete("stacked");
+      if (next.length === 0) {
+        const q = params.toString();
+        navigate(`/p/${projectId}/${q ? `?${q}` : ""}${loc.hash}`, { replace: true });
+        return;
+      }
       next.slice(1).forEach(s => params.append("stacked", s));
       const q = params.toString();
       navigate(`/p/${projectId}/${next[0]}${q ? `?${q}` : ""}${loc.hash}`, {
@@ -102,6 +122,32 @@ function ProjectShell({ projectId }: { projectId: number }) {
     },
     [navigate, projectId, loc.search, loc.hash],
   );
+
+  const setPanelParam = useCallback(
+    (key: string, value: string | null) => {
+      const params = new URLSearchParams(loc.search);
+      if (value === null) params.delete(key);
+      else params.set(key, value);
+      const q = params.toString();
+      const path = activeFqid ? `/p/${projectId}/${activeFqid}` : `/p/${projectId}/`;
+      navigate(`${path}${q ? `?${q}` : ""}${loc.hash}`, { replace: true });
+    },
+    [loc.search, loc.hash, navigate, projectId, activeFqid],
+  );
+
+  const toggleGraph = useCallback(() => {
+    setPanelParam("graph", graphOn ? null : "1");
+  }, [graphOn, setPanelParam]);
+  const toggleSidebar = useCallback(() => {
+    setPanelParam("sidebar", sidebarOn ? "0" : null);
+  }, [sidebarOn, setPanelParam]);
+  const setLens = useCallback((l: Lens) => {
+    setPanelParam("lens", l);
+  }, [setPanelParam]);
+
+  // keyboard: `s` toggles sidebar, `g` toggles graph
+  useGlobalShortcut("s", toggleSidebar);
+  useGlobalShortcut("g", toggleGraph);
 
   useEffect(() => {
     api.loadLexicon(projectId).then(setResp).catch(e => setError(e.message));
@@ -140,10 +186,8 @@ function ProjectShell({ projectId }: { projectId: number }) {
   }
 
   const { project, graph } = resp;
-  // Sidebar highlight + "return to Reading" target follow the last pane,
-  // not the leading one. Derived directly — no need for state.
+  // Sidebar highlight follows the last pane, not the leading one.
   const focusFqid = panes[panes.length - 1] ?? null;
-  const peekOpen = peeks.length > 0;
 
   return (
     <div className="h-screen flex flex-col">
@@ -153,12 +197,6 @@ function ProjectShell({ projectId }: { projectId: number }) {
         <div className="display text-h3 text-fg leading-none">{project.name}</div>
         <div className="mono text-small text-fg-3 truncate">{project.root_path}</div>
         <div className="ml-auto flex items-center gap-3">
-          <ViewToggle
-            isGraph={isGraph}
-            onDetail={() => navigate(`/p/${projectId}/${focusFqid ?? ""}`)}
-            onGraph={() => navigate(`/p/${projectId}/graph`)}
-          />
-          <span className="smallcap">·</span>
           <span className="smallcap">
             {Object.keys(graph.entities).length} entities
           </span>
@@ -180,149 +218,270 @@ function ProjectShell({ projectId }: { projectId: number }) {
         </div>
       </div>
 
-      {/* body — branches on graph vs detail mode */}
-      {isGraph ? (
-        <div className="flex-1 flex min-h-0">
-          <div className="flex-1 min-w-0 min-h-0 flex flex-col">
-            <GraphPage resp={resp} lens={graphLens} />
-          </div>
-          <aside
-            ref={slabRef}
-            className={`relative overflow-hidden ${inspectorOpen ? "" : "hidden"}`}
-            style={{ width: inspectorOpen ? slab.width : 0 }}
-          >
-            {inspectorOpen && (
-              <ResizeHandle
-                side="left"
-                panelRef={slabRef}
-                onResize={slab.setLive}
-                onCommit={slab.commit}
-              />
-            )}
-            <YamlInspector projectId={projectId} graph={graph} />
-          </aside>
-          <aside
-            ref={drawerRef}
-            className={`relative border-l rule overflow-hidden ${peekOpen ? "" : "hidden"}`}
-            style={{ width: peekOpen ? drawer.width : 0 }}
-          >
-            {peekOpen && (
-              <ResizeHandle
-                side="left"
-                panelRef={drawerRef}
-                onResize={drawer.setLive}
-                onCommit={drawer.commit}
-              />
-            )}
-            <PeekDrawer projectId={projectId} />
-          </aside>
-        </div>
-      ) : (
-        <div
-          className="flex-1 grid min-h-0"
-          style={{
-            gridTemplateColumns: [
-              `${sidebar.width}px`,
-              "minmax(0, 1fr)",
-              inspectorOpen ? `${slab.width}px` : "0",
-              peekOpen ? `${drawer.width}px` : "0",
-            ].join(" "),
-          }}
-        >
-          <aside ref={sidebarRef} className="relative border-r rule overflow-hidden">
-            <ContextSidebar graph={graph} projectId={projectId} activeFqid={focusFqid} />
-            <ResizeHandle
-              side="right"
-              panelRef={sidebarRef}
-              onResize={sidebar.setLive}
-              onCommit={sidebar.commit}
-            />
-          </aside>
-          <main className="bg-paper min-h-0 overflow-hidden">
-            {panes.length > 0 ? (
-              <StackProvider panes={panes} setPanes={setPanes}>
-                <StackedEntities graph={graph} panes={panes} />
-              </StackProvider>
-            ) : (
-              <Welcome graph={graph} />
-            )}
-          </main>
-          <aside
-            ref={slabRef}
-            className={`relative overflow-hidden ${inspectorOpen ? "" : "hidden"}`}
-          >
-            {inspectorOpen && (
-              <ResizeHandle
-                side="left"
-                panelRef={slabRef}
-                onResize={slab.setLive}
-                onCommit={slab.commit}
-              />
-            )}
-            <YamlInspector projectId={projectId} graph={graph} />
-          </aside>
-          <aside
-            ref={drawerRef}
-            className={`relative border-l rule overflow-hidden ${peekOpen ? "" : "hidden"}`}
-          >
-            {peekOpen && (
-              <ResizeHandle
-                side="left"
-                panelRef={drawerRef}
-                onResize={drawer.setLive}
-                onCommit={drawer.commit}
-              />
-            )}
-            <PeekDrawer projectId={projectId} />
-          </aside>
-        </div>
-      )}
+      <StackProvider panes={panes} setPanes={setPanes}>
+        <WorkspaceBody
+          projectId={projectId}
+          resp={resp}
+          panes={panes}
+          focusFqid={focusFqid}
+          sidebarOn={sidebarOn}
+          graphOn={graphOn}
+          lens={lens}
+          onLensChange={setLens}
+          onToggleSidebar={toggleSidebar}
+          onToggleGraph={toggleGraph}
+          inspectorOpen={inspectorOpen}
+          peekOpen={peekOpen}
+        />
+      </StackProvider>
     </div>
   );
 }
 
-function ViewToggle({
-  isGraph,
-  onDetail,
-  onGraph,
+type WidthCtl = ReturnType<typeof usePersistedWidth>;
+
+const RAIL_PX = 32;
+
+function WorkspaceBody({
+  projectId,
+  resp,
+  panes,
+  focusFqid,
+  sidebarOn,
+  graphOn,
+  lens,
+  onLensChange,
+  onToggleSidebar,
+  onToggleGraph,
+  inspectorOpen,
+  peekOpen,
 }: {
-  isGraph: boolean;
-  onDetail: () => void;
-  onGraph: () => void;
+  projectId: number;
+  resp: LexiconResponse;
+  panes: string[];
+  focusFqid: string | null;
+  sidebarOn: boolean;
+  graphOn: boolean;
+  lens: Lens;
+  onLensChange: (l: Lens) => void;
+  onToggleSidebar: () => void;
+  onToggleGraph: () => void;
+  inspectorOpen: boolean;
+  peekOpen: boolean;
 }) {
-  // press `g` to enter graph view; ESC handled inside GraphPage.
-  useGlobalShortcut("g", () => {
-    if (!isGraph) onGraph();
+  const stack = useStack();
+  const { graph } = resp;
+  const transientFqid = stack?.transient ?? null;
+  const transientEntity = transientFqid ? graph.entities[transientFqid] ?? null : null;
+  const transientOn = !!transientEntity;
+
+  const transientRef = useRef<HTMLElement>(null);
+  const rightRailRef = useRef<HTMLElement>(null);
+  const sidebar = usePersistedWidth({
+    key: "lexicon.contextSidebarWidth", defaultPx: 272, minPx: 200, maxFrac: 0.5,
   });
+  const graphPanel = usePersistedWidth({
+    key: "lexicon.graphPanelWidth", defaultPx: 640, minPx: 320, maxFrac: 0.7,
+  });
+  const transientPanel = usePersistedWidth({
+    key: "lexicon.transientPaneWidth", defaultPx: 560, minPx: 320, maxFrac: 0.6,
+  });
+  const drawer = usePersistedWidth({
+    key: "lexicon.peekDrawerWidth", defaultPx: 480, minPx: 280, maxFrac: 0.7,
+  });
+  const slab = usePersistedWidth({
+    key: "lexicon.specimenSlabWidth", defaultPx: 560, minPx: 360, maxFrac: 0.7,
+  });
+
+  // Right rail is mutually-exclusive: whichever of inspector/peek is active
+  // drives both the column width and the resize-handle commit target.
+  const rightRail = inspectorOpen ? slab : peekOpen ? drawer : null;
+
   return (
-    <div className="flex items-center border rule">
-      <button
-        onClick={onDetail}
-        className={`mono text-micro uppercase tracking-widest px-3 py-1 transition-colors ${
-          !isGraph ? "bg-fg text-paper" : "text-fg-3 hover:text-fg"
-        }`}
+    <div
+      className="flex-1 grid min-h-0 workspace-grid"
+      style={{
+        gridTemplateColumns: [
+          sidebarOn ? `${sidebar.width}px` : `${RAIL_PX}px`,
+          graphOn ? `${graphPanel.width}px` : `${RAIL_PX}px`,
+          transientOn ? `${transientPanel.width}px` : "0",
+          // Keep main readable: never let accessory columns squeeze it below
+          // a single legible pane's worth of width.
+          "minmax(320px, 1fr)",
+          rightRail ? `${rightRail.width}px` : "0",
+        ].join(" "),
+      }}
+    >
+      <CollapsiblePanel
+        gridColumn={1}
+        on={sidebarOn}
+        label="Sidebar"
+        hotkey="S"
+        onToggle={onToggleSidebar}
+        width={sidebar}
+        className="border-r rule overflow-hidden"
       >
-        Reading
-      </button>
-      <button
-        onClick={onGraph}
-        className={`mono text-micro uppercase tracking-widest px-3 py-1 border-l rule transition-colors ${
-          isGraph ? "bg-fg text-paper" : "text-fg-3 hover:text-fg"
-        }`}
+        <ContextSidebar graph={graph} projectId={projectId} activeFqid={focusFqid} />
+      </CollapsiblePanel>
+      <CollapsiblePanel
+        gridColumn={2}
+        on={graphOn}
+        label="Graph"
+        hotkey="G"
+        onToggle={onToggleGraph}
+        width={graphPanel}
+        className="border-r rule min-w-0 min-h-0 flex flex-col"
       >
-        Graph
-      </button>
+        <GraphPage resp={resp} lens={lens} onLensChange={onLensChange} />
+      </CollapsiblePanel>
+      <aside
+        ref={transientRef}
+        style={{ gridColumn: 3 }}
+        className={`transient-pane relative ${transientOn ? "" : "hidden"}`}
+        onDoubleClick={transientOn ? () => stack?.promoteTransient() : undefined}
+        title={transientOn ? "Double-click to keep this pane open" : undefined}
+      >
+        {transientOn && transientEntity && (
+          <>
+            <div className="transient-pane-label">preview · dbl-click to keep</div>
+            <div className="transient-pane-body">
+              <Pane
+                entity={transientEntity}
+                graph={graph}
+                passive={false}
+                onClose={() => stack?.setTransient(null)}
+              />
+            </div>
+            <ResizeHandle
+              side="right"
+              panelRef={transientRef}
+              onResize={transientPanel.setLive}
+              onCommit={transientPanel.commit}
+            />
+          </>
+        )}
+      </aside>
+      <main
+        style={{ gridColumn: 4 }}
+        className="bg-paper min-h-0 overflow-hidden"
+      >
+        {panes.length > 0 ? (
+          <StackedPane graph={graph} panes={panes} />
+        ) : transientOn ? null : (
+          <Welcome graph={graph} />
+        )}
+      </main>
+      <aside
+        ref={rightRailRef}
+        style={{ gridColumn: 5 }}
+        className={`relative border-l rule overflow-hidden ${rightRail ? "" : "hidden"}`}
+      >
+        {rightRail && (
+          <ResizeHandle
+            side="left"
+            panelRef={rightRailRef}
+            onResize={rightRail.setLive}
+            onCommit={rightRail.commit}
+          />
+        )}
+        {inspectorOpen ? (
+          <YamlInspector projectId={projectId} graph={graph} />
+        ) : peekOpen ? (
+          <PeekDrawer projectId={projectId} />
+        ) : null}
+      </aside>
     </div>
+  );
+}
+
+function CollapsiblePanel({
+  gridColumn,
+  on,
+  label,
+  hotkey,
+  onToggle,
+  width,
+  className = "",
+  children,
+}: {
+  gridColumn: number;
+  on: boolean;
+  label: string;
+  hotkey: string;
+  onToggle: () => void;
+  width: WidthCtl;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  const ref = useRef<HTMLElement>(null);
+  return (
+    <aside
+      ref={ref}
+      style={{ gridColumn }}
+      className={`relative bg-paper ${className}`}
+    >
+      {on ? (
+        <>
+          {children}
+          <PanelCollapse label={`Hide ${label.toLowerCase()} (${hotkey.toLowerCase()})`} onClick={onToggle} />
+          <ResizeHandle
+            side="right"
+            panelRef={ref}
+            onResize={width.setLive}
+            onCommit={width.commit}
+          />
+        </>
+      ) : (
+        <EdgeRail label={label} hotkey={hotkey} onClick={onToggle} />
+      )}
+    </aside>
+  );
+}
+
+// Vertical rail rendered in a closed panel's grid track. The rail IS the
+// panel's collapsed state — click anywhere to expand. Label is the panel name
+// in rotated monospace caps; hotkey is shown as a tiny mark below.
+function EdgeRail({
+  label,
+  hotkey,
+  onClick,
+}: {
+  label: string;
+  hotkey: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      title={`Open ${label.toLowerCase()} (${hotkey.toLowerCase()})`}
+      className="edge-rail"
+    >
+      <span className="edge-rail-label">{label}</span>
+      <span className="edge-rail-hotkey">{hotkey}</span>
+    </button>
+  );
+}
+
+// Small chevron at the top-outer corner of an open panel that collapses it
+// back to a rail. Positioned at the OUTER edge so the rail visually emerges
+// from the same spot when collapsed.
+function PanelCollapse({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      title={label}
+      aria-label={label}
+      className="panel-collapse"
+    >
+      <Sidebar size={14} weight="regular" />
+    </button>
   );
 }
 
 function useGlobalShortcut(key: string, fn: () => void) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null;
-      const typing =
-        target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA");
-      if (typing) return;
+      if (isTypingTarget(e.target)) return;
       if (e.key === key) fn();
     };
     window.addEventListener("keydown", onKey);
@@ -334,7 +493,7 @@ function Welcome({ graph }: { graph: ResolvedGraph }) {
   const sys = graph.system;
   return (
     <div className="h-full overflow-y-auto p-12 max-w-3xl">
-      <div className="smallcap mb-3">Reading room</div>
+      <div className="smallcap mb-3">Workspace</div>
       <h1 className="display-tight text-h1 mb-6 leading-[0.95]">
         {sys ? sys.ref.name : "Lexicon"}
       </h1>
@@ -348,7 +507,9 @@ function Welcome({ graph }: { graph: ResolvedGraph }) {
         or surface from the catalog on the left. Code references open inline on the right.
         <br />
         <span className="mono text-micro mt-3 inline-block">
-          press <span className="text-fg font-semibold">g</span> to switch to the graph view
+          press <span className="text-fg font-semibold">s</span> for sidebar ·{" "}
+          <span className="text-fg font-semibold">g</span> for graph ·{" "}
+          <span className="text-fg font-semibold">⌘'</span> for specimen
         </span>
       </div>
     </div>

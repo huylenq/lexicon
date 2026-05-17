@@ -13,7 +13,9 @@ export default function ContextSidebar({
   activeFqid: string | null;
 }) {
   const loc = useLocation();
-  const linkTo = (fqid: string) => `/p/${projectId}/${fqid}${loc.hash}`;
+  // Preserve search params (panel visibility, lens) and hash across nav so the
+  // user's workspace state survives sidebar clicks.
+  const linkTo = (fqid: string) => `/p/${projectId}/${fqid}${loc.search}${loc.hash}`;
   const isActive = (fqid: string) => activeFqid === fqid;
 
   const { contexts, kernels, surfaces } = useMemo(() => ({
