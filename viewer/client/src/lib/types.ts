@@ -11,7 +11,8 @@ export type EntityKind =
   | "module"
   | "shared-kernel"
   | "surface"
-  | "region";
+  | "region"
+  | "spec";
 
 export type TermCategory =
   | "entity"
@@ -146,6 +147,13 @@ export interface ResolvedEntity {
   implementation?: RegionImpl;
   regions?: EntityRef[];
   surfaceId?: string;
+
+  // spec (markdown design/architecture doc; `body` holds raw markdown)
+  specEstablished?: boolean;
+  created?: string;
+  updated?: string;
+  scope?: string;
+  codeHomes?: string[];
 
   // bounded-context
   subdomain?: SubdomainKind;

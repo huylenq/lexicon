@@ -46,9 +46,13 @@ export async function loadLexicon(projectRoot: string): Promise<ResolvedGraph> {
   const lexiconDir = join(projectRoot, "lexicon");
   let files: string[];
   let mtimes: number[];
+  let specFiles: string[];
   try {
     files = await walkXml(lexiconDir);
-    mtimes = await Promise.all(files.map(f => stat(f).then(s => s.mtimeMs)));
+    specFiles = await walkMd(join(lexiconDir, "specs"));
+    mtimes = await Promise.all(
+      [...files, ...specFiles].map(f => stat(f).then(s => s.mtimeMs)),
+    );
   } catch (e) {
     return {
       system: null,
@@ -106,7 +110,7 @@ export async function loadLexicon(projectRoot: string): Promise<ResolvedGraph> {
     if (parseResult.data.schemaVersion !== SCHEMA_VERSION) {
       issues.push({
         file,
-        message: `schema=${parseResult.data.schemaVersion} is older than ${SCHEMA_VERSION}; run \`/lexicon:conform\` to upgrade`,
+        message: `schema=${parseResult.data.schemaVersion} is older than ${SCHEMA_VERSION}; run \`/lexicon:validate\` to upgrade`,
         severity: "error",
       });
       outdatedDetected = true;
@@ -126,9 +130,161 @@ export async function loadLexicon(projectRoot: string): Promise<ResolvedGraph> {
     };
   }
 
-  const graph = resolve(parsed, projectRoot, issues);
+  // Markdown specs are a separate, untyped surface (no schema version): read
+  // and parse them into SpecDoc shapes, then let resolve() register them as
+  // first-class `spec` entities so they reuse the pane/backlink machinery.
+  const specReads = await Promise.all(
+    specFiles.map(file =>
+      readFile(file, "utf8").then(
+        text => ({ file, text, error: null as Error | null }),
+        (err: Error) => ({ file, text: "", error: err }),
+      ),
+    ),
+  );
+  const specs: SpecDoc[] = [];
+  for (const { file, text, error } of specReads) {
+    if (error) {
+      issues.push({ file, message: `spec read failed: ${error.message}`, severity: "warning" });
+      continue;
+    }
+    const doc = parseSpecDoc(file, text, join(lexiconDir, "specs"));
+    if (doc) specs.push(doc);
+  }
+
+  const graph = resolve(parsed, projectRoot, issues, specs);
   cache.set(projectRoot, { mtime: latestMtime, graph });
   return graph;
+}
+
+// Walk a directory for markdown files. Mirrors walkXml's archive-skipping.
+// Returns [] (not a throw) when the directory is absent — specs are optional.
+async function walkMd(dir: string): Promise<string[]> {
+  let entries;
+  try {
+    entries = await readdir(dir, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  const nested = await Promise.all(
+    entries.map(async e => {
+      const full = join(dir, e.name);
+      if (e.isDirectory()) {
+        if (e.name.startsWith("_pre-migrate-archive") || e.name === "_archive") return [];
+        return walkMd(full);
+      }
+      if (e.isFile() && /\.md$/i.test(e.name)) return [full];
+      return [];
+    }),
+  );
+  return nested.flat();
+}
+
+// ---------------- spec (markdown) parsing ----------------
+
+export interface SpecDoc {
+  file: string;          // absolute path
+  fqid: string;          // spec/<slug> or spec/<slug>-design
+  slug: string;
+  title: string;
+  established: boolean;
+  status?: string;
+  created?: string;
+  updated?: string;
+  scope?: string;
+  context?: string;      // owning bounded-context slug (frontmatter), for [[bare-slug]] resolution
+  codeHomes?: string[];
+  body: string;          // raw markdown (frontmatter stripped)
+  totalLines: number;
+}
+
+// Minimal YAML-frontmatter reader: scalar `key: value` lines and simple
+// block lists (`key:` then `- item` lines). Enough for spec frontmatter;
+// not a general YAML parser. Strips ` # ...` inline comments and surrounding
+// quotes from scalar values.
+function parseFrontmatter(text: string): { data: Record<string, string | string[]>; body: string } {
+  if (!text.startsWith("---")) return { data: {}, body: text };
+  const end = text.indexOf("\n---", 3);
+  if (end === -1) return { data: {}, body: text };
+  const block = text.slice(3, end).replace(/^\r?\n/, "");
+  const body = text.slice(end + 4).replace(/^\r?\n/, "");
+  const data: Record<string, string | string[]> = {};
+  let listKey: string | null = null;
+  for (const rawLine of block.split("\n")) {
+    const line = rawLine.replace(/\s+$/, "");
+    const listItem = line.match(/^\s*-\s+(.*)$/);
+    if (listItem && listKey) {
+      (data[listKey] as string[]).push(stripScalar(listItem[1]));
+      continue;
+    }
+    const kv = line.match(/^([A-Za-z0-9_-]+):\s*(.*)$/);
+    if (!kv) continue;
+    const key = kv[1];
+    const val = kv[2];
+    if (val.trim() === "") {
+      data[key] = [];
+      listKey = key;
+    } else {
+      data[key] = stripScalar(val);
+      listKey = null;
+    }
+  }
+  return { data, body };
+}
+
+function stripScalar(v: string): string {
+  let s = v.trim();
+  // strip ` # inline comment` (space + hash), but not a leading-# value
+  s = s.replace(/\s+#.*$/, "").trim();
+  if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
+    s = s.slice(1, -1);
+  }
+  return s;
+}
+
+// Build a SpecDoc from a spec markdown file. Transient progress notes
+// (<slug>.progress.md) are cold-session handoffs, not documentation — skip
+// them. Returns null for skipped files.
+function parseSpecDoc(file: string, text: string, specsDir: string): SpecDoc | null {
+  const rel = relative(specsDir, file).replace(/\\/g, "/");
+  if (rel.endsWith(".progress.md")) return null;
+
+  const established = rel.startsWith("established/");
+  const base = rel.replace(/^established\//, "").replace(/\.md$/i, "");
+  let slug: string;
+  let fqid: string;
+  if (established) {
+    slug = base;
+    fqid = `spec/${slug}`;
+  } else if (base.endsWith("-design")) {
+    slug = base.slice(0, -"-design".length);
+    fqid = `spec/${slug}-design`;
+  } else {
+    slug = base;
+    fqid = `spec/${slug}`;
+  }
+
+  const { data, body } = parseFrontmatter(text);
+  const asStr = (k: string) => (typeof data[k] === "string" ? (data[k] as string) : undefined);
+  const asList = (k: string) => (Array.isArray(data[k]) ? (data[k] as string[]) : undefined);
+
+  const h1 = body.match(/^#\s+(.+)$/m);
+  const title = asStr("title") || h1?.[1]?.trim() || slug;
+
+  return {
+    file,
+    fqid,
+    slug,
+    title,
+    established,
+    status: asStr("status") ?? (established ? "as-built" : "design"),
+    created: asStr("created"),
+    updated: asStr("updated"),
+    scope: asStr("scope"),
+    context: asStr("context"),
+    codeHomes: asList("code-homes") ?? asList("codeHomes"),
+    body,
+    totalLines: text.split("\n").length,
+  };
 }
 
 async function walkXml(dir: string): Promise<string[]> {
@@ -160,6 +316,7 @@ function emptyByKind(): Record<EntityKind, string[]> {
     "shared-kernel": [],
     surface: [],
     region: [],
+    spec: [],
   };
 }
 
@@ -770,6 +927,7 @@ function resolve(
   files: { file: string; xastRoot: XastElement; data: LexiconFile; ranges: FileRanges }[],
   projectRoot: string,
   issues: LoadIssue[],
+  specs: SpecDoc[] = [],
 ): ResolvedGraph {
   const entities: Record<string, ResolvedEntity> = {};
   const byKind = emptyByKind();
@@ -1004,6 +1162,26 @@ function resolve(
     }
   }
 
+  // pass 1b: register markdown specs as `spec` entities. They carry raw
+  // markdown in `body`; ownerContextId (from frontmatter `context:`) lets
+  // bare-slug [[fqid]] links in the body resolve against that context.
+  for (const s of specs) {
+    const relFile = relative(projectRoot, s.file);
+    register({
+      ref: ref("spec", s.fqid, s.title),
+      ownerContextId: s.context ?? null,
+      source: { file: relFile, lineStart: 1, lineEnd: s.totalLines, path: "" },
+      body: s.body,
+      title: s.title,
+      specEstablished: s.established,
+      status: s.status,
+      created: s.created,
+      updated: s.updated,
+      scope: s.scope,
+      codeHomes: s.codeHomes,
+    });
+  }
+
   const resolveRef = (
     raw: string,
     originFile: string,
@@ -1234,6 +1412,7 @@ function resolve(
     "shared-kernel": ["description", "rationale", "narrative"],
     surface: ["body"],
     region: ["role"],
+    spec: ["body"],
   };
   const resolveLinksIn = (
     text: string | undefined,
@@ -1262,6 +1441,12 @@ function resolve(
     for (const f of proseFieldsByKind[e.ref.kind] ?? []) {
       const refs = resolveLinksIn(e[f] as string | undefined, e, `${e.ref.fqid}.${String(f)}`);
       if (f === "narrative" && refs.length > 0) e.narrativeRefs = refs;
+      // Spec body links populate narrativeRefs so the backlink index inverts
+      // them — atoms gain "referenced by spec X" backlinks. (Spec dangling
+      // links are common while a spec is drafted ahead of crystallize, so
+      // downgrade them to non-issues: resolveLinksIn already pushed warnings;
+      // that's acceptable signal for the spec author.)
+      if (e.ref.kind === "spec" && f === "body" && refs.length > 0) e.narrativeRefs = refs;
     }
     if (e.ref.kind === "system") {
       for (const ov of e.overlays ?? []) {

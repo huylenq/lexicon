@@ -5,6 +5,7 @@ import {
   BookmarkSimple,
   BoundingBox,
   Cube,
+  FileText,
   Handshake,
   Intersect,
   Lock,
@@ -26,6 +27,7 @@ export const KIND_LABEL: Record<EntityKind, string> = {
   "shared-kernel": "Shared Kernel",
   surface: "Surface",
   region: "Region",
+  spec: "Spec",
 };
 
 // Filterable kinds in graph view, ordered to match `1`..`9` keyboard shortcuts.
@@ -55,6 +57,7 @@ export const KIND_ICON: Record<EntityKind, Icon> = {
   "shared-kernel": Handshake,
   surface: AppWindow,
   region: Selection,
+  spec: FileText,
 };
 
 // Same var in light/dark — see `--color-kind-*` in @theme.
@@ -70,7 +73,25 @@ export const KIND_COLOR_VAR: Record<EntityKind, string> = {
   "shared-kernel": "var(--color-kind-shared-kernel)",
   surface: "var(--color-kind-surface)",
   region: "var(--color-kind-region)",
+  spec: "var(--color-kind-spec)",
 };
+
+// Short header tag rendered on a cluster box, also used to size its title bar.
+// Single source of truth: the graph title renderer (GraphNode TitleBlock) and
+// the ELK min-width sizer (layout.ts) both read this, so the box can never clip
+// a tag the renderer shows.
+export function clusterTag(kind: string): string {
+  switch (kind) {
+    case "bounded-context":
+      return "CONTEXT";
+    case "surface":
+      return "SURFACE";
+    case "shared-kernel":
+      return "KERNEL";
+    default:
+      return "GROUP";
+  }
+}
 
 export function formatLineRange(lineStart?: number, lineEnd?: number): string {
   if (!lineStart) return "";

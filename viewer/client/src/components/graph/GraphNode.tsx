@@ -1,6 +1,6 @@
 import { memo } from "react";
 import type { PositionedNode } from "@/lib/graph/layout";
-import { KIND_ICON, KIND_LABEL, KIND_COLOR_VAR } from "@/lib/kinds";
+import { KIND_ICON, KIND_LABEL, KIND_COLOR_VAR, clusterTag } from "@/lib/kinds";
 import type { EntityKind } from "@/lib/types";
 import { splitBackticks } from "@/lib/inline-code";
 
@@ -13,6 +13,9 @@ interface Props {
   onDoubleClick: () => void;
   onMouseEnter: () => void;
   onMouseLeave: () => void;
+  // Manual layout: clusters become draggable; mousedown begins the drag.
+  draggable?: boolean;
+  onNodeMouseDown?: (e: React.MouseEvent) => void;
 }
 
 function GraphNode(props: Props) {
@@ -36,12 +39,13 @@ const CLUSTER_STYLE: Record<
   selected:    { outline: "var(--color-mark-2)", outlineWidth: 1.5, tick: "var(--color-mark-2)", tickSize: 16, tickStroke: 2.25 },
 };
 
-function ClusterNode({ node, selected, dimmed, highlighted, onClick, onMouseEnter, onMouseLeave }: Props) {
+function ClusterNode({ node, selected, dimmed, highlighted, onClick, onMouseEnter, onMouseLeave, draggable, onNodeMouseDown }: Props) {
   const s = CLUSTER_STYLE[nodeState(selected, highlighted)];
   return (
     <g
       transform={`translate(${node.x}, ${node.y})`}
-      style={{ cursor: "default", opacity: dimmed ? 0.55 : 1, transition: "opacity 160ms ease" }}
+      style={{ cursor: draggable ? "move" : "default", opacity: dimmed ? 0.55 : 1, transition: "opacity 160ms ease" }}
+      onMouseDown={draggable ? onNodeMouseDown : undefined}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
@@ -101,14 +105,7 @@ function CornerTicks({
 }
 
 function TitleBlock({ w, text, kind }: { w: number; text: string; kind: string }) {
-  const tag =
-    kind === "bounded-context"
-      ? "CONTEXT"
-      : kind === "surface"
-        ? "SURFACE"
-        : kind === "shared-kernel"
-          ? "KERNEL"
-          : "GROUP";
+  const tag = clusterTag(kind);
   return (
     <g transform="translate(14, 18)" pointerEvents="none">
       <text
@@ -142,6 +139,8 @@ function LeafNode({
   onDoubleClick,
   onMouseEnter,
   onMouseLeave,
+  draggable,
+  onNodeMouseDown,
 }: Props) {
   // LeafNode is dispatched only when !isCluster, so kind is always a leaf EntityKind.
   const kind = node.kind as EntityKind;
@@ -154,7 +153,8 @@ function LeafNode({
   return (
     <g
       transform={`translate(${node.x}, ${node.y})`}
-      style={{ cursor: "pointer", opacity: dimmed ? 0.45 : 1, transition: "opacity 120ms ease" }}
+      style={{ cursor: draggable ? "move" : "pointer", opacity: dimmed ? 0.45 : 1, transition: "opacity 120ms ease" }}
+      onMouseDown={draggable ? onNodeMouseDown : undefined}
       onClick={e => {
         e.stopPropagation();
         onClick();

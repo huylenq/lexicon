@@ -1,12 +1,11 @@
 # Structural checks
 
-Three subcommands run these checks at different scopes and in different directions:
+Two subcommands run these checks at different scopes and in different directions:
 
-- **`retro`** runs them **forward** against one session's diff: *did this session introduce anything that conflicts with the cold layer?* Flags land inline in the retro file.
-- **`crystallize`** runs them **forward** against the cumulative diff since the last crystallization: *did the accumulated work shift the model?* Filter for terms that stuck across sessions, invariants that genuinely changed, boundaries that genuinely redrew.
-- **`conform`** runs them **backward** against existing cold-layer claims: *for each entry / invariant / boundary, does it still hold in current code?* Plus hygiene + distillation-completion phases (semantic-pass-only).
+- **`crystallize`** runs them **forward** against the diff since the last crystallization: *did the accumulated work shift the model?* Filter for terms that stuck across the period, invariants that genuinely changed, boundaries that genuinely redrew. This is where session drift gets caught — there is no separate per-session retro; the git diff is the session log.
+- **`validate`** runs them **backward** against existing cold-layer claims: *for each entry / invariant / boundary, does it still hold in current code?* Plus hygiene + distillation-completion phases (semantic-pass-only).
 
-Definitions live here so they stay in sync across all three uses.
+Definitions live here so they stay in sync across both uses.
 
 ## The six checks
 
@@ -38,9 +37,9 @@ If no `surfaces/` files exist and no design tokens/components appear in code, th
 
 The agent's sense of "what's worth flagging" is fallible. Two failure modes:
 
-- **Over-flagging.** Every retro becomes a wall of borderline drift candidates. The user starts ignoring retros wholesale. Counter-tune: borderline cases get a brief note under the retro's `## Notes for future sweeps` rather than a full drift flag; across multiple sessions, patterns will emerge that `crystallize` can act on.
+- **Over-flagging.** A crystallization proposal becomes a wall of borderline mutations. The user starts rubber-stamping or ignoring them. Counter-tune: borderline cases get demoted into the proposal's "deliberately not flagged" note rather than a full mutation; only changes that genuinely stuck across the period earn a mutation.
 - **Under-flagging.** Real drift slides past. The cold layer goes stale by inattention.
 
 When you're unsure whether something is a real flag, default to listing it under "deliberately not flagged" with a one-line note. That section is itself a useful artifact — it shows what was considered and dismissed.
 
-Systematic miscalibration — the same kind of flag being wrong repeatedly — is the cue for `/lexicon:evolve` to amend `subcommands/retro.md`, `subcommands/crystallize.md`, or this file.
+Systematic miscalibration — the same kind of flag being wrong repeatedly — is the cue for `/lexicon:meta-evolve` to amend `subcommands/crystallize.md`, `subcommands/validate.md`, or this file.

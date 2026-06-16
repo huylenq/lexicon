@@ -10,7 +10,7 @@ A hand-authored XSD lives alongside this file at `${CLAUDE_SKILL_DIR}/reference/
 
 The current cold-layer schema is **v1.0**. Every XML file declares `schema="1.0"` as an attribute on its root element.
 
-> **Loader compatibility:** v1.0 is breaking. v0.3 YAML files are recognized by the loader, which emits a single `LoadIssue` per file pointing at the `conform` subcommand. The loader does **not** attempt partial resolution. Projects on older schemas (including pre-v1.0 YAML and pre-v0.1 markdown) are brought forward by `conform`'s structural pass; per-version transitions are documented in `${CLAUDE_SKILL_DIR}/migrations/v<old>-to-v<new>.md`, not here. **This file is the current spec only; historical deltas belong in migration files.**
+> **Loader compatibility:** v1.0 is breaking. v0.3 YAML files are recognized by the loader, which emits a single `LoadIssue` per file pointing at the `validate` subcommand. The loader does **not** attempt partial resolution. Projects on older schemas (including pre-v1.0 YAML and pre-v0.1 markdown) are brought forward by `validate`'s structural pass; per-version transitions are documented in `${CLAUDE_SKILL_DIR}/migrations/v<old>-to-v<new>.md`, not here. **This file is the current spec only; historical deltas belong in migration files.**
 
 The full design rationale for the YAML → XML representation flip in v1.0 (what changed and why, what was deliberately not added, what was deferred) lives in the repo-root `CLAUDE.md` and the migration delta. The pre-v1.0 design rationale (Evans-faithfulness, term categories, seam kinds, aggregates, shared kernels) is preserved in `${CLAUDE_SKILL_DIR}/reference/design.md`.
 
@@ -349,6 +349,7 @@ The schema's optional elements (`<symbols>`, `<constrains-code>`, the `mode` att
 Treat the elements as defaults-to-fill, not nice-to-haves:
 
 - **`<symbols>` on a term** — every term that maps to a code identifier gets at least one `<code-anchor>`. The anchor is what makes the term verifiable: a reader (human or agent) can jump from the glossary to the implementation and check whether they still align. A term about a class or function with no `<symbols>` is a smell — either the term is purely conceptual (`category="concept"`, no code analog) or the anchor is missing.
+- **`file=` resolves to one real file, never a directory or glob.** Tooling (the viewer's "peek", future editor jumps) reads `file=` *literally*: a directory path errors (`EISDIR`), a glob 404s. Point `file=` at a single repo-relative file that exists; put the human label (class/function name, or "one of many under …") in `symbol=` — never a glob or path in `symbol=` as a substitute. When a term genuinely spans a whole directory of files, that's the owning context's `<code-modules>` globs, not a term anchor. Before finishing any emit/mutation, resolve every `file=` you wrote and confirm it points at a real file — an unresolvable anchor is a silent rot the moment it lands.
 - **`<constrains-code>` + `mode="code"|"linter"` on an invariant** — if the invariant is enforceable by code or linter, list the call sites/files and set `mode="code"` or `mode="linter"`. If it's a judgment call only humans uphold, set `mode="principle"` and document it as such. An empty `mode` is the worst of both worlds: the reader can't tell whether to look for tooling or to trust the team.
 - **`<rationale>` on the atoms that carry it** — without rationale, a seam kind is a label without an argument; an aggregate is a cluster without a justification; a shared kernel is "stuff we share" without "why we share it." Rationale is what makes the model defensible. Missing rationale isn't a parse error; it's a thinking debt.
 - **`<disambiguates-from>` on a term** — whenever two terms collide (same word, different meanings; same shape, different scope), record the pair. The graph view renders these as visible edges, and the reader sees the distinction before they conflate the concepts.
@@ -363,7 +364,7 @@ Every term has a `category` attribute. Defaulting to `concept` is fine for purel
 - **`event`** — a fact that happened at a point in time, named in past tense (`OrderPlaced`, `PaymentSettled`). Carry `<emitted-when>`, `<payload>`, and (if known) `<consumers>`.
 - **`concept`** — scaffolding vocabulary: workflow names, design phases, lexicon-internal terms. No code analog expected.
 
-`conform`'s hygiene sweep checks for a smell: if ≥80% of terms in a project are `category="concept"` after migration, the schema's gain is being left on the table — surface the list and invite recategorization.
+`validate`'s hygiene sweep checks for a smell: if ≥80% of terms in a project are `category="concept"` after migration, the schema's gain is being left on the table — surface the list and invite recategorization.
 
 ### Names with code identifiers
 

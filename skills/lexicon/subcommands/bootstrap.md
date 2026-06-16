@@ -1,4 +1,4 @@
-# Subcommand: adopt
+# Subcommand: bootstrap
 
 Prepares a project for lexicon. One-shot counterpart to the per-session subcommands — run once at adoption, then never again on the same project (except to resume a paused distillation).
 
@@ -8,23 +8,23 @@ The normative schema you'll emit here lives in `${CLAUDE_SKILL_DIR}/reference/sc
 
 Run when:
 
-- The user says they want to adopt lexicon for this project ("set up lexicon", "bootstrap lexicon", "adopt the lexicon workflow").
+- The user says they want to bootstrap lexicon for this project ("set up lexicon", "bootstrap lexicon", "bootstrap the lexicon workflow").
 - `ground` defers here on a project with no `lexicon/system.xml`.
 - The user is starting a new project and wants the lexicon structure in place from day one (in this case, the doc-audit phases mostly no-op — that's fine).
 
 Don't run when:
 
-- A `lexicon/system.xml` already exists and is current — that's `conform` territory.
-- A `lexicon/system.xml` exists but seems out of date — also `conform`, not this subcommand. Re-running adopt over a real `system.xml` would clobber human-curated content. Refuse.
-- A `lexicon/system.md` or older YAML `lexicon/system.yaml` exists — the project is on a pre-v1.0 schema. Refer to `conform`'s structural pass first, then re-evaluate.
-- The project is a throwaway script or single-file prototype — lexicon is not free. Surface this honestly: *"This project looks small enough that lexicon may be overhead. Want me to adopt anyway?"*
+- A `lexicon/system.xml` already exists and is current — that's `validate` territory.
+- A `lexicon/system.xml` exists but seems out of date — also `validate`, not this subcommand. Re-running bootstrap over a real `system.xml` would clobber human-curated content. Refuse.
+- A `lexicon/system.md` or older YAML `lexicon/system.yaml` exists — the project is on a pre-v1.0 schema. Refer to `validate`'s structural pass first, then re-evaluate.
+- The project is a throwaway script or single-file prototype — lexicon is not free. Surface this honestly: *"This project looks small enough that lexicon may be overhead. Want me to bootstrap anyway?"*
 
 ## Pre-flight checks
 
 Before doing anything destructive, confirm:
 
-1. `lexicon/system.xml` does **not** exist. If it does, stop and surface — the user should consider `conform` (semantic pass) or hand-edit, not re-adopt.
-2. `lexicon/system.md` does **not** exist (pre-v0.1 markdown era) and `lexicon/system.yaml` does **not** exist (pre-v1.0 YAML era). If either does, route to `conform`'s structural pass first.
+1. `lexicon/system.xml` does **not** exist. If it does, stop and surface — the user should consider `validate` (semantic pass) or hand-edit, not re-bootstrap.
+2. `lexicon/system.md` does **not** exist (pre-v0.1 markdown era) and `lexicon/system.yaml` does **not** exist (pre-v1.0 YAML era). If either does, route to `validate`'s structural pass first.
 3. The user has explicitly opted in. This subcommand creates a `lexicon/` structure and writes XML files. Don't run it speculatively.
 4. The repo is in a clean-ish git state, or the user accepts that adoption will create unstaged changes. If the working tree has a lot of uncommitted churn, surface it.
 
@@ -121,8 +121,6 @@ Create:
 lexicon/
   contexts/
   surfaces/                    ← only if UI was detected
-  retros/
-  audits/                      ← legacy; conform.md is the current report path
   plans/_archive/
 ```
 
@@ -169,7 +167,7 @@ This rule overrides any temptation to "be efficient." Even when several items lo
 
 One sentence to frame, then start with the first item:
 
-> Adopt emitted <N> entities across <F> XML files. Triage queue has <I> inconsistencies, <D> drift flags, and <G> evidence gaps where doc content suggested an entry but evidence was weak. Walking through them one at a time — say 'pause' at any point. Starting with inconsistencies, since those are the highest-cost to leave latent.
+> Bootstrap emitted <N> entities across <F> XML files. Triage queue has <I> inconsistencies, <D> drift flags, and <G> evidence gaps where doc content suggested an entry but evidence was weak. Walking through them one at a time — say 'pause' at any point. Starting with inconsistencies, since those are the highest-cost to leave latent.
 
 Then go directly into item 1. No table-of-contents preview of upcoming items.
 
@@ -212,7 +210,7 @@ If the user gives genuinely low-effort answers ("ok", "fine", "sure") across man
 
 ### What the user cannot easily punt
 
-Inconsistencies are the highest-value finding. If the user wants to skip one, surface the cost: *"Leaving this ambiguous will silently corrupt vocabulary going forward — every retro and ground from now on inherits it. Push through, or accept that cost?"* Push once per inconsistency, then accept their decision and move to the next item.
+Inconsistencies are the highest-value finding. If the user wants to skip one, surface the cost: *"Leaving this ambiguous will silently corrupt vocabulary going forward — every ground and crystallize from now on inherits it. Push through, or accept that cost?"* Push once per inconsistency, then accept their decision and move to the next item.
 
 ### State on pause
 
@@ -220,9 +218,9 @@ If the user pauses mid-distillation:
 
 1. Whatever edits have already been applied (they already are — each item commits its own edit).
 2. Record where we stopped in `lexicon/bootstrap.md`'s "Distillation status" section: how many items in each category were resolved vs. remain, plus a one-line note on the next pending item.
-3. Tell the user how to resume: re-trigger `adopt` with "continue distillation" or run `conform` later — both will read `lexicon/bootstrap.md` and pick up the unresolved items.
+3. Tell the user how to resume: re-trigger `bootstrap` with "continue distillation" or run `validate` later — both will read `lexicon/bootstrap.md` and pick up the unresolved items.
 
-If `adopt` is re-triggered on a project where `lexicon/system.xml` already exists *and* `lexicon/bootstrap.md` shows distillation paused, **do not re-adopt** — jump straight to Phase 8 and resume from the recorded position, still one item at a time. This is the only legitimate case of re-running adopt on a populated project.
+If `bootstrap` is re-triggered on a project where `lexicon/system.xml` already exists *and* `lexicon/bootstrap.md` shows distillation paused, **do not re-bootstrap** — jump straight to Phase 8 and resume from the recorded position, still one item at a time. This is the only legitimate case of re-running bootstrap on a populated project.
 
 ## Phase 9 — Write the triage report
 
@@ -238,7 +236,7 @@ Distillation status: <complete | paused mid-<category>: <N> of <T> items resolve
 - `lexicon/contexts/` with <K> context files: <list>
 - `lexicon/_pre-migrate-archive/decisions/` with <A> ADRs archived from <sources>; <L> lifted into rationale fields
 - `lexicon/surfaces/` with <S> surface files (or "no UI surfaces; backend-only")
-- `lexicon/retros/`, `lexicon/audits/`, `lexicon/plans/_archive/` (empty, ready to populate)
+- `lexicon/plans/_archive/` (empty, ready to populate)
 
 ## Doc audit summary
 - <N> existing docs scanned across <locations>
@@ -272,7 +270,7 @@ Distillation status: <complete | paused mid-<category>: <N> of <T> items resolve
 - ...
 
 ## How to resume (only if distillation paused)
-Re-trigger `adopt` with "continue distillation" — it will read this file and pick up where we stopped. Alternatively, `conform` will surface the same deferred items as drift candidates.
+Re-trigger `bootstrap` with "continue distillation" — it will read this file and pick up where we stopped. Alternatively, `validate` will surface the same deferred items as drift candidates.
 ```
 
 ## Phase 10 — Tell the user
@@ -283,16 +281,16 @@ One-line chat summary, distillation-aware:
 
 If distillation paused:
 
-> Adoption paused mid-<category> after resolving <N> items. <E> entities currently emitted, plus <U> deferred. Next pending: "<one-line description>". Report at `lexicon/bootstrap.md` — resume by re-triggering `/lexicon:adopt` with "continue distillation".
+> Adoption paused mid-<category> after resolving <N> items. <E> entities currently emitted, plus <U> deferred. Next pending: "<one-line description>". Report at `lexicon/bootstrap.md` — resume by re-triggering `/lexicon:bootstrap` with "continue distillation".
 
 Don't dump the report content into chat. The file is the artifact; chat is the pointer.
 
 ## What this subcommand is NOT
 
 - **Not a single mechanical pass.** It produces a draft *and runs the distillation interview to resolve it, one decision per conversational turn.* The interview is part of the subcommand, not homework — unless the user explicitly pauses or punts it, in which case the deferred items are recorded so a follow-up run can pick them up. Multi-decision batching is explicitly forbidden (see Phase 8).
-- **Not a periodic refresh.** For projects already on lexicon where the cold layer is drifting, that's `conform` territory. Re-running adopt on a populated `system.xml` is only legitimate when `lexicon/bootstrap.md` shows distillation paused and the user wants to resume.
+- **Not a periodic refresh.** For projects already on lexicon where the cold layer is drifting, that's `validate` territory. Re-running bootstrap on a populated `system.xml` is only legitimate when `lexicon/bootstrap.md` shows distillation paused and the user wants to resume.
 - **Not a documentation generator.** It extracts and structures what's already there, then asks the user to resolve what's ambiguous. It doesn't invent content — missing entries are honest signals, not failures.
-- **Not a format-migration shim.** A project on a pre-v1.0 lexicon (v0.x markdown or v0.1/v0.2/v0.3 YAML) goes through `conform`'s structural pass first, then this subcommand is not needed (the migration produces a valid v1.0 XML cold layer).
+- **Not a format-migration shim.** A project on a pre-v1.0 lexicon (v0.x markdown or v0.1/v0.2/v0.3 YAML) goes through `validate`'s structural pass first, then this subcommand is not needed (the migration produces a valid v1.0 XML cold layer).
 
 ## On honesty about the draft
 

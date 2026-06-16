@@ -1,14 +1,14 @@
-# Subcommand: evolve
+# Subcommand: meta-evolve
 
-The **self-evolve** subcommand for the lexicon bundle itself. When the lexicon skill produces output the user has to correct — a wrong vocabulary call, a clumsy invariant, an over-eager flag — that correction is evidence of a bundle bug. `evolve` is how the lesson lands back in `~/src/lexicon/skills/lexicon/`, in the same session, while the rationale is still in conversation.
+The **self-evolve** subcommand for the lexicon bundle itself. When the lexicon skill produces output the user has to correct — a wrong vocabulary call, a clumsy invariant, an over-eager flag — that correction is evidence of a bundle bug. `meta-evolve` is how the lesson lands back in `~/src/lexicon/skills/lexicon/`, in the same session, while the rationale is still in conversation.
 
-It is **slash-only**: it runs when the user invokes `/lexicon:evolve [optional prompt]`. The single-skill architecture means `disable-model-invocation` can't enforce this mechanically (the lexicon skill is model-invocable for all the other subcommands), so this is a **soft rule** the subcommand enforces:
+It is **slash-only**: it runs when the user invokes `/lexicon:meta-evolve [optional prompt]`. The single-skill architecture means `disable-model-invocation` can't enforce this mechanically (the lexicon skill is model-invocable for all the other subcommands), so this is a **soft rule** the subcommand enforces:
 
-> **If `evolve` was reached by model inference rather than an explicit `/lexicon:evolve` invocation, stop and ask the user before proceeding.** Bundle-edit work is deliberate; volunteering it would slide back into the "agent decides what's significant" failure mode the rest of the workflow rejects.
+> **If `meta-evolve` was reached by model inference rather than an explicit `/lexicon:meta-evolve` invocation, stop and ask the user before proceeding.** Bundle-edit work is deliberate; volunteering it would slide back into the "agent decides what's significant" failure mode the rest of the workflow rejects.
 
 ## When to run this
 
-Run when the user invokes `/lexicon:evolve`, optionally followed by a prompt pointing at the angle or moment they care about. Typical scenarios:
+Run when the user invokes `/lexicon:meta-evolve`, optionally followed by a prompt pointing at the angle or moment they care about. Typical scenarios:
 
 - The user just edited a file under the project's `lexicon/` folder and wants the underlying subcommand to "learn" from that correction.
 - The user pushed back on something a lexicon subcommand did earlier in the session ("no, don't auto-categorize terms; always interview") and now wants the rule captured.
@@ -16,7 +16,7 @@ Run when the user invokes `/lexicon:evolve`, optionally followed by a prompt poi
 
 Don't run when:
 
-- The user is making a one-off project-specific correction with no bundle implication — that's just an edit. `/lexicon:evolve` is for **lessons that should generalize across projects**.
+- The user is making a one-off project-specific correction with no bundle implication — that's just an edit. `/lexicon:meta-evolve` is for **lessons that should generalize across projects**.
 - The session is in the lexicon repo itself (`~/src/lexicon/`). Edit `SKILL.md`, the responsible subcommand file, or a reference file directly; you're already there.
 - The reach was inference, not an explicit slash. Ask first.
 
@@ -24,10 +24,10 @@ Don't run when:
 
 Read, in this order of importance:
 
-1. **The session conversation.** This is the primary signal. The *why* of the correction lives here — the moment the user said "no, do it this way" or "that's not right because X". Scan actively for those moments; don't just look at the most recent turn. The richest signal is usually a few turns before the user typed `/lexicon:evolve`.
-2. **The optional prompt.** If the user supplied text after `/lexicon:evolve`, treat it as the user pointing at the specific angle they care about. It narrows the search.
+1. **The session conversation.** This is the primary signal. The *why* of the correction lives here — the moment the user said "no, do it this way" or "that's not right because X". Scan actively for those moments; don't just look at the most recent turn. The richest signal is usually a few turns before the user typed `/lexicon:meta-evolve`.
+2. **The optional prompt.** If the user supplied text after `/lexicon:meta-evolve`, treat it as the user pointing at the specific angle they care about. It narrows the search.
 3. **`git diff` on the project's `lexicon/` folder.** Compare against the **session start state** — the changes you care about are the ones made *this session*, not pre-existing uncommitted state. If you can't establish the session-start anchor from the conversation (no scope declaration from `ground`, no clear first turn, post-compaction), ask the user rather than fabricating one from `HEAD`. Corroborates the conversation — shows what actually landed in the cold layer.
-4. **Existing dirty state of the lexicon bundle repo (`~/src/lexicon/`).** Run `git -C ~/src/lexicon status` and `git -C ~/src/lexicon diff`. There may be uncommitted edits from earlier `/lexicon:evolve` invocations. **The dirty working tree of the lexicon repo is the accumulation buffer for this subcommand** — a new edit may extend or refine an existing uncommitted change rather than introducing a parallel one.
+4. **Existing dirty state of the lexicon bundle repo (`~/src/lexicon/`).** Run `git -C ~/src/lexicon status` and `git -C ~/src/lexicon diff`. There may be uncommitted edits from earlier `/lexicon:meta-evolve` invocations. **The dirty working tree of the lexicon repo is the accumulation buffer for this subcommand** — a new edit may extend or refine an existing uncommitted change rather than introducing a parallel one.
 5. **The relevant target file** once you've identified what's responsible. Quote the current text you intend to amend — don't propose blindly.
 
 If the session conversation is post-compaction and the moment you're looking for has been summarized away, say so and ask the user to restate. Don't fabricate rationale from the diff alone.
@@ -45,7 +45,7 @@ Identify, for that moment:
 
 - **Which target file is responsible.** Options:
   - `skills/lexicon/SKILL.md` — for cross-cutting rules (dispatch, standing rules, project shape).
-  - `skills/lexicon/subcommands/<name>.md` — for subcommand-specific behavior (ground, retro, crystallize, conform, adopt, evolve itself).
+  - `skills/lexicon/subcommands/<name>.md` — for subcommand-specific behavior (bootstrap, ground, crystallize, validate, meta-evolve itself).
   - `skills/lexicon/reference/schema.md` — for schema specification corrections.
   - `skills/lexicon/reference/checks.md` — for structural-check definitions.
   - `skills/lexicon/reference/rules.md` — for rules-of-engagement edge cases.
@@ -56,9 +56,9 @@ Identify, for that moment:
 
 Before proposing any change, classify the correction into one of three branches:
 
-- **Bundle edit** — the lesson generalizes across projects. → Edit the responsible file in `~/src/lexicon/skills/lexicon/`. This is the main path `/lexicon:evolve` is for.
+- **Bundle edit** — the lesson generalizes across projects. → Edit the responsible file in `~/src/lexicon/skills/lexicon/`. This is the main path `/lexicon:meta-evolve` is for.
 - **Project-specific quirk** — only this project has this constraint. → Belongs in the project's `CLAUDE.md` (or the project's own `lexicon/`), not in the bundle. Suggest where it should go and stop; don't touch the bundle.
-- **No-op** — the correction was incidental, the subcommand was right, the user just preferred a different cosmetic this once. → Say so and stop. `/lexicon:evolve` invoked is not a contract to produce an edit; producing one when none is warranted poisons future runs.
+- **No-op** — the correction was incidental, the subcommand was right, the user just preferred a different cosmetic this once. → Say so and stop. `/lexicon:meta-evolve` invoked is not a contract to produce an edit; producing one when none is warranted poisons future runs.
 
 Within the **bundle edit** branch, ask a sub-question that shapes how the proposal is *labeled* (not where it routes): *is this an objective bundle bug (the subcommand produced something incorrect, misleading, or against its own stated rules) or a taste call (the user prefers a style that goes against a defensible default)?* Both produce a file edit, but the proposal should name which it is. Taste calls deserve an explicit "you're sure you want this as a global rule?" confirmation — the bundle is being shaped to user preference through continuous use, so taste edits are valid, they just shouldn't be silent.
 
@@ -78,7 +78,7 @@ Keep the interview tight — three or four questions max. If the conversation al
 
 Present the proposal in chat. Structure:
 
-> ## `/lexicon:evolve` proposal
+> ## `/lexicon:meta-evolve` proposal
 >
 > **Triage:** <bundle-bug | taste | project-quirk | no-op>
 > **Target file:** `~/src/lexicon/skills/lexicon/<path>`
@@ -115,7 +115,7 @@ If the right amendment would touch more than one file, propose each separately u
 When the user says yes:
 
 1. **Apply the edit** to the relevant file under `~/src/lexicon/skills/lexicon/` using Edit. **Cross-repo write** — the target is in `~/src/lexicon/`, not the current project.
-2. **Do NOT commit** in the lexicon repo. Leave the change in the working tree, uncommitted. This is deliberate: the dirty state across multiple `/lexicon:evolve` invocations is the accumulation buffer, and the user reviews + commits + pushes when they sit down in the lexicon repo intentionally.
+2. **Do NOT commit** in the lexicon repo. Leave the change in the working tree, uncommitted. This is deliberate: the dirty state across multiple `/lexicon:meta-evolve` invocations is the accumulation buffer, and the user reviews + commits + pushes when they sit down in the lexicon repo intentionally.
 3. **Confirm in chat**: *"Amended `~/src/lexicon/skills/lexicon/<path>` § <section>. Bundle repo now has <N> uncommitted edits across <M> files."* The count gives the user passive awareness of accumulation without nagging.
 
 If the user says **revise**, iterate on the proposal in conversation. Don't apply a partial amendment.
@@ -128,9 +128,9 @@ To ground the abstract template, here's a plausible run.
 
 **Scenario.** Earlier in the session, `crystallize` proposed a `rename` operation on a glossary term but only showed the structural op header — no prose diff for the term's definition. The user had to ask "what's the new definition?" before the agent surfaced it. After the crystallization landed, the user types:
 
-> /lexicon:evolve when a rename changes a term's meaning, show the prose diff alongside it
+> /lexicon:meta-evolve when a rename changes a term's meaning, show the prose diff alongside it
 
-What `evolve` does:
+What `meta-evolve` does:
 
 1. **Locate the moment.** Scan finds the turn where the user asked "what's the new definition?" — that's the pushback. The subcommand produced an output the user had to repair.
 2. **Triage.** Bundle edit, labeled as a **bundle bug** — `crystallize` already has a rule about prose diffs, it just doesn't cover the rename-with-semantic-shift case. Not taste; the subcommand should already be doing this.
@@ -143,15 +143,15 @@ The whole exchange takes three or four turns because the conversation already ca
 
 ## Anti-patterns
 
-- **Inventing reasons to edit.** Every `/lexicon:evolve` invocation is *not* a contract to produce an amendment. If triage lands on "no bundle change," that's a successful run — say so and stop. Producing edits when none are warranted is exactly how the bundle accumulates noise.
+- **Inventing reasons to edit.** Every `/lexicon:meta-evolve` invocation is *not* a contract to produce an amendment. If triage lands on "no bundle change," that's a successful run — say so and stop. Producing edits when none are warranted is exactly how the bundle accumulates noise.
 - **Editing without quoting.** If you can't quote the current text being amended, you don't understand what you're changing. Read first.
-- **Bundling unrelated lessons.** One moment, one lesson, one proposal. If the user wants to capture three things, that's three `/lexicon:evolve` invocations.
+- **Bundling unrelated lessons.** One moment, one lesson, one proposal. If the user wants to capture three things, that's three `/lexicon:meta-evolve` invocations.
 - **Committing in the lexicon repo.** Never. The dirty working tree is the buffer; the user owns the push.
 - **Treating the diff as primary.** The conversation has the *why*; the diff only has the *what*. A diff-first reading produces plausible-sounding rationale that doesn't match what actually happened in the session.
-- **Reaching evolve by inference.** This is slash-only. If the dispatch reached you without an explicit `/lexicon:evolve`, stop and ask the user.
+- **Reaching meta-evolve by inference.** This is slash-only. If the dispatch reached you without an explicit `/lexicon:meta-evolve`, stop and ask the user.
 
 ## On the relationship to the other subcommands
 
-`evolve` is the inverse of every other subcommand: where they take the bundle as authoritative and reshape the project, `evolve` takes the project session as authoritative and reshapes the bundle. It is the only self-evolve mechanism the bundle has; everything else (retros, crystallize, conform) evolves the *project's* cold layer, not the bundle itself.
+`meta-evolve` is the inverse of every other subcommand: where they take the bundle as authoritative and reshape the project, `meta-evolve` takes the project session as authoritative and reshapes the bundle. It is the only self-evolve mechanism the bundle has; everything else (crystallize, validate) evolves the *project's* cold layer, not the bundle itself.
 
-Because of that asymmetry, `evolve` doesn't write to any project file. It does not append to retros, does not update `.last-crystallized`, does not touch `lexicon/system.xml`. Its entire output is in the lexicon bundle repo and a confirmation message in chat.
+Because of that asymmetry, `meta-evolve` doesn't write to any project file. It does not update `.last-crystallized`, does not touch `lexicon/system.xml`. Its entire output is in the lexicon bundle repo and a confirmation message in chat.

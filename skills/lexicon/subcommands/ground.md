@@ -6,16 +6,16 @@ Run at the start of substantive work. Reads the cold layer, declares scope in co
 
 If `lexicon/system.xml` doesn't exist, **stop and surface**:
 
-> This project doesn't have lexicon docs yet. Bootstrapping is a one-shot setup — it scans existing docs and code, drafts a first-cut `system.xml`, absorbs ADR-shaped content into rationale fields, and produces a triage list. That's a different subcommand (`adopt`). Want to:
-> (a) run `adopt` now and come back to the original task after,
+> This project doesn't have lexicon docs yet. Setup is a one-shot pass — it scans existing docs and code, drafts a first-cut `system.xml`, absorbs ADR-shaped content into rationale fields, and produces a triage list. That's a different subcommand (`bootstrap`). Want to:
+> (a) run `bootstrap` now and come back to the original task after,
 > (b) skip lexicon for this session and not be asked again, or
 > (c) work without lexicon just for now (still ask next session)?
 
-Don't try to bootstrap inline here — the doc-audit and code-audit phases are too heavyweight for a per-task grounding step. Defer to `adopt`.
+Don't try to bootstrap inline here — the doc-audit and code-audit phases are too heavyweight for a per-task grounding step. Defer to `bootstrap`.
 
 If the user picks (b), drop a `.lexicon-skip` marker file at the repo root so future sessions don't re-prompt. If (c), proceed with the task ungrounded; this is a graceful fallback, not the intended flow.
 
-If `lexicon/system.xml` is on a pre-v1.0 schema, or `lexicon/system.yaml`/`lexicon/system.md` exists (older formats), defer to `conform` first.
+If `lexicon/system.xml` is on a pre-v1.0 schema, or `lexicon/system.yaml`/`lexicon/system.md` exists (older formats), defer to `validate` first.
 
 ## The grounding ritual
 
@@ -42,14 +42,14 @@ State, in chat, what you're about to do — using vocabulary from `system.xml` a
 
 Be honest. If you don't know which bounded context the work lives in, say so — that's a real signal, not a failure.
 
-This declaration is for the conversation only. **Don't write it to a file.** The `retro` subcommand will summarize what was actually declared vs what shipped, using this exchange as input.
+This declaration is for the conversation only. **Don't write it to a file.** It anchors the rest of the session; when `crystallize` later absorbs the work, it reads this exchange (alongside the git diff) to tell what was declared vs what shipped.
 
 ### 4. Check vocabulary completeness
 
 For each significant noun or verb in the task description that *isn't* in the loaded glossary, flag it:
 
 > Heads up — the task uses the term "X" which isn't in the glossary. Want to:
-> (a) note it for the session-end retro to consider,
+> (a) note it for a later `crystallize` to consider,
 > (b) add it to the glossary now (via `crystallize` after the work lands), or
 > (c) propose it's a synonym for an existing term?
 
@@ -64,7 +64,7 @@ Genuinely mechanical work doesn't need full grounding:
 - Log message wording tweaks
 - Renaming a local variable for clarity within a single function
 
-For these, briefly acknowledge ("trivial: <description>") and proceed. `retro` may still run at the end and produce a one-line log; that's fine.
+For these, briefly acknowledge ("trivial: <description>") and proceed. No grounding declaration is needed.
 
 If you're tempted to call something "trivial" but it touches a file mentioned in `system.xml` or a context file's `codeModules:`, it's not trivial. Run the full grounding.
 

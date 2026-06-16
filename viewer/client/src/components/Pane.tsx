@@ -7,6 +7,7 @@ import CodeAnchorBadge from "./CodeAnchorBadge";
 import InlineCode from "./InlineCode";
 import { Facets, FacetItem } from "./Facets";
 import Prose from "./Prose";
+import SpecMarkdown from "./SpecMarkdown";
 import {
   isInspectorChord,
   isTypingTarget,
@@ -132,6 +133,7 @@ const BODY: Record<EntityKind, FC<BodyProps>> = {
   "shared-kernel": ({ entity, graph }) => <SharedKernelBody entity={entity} graph={graph} />,
   surface: ({ entity, graph }) => <SurfaceBody entity={entity} graph={graph} />,
   region: ({ entity, graph }) => <RegionBody entity={entity} graph={graph} />,
+  spec: ({ entity, graph }) => <SpecBody entity={entity} graph={graph} />,
 };
 
 function Body(props: BodyProps) {
@@ -486,6 +488,16 @@ function RefSection({
   );
 }
 
+function SpecBody({ entity, graph }: { entity: ResolvedEntity; graph: ResolvedGraph }) {
+  // The pane Header already renders the spec title; drop a leading `# H1`
+  // from the markdown so it isn't shown twice.
+  const md = (entity.body ?? "").replace(/^\s*#\s+.+\r?\n+/, "");
+  if (!md.trim()) {
+    return <div className="prose-body text-small text-fg-3 italic">Empty spec.</div>;
+  }
+  return <SpecMarkdown markdown={md} graph={graph} ownerContextId={entity.ownerContextId} />;
+}
+
 function SurfaceBody({ entity, graph }: { entity: ResolvedEntity; graph: ResolvedGraph }) {
   return (
     <div>
@@ -682,6 +694,23 @@ function EntityFacets({ entity, graph }: { entity: ResolvedEntity; graph: Resolv
       {entity.status && (
         <FacetItem label="Status">
           <span className="mono text-small text-fg-2">{entity.status}</span>
+        </FacetItem>
+      )}
+      {entity.updated && (
+        <FacetItem label="Updated">
+          <span className="mono text-small text-fg-2">{entity.updated}</span>
+        </FacetItem>
+      )}
+      {entity.scope && (
+        <FacetItem label="Scope">
+          <span className="mono text-small text-fg-2">{entity.scope}</span>
+        </FacetItem>
+      )}
+      {entity.codeHomes && entity.codeHomes.length > 0 && (
+        <FacetItem label="Code homes">
+          {entity.codeHomes.map((h, i) => (
+            <span key={i} className="mono text-small text-fg-2">{h}</span>
+          ))}
         </FacetItem>
       )}
       {anchors.length > 0 && (

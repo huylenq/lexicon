@@ -12,9 +12,26 @@ While in 0.x, breaking project-shape changes bump the minor (0.x.0 → 0.(x+1).0
 
 ## [Unreleased]
 
+### Added — `spec` subcommand and viewer spec rendering
+
+- **New `spec` subcommand** (`/lexicon:spec`, `commands/spec.md`, `subcommands/spec.md`), bringing the taxonomy back to **six**: `bootstrap` / `ground` / `crystallize` / `spec` / `validate` / `meta-evolve`. It authors and files **markdown** design/architecture docs under `lexicon/specs/` — per-feature narratives that sit above code and below the cold layer (the cold layer is too small to hold them; code is too low-level to read them off). Reconciled from Huy's standalone spec-authoring conventions ("Light" integration: cloned in and wired up, but the spec artifact is NOT absorbed into the XML schema and `spec` does not write the cold layer).
+- **Two-tier lifecycle:** active `lexicon/specs/<slug>-design.md` (decision log) + transient `lexicon/specs/<slug>.progress.md` (a cold-session handoff snapshot, overwritten in place, deleted on promotion) → established `lexicon/specs/established/<slug>.md` (as-built). Promotion is user-confirmed and **pairs with `crystallize`**: one completion moment, two outputs — vocabulary/invariants into the cold layer, narrative into the established spec.
+- **Vocabulary defers to the cold layer.** Specs carry no glossary; they reference cold-layer atoms by `[[fqid]]` inline links. Note this reintroduces `[[fqid]]` syntax — but only inside **spec markdown**, as the viewer's atom-link convention. The cold-layer **XML** still has no `[[fqid]]` prose syntax (refs there are structural `<ref to="..."/>`); the two are separate surfaces.
+- **Viewer renders specs.** Specs are loaded as first-class `spec` entities (`spec/<slug>` fqids) so they reuse the pane/stack/sidebar/backlink machinery. Markdown is rendered with mermaid diagrams; `[[fqid]]` links resolve to cold-layer atoms (click to open the atom pane), and referenced atoms gain backlinks to the specs that cite them.
+
+### BREAKING (v1.0.0) — taxonomy collapse: `retro` removed, `conform` → `validate`, `adopt` → `bootstrap`
+
+- **`retro` removed.** The per-session retro step is gone — no `retro` subcommand, no `commands/retro.md`, no always-written `lexicon/retros/` logs. In practice the stopping-point trigger never fired reliably and the logs went unread; the "always-on" contract was aspirational. Its worthy piece — running the six structural checks forward over the session diff — is now done by `crystallize`, which reads the **git diff since `.last-crystallized`** directly. **Git history is the session log.** `bootstrap` no longer creates `lexicon/retros/`.
+
+- **`conform` → `validate`.** The two-pass drift-detection subcommand is renamed throughout: `commands/conform.md` → `commands/validate.md`, `subcommands/conform.md` → `subcommands/validate.md`, the report file `lexicon/conform.md` → `lexicon/validate.md`, and every migration delta's structural report-section now appends to `lexicon/validate.md`. The viewer's outdated-schema `LoadIssue` now points at `/lexicon:validate`.
+
+- **`adopt` → `bootstrap`.** The one-shot setup subcommand is renamed: `commands/adopt.md` → `commands/bootstrap.md`, `subcommands/adopt.md` → `subcommands/bootstrap.md`. The verb now matches the report it already produces (`lexicon/bootstrap.md`). Resume-distillation re-runs via `/lexicon:bootstrap`.
+
+- **Five subcommands, not six.** The taxonomy is now `bootstrap` / `ground` / `crystallize` / `validate` / `meta-evolve`. `crystallize` is the sole place forward-flow drift is caught and absorbed; `validate` is the sole backward-flow / schema-conformance check. `crystallize` stays user-triggered.
+
 ### BREAKING (v1.0.0) — YAML to XML representation flip
 
-- **Cold-layer files flip from YAML to XML.** `lexicon/system.yaml`, `lexicon/contexts/*.yaml`, and `lexicon/surfaces/*.yaml` become `system.xml`, `contexts/*.xml`, `surfaces/*.xml`. Existing projects upgrade via `/lexicon:conform`, which applies the new `skills/lexicon/migrations/v0.3-to-v1.0.md` delta. Originals are archived under `lexicon/_pre-migrate-archive/v0.3-to-v1.0/`.
+- **Cold-layer files flip from YAML to XML.** `lexicon/system.yaml`, `lexicon/contexts/*.yaml`, and `lexicon/surfaces/*.yaml` become `system.xml`, `contexts/*.xml`, `surfaces/*.xml`. Existing projects upgrade via `/lexicon:validate`, which applies the new `skills/lexicon/migrations/v0.3-to-v1.0.md` delta. Originals are archived under `lexicon/_pre-migrate-archive/v0.3-to-v1.0/`.
 
 - **Element names are the ontological types.** `<system>`, `<bounded-context>`, `<term>`, `<invariant>`, `<seam>`, `<boundary-rule>`, `<aggregate>`, `<module>`, `<shared-kernel>`, `<surface>`, `<region>`, `<overlay>`, `<deliberate-omission>` — no `kind:` discriminator field; the element name carries it. Sub-discriminations stay as attributes (term `category=`, invariant `mode=`, seam `kind=`, context `subdomain=`).
 
@@ -48,7 +65,7 @@ While in 0.x, breaking project-shape changes bump the minor (0.x.0 → 0.(x+1).0
 
 - **Templates flipped.** `skills/lexicon/templates/*.yaml.example` removed; `*.xml.example` added as the new reference shapes for `adopt`.
 
-- **Subcommand bodies updated.** All six subcommands (`adopt`, `ground`, `retro`, `crystallize`, `conform`, `evolve`) and `SKILL.md` updated for file-extension references, schema-version detection, and v1.0 vocabulary. `conform`'s supported-deltas list gains v0.3→v1.0.
+- **Subcommand bodies updated.** All six subcommands (`adopt`, `ground`, `retro`, `crystallize`, `conform`, `meta-evolve`) and `SKILL.md` updated for file-extension references, schema-version detection, and v1.0 vocabulary. `conform`'s supported-deltas list gains v0.3→v1.0.
 
 - **Soft pavers for future editor mode.** Specific design choices preserve a low-friction path for the planned in-viewer editor: XSD as a real artifact (not docs prose), `xast-util-to-xml` for the write path, `parseLexiconFile` as a public primitive, `xastNode?` back-refs, diagnostic collection, canonical serialization conventions, schema-version as root attribute. Editor-mode functionality itself is **not built** — the read-only invariant in `viewer/lexicon/system.xml` stays.
 
@@ -80,7 +97,7 @@ While in 0.x, breaking project-shape changes bump the minor (0.x.0 → 0.(x+1).0
   | `/lex-retro` | `/lexicon:retro` |
   | `/lex-crystallize` | `/lexicon:crystallize` |
   | `/lex-audit` + `/lex-migrate` | `/lexicon:conform` (merged) |
-  | `/lex-meta` | `/lexicon:evolve` |
+  | `/lex-meta` | `/lexicon:meta-evolve` |
   | `/lex-overview` | — (no slash; reference content lives in `skills/lexicon/reference/`, read on demand) |
 
   The skill itself is `user-invocable: false`; the six slash commands are how users invoke it explicitly. The model still auto-fires the skill based on the holistic description in `SKILL.md`.
@@ -91,7 +108,7 @@ While in 0.x, breaking project-shape changes bump the minor (0.x.0 → 0.(x+1).0
 
 - **Shared resources centralized at `skills/lexicon/`.** Templates (`templates/system.yaml.example`, etc.) moved from `skills/lex-bootstrap/templates/` to `skills/lexicon/templates/`. Migrations (`migrations/v0.x-to-v0.1.md`, etc.) moved from `skills/lex-migrate/migrations/` to `skills/lexicon/migrations/`. `validators/` directory added (empty) as the home for future deterministic schema-validation scripts.
 
-- **`lexicon-prefs.md` references removed from skill bodies.** The file at the repo root is kept as a deprecated artifact but is no longer referenced by any subcommand. Calibration corrections flow through `/lexicon:evolve` (writes directly into the responsible reference or subcommand file). The file may be removed entirely in a future cleanup pass.
+- **`lexicon-prefs.md` references removed from skill bodies.** The file at the repo root is kept as a deprecated artifact but is no longer referenced by any subcommand. Calibration corrections flow through `/lexicon:meta-evolve` (writes directly into the responsible reference or subcommand file). The file may be removed entirely in a future cleanup pass.
 
 - **Installation:** plugin-only is now the supported install path. The `npx skills add` flow no longer applies — the single-skill shape with shared `reference/` and `migrations/` directories assumes plugin layout. Use `claude --plugin-dir ./lexicon` for local development or `/plugin install github:huylenq/lexicon`.
 
@@ -100,7 +117,7 @@ While in 0.x, breaking project-shape changes bump the minor (0.x.0 → 0.(x+1).0
 - The `lexicon` skill description is holistic and user-facing rather than internal-bookkeeping. It pitches what lexicon is and when to fire, not what other skills it depends on.
 - Subcommand bodies trim duplicated standing rules and structural-check definitions, deferring to `reference/rules.md` and `reference/checks.md` respectively.
 - `conform`'s report includes both structural and semantic findings under a single header. The report overwrites on each run; archival is via git history (or `audits/conform-<iso>.md` if the user wants to keep specific reports).
-- `evolve`'s body adds a defensive check: if the dispatch reached evolve by inference rather than explicit `/lexicon:evolve` invocation, stop and ask the user before proceeding. Compensates for the loss of mechanical `disable-model-invocation` enforcement that the slash-only `lex-meta` skill provided.
+- `meta-evolve`'s body adds a defensive check: if the dispatch reached meta-evolve by inference rather than explicit `/lexicon:meta-evolve` invocation, stop and ask the user before proceeding. Compensates for the loss of mechanical `disable-model-invocation` enforcement that the slash-only `lex-meta` skill provided.
 
 ### Migration path
 

@@ -1,0 +1,385 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Exhaustive XML example for skills/lexicon/reference/schema.xsd.
+
+  Purpose: a single validation fixture that exercises every element and
+  attribute the schema permits. Not meant as a realistic project layout
+  (a real bounded-context wouldn't carry nine seams at once); meant as
+  a tour of the schema's surface area.
+
+  Covered:
+    - bounded-context root with schema, id, subdomain attributes
+    <!-- - <code-modules> with multiple <path/>-->
+    <!-- - <term> in all 5 categories (entity, value, service, event, concept),-->
+    <!--  including disambiguates-from, symbols, rationale, identity-rule,-->
+      equality, operates-on, returns, emitted-when, payload, consumers,
+      and a status="deprecated" example
+    - <invariant> in all 3 modes (code, linter, principle), with
+      constrains-code anchors
+    - <seam> in every kind (5 asymmetric, 4 symmetric + unknown), showing
+      upstream/downstream vs participants
+    - <boundary-rule>
+    - <aggregate> with root, members, invariants, rationale
+    - <module>
+    - mixed-content <Prose> with inline <ref/>
+    - <code-anchor/> with file, line-start, line-end, symbol
+
+  Sibling roots (<system>, <surface>) are exercised by the templates at
+  skills/lexicon/templates/. XML allows only one root per document, so
+  the bounded-context root was chosen here because it carries the
+  richest atom set.
+-->
+<bounded-context schema="1.0" id="editorial" subdomain="core">
+  <name>Editorial</name>
+
+  <purpose>
+    The context responsible for authoring, reviewing, and publishing
+    articles. Owns the article lifecycle from draft to published; hands
+    off to <ref to="distribution"/> at the publish boundary.
+  </purpose>
+
+  <narrative>
+    Editorial is where prose becomes a published artifact. It models the
+    workflow editors actually run — write, review, revise, publish — and
+    deliberately stops short of distribution mechanics (RSS, syndication,
+    CDN warmup), which live downstream.
+  </narrative>
+
+  <code-modules>
+    <path>src/editorial/**</path>
+    <path>src/shared/markdown/**</path>
+  </code-modules>
+
+  <!-- =================================================================
+       Terms: one of each category
+       ================================================================= -->
+
+  <term id="article" category="entity">
+    <name>Article</name>
+    <definition>
+      A unit of editorial work with a stable identity across revisions.
+      An article persists through title changes, slug changes, and full
+      rewrites; what changes is its content, not its identity.
+    </definition>
+    <disambiguates-from>
+      <ref to="distribution/post"/>
+      <ref to="archive/document"/>
+    </disambiguates-from>
+    <symbols>
+      <code-anchor file="src/editorial/article.ts" symbol="Article"/>
+      <code-anchor file="src/editorial/article.ts" line-start="42" line-end="88" symbol="ArticleRecord"/>
+    </symbols>
+    <rationale>
+      Identity is decoupled from slug so that URL changes don't fork the
+      article's history. See <ref to="slug-mutable"/>.
+    </rationale>
+    <identity-rule>
+      Stable by article-id (uuid v7). Slug and title are mutable
+      attributes, not identity.
+    </identity-rule>
+  </term>
+
+  <term id="slug" category="value">
+    <name>Slug</name>
+    <definition>
+      The URL-safe identifier under which an article is published.
+      Kebab-case, lowercase ASCII, max 80 characters.
+    </definition>
+    <equality>
+      Two slugs are equal when their normalized string forms are
+      byte-equal. Case is normalized to lowercase before comparison.
+    </equality>
+  </term>
+
+  <term id="publish-article" category="service">
+    <name>publishArticle</name>
+    <definition>
+      A stateless domain operation that promotes an <ref to="article"/>
+      from draft to published, subject to <ref to="review-required"/>.
+    </definition>
+    <operates-on>
+      <ref to="article"/>
+      <ref to="editorial-review"/>
+    </operates-on>
+    <returns>
+      A <ref to="article-published"/> event on success, or a structured
+      validation failure listing unmet preconditions.
+    </returns>
+  </term>
+
+  <term id="article-published" category="event">
+    <name>ArticlePublished</name>
+    <definition>
+      A fact: the editorial team has promoted an article to the public
+      surface. Past tense; immutable once emitted.
+    </definition>
+    <emitted-when>
+      <ref to="publish-article"/> succeeds and the article transitions
+      from draft to published state.
+    </emitted-when>
+    <payload>
+      article-id, slug at publish time, published-at timestamp,
+      reviewer-id of the approving editor.
+    </payload>
+    <consumers>
+      <ref to="distribution"/>
+      <ref to="analytics"/>
+    </consumers>
+  </term>
+
+  <term id="editorial-review" category="concept">
+    <name>EditorialReview</name>
+    <definition>
+      The collaborative act of an editor reading a draft and either
+      approving it for publication or returning it with notes. Not an
+      entity (no stable identity) and not a value (carries state); a
+      named concept that recurs in conversation about the workflow.
+    </definition>
+    <rationale>
+      Surfaced as a named concept because the team consistently refers
+      to "review" as a discrete step, even though it isn't reified as a
+      single record in the data model.
+    </rationale>
+  </term>
+
+  <term id="byline" category="value" status="deprecated">
+    <name>Byline</name>
+    <definition>
+      The author-attribution string rendered above an article. Replaced
+      by structured author references in v3; kept here to document the
+      term for historical contexts.
+    </definition>
+    <equality>
+      Two bylines are equal when their string forms match exactly,
+      including whitespace.
+    </equality>
+  </term>
+
+  <!-- =================================================================
+       Invariants: one per mode
+       ================================================================= -->
+
+  <invariant id="review-required" mode="code">
+    <name>Drafts cannot be published without review</name>
+    <statement>
+      <ref to="publish-article"/> must reject any <ref to="article"/>
+      that lacks an approving <ref to="editorial-review"/> from an
+      editor other than the article's author.
+    </statement>
+    <rationale>
+      Self-review defeats the purpose; the rule must hold at the code
+      boundary, not by convention.
+    </rationale>
+    <constrains-code>
+      <code-anchor file="src/editorial/publish.ts" line-start="100" line-end="142" symbol="publishArticle"/>
+      <code-anchor file="src/editorial/review-guard.ts" symbol="assertReviewed"/>
+    </constrains-code>
+  </invariant>
+
+  <invariant id="slug-shape" mode="linter">
+    <name>Slug must match the canonical shape</name>
+    <statement>
+      Every persisted <ref to="slug"/> must match the pattern
+      ^[a-z0-9][a-z0-9-]{0,79}$. Enforced by a lint rule on the schema
+      migrations directory.
+    </statement>
+    <rationale>
+      Catches malformed slugs at PR time rather than at request time,
+      where a 404 would already have been served.
+    </rationale>
+  </invariant>
+
+  <invariant id="slug-mutable" mode="principle">
+    <name>Slug is mutable; identity is not</name>
+    <statement>
+      An <ref to="article"/>'s slug may change over its lifetime; its
+      article-id may not. Downstream systems that need a stable handle
+      must use article-id, not slug.
+    </statement>
+    <rationale>
+      Slugs reflect editorial intent (a renamed article gets a renamed
+      URL); identity reflects the underlying artifact. Conflating them
+      would force every rename to fork the article's history.
+    </rationale>
+  </invariant>
+
+  <!-- =================================================================
+       Seams: every kind the schema enumerates
+       (Asymmetric kinds use upstream/downstream; symmetric kinds use
+       participants. "unknown" is shown with participants by convention.)
+       ================================================================= -->
+
+  <seam id="seam-customer-supplier" kind="customer-supplier">
+    <name>Editorial → Distribution</name>
+    <description>
+      Editorial supplies the published-article stream; Distribution
+      consumes it. Distribution can request schema changes; Editorial
+      negotiates and ships them.
+    </description>
+    <rationale>
+      Downstream pull works because the two teams meet weekly and the
+      contract is small.
+    </rationale>
+    <upstream><ref to="editorial"/></upstream>
+    <downstream><ref to="distribution"/></downstream>
+  </seam>
+
+  <seam id="seam-conformist" kind="conformist">
+    <name>Editorial → Legacy CMS</name>
+    <description>
+      Editorial accepts the legacy CMS's content schema as-is; no
+      translation layer.
+    </description>
+    <upstream><ref to="legacy-cms"/></upstream>
+    <downstream><ref to="editorial"/></downstream>
+  </seam>
+
+  <seam id="seam-acl" kind="anticorruption-layer">
+    <name>Editorial ← Vendor Imports</name>
+    <description>
+      Incoming vendor content passes through a translation layer that
+      maps vendor fields onto editorial's vocabulary; vendor concepts
+      never leak past the boundary.
+    </description>
+    <upstream><ref to="vendor-feed"/></upstream>
+    <downstream><ref to="editorial"/></downstream>
+  </seam>
+
+  <seam id="seam-ohs" kind="open-host-service">
+    <name>Editorial Public API</name>
+    <description>
+      A stable HTTP surface that any downstream context may consume
+      without negotiation.
+    </description>
+    <upstream><ref to="editorial"/></upstream>
+    <downstream><ref to="analytics"/></downstream>
+  </seam>
+
+  <seam id="seam-shared-kernel" kind="shared-kernel">
+    <name>Identity kernel</name>
+    <description>
+      Editorial and Distribution co-own the user-id and author-id value
+      types; changes require both contexts' agreement.
+    </description>
+    <participants>
+      <ref to="editorial"/>
+      <ref to="distribution"/>
+    </participants>
+  </seam>
+
+  <seam id="seam-published-language" kind="published-language">
+    <name>ArticlePublished event schema</name>
+    <description>
+      The event payload is a versioned, published contract. Any consumer
+      may read it; changes go through a deprecation cycle.
+    </description>
+    <participants>
+      <ref to="editorial"/>
+      <ref to="distribution"/>
+      <ref to="analytics"/>
+    </participants>
+  </seam>
+
+  <seam id="seam-partnership" kind="partnership">
+    <name>Editorial ↔ Reader Profiles</name>
+    <description>
+      The two contexts succeed or fail together on personalized
+      recommendations; coordinated planning is the norm, not the
+      exception.
+    </description>
+    <participants>
+      <ref to="editorial"/>
+      <ref to="reader-profiles"/>
+    </participants>
+  </seam>
+
+  <seam id="seam-separate-ways" kind="separate-ways">
+    <name>Editorial ⊥ Marketing Site</name>
+    <description>
+      No integration. The marketing site re-implements whatever it needs
+      from scratch rather than depending on editorial.
+    </description>
+    <participants>
+      <ref to="editorial"/>
+      <ref to="marketing-site"/>
+    </participants>
+  </seam>
+
+  <seam id="seam-unknown" kind="unknown">
+    <name>Editorial ? Archive</name>
+    <description>
+      A historical integration whose shape predates this lexicon; the
+      contract is undocumented and the owning team is gone. Marked
+      unknown until someone investigates.
+    </description>
+    <participants>
+      <ref to="editorial"/>
+      <ref to="archive"/>
+    </participants>
+  </seam>
+
+  <!-- =================================================================
+       Boundary rule
+       ================================================================= -->
+
+  <boundary-rule id="no-draft-leak">
+    <rule>
+      Draft articles must not be readable from any context outside
+      Editorial, regardless of caller identity or feature flag.
+    </rule>
+    <from><ref to="editorial"/></from>
+    <to>
+      <ref to="distribution"/>
+      <ref to="analytics"/>
+    </to>
+    <rationale>
+      A draft leaking to distribution would be indistinguishable from a
+      publish; rolling it back after the fact is expensive and visible.
+    </rationale>
+  </boundary-rule>
+
+  <!-- =================================================================
+       Aggregate
+       ================================================================= -->
+
+  <aggregate id="article-aggregate">
+    <name>Article aggregate</name>
+    <root><ref to="article"/></root>
+    <members>
+      <ref to="slug"/>
+      <ref to="editorial-review"/>
+    </members>
+    <invariants>
+      <ref to="review-required"/>
+      <ref to="slug-mutable"/>
+    </invariants>
+    <rationale>
+      Article is the consistency boundary: slug changes and review state
+      transitions commit together with article updates, never
+      independently.
+    </rationale>
+  </aggregate>
+
+  <!-- =================================================================
+       Module (Evans-sense concept cluster)
+       ================================================================= -->
+
+  <module id="publishing-pipeline">
+    <name>Publishing pipeline</name>
+    <description>
+      The atoms involved in moving an article from draft to published,
+      grouped because they cohere as a single workflow even though they
+      span entity, service, and event categories.
+    </description>
+    <members>
+      <ref to="article"/>
+      <ref to="editorial-review"/>
+      <ref to="publish-article"/>
+      <ref to="article-published"/>
+    </members>
+    <rationale>
+      Named so that conversation and crystallizations can refer to "the
+      publishing pipeline" without re-enumerating its members each time.
+    </rationale>
+  </module>
+</bounded-context>

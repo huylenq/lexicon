@@ -4,6 +4,7 @@
 
 import ELK, { type ElkNode, type ElkExtendedEdge } from "elkjs/lib/elk.bundled.js";
 import type { GraphEdge, GraphModel, GraphNode, Lens } from "./build-graph";
+import { clusterTag } from "../kinds";
 
 const elk = new ELK();
 
@@ -31,12 +32,24 @@ export interface LayoutResult {
 }
 
 // Geometry helpers shared across the post-ELK routers.
-function center(n: { x: number; y: number; width: number; height: number }) {
+export function center(n: { x: number; y: number; width: number; height: number }) {
   return { x: n.x + n.width / 2, y: n.y + n.height / 2 };
 }
 
 export function clamp(n: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, n));
+}
+
+// Width (px) the cluster header "<TAG> · <NAME>" needs, mirroring TitleBlock in
+// GraphNode: tag by kind, uppercased name, mono 10px, 0.22em tracking, a 14px
+// left inset and a matching right margin. Tag text comes from clusterTag (shared
+// with TitleBlock) so the box can't clip a tag the renderer shows.
+function clusterHeaderWidth(kind: string, name: string): number {
+  const tag = clusterTag(kind);
+  const chars = tag.length + 3 /* " · " */ + name.length;
+  // ~6px glyph advance + 2.2px (0.22em) tracking per char at 10px mono.
+  const textWidth = chars * 8.2;
+  return Math.ceil(textWidth + 14 /* left inset */ + 16 /* right margin */);
 }
 
 const BASE_OPTS = {
@@ -194,7 +207,12 @@ export async function layoutModel(
       // Stub contexts (medical-knowledge-integration etc.) often have zero
       // children today. Without a minimum size, ELK collapses them to a point
       // and their labels stack on top of each other.
-      const labelWidth = Math.max(180, n.name.length * 8 + 32);
+      //
+      // The header (TitleBlock in GraphNode) renders "<TAG> · <NAME>" uppercased
+      // in mono at 10px with 0.22em letter-spacing, inset 14px from the left.
+      // Size the minimum to fit that whole string — counting only the name
+      // undersizes it and the title overflows the container's right edge.
+      const labelWidth = Math.max(180, clusterHeaderWidth(n.kind, n.name));
       const minSize = `(${labelWidth}, 80)`;
       const sizeConstraints = {
         "elk.nodeSize.constraints": "MINIMUM_SIZE",
@@ -805,7 +823,7 @@ function elbowRoute(
 // Given a ray starting at (cx, cy) and pointing toward (tx, ty), return the
 // point at which it exits a rectangle centered on (cx, cy) with half-widths
 // (hw, hh). Used to clip a straight edge to the boundary of its source node.
-function rectExit(
+export function rectExit(
   cx: number,
   cy: number,
   tx: number,

@@ -4,10 +4,10 @@ Local dev tool for browsing a lexicon-conform project (cold-layer YAML + codebas
 
 ```
 bun install
-bun dev          # http://localhost:5273
+bun dev          # http://localhost:5373
 ```
 
-The dev script runs Bun (API on :8787) and Vite (client on :5273 proxying /api → :8787) together.
+The dev script runs Bun (API on :8787) and Vite (client on :5373 proxying /api → :8787) together.
 
 ## Views
 

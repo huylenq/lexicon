@@ -75,6 +75,8 @@ function size(kind: EntityKind | "cluster", name: string): { width: number; heig
       return { width: Math.min(approxText + 32, 220), height: 48 };
     case "region":
       return { width: Math.min(approxText + 32, 200), height: 44 };
+    case "spec":
+      return { width: 0, height: 0 }; // specs aren't graph nodes; here for exhaustiveness
     case "cluster":
       return { width: 0, height: 0 };
   }

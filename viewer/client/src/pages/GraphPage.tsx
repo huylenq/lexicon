@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowsClockwise } from "@phosphor-icons/react";
 import type { EntityKind, LexiconResponse, ResolvedEntity } from "@/lib/types";
 import { buildModel, type EdgeKind, type Lens } from "@/lib/graph/build-graph";
 import {
@@ -11,6 +12,8 @@ import {
   type NarrativeRouting,
   type LayoutResult,
 } from "@/lib/graph/layout";
+import { applyManualLayout, seedFromLayout, type ContainerPositions, type LeafOffsets } from "@/lib/graph/manual-layout";
+import { loadManualLayout, saveManualLayout, emptyPositions, emptyLeafOffsets } from "@/lib/graph/manual-layout-store";
 import { FILTERABLE_KINDS } from "@/lib/kinds";
 import GraphCanvas from "@/components/graph/GraphCanvas";
 import GraphFilterBar from "@/components/graph/GraphFilterBar";
@@ -63,6 +66,28 @@ export default function GraphPage({
   const searchRef = useRef<HTMLInputElement>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [narrativeThreadEnabled, setNarrativeThreadEnabled] = useState(false);
+  // Layout mode. In "manual", top-level containers are pinned to positions the
+  // user drags them to; ELK still lays out internals. Positions are keyed per
+  // lens since each lens is a different ELK arrangement. Both mode and positions
+  // persist per project in localStorage; this component is keyed by project id
+  // (see ProjectPage) so these lazy initializers load the right project's state.
+  const [layoutMode, setLayoutMode] = useState<"auto" | "manual">(
+    () => loadManualLayout(resp.project.id)?.mode ?? "auto",
+  );
+  const [manualPositions, setManualPositions] = useState<Record<Lens, ContainerPositions>>(
+    () => loadManualLayout(resp.project.id)?.positions ?? emptyPositions(),
+  );
+  const [manualLeafOffsets, setManualLeafOffsets] = useState<Record<Lens, LeafOffsets>>(
+    () => loadManualLayout(resp.project.id)?.leafOffsets ?? emptyLeafOffsets(),
+  );
+
+  useEffect(() => {
+    saveManualLayout(resp.project.id, {
+      mode: layoutMode,
+      positions: manualPositions,
+      leafOffsets: manualLeafOffsets,
+    });
+  }, [resp.project.id, layoutMode, manualPositions, manualLeafOffsets]);
   const { isOpen: inspectorOpen, open: openInspector } = useInspector();
 
   const model = useMemo(
@@ -94,6 +119,53 @@ export default function GraphPage({
       cancelled = true;
     };
   }, [model, narrativeRouting, bundleTension, astarParams]);
+
+  // The layout actually rendered: in manual mode, the auto layout with pinned
+  // containers (and their subtrees + edges) translated to saved positions.
+  const displayLayout = useMemo<LayoutResult | null>(() => {
+    if (!layout) return null;
+    if (layoutMode !== "manual") return layout;
+    return applyManualLayout(layout, manualPositions[lens], manualLeafOffsets[lens]);
+  }, [layout, layoutMode, manualPositions, manualLeafOffsets, lens]);
+
+  // Enter manual mode, seeding container positions from the current auto layout
+  // the first time (per lens) so the manual arrangement starts where ELK left
+  // off, per the "initialize from current auto position" model.
+  const enterManual = () => {
+    setLayoutMode("manual");
+    setManualPositions(prev => {
+      if (Object.keys(prev[lens]).length > 0 || !layout) return prev;
+      return { ...prev, [lens]: seedFromLayout(layout) };
+    });
+  };
+
+  // Bumped to force a re-fit after a relayout (which doesn't change the auto
+  // `layout` identity the fit normally keys on).
+  const [fitNonce, setFitNonce] = useState(0);
+  const fitKey = useMemo(() => ({}), [layout, fitNonce]);
+
+  // Relayout: drop the current lens's manual coordinates (containers + leaves)
+  // back to ELK, and re-frame.
+  const handleRelayout = () => {
+    setManualPositions(prev => ({ ...prev, [lens]: {} }));
+    setManualLeafOffsets(prev => ({ ...prev, [lens]: {} }));
+    setFitNonce(n => n + 1);
+  };
+
+  const handleContainerMove = (id: string, x: number, y: number) => {
+    setManualPositions(prev => ({ ...prev, [lens]: { ...prev[lens], [id]: { x, y } } }));
+  };
+
+  const handleLeafMove = (containerId: string, leafId: string, dx: number, dy: number) => {
+    setManualLeafOffsets(prev => {
+      const lensMap = prev[lens];
+      const containerMap = lensMap[containerId] ?? {};
+      return {
+        ...prev,
+        [lens]: { ...lensMap, [containerId]: { ...containerMap, [leafId]: { dx, dy } } },
+      };
+    });
+  };
 
   // Search → select-first-match drives the canvas highlight + transient pane.
   useEffect(() => {
@@ -159,8 +231,8 @@ export default function GraphPage({
   // memo is pure position lookup.
   const narrativeThread = useMemo<ThreadStop[] | null>(() => {
     if (!narrativeThreadEnabled) return null;
-    if (!selectedEntity?.narrativeRefs?.length || !layout) return null;
-    const positioned = new Map(layout.nodes.map(n => [n.id, n]));
+    if (!selectedEntity?.narrativeRefs?.length || !displayLayout) return null;
+    const positioned = new Map(displayLayout.nodes.map(n => [n.id, n]));
     const seen = new Set<string>();
     const stops: ThreadStop[] = [];
     const push = (id: string) => {
@@ -173,7 +245,7 @@ export default function GraphPage({
     push(selectedEntity.ref.fqid);
     for (const ref of selectedEntity.narrativeRefs) push(ref.fqid);
     return stops;
-  }, [narrativeThreadEnabled, selectedEntity, layout]);
+  }, [narrativeThreadEnabled, selectedEntity, displayLayout]);
 
   const handleSelect = (fqid: string | null) => {
     setSelectedId(fqid);
@@ -210,23 +282,53 @@ export default function GraphPage({
       />
 
       <main className="flex-1 min-w-0 min-h-0 relative">
+        <div className="absolute top-3 right-3 z-10 flex items-center gap-2 mono text-micro uppercase tracking-widest">
+          {layoutMode === "manual" && (
+            <button
+              onClick={handleRelayout}
+              className="p-1.5 border rule rounded bg-paper text-fg-3 hover:text-fg"
+              title="Clear manual positions for this lens and re-run auto layout"
+              aria-label="Relayout"
+            >
+              <ArrowsClockwise size={14} weight="bold" />
+            </button>
+          )}
+          <div className="flex border rule rounded overflow-hidden bg-paper">
+            {(["auto", "manual"] as const).map(m => (
+              <button
+                key={m}
+                onClick={() => (m === "manual" ? enterManual() : setLayoutMode("auto"))}
+                className={
+                  "px-2.5 py-1 " +
+                  (layoutMode === m ? "bg-fg text-paper" : "text-fg-3 hover:text-fg")
+                }
+              >
+                {m}
+              </button>
+            ))}
+          </div>
+        </div>
         {layoutErr ? (
           <div className="p-6 mono text-small text-mark-2">Layout error: {layoutErr}</div>
-        ) : !layout ? (
+        ) : !displayLayout ? (
           <div className="h-full flex items-center justify-center mono text-small text-fg-3">
             laying out…
           </div>
         ) : (
           <GraphCanvas
-            layout={layout}
+            layout={displayLayout}
             selectedId={selectedId}
             onSelect={handleSelect}
             onActivate={handleActivate}
             narrativeFocusOnly={narrativeFocusOnly}
             narrativeThread={narrativeThread}
+            manualMode={layoutMode === "manual"}
+            onContainerMove={handleContainerMove}
+            onLeafMove={handleLeafMove}
+            fitKey={fitKey}
           />
         )}
-        {layout && layout.nodes.length === 0 && (
+        {displayLayout && displayLayout.nodes.length === 0 && (
           <div className="absolute inset-0 flex items-center justify-center prose-body italic text-fg-3 text-small pointer-events-none">
             Nothing to draw at this lens / filter combination.
           </div>

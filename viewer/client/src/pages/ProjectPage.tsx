@@ -332,7 +332,7 @@ function WorkspaceBody({
         width={graphPanel}
         className="border-r rule min-w-0 min-h-0 flex flex-col"
       >
-        <GraphPage resp={resp} lens={lens} onLensChange={onLensChange} />
+        <GraphPage key={resp.project.id} resp={resp} lens={lens} onLensChange={onLensChange} />
       </CollapsiblePanel>
       <aside
         ref={transientRef}

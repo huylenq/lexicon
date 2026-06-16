@@ -55,6 +55,7 @@
   --color-kind-shared-kernel:   #6b7d9a;
   --color-kind-surface:         #5fa15f;
   --color-kind-region:          #8fa838;
+  --color-kind-spec:            #b08968;
 }
 
 :root { color-scheme: light; }
@@ -253,6 +254,97 @@
     color: var(--color-fg);
   }
   .prose-body p + p { margin-top: 0.85em; }
+
+  /* Rendered markdown body of a spec. Mirrors prose-body's reading rhythm but
+     covers the fuller markdown surface (headings, lists, tables, code fences,
+     blockquotes) that cold-layer prose never needs. */
+  .spec-prose {
+    font-family: var(--font-body);
+    line-height: 1.6;
+    color: var(--color-fg);
+    max-width: 70ch;
+  }
+  .spec-prose > :first-child { margin-top: 0; }
+  .spec-prose p { margin: 0.85em 0; }
+  .spec-prose h2 {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 1.35rem;
+    margin: 1.8em 0 0.6em;
+    padding-bottom: 0.2em;
+    border-bottom: 1px solid var(--color-rule);
+  }
+  .spec-prose h3 {
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    margin: 1.4em 0 0.4em;
+  }
+  .spec-prose h4 {
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.78rem;
+    color: var(--color-fg-3);
+    margin: 1.2em 0 0.3em;
+  }
+  .spec-prose ul, .spec-prose ol { margin: 0.7em 0; padding-left: 1.4em; }
+  .spec-prose li { margin: 0.25em 0; }
+  .spec-prose ul { list-style: none; padding-left: 0.2em; }
+  .spec-prose ul > li::before {
+    content: "·";
+    color: var(--color-fg-3);
+    font-family: var(--font-mono);
+    margin-right: 0.6em;
+  }
+  .spec-prose ol { list-style: decimal; padding-left: 1.6em; }
+  .spec-prose a { color: var(--color-mark-2); text-decoration: underline; text-underline-offset: 2px; }
+  .spec-prose code {
+    font-family: var(--font-mono);
+    font-size: 0.88em;
+    background: var(--color-paper-2);
+    padding: 0.05em 0.3em;
+    border-radius: 2px;
+  }
+  .spec-prose pre {
+    background: var(--color-paper-2);
+    border: 1px solid var(--color-rule);
+    border-radius: 3px;
+    padding: 0.9em 1em;
+    overflow-x: auto;
+    margin: 1em 0;
+  }
+  .spec-prose pre code { background: transparent; padding: 0; font-size: 0.82rem; }
+  .spec-prose blockquote {
+    border-left: 2px solid var(--color-mark);
+    padding-left: 1em;
+    margin: 1em 0;
+    color: var(--color-fg-2);
+    font-style: italic;
+  }
+  .spec-prose table {
+    border-collapse: collapse;
+    margin: 1.1em 0;
+    font-size: 0.9rem;
+    width: 100%;
+  }
+  .spec-prose th, .spec-prose td {
+    border: 1px solid var(--color-rule);
+    padding: 0.4em 0.7em;
+    text-align: left;
+    vertical-align: top;
+  }
+  .spec-prose th { background: var(--color-paper-2); font-weight: 600; }
+  .spec-prose hr { border: 0; height: 1px; background: var(--color-rule); margin: 1.6em 0; }
+  .spec-mermaid { margin: 1.2em 0; overflow-x: auto; }
+  .spec-mermaid svg { max-width: 100%; height: auto; }
+  .spec-mermaid-error {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--color-mark-2);
+    border: 1px dashed var(--color-mark-2);
+    border-radius: 3px;
+    padding: 0.6em 0.8em;
+    white-space: pre-wrap;
+  }
 
   .peek-highlight-line {
     background: linear-gradient(

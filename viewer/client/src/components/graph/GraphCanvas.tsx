@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { clamp, type LayoutResult } from "@/lib/graph/layout";
+import { PAD_LEFT, PAD_TOP } from "@/lib/graph/manual-layout";
 import GraphNode from "./GraphNode";
 import GraphEdge, { ArrowDefs } from "./GraphEdge";
 import NarrativeThread, { type ThreadStop } from "./NarrativeThread";
@@ -11,6 +12,16 @@ interface Props {
   onActivate: (id: string) => void; // double-click → navigate to detail
   narrativeFocusOnly?: boolean;
   narrativeThread?: ThreadStop[] | null;
+  // Manual layout: when on, top-level containers are draggable (onContainerMove,
+  // absolute position) and leaves are draggable within their container
+  // (onLeafMove, offset from the container's top-left).
+  manualMode?: boolean;
+  onContainerMove?: (id: string, x: number, y: number) => void;
+  onLeafMove?: (containerId: string, leafId: string, dx: number, dy: number) => void;
+  // Fit-to-view fires when this identity changes — set it to the auto layout so
+  // a re-layout refits, but manual drags (which produce a fresh layout object
+  // every tick) don't reset the viewport.
+  fitKey?: unknown;
 }
 
 interface Viewport {
@@ -19,7 +30,7 @@ interface Viewport {
   scale: number;
 }
 
-export default function GraphCanvas({ layout, selectedId, onSelect, onActivate, narrativeFocusOnly = false, narrativeThread = null }: Props) {
+export default function GraphCanvas({ layout, selectedId, onSelect, onActivate, narrativeFocusOnly = false, narrativeThread = null, manualMode = false, onContainerMove, onLeafMove, fitKey }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<{ w: number; h: number }>({ w: 800, h: 600 });
   const [viewport, setViewport] = useState<Viewport>({ x: 0, y: 0, scale: 1 });
@@ -40,17 +51,23 @@ export default function GraphCanvas({ layout, selectedId, onSelect, onActivate, 
     return () => ro.disconnect();
   }, []);
 
-  // fit-to-view when layout changes
+  // fit-to-view on a genuine re-layout (fitKey change) or a resize — NOT on
+  // every layout object, since manual drags emit a fresh layout each tick and
+  // would otherwise reset the viewport mid-drag. Read dimensions through a ref
+  // so we always fit to the current layout without depending on its identity.
+  const layoutRef = useRef(layout);
+  layoutRef.current = layout;
   useEffect(() => {
     if (size.w === 0 || size.h === 0) return;
+    const lay = layoutRef.current;
     const pad = 60;
-    const sx = (size.w - pad * 2) / Math.max(1, layout.width);
-    const sy = (size.h - pad * 2) / Math.max(1, layout.height);
+    const sx = (size.w - pad * 2) / Math.max(1, lay.width);
+    const sy = (size.h - pad * 2) / Math.max(1, lay.height);
     const s = Math.min(1, Math.min(sx, sy));
-    const cx = (size.w - layout.width * s) / 2;
-    const cy = (size.h - layout.height * s) / 2;
+    const cx = (size.w - lay.width * s) / 2;
+    const cy = (size.h - lay.height * s) / 2;
     setViewport({ x: cx, y: cy, scale: s });
-  }, [layout, size.w, size.h]);
+  }, [fitKey, size.w, size.h]);
 
   const neighbors = useMemo(() => buildAdjacency(layout), [layout]);
   const { clusterNodes, leafNodes } = useMemo(() => ({
@@ -112,6 +129,69 @@ export default function GraphCanvas({ layout, selectedId, onSelect, onActivate, 
     panOrigin.current = null;
     setIsPanning(false);
   };
+
+  // Begin dragging a container (manual mode only). preventDefault stops any
+  // text selection from starting; window-level listeners keep the drag alive
+  // when the cursor leaves the canvas. Position is origin + cumulative cursor
+  // delta (in canvas space), so it stays stable across re-renders.
+  const onContainerMouseDown = (id: string, e: React.MouseEvent) => {
+    if (!manualMode || e.button !== 0) return;
+    e.stopPropagation();
+    e.preventDefault();
+    const node = layout.nodes.find(n => n.id === id);
+    if (!node) return;
+    const { clientX: startX, clientY: startY } = e;
+    const { x: origX, y: origY } = node;
+    const scale = viewport.scale; // zoom can't change mid-drag
+    const onMove = (ev: MouseEvent) => {
+      const dx = (ev.clientX - startX) / scale;
+      const dy = (ev.clientY - startY) / scale;
+      // Clamp to non-negative so fit-to-view (which assumes a 0-origin box) stays honest.
+      onContainerMove?.(id, Math.max(0, origX + dx), Math.max(0, origY + dy));
+    };
+    const onUp = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  };
+
+  // A leaf drag ends with a click; suppress the select that click would trigger.
+  const leafDragged = useRef(false);
+  const onLeafMouseDown = (id: string, e: React.MouseEvent) => {
+    if (!manualMode || e.button !== 0) return;
+    e.stopPropagation();
+    e.preventDefault();
+    const node = layout.nodes.find(n => n.id === id);
+    const cid = node?.parent;
+    const container = cid ? layout.nodes.find(n => n.id === cid) : undefined;
+    if (!node || !cid || !container) return;
+    const { clientX: startX, clientY: startY } = e;
+    const origX = node.x;
+    const origY = node.y;
+    const cx = container.x;
+    const cy = container.y;
+    const scale = viewport.scale;
+    leafDragged.current = false;
+    const onMove = (ev: MouseEvent) => {
+      const mx = (ev.clientX - startX) / scale;
+      const my = (ev.clientY - startY) / scale;
+      if (Math.abs(mx) + Math.abs(my) > 3) leafDragged.current = true;
+      // Offset from the container; clamp top/left (below title, inside padding).
+      // Right/bottom are unbounded — the container auto-grows to fit.
+      const dx = Math.max(PAD_LEFT, origX + mx - cx);
+      const dy = Math.max(PAD_TOP, origY + my - cy);
+      onLeafMove?.(cid, id, dx, dy);
+    };
+    const onUp = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  };
+
   // A click fires after mousedown+mouseup even when the mouse moved — suppress
   // the canvas deselect when the click was actually the tail of a pan drag.
   const onCanvasClick = () => {
@@ -125,7 +205,7 @@ export default function GraphCanvas({ layout, selectedId, onSelect, onActivate, 
   return (
     <div
       ref={containerRef}
-      className="relative w-full h-full overflow-hidden"
+      className="relative w-full h-full overflow-hidden select-none"
       style={{ cursor: isPanning ? "grabbing" : "grab" }}
       onMouseDown={onMouseDown}
       onMouseMove={onMouseMove}
@@ -151,7 +231,9 @@ export default function GraphCanvas({ layout, selectedId, onSelect, onActivate, 
               node={n}
               selected={selectedId === n.id}
               highlighted={hoverId === n.id}
-              dimmed={!!focusSet && !focusSet.has(n.id)}
+              dimmed={false}
+              draggable={manualMode}
+              onNodeMouseDown={e => onContainerMouseDown(n.id, e)}
               onClick={() => onSelect(n.id)}
               onDoubleClick={() => onActivate(n.id)}
               onMouseEnter={() => setHoverId(n.id)}
@@ -181,8 +263,16 @@ export default function GraphCanvas({ layout, selectedId, onSelect, onActivate, 
               node={n}
               selected={selectedId === n.id}
               highlighted={hoverId === n.id}
-              dimmed={!!focusSet && !focusSet.has(n.id)}
-              onClick={() => onSelect(n.id)}
+              dimmed={false}
+              draggable={manualMode}
+              onNodeMouseDown={e => onLeafMouseDown(n.id, e)}
+              onClick={() => {
+                if (leafDragged.current) {
+                  leafDragged.current = false;
+                  return;
+                }
+                onSelect(n.id);
+              }}
               onDoubleClick={() => onActivate(n.id)}
               onMouseEnter={() => setHoverId(n.id)}
               onMouseLeave={() => setHoverId(prev => (prev === n.id ? null : prev))}

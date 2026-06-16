@@ -231,7 +231,8 @@ export type EntityKind =
   | "module"
   | "shared-kernel"
   | "surface"
-  | "region";
+  | "region"
+  | "spec";
 
 export interface EntityRef {
   kind: EntityKind;
@@ -327,6 +328,15 @@ export interface ResolvedEntity {
   implementation?: RegionImpl;
   regions?: EntityRef[];
   surfaceId?: string;
+
+  // spec (markdown design/architecture doc under lexicon/specs/)
+  // `body` holds the raw markdown; `narrativeRefs` holds its resolved
+  // [[fqid]] links (so atoms get backlinks to the specs that cite them).
+  specEstablished?: boolean;   // true when filed under specs/established/
+  created?: string;            // frontmatter
+  updated?: string;            // frontmatter
+  scope?: string;              // frontmatter
+  codeHomes?: string[];        // frontmatter (established specs)
 
   // bounded-context
   subdomain?: SubdomainKind;

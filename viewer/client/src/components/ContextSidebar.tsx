@@ -18,10 +18,17 @@ export default function ContextSidebar({
   const linkTo = (fqid: string) => `/p/${projectId}/${fqid}${loc.search}${loc.hash}`;
   const isActive = (fqid: string) => activeFqid === fqid;
 
-  const { contexts, kernels, surfaces } = useMemo(() => ({
+  const { contexts, kernels, surfaces, specs } = useMemo(() => ({
     contexts: graph.byKind["bounded-context"].map(id => graph.entities[id]).filter(Boolean),
     kernels: graph.byKind["shared-kernel"].map(id => graph.entities[id]).filter(Boolean),
     surfaces: graph.byKind.surface.map(id => graph.entities[id]).filter(Boolean),
+    // Established specs first, then active designs; alphabetical within each.
+    specs: (graph.byKind.spec ?? [])
+      .map(id => graph.entities[id])
+      .filter(Boolean)
+      .sort((a, b) =>
+        Number(b.specEstablished) - Number(a.specEstablished) ||
+        a.ref.name.localeCompare(b.ref.name)),
   }), [graph]);
 
   const childrenFor = (ctxId: string) => {
@@ -118,6 +125,27 @@ export default function ContextSidebar({
                   <SubList title="Regions" items={s.regions ?? []} active={activeFqid} linkTo={linkTo} />
                 </div>
               )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {specs.length > 0 && (
+        <div className="mb-8">
+          <div className="smallcap mb-3">Specs</div>
+          {specs.map(s => (
+            <div key={s.ref.fqid} className="mb-2">
+              <Link
+                to={linkTo(s.ref.fqid)}
+                className={`block py-1 -ml-3 pl-3 ${isActive(s.ref.fqid) ? "active-rule" : ""}`}
+              >
+                <span className="display text-h3 leading-tight"><InlineCode text={s.ref.name} /></span>
+                {!s.specEstablished && (
+                  <span className="mono text-micro text-fg-3 ml-2 uppercase tracking-widest">
+                    {s.status ?? "design"}
+                  </span>
+                )}
+              </Link>
             </div>
           ))}
         </div>

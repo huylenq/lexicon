@@ -1,6 +1,6 @@
 # Subcommand: crystallize
 
-`retro` runs at every stopping point and logs drift flags. **`crystallize` runs when the user tells it to** — it absorbs accumulated retros into the cold layer.
+**`crystallize` runs when the user tells it to** — it absorbs accumulated work into the cold layer. It is the only subcommand that catches and absorbs session drift: it reads what changed since the last crystallization (the git diff), runs the structural checks over it, and proposes typed mutations. There is no separate per-session retro step — **git history is the session log**, and crystallize is where it gets read.
 
 The agent doesn't reliably know when a body of work is "done" or when accumulated drift is worth absorbing. The user does. So this subcommand is **user-triggered**: it runs when the user says so, not when the agent guesses.
 
@@ -9,33 +9,31 @@ The agent doesn't reliably know when a body of work is "done" or when accumulate
 Run when the user explicitly says one of:
 
 - "crystallize" / "crystallize the work" / "crystallize feature X"
-- "update lexicon" / "absorb the retros" / "sync lexicon"
+- "update lexicon" / "absorb the work" / "sync lexicon"
 - "we're done with X" / "feature X is shipped" / "wrap up X"
 
-Don't volunteer this unprompted. If you suspect drift has accumulated, surface it as a question (*"There are 12 retros since the last crystallization, several flagging the same `ScanQueue` term — want to crystallize?"*) and let the user decide. The user is the trigger.
+Don't volunteer this unprompted. If you suspect drift has accumulated, surface it as a question (*"The git history shows several sessions of work on the inference path since the last crystallization, and a `ScanQueue` concept now appears across three files but isn't in the glossary — want to crystallize?"*) and let the user decide. The user is the trigger.
 
 If the user just wants to make a small targeted edit ("add `ScanQueue` to the glossary"), apply that directly without running the full crystallize ritual. This subcommand is for *aggregated* updates; one-line edits are just edits.
 
 ### Period-scoped vs feature-scoped
 
-By default, crystallize considers **all retros newer than `lexicon/.last-crystallized`** — period-scoped. This is the right mode for "update lexicon" / "absorb the retros."
+By default, crystallize considers **everything in the git diff since `lexicon/.last-crystallized`** — period-scoped. This is the right mode for "update lexicon" / "absorb the work."
 
-If the user names a specific feature ("crystallize feature X", "we're done with X"), run **feature-scoped**: filter retros whose scope declaration references that feature, and consider only those. **Don't update `.last-crystallized` to "now" afterward** — that would skip the non-feature retros from a later period-scoped run. Instead, leave the marker untouched and tell the user: *"Crystallized feature X. <N> non-feature retros are still unaddressed — they'll show up in the next period-scoped crystallize."*
+If the user names a specific feature ("crystallize feature X", "we're done with X"), run **feature-scoped**: narrow the diff to that feature's code paths and consider only those changes. **Don't update `.last-crystallized` to "now" afterward** — that would skip the non-feature changes from a later period-scoped run. Instead, leave the marker untouched and tell the user: *"Crystallized feature X. Other changes since the last crystallization are still unaddressed — they'll show up in the next period-scoped crystallize."*
 
-If the filter is ambiguous (the user says "crystallize the recent work" with no feature name), ask before guessing.
+If the scope is ambiguous (the user says "crystallize the recent work" with no feature name), ask before guessing.
 
 ## Gather inputs
 
 Read:
 
-1. **The crystallization marker.** `lexicon/.last-crystallized` contains an ISO timestamp of the last successful crystallization. If absent, treat all retros as in-scope.
-2. **All retros newer than the marker.** Files in `lexicon/retros/` whose names sort after the marker timestamp. Pay particular attention to:
-   - `## Structural drift` sections (real flags worth absorbing).
-   - `## Notes for future sweeps` (sub-flag-threshold patterns that may have crossed the line cumulatively).
-3. **Cross-check with git.** Run `git log --since=<marker>` and `git diff <commit-at-marker>..HEAD` over the relevant code paths. Catches drift the retros missed (skipped retros, silent renames the structural checks didn't flag).
+1. **The crystallization marker.** `lexicon/.last-crystallized` contains an ISO timestamp of the last successful crystallization. If absent, treat the project's whole history as in-scope (or ask the user for a sensible starting point on a large repo).
+2. **The git diff since the marker.** This is the primary signal — what actually changed. Run `git log --since=<marker>` to see the sessions, and `git diff <commit-at-marker>..HEAD` over the relevant code paths to see the substance. The diff is what the structural checks run against.
+3. **Recent-session conversation, when available.** The scope declarations and vocabulary discussions from `ground` and from working sessions live in conversation, not in any file. If the current session did the work being crystallized, that context is right here; if crystallizing across older sessions, lean on the git diff and commit messages instead.
 4. **The cold layer.** `lexicon/system.xml` plus whichever `lexicon/contexts/*.xml` and `lexicon/surfaces/*.xml` files the diff touches. Don't load every file — read what's relevant to the diff.
 
-This is a bigger read than a retro. Take the time on it. **Crystallization done badly is worse than crystallization skipped** — a wrong glossary entry is harder to remove than a missing one is to add.
+Take the time on it. **Crystallization done badly is worse than crystallization skipped** — a wrong glossary entry is harder to remove than a missing one is to add.
 
 ## Run the structural checks at cumulative scope
 
@@ -43,8 +41,8 @@ Run the six checks defined in `${CLAUDE_SKILL_DIR}/reference/checks.md`, applied
 
 The cumulative framing changes how each check lands:
 
-- **Vocabulary** — filter for terms that *stuck around and stabilized* across multiple sessions. A term that appeared in one retro and got renamed by the next isn't worth glossarying.
-- **Vocabulary consistency** — look at coherence *across* all retros and the current code. If terminology drifted within the period, that's a vocabulary problem worth fixing.
+- **Vocabulary** — filter for terms that *stuck around and stabilized* across the period. A term that appeared mid-period and got renamed before HEAD isn't worth glossarying; check the diff's final state, not every intermediate commit.
+- **Vocabulary consistency** — look at coherence *across* the whole diff and the current code. If terminology drifted within the period, that's a vocabulary problem worth fixing.
 - **Invariants** — look for adds, removes, modifications across the whole diff, not per-session.
 - **Boundaries** — re-look at the bounded-contexts model with fresh eyes; cumulative boundary changes often hide in incremental session diffs.
 - **Decisions** — when scattered session-level decisions cohere into one argument, propose a single coherent `rationale:` lift onto the atom the argument justifies (an invariant, a seam's `kind` choice, an aggregate's boundary). v0.3 has no separate ADR slot — the argument lives next to the thing it argues for.
@@ -84,7 +82,7 @@ When a `rename` carries a **semantic shift** (the new name implies a different d
 
 > ## Crystallization proposal
 > Period: `<marker timestamp>` → now
-> Retros considered: `<N>` (`<list of timestamps or a range>`)
+> Commits considered: `<N>` (`<short range, e.g. abc123..HEAD>`)
 > Targets: `<comma-separated list of XML files>`
 >
 > ### Summary
@@ -145,7 +143,7 @@ When the user says yes:
 
 If the user says **revise**, iterate on the proposal in conversation. Don't apply partial mutation sets unilaterally.
 
-If the user says **no**, ask: *"Skip these retros in future crystallizations? (yes updates the marker; no leaves them in scope)"*. This avoids re-proposing the same rejected mutations next time.
+If the user says **no**, ask: *"Advance the marker past this period anyway? (yes moves `.last-crystallized` to now so these changes aren't re-proposed; no leaves the period in scope)"*. This avoids re-proposing the same rejected mutations next time.
 
 ## Tight scope is structural, not editorial
 
@@ -153,14 +151,12 @@ The structured mutation set is the scoping mechanism: every touched entity appea
 
 That said, **still keep crystallization tightly scoped to what the period actually shifted**. Don't pile adjacent observations into the mutation set "while we're at it." A crystallization that touches every context file is a different kind of operation than one that touches three terms in one context — surface the difference honestly in the Summary block rather than hiding it in mutation count.
 
-## On the relationship to retro
+## On the git diff as the source of truth
 
-If retros ran consistently during the period, most of the work for crystallization is already done — you're aggregating across drift flags, not starting from scratch. If retros were *not* run (for whatever reason), crystallization has to do all the structural-check work on the full diff, which is harder and more error-prone. Surface that if you notice it: *"I see N retros over the last <period>, but the git history shows M sessions of substantive work; the crystallization may miss things that retros would have caught."*
+Crystallization does all its structural-check work on the diff since the last marker — there is no per-session retro log feeding it pre-digested flags. This makes the quality of the run depend on the diff being legible: a long period with many intertwined changes is harder to crystallize accurately than a tight, recently-marked one. Encourage the user to crystallize at natural boundaries (a shipped feature, a coherent body of work) rather than letting the marker drift for months. If the period is genuinely sprawling, say so: *"This is ~40 commits across four areas since the last crystallization — I can do it, but it'll be more reliable if we scope to one area at a time. Want to?"*
 
-The system is designed to work even with imperfect retro coverage, but it works *best* when retros were faithfully written along the way.
+## On the relationship to validate
 
-## On the relationship to conform
+`validate`'s **semantic** pass surfaces drift candidates that this subcommand can absorb — the report's `Glossary findings`, `Invariant findings`, and `Bounded context findings` sections are valid input to a crystallization run. When `lexicon/validate.md` exists with semantic findings, the user may run `crystallize` with validate's output in mind; treat the validate report as additional input alongside the git diff.
 
-`conform`'s **semantic** pass surfaces drift candidates that this subcommand can absorb — the audit report's `Glossary findings`, `Invariant findings`, and `Bounded context findings` sections are valid input to a crystallization run even when no recent retros flagged them. When `conform.md` exists with semantic findings, the user may run `crystallize` with conform's output in mind; treat the conform report as additional input alongside the retros.
-
-`conform`'s **structural** pass is a different beast — it edits files directly to migrate schemas. Don't conflate the two: structural-conform is mechanical, semantic-conform is triage, crystallize is interpretive absorption.
+`validate`'s **structural** pass is a different beast — it edits files directly to migrate schemas. Don't conflate the two: structural-validate is mechanical, semantic-validate is triage, crystallize is interpretive absorption.
