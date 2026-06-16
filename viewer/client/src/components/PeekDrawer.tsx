@@ -67,7 +67,7 @@ export default function PeekDrawer({ projectId }: { projectId: number }) {
           Close all
         </button>
       </div>
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto flex flex-col">
         {peeks.map(p => (
           <PeekCard key={p.id} peek={p} projectId={projectId} onClose={() => close(p.id)} />
         ))}
@@ -87,8 +87,20 @@ function PeekCard({
 }) {
   const [text, setText] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [bodyHeight, setBodyHeight] = useState(0);
+  const bodyRef = useRef<HTMLDivElement | null>(null);
   const editorRef = useRef<MonacoEditor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<Monaco | null>(null);
+
+  useEffect(() => {
+    const el = bodyRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => {
+      setBodyHeight(entry.contentRect.height);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -136,7 +148,7 @@ function PeekCard({
   const range = peek.lineStart ? `:${formatLineRange(peek.lineStart, peek.lineEnd)}` : "";
 
   return (
-    <div className="border-b rule">
+    <div className="border-b rule flex flex-col flex-1 min-h-0" style={{ minHeight: 280 }}>
       <div className="flex items-baseline justify-between px-4 py-2 bg-paper-2">
         <div className="min-w-0 flex-1">
           <div className="mono text-small text-fg truncate">
@@ -155,19 +167,20 @@ function PeekCard({
           Close
         </button>
       </div>
-      <div style={{ height: 320 }}>
+      <div ref={bodyRef} className="flex-1 min-h-0">
         {error ? (
           <div className="p-4 mono text-small text-mark-2">cannot read: {error}</div>
         ) : text == null ? (
           <div className="p-4 mono text-small text-fg-3">loading…</div>
         ) : (
           <Editor
-            height="320px"
+            height={bodyHeight}
             language={langForFile(peek.file)}
             value={text}
             onMount={onMount}
             options={{
               readOnly: true,
+              automaticLayout: true,
               minimap: { enabled: false },
               fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
               fontSize: 12,

@@ -1,0 +1,4 @@
+[tasks.viewer]
+description = "Start lexicon viewer with client HMR — Vite on :5273 (proxies /api to the server on :8787)"
+dir = "viewer"
+run = "bun run dev & server=$!; trap 'kill $server 2>/dev/null' INT TERM EXIT; bun run dev:client"
