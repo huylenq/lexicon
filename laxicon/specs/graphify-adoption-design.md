@@ -1,5 +1,6 @@
 ---
-status: draft
+status: refuted
+closed: 2026-07-15
 created: 2026-07-15
 updated: 2026-07-15
 p0-validated: 2026-07-15
@@ -13,6 +14,8 @@ source: exploration of https://github.com/Graphify-Labs/graphify (cloned to /tmp
 
 Adopt [graphify](https://github.com/Graphify-Labs/graphify) (MIT, Python CLI + agent skill) as an **upstream candidate feed** for lexicon's curation moves — bootstrap seeding, crystallize/validate drift signal, rationale mining — consumed strictly through its `graph.json` artifact. Explicitly **not** as a replacement for the viewer's code-intel backend.
 
+> **Status: refuted (2026-07-15).** This spec is kept as the record of a measured negative result, not as an active design. Decisions 3 and 4 failed their gates (see the inline refutation notes and the P1/P2 results block); the P1 implementation was reverted; Decision 1 — keep the viewer's code-intel stack, change nothing — is the only decision that survives. Lexicon uses no graphify. Do not promote; do not re-explore without new evidence that invalidates the numbers below.
+>
 > This is a laxicon spec: exploratory, repo-root scoped (the plugin repo carries no cold layer by design). If the work commits to the viewer, the viewer-facing decisions graduate to a proper `viewer/lexicon/specs/<slug>-design.md`. Fqid references below (`[[…]]`) point into `viewer/lexicon/` and are notation here, not viewer-resolvable links.
 
 ## What graphify is (exploration findings)
