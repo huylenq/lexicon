@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bounded-context schema="1.0" id="code" subdomain="core">
+  <name>Code</name>
+  <purpose>Anchored symbols across TypeScript and Python.</purpose>
+
+  <term id="shape" category="concept">
+    <name>Shape</name>
+    <definition>A shape with an area.</definition>
+    <symbols><code-anchor file="src/shapes.ts" symbol="Shape"/></symbols>
+  </term>
+
+  <term id="circle" category="concept">
+    <name>Circle</name>
+    <definition>A circle; extends Shape.</definition>
+    <symbols><code-anchor file="src/shapes.ts" symbol="Circle"/></symbols>
+  </term>
+
+  <term id="scale" category="service">
+    <name>scale</name>
+    <definition>Scale a number.</definition>
+    <symbols><code-anchor file="src/shapes.ts" symbol="scale"/></symbols>
+  </term>
+
+  <term id="compute-area" category="service">
+    <name>computeArea</name>
+    <definition>Compute the area of a circle; calls scale.</definition>
+    <symbols><code-anchor file="src/shapes.ts" symbol="computeArea"/></symbols>
+  </term>
+
+  <term id="add-all" category="service">
+    <name>add_all</name>
+    <definition>Sum a list of ints.</definition>
+    <symbols><code-anchor file="src/calc.py" symbol="add_all"/></symbols>
+  </term>
+
+  <term id="total" category="service">
+    <name>total</name>
+    <definition>Total a list of ints; calls add_all.</definition>
+    <symbols><code-anchor file="src/calc.py" symbol="total"/></symbols>
+  </term>
+</bounded-context>

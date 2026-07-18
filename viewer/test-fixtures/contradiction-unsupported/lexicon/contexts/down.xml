@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bounded-context schema="1.0" id="down" subdomain="supporting">
+  <name>Down</name>
+  <purpose>Downstream context; never referenced by Up in code.</purpose>
+
+  <term id="down-thing" category="entity">
+    <name>DownThing</name>
+    <definition>A self-contained type; never referenced from Up.</definition>
+    <symbols><code-anchor file="src/down.ts" symbol="DownThing"/></symbols>
+  </term>
+</bounded-context>

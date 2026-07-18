@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bounded-context schema="1.0" id="alpha" subdomain="core">
+  <name>Alpha</name>
+  <purpose>The context that reaches across the separate-ways boundary.</purpose>
+
+  <term id="alpha-service" category="service">
+    <name>AlphaService</name>
+    <definition>Holds a BetaThing — illegally, across a separate-ways seam.</definition>
+    <symbols><code-anchor file="src/alpha.ts" symbol="AlphaService"/></symbols>
+  </term>
+
+  <seam id="alpha-beta" kind="separate-ways">
+    <name>Alpha ⊥ Beta</name>
+    <description>Alpha and Beta deliberately do not collaborate.</description>
+    <participants>
+      <ref to="alpha"/>
+      <ref to="beta"/>
+    </participants>
+  </seam>
+</bounded-context>

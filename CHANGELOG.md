@@ -12,6 +12,18 @@ While in 0.x, breaking project-shape changes bump the minor (0.x.0 → 0.(x+1).0
 
 ## [Unreleased]
 
+### Added — the **laxicon** sibling (free-form human knowledge layer)
+
+- **Named the laxicon.** A project may keep a sibling `laxicon/` directory next to `lexicon/` — free-form, human-written prose notes (Zettelkasten / Obsidian, often nested under `laxicon/knowledge/`). The name is a pun: where the **lexicon** is precise, typed, terse, and agent-maintained, the **laxicon** is lax, discursive, and **human-owned**. It is neither the cold layer (not typed/structured) nor the hot layer (not a transient per-feature plan) — it's the permanent human free layer. Documented in `lexicon/SKILL.md` ("The laxicon sibling" + Project shape note).
+- **One-way distillation, read-only to the skill.** Standing rule 7: the skill treats the laxicon as a *source, never a target*. `ground` (new step 2b) reads it for the narrative and half-formed "why"s the typed fields can't hold; `crystallize` (new gather-input 5) mines it for vocabulary or rationale to lift into the cold layer — but the skill never rewrites or restructures it. Distillation flows one way: laxicon → lexicon.
+- **Primer awareness.** `using-lexicon`'s pocket frame now names the laxicon so the disposition is parked early in a session.
+
+### Added — `using-lexicon` awareness primer (two-layer split)
+
+- **New `using-lexicon` skill** (`skills/using-lexicon/SKILL.md`), modeled on superpowers' `using-superpowers`. It's an **awareness layer** that does no work itself: invoked once (auto-fires on its description in a lexicon project, or `user-invocable: true` for deliberate "make this session lexicon-aware"), it parks a standing disposition into the session — what the cold layer is for, the moves and the moment each earns its keep, and the posture of offering the right move **proactively but advisorily, never as a gate**. It routes to the `lexicon` action skill's subcommands rather than reimplementing them.
+- **Why two skills, not a seventh subcommand.** The six verbs relied on the user being the dispatcher (knowing which to fire when) — the "fragmented, relies on user discipline" complaint. An always-on advisory disposition is a different *primitive* from a forward-flow lifecycle mutation, so it can't fold into a verb (it'd only exist after you'd already chosen the verb). It deliberately re-incurs *no* SKILL.md rule-duplication: the primer carries a thin pocket frame, defers to the shared `reference/` files, and declares them authoritative on conflict. Full rationale in `CLAUDE.md` ("Why `using-lexicon` is a second skill").
+- **Cross-references wired both ways.** `lexicon/SKILL.md` now points up to the primer as the awareness layer; the primer routes down to the verbs. The two model-invocable skills both load in a lexicon project (mirroring `using-superpowers` + a domain skill) and compose rather than collide.
+
 ### Added — `spec` subcommand and viewer spec rendering
 
 - **New `spec` subcommand** (`/lexicon:spec`, `commands/spec.md`, `subcommands/spec.md`), bringing the taxonomy back to **six**: `bootstrap` / `ground` / `crystallize` / `spec` / `validate` / `meta-evolve`. It authors and files **markdown** design/architecture docs under `lexicon/specs/` — per-feature narratives that sit above code and below the cold layer (the cold layer is too small to hold them; code is too low-level to read them off). Reconciled from Huy's standalone spec-authoring conventions ("Light" integration: cloned in and wired up, but the spec artifact is NOT absorbed into the XML schema and `spec` does not write the cold layer).

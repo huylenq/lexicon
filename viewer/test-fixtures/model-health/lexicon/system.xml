@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<system schema="1.0" id="model-health-fixture">
+  <name>Model Health fixture</name>
+  <purpose>
+    Fixture for the Model Health deterministic pass: planted dangling / drifted /
+    external anchors, a cross-context boundary-leak, a separate-ways violation, an
+    unsupported seam, an unanchored code term, and an orphan atom.
+  </purpose>
+  <contexts>
+    <ref to="orders"/>
+    <ref to="billing"/>
+    <ref to="shipping"/>
+  </contexts>
+</system>

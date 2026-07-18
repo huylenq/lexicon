@@ -12,6 +12,7 @@ import {
 } from "@/lib/inspector";
 import { ResizeHandle, usePersistedWidth } from "@/lib/resize";
 import { StackProvider, useStack } from "@/lib/stack";
+import { ModelHealthProvider } from "@/lib/model-health";
 import ContextSidebar from "@/components/ContextSidebar";
 import Pane, { PurposeAndNarrative } from "@/components/Pane";
 import StackedPane from "@/components/StackedPane";
@@ -218,22 +219,24 @@ function ProjectShell({ projectId }: { projectId: number }) {
         </div>
       </div>
 
-      <StackProvider panes={panes} setPanes={setPanes}>
-        <WorkspaceBody
-          projectId={projectId}
-          resp={resp}
-          panes={panes}
-          focusFqid={focusFqid}
-          sidebarOn={sidebarOn}
-          graphOn={graphOn}
-          lens={lens}
-          onLensChange={setLens}
-          onToggleSidebar={toggleSidebar}
-          onToggleGraph={toggleGraph}
-          inspectorOpen={inspectorOpen}
-          peekOpen={peekOpen}
-        />
-      </StackProvider>
+      <ModelHealthProvider projectId={projectId} reloadKey={graph}>
+        <StackProvider panes={panes} setPanes={setPanes}>
+          <WorkspaceBody
+            projectId={projectId}
+            resp={resp}
+            panes={panes}
+            focusFqid={focusFqid}
+            sidebarOn={sidebarOn}
+            graphOn={graphOn}
+            lens={lens}
+            onLensChange={setLens}
+            onToggleSidebar={toggleSidebar}
+            onToggleGraph={toggleGraph}
+            inspectorOpen={inspectorOpen}
+            peekOpen={peekOpen}
+          />
+        </StackProvider>
+      </ModelHealthProvider>
     </div>
   );
 }

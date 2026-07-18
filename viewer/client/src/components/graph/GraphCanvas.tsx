@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { clamp, type LayoutResult } from "@/lib/graph/layout";
 import { PAD_LEFT, PAD_TOP } from "@/lib/graph/manual-layout";
+import {
+  aggregateAnchorStatus,
+  contradictionForEdge,
+  indexAnchors,
+  indexContradictions,
+} from "@/lib/graph/health-style";
+import type { ModelHealthReport } from "@/lib/types";
 import GraphNode from "./GraphNode";
 import GraphEdge, { ArrowDefs } from "./GraphEdge";
 import NarrativeThread, { type ThreadStop } from "./NarrativeThread";
@@ -12,6 +19,9 @@ interface Props {
   onActivate: (id: string) => void; // double-click → navigate to detail
   narrativeFocusOnly?: boolean;
   narrativeThread?: ThreadStop[] | null;
+  // Model-health overlay (Decisions 2 & 3): contradiction edge styling and
+  // anchor-health node badges. Null while the report is loading / absent.
+  health?: ModelHealthReport | null;
   // Manual layout: when on, top-level containers are draggable (onContainerMove,
   // absolute position) and leaves are draggable within their container
   // (onLeafMove, offset from the container's top-left).
@@ -30,7 +40,7 @@ interface Viewport {
   scale: number;
 }
 
-export default function GraphCanvas({ layout, selectedId, onSelect, onActivate, narrativeFocusOnly = false, narrativeThread = null, manualMode = false, onContainerMove, onLeafMove, fitKey }: Props) {
+export default function GraphCanvas({ layout, selectedId, onSelect, onActivate, narrativeFocusOnly = false, narrativeThread = null, manualMode = false, onContainerMove, onLeafMove, fitKey, health = null }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<{ w: number; h: number }>({ w: 800, h: 600 });
   const [viewport, setViewport] = useState<Viewport>({ x: 0, y: 0, scale: 1 });
@@ -68,6 +78,9 @@ export default function GraphCanvas({ layout, selectedId, onSelect, onActivate, 
     const cy = (size.h - lay.height * s) / 2;
     setViewport({ x: cx, y: cy, scale: s });
   }, [fitKey, size.w, size.h]);
+
+  const anchorIndex = useMemo(() => indexAnchors(health), [health]);
+  const contradictionIndex = useMemo(() => indexContradictions(health), [health]);
 
   const neighbors = useMemo(() => buildAdjacency(layout), [layout]);
   const { clusterNodes, leafNodes } = useMemo(() => ({
@@ -254,6 +267,7 @@ export default function GraphCanvas({ layout, selectedId, onSelect, onActivate, 
                 dimmed={!!focusSet && !focusSet.has(e.source) && !focusSet.has(e.target)}
                 highlighted={focused}
                 hidden={hidden}
+                contradiction={contradictionForEdge(e, contradictionIndex)}
               />
             );
           })}
@@ -264,6 +278,7 @@ export default function GraphCanvas({ layout, selectedId, onSelect, onActivate, 
               selected={selectedId === n.id}
               highlighted={hoverId === n.id}
               dimmed={false}
+              anchorStatus={aggregateAnchorStatus(anchorIndex.get(n.id))}
               draggable={manualMode}
               onNodeMouseDown={e => onLeafMouseDown(n.id, e)}
               onClick={() => {

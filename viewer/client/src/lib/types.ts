@@ -180,12 +180,83 @@ export interface LoadIssue {
   severity: "error" | "warning";
 }
 
+export interface CodeEdge {
+  source: string;
+  target: string;
+  kind: "extends" | "implements" | "uses" | "calls";
+  // Derivation provenance (wire-only, never serialized to XML).
+  provenance: "tree-sitter" | "lsp" | "degraded";
+}
+
+// ---- Model Health (mirrors server/model-health.ts) ----
+// Read-only advisory pass: anchor resolution, boundary contradictions, dead
+// weight. Never mutates anything; corrections route through crystallize.
+
+export type AnchorStatus = "healthy" | "drifted" | "dangling" | "external";
+
+export interface AnchorFinding {
+  fqid: string;
+  symbol: string;
+  file: string;
+  status: AnchorStatus;
+  driftedLine?: boolean;
+  declaredLineStart?: number;
+  actualLineStart?: number;
+  resolvedFile?: string;
+  detail?: string;
+}
+
+export type ContradictionKind =
+  | "boundary-leak"
+  | "separate-ways-violation"
+  | "acl-bypass"
+  | "unsupported-seam";
+
+export interface Contradiction {
+  kind: ContradictionKind;
+  confidence: "confirmed" | "possible";
+  source?: string;
+  target?: string;
+  sourceContext?: string;
+  targetContext?: string;
+  edgeKind?: CodeEdge["kind"];
+  provenance?: CodeEdge["provenance"];
+  seamId?: string;
+  detail: string;
+}
+
+export type DeadWeightKind = "unanchored-code-term" | "orphan-atom";
+
+export interface DeadWeightFinding {
+  kind: DeadWeightKind;
+  fqid: string;
+  category?: TermCategory;
+  detail: string;
+}
+
+export interface ModelHealthReport {
+  anchors: AnchorFinding[];
+  contradictions: Contradiction[];
+  deadWeight: DeadWeightFinding[];
+  generatedAt: string;
+}
+
+// Recent git commits touching a set of anchored files — the atom dossier's
+// "historical scar" (manifesto idea E). Lazily fetched per dossier open.
+export interface FileCommit {
+  hash: string;
+  message: string;
+  date: string; // ISO
+  author: string;
+}
+
 export interface ResolvedGraph {
   system: ResolvedEntity | null;
   entities: Record<string, ResolvedEntity>;
   byKind: Record<EntityKind, string[]>;
   issues: LoadIssue[];
   projectRoot: string;
+  codeEdges?: CodeEdge[];
 }
 
 export interface Project {
@@ -200,3 +271,98 @@ export interface LexiconResponse {
   project: Project;
   graph: ResolvedGraph;
 }
+
+// ---------------- graphify (territory) lens ----------------
+// Mirrors server/graphify.ts wire shapes. Artifact-only, read-only.
+
+export interface GraphifyNode {
+  id: string;
+  label: string;
+  sourceFile: string;
+  sourceLocation: string;
+  community: number | null;
+  normLabel: string;
+  fileType: string;
+}
+
+export interface GraphifyEdge {
+  source: string;
+  target: string;
+  relation: string;
+  confidence: string;
+}
+
+export interface GraphifyStaleness {
+  artifactMtime: number;
+  latestCommitTime: number | null;
+  commitsBehind: number | null;
+  stale: boolean;
+}
+
+// GET /api/projects/:id/graphify
+export type GraphifyProbe =
+  | { status: "absent" }
+  | { status: "unreadable"; error: string }
+  | {
+      status: "ok";
+      nodeCount: number;
+      edgeCount: number;
+      communityCount: number;
+      relationHistogram: Record<string, number>;
+      builtAtCommit: string | null;
+      staleness: GraphifyStaleness;
+      warnings: string[];
+    };
+
+export interface GraphifyNeighborNode extends GraphifyNode {
+  degree: number;
+  hop: number;
+}
+
+export interface GraphifyNeighborhood {
+  seed: string;
+  nodes: GraphifyNeighborNode[];
+  edges: GraphifyEdge[];
+  truncated: boolean;
+  hops: number;
+  relations: string[] | null;
+  hiddenTests: number;
+}
+
+// GET /api/projects/:id/graphify/neighborhood
+export type GraphifyNeighborhoodResponse =
+  | { status: "absent" }
+  | { status: "unreadable"; error: string }
+  | { status: "ok"; neighborhood: GraphifyNeighborhood | null; warnings: string[] };
+
+export interface GraphifySearchHit extends GraphifyNode {
+  degree: number;
+}
+
+export interface GraphifyRelationGroup {
+  relation: string;
+  direction: "in" | "out";
+  count: number;
+  confidence: Record<string, number>;
+  neighbors: { id: string; label: string; sourceFile: string }[];
+  more: number;
+}
+
+export interface GraphifyNodeDetail {
+  node: GraphifyNode;
+  degree: number;
+  domainDegree: number;
+  groups: GraphifyRelationGroup[];
+}
+
+// GET /api/projects/:id/graphify/node
+export type GraphifyNodeResponse =
+  | { status: "absent" }
+  | { status: "unreadable"; error: string }
+  | { status: "ok"; detail: GraphifyNodeDetail | null };
+
+// GET /api/projects/:id/graphify/search
+export type GraphifySearchResponse =
+  | { status: "absent" }
+  | { status: "unreadable"; error: string }
+  | { status: "ok"; hits: GraphifySearchHit[] };

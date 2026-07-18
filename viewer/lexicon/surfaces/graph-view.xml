@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<surface schema="1.0" id="graph-view" route="/p/:projectId/graph/:lens?">
+  <name>Graph view</name>
+
+  <body>
+    Peer to the reading room. Renders the cold layer as a typeset diagram via
+    ELK.js layout + custom SVG. Three lenses (ownership / decisions / surfaces);
+    filter bar across the top; selected node populates a right-side detail rail
+    (compact mirror of the reading room's detail). Double-click → leave graph,
+    open the entity in the reading room. The peek drawer is shared via
+    PeekProvider, so code anchors still open inline on the right.
+  </body>
+
+  <region id="filter-bar">
+    <name>Filter bar</name>
+    <role>
+      Top strip inside the graph view. Lens selector (radio row), kind
+      toggles, context multiselect, edge-class toggles, search input
+      (focused via `/`), and a "Layout" disclosure button that opens the
+      layout-options panel.
+    </role>
+    <component-impl import="@/components/graph/GraphFilterBar" file="client/src/components/graph/GraphFilterBar.tsx"/>
+  </region>
+
+  <region id="canvas">
+    <name>Canvas</name>
+    <role>
+      The diagram itself. SVG with pan (drag) + zoom (wheel about cursor),
+      fit-to-viewport on first paint. Nodes per kind (outlined rectangles
+      with Fraunces labels), edges per kind (solid oxide / dashed vellum /
+      dotted saffron). Hover highlights neighbors and dims non-neighbors to
+      ~30%; click selects; double-click navigates out to the reading room.
+    </role>
+    <component-impl import="@/components/graph/GraphCanvas" file="client/src/components/graph/GraphCanvas.tsx"/>
+  </region>
+
+  <region id="detail-rail">
+    <name>Detail rail</name>
+    <role>
+      Right column inside the graph view. Compact rendering of the selected
+      entity — definition / statement / status / affects / supersedes / code
+      anchors — with a "open in reading room" link back. Resizable, width
+      persists via `usePersistedWidth`.
+    </role>
+    <component-impl import="@/components/graph/GraphDetailRail" file="client/src/components/graph/GraphDetailRail.tsx"/>
+  </region>
+
+  <region id="layout-options-panel">
+    <name>Layout options panel</name>
+    <role>
+      Slide-up panel under the detail rail, opened from the filter bar's
+      "Layout" button. Controls affects-routing mode (bundle / elbow / astar /
+      straight), bundle tension, A* params (cell size, turn penalty, reuse
+      factor), and an "affects focus-only" toggle that hides affects edges
+      unless a node is selected.
+    </role>
+    <component-impl import="@/components/graph/LayoutOptionsPanel" file="client/src/components/graph/LayoutOptionsPanel.tsx"/>
+  </region>
+</surface>

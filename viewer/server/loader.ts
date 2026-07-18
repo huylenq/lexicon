@@ -1,6 +1,8 @@
 import { readdir, readFile, stat } from "node:fs/promises";
 import { join, relative } from "node:path";
 import { fromXml } from "xast-util-from-xml";
+import { extractStructureEdges, anchorsFromGraph } from "./code-intel.ts";
+import { invalidateCodeEdges } from "./call-flow.ts";
 import type {
   Root as XastRoot,
   Element as XastElement,
@@ -152,6 +154,17 @@ export async function loadLexicon(projectRoot: string): Promise<ResolvedGraph> {
   }
 
   const graph = resolve(parsed, projectRoot, issues, specs);
+
+  // Structure tier only here — tree-sitter, in-process, fast, so it's safe to
+  // run on every cold load. The call-flow tier (tsserver/pyright, process-backed,
+  // seconds) is computed lazily on demand by the /code-edges endpoint when the
+  // code lens is actually opened (spec D7), not eagerly per load.
+  try {
+    graph.codeEdges = extractStructureEdges(projectRoot, anchorsFromGraph(graph));
+  } catch {
+    graph.codeEdges = [];
+  }
+
   cache.set(projectRoot, { mtime: latestMtime, graph });
   return graph;
 }
@@ -169,7 +182,7 @@ async function walkMd(dir: string): Promise<string[]> {
     entries.map(async e => {
       const full = join(dir, e.name);
       if (e.isDirectory()) {
-        if (e.name.startsWith("_pre-migrate-archive") || e.name === "_archive") return [];
+        if (e.name === "_archive" || /^_pre-.*-archive/.test(e.name)) return [];
         return walkMd(full);
       }
       if (e.isFile() && /\.md$/i.test(e.name)) return [full];
@@ -293,7 +306,7 @@ async function walkXml(dir: string): Promise<string[]> {
     entries.map(async e => {
       const full = join(dir, e.name);
       if (e.isDirectory()) {
-        if (e.name.startsWith("_pre-migrate-archive") || e.name === "_archive") return [];
+        if (e.name === "_archive" || /^_pre-.*-archive/.test(e.name)) return [];
         return walkXml(full);
       }
       if (e.isFile() && /\.xml$/i.test(e.name)) return [full];
@@ -1381,6 +1394,18 @@ function resolve(
             .filter((x): x is EntityRef => x !== null);
         }
       }
+      // boundary-rule from/to point at the bounded contexts the rule governs;
+      // Model Health's contradiction join keys on these context endpoints.
+      for (const r of data.boundaryRules ?? []) {
+        const e = entities[`${data.id}/rule/${r.id}`];
+        if (!e) continue;
+        if (r.from) {
+          e.boundaryFrom = resolveRef(r.from.includes("/") ? r.from : `context/${r.from}`, relFile, data.id, `boundary-rule ${e.ref.fqid}.from`);
+        }
+        if (r.to) {
+          e.boundaryTo = resolveRef(r.to.includes("/") ? r.to : `context/${r.to}`, relFile, data.id, `boundary-rule ${e.ref.fqid}.to`);
+        }
+      }
     } else if (data.kind === "surface") {
       const surf = entities[`surface/${data.id}`];
       if (surf) {
@@ -1464,4 +1489,5 @@ function resolve(
 export function invalidateCache(projectRoot?: string) {
   if (projectRoot) cache.delete(projectRoot);
   else cache.clear();
+  invalidateCodeEdges(projectRoot); // keep the lazily-cached code edges in step
 }

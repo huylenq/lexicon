@@ -13,7 +13,9 @@ Built on Eric Evans' [Domain-Driven Design](https://en.wikipedia.org/wiki/Domain
 
 ## What it does
 
-Lexicon ships as **one Claude Code skill** (`lexicon`) with **six subcommands**, each exposed as a slash command for tab-completion ergonomics. The substance lives in `skills/lexicon/`; reference files (schema, structural checks, rules) are centralized in `skills/lexicon/reference/` and read by whichever subcommand needs them.
+Lexicon ships as **two Claude Code skills**: an awareness primer (`using-lexicon`) and an action skill (`lexicon`) with **six subcommands**, each exposed as a slash command for tab-completion ergonomics. The substance lives in `skills/lexicon/`; reference files (schema, structural checks, rules) are centralized in `skills/lexicon/reference/` and read by whichever subcommand needs them.
+
+`using-lexicon` is the **awareness layer**, modeled on superpowers' `using-superpowers`. It does no work itself — invoke it once (or let it auto-fire when a lexicon project opens) and it parks a standing disposition for the rest of the session: it knows what the cold layer is for and which move fits which moment, and it **offers the right move proactively but advisorily — never as a gate**. It exists so you don't have to be the dispatcher, remembering which of the six verbs to fire when. The verbs themselves live in the action skill:
 
 | Subcommand | Fires when | Does |
 |---|---|---|
@@ -50,7 +52,7 @@ git clone https://github.com/huylenq/lexicon
 claude --plugin-dir ./lexicon
 ```
 
-The plugin contributes one skill (`lexicon`) and six slash commands (`bootstrap`, `ground`, `crystallize`, `spec`, `validate`, `meta-evolve`) — all namespaced as `/lexicon:<command>`. The skill itself is `user-invocable: false`; the model auto-fires it based on its description when context warrants, or you invoke a subcommand explicitly via slash.
+The plugin contributes two skills (`using-lexicon`, `lexicon`) and six slash commands (`bootstrap`, `ground`, `crystallize`, `spec`, `validate`, `meta-evolve`) — all namespaced as `/lexicon:<command>`. The action skill (`lexicon`) is `user-invocable: false`; the model auto-fires it based on its description when context warrants, or you invoke a subcommand explicitly via slash. The awareness skill (`using-lexicon`) is `user-invocable: true` — it auto-fires when a lexicon project opens and can also be invoked deliberately to make a session lexicon-aware.
 
 ## First use in a project
 
@@ -102,7 +104,9 @@ lexicon/
   commands/                          # thin slash wrappers for TUI autocomplete
     bootstrap.md  ground.md  crystallize.md  spec.md  validate.md  meta-evolve.md
   skills/
-    lexicon/                         # the only skill
+    using-lexicon/                   # awareness primer: parks the disposition, routes to lexicon
+      SKILL.md
+    lexicon/                         # action skill: runs the moves
       SKILL.md                        # entry, dispatch, standing rules
       reference/                      # single source of truth
         schema.md  checks.md  rules.md  design.md

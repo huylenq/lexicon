@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bounded-context schema="1.0" id="app" subdomain="core">
+  <name>App</name>
+  <purpose>Downstream context; must reach ext only through its ACL gateway module.</purpose>
+
+  <!-- The sanctioned gateway atom: the only member of the gateway module. -->
+  <term id="adapter" category="service">
+    <name>Adapter</name>
+    <definition>The anticorruption gateway; the only atom allowed to touch ext.</definition>
+    <symbols><code-anchor file="src/adapter.ts" symbol="Adapter"/></symbols>
+  </term>
+
+  <!-- A non-gateway atom that reaches into ext directly → bypass. -->
+  <term id="widget" category="entity">
+    <name>Widget</name>
+    <definition>Holds a LegacyModel directly, bypassing the Adapter.</definition>
+    <symbols><code-anchor file="src/widget.ts" symbol="Widget"/></symbols>
+  </term>
+
+  <!-- Exactly one module in this (downstream) context: its members are the atoms
+       allowed to cross into ext. Only Adapter is a member. -->
+  <module id="gateway">
+    <name>Gateway</name>
+    <description>The anticorruption gateway module; only the Adapter belongs to it.</description>
+    <members>
+      <ref to="adapter"/>
+    </members>
+  </module>
+
+  <seam id="app-ext" kind="anticorruption-layer">
+    <name>App ⇽ Ext (ACL)</name>
+    <description>App protects itself from ext's model behind the Adapter gateway.</description>
+    <upstream><ref to="ext"/></upstream>
+    <downstream><ref to="app"/></downstream>
+  </seam>
+</bounded-context>

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bounded-context schema="1.0" id="billing" subdomain="core">
+  <name>Billing</name>
+  <purpose>Invoicing.</purpose>
+
+  <term id="invoice" category="entity">
+    <name>Invoice</name>
+    <definition>An invoice. Uses Shipment from shipping across a separate-ways seam.</definition>
+    <symbols><code-anchor file="src/billing.ts" symbol="Invoice"/></symbols>
+  </term>
+
+  <term id="billing-service" category="service">
+    <name>BillingService</name>
+    <definition>Charges invoices.</definition>
+    <symbols><code-anchor file="src/billing.ts" symbol="BillingService"/></symbols>
+  </term>
+
+  <seam id="billing-shipping" kind="separate-ways">
+    <name>Billing ⊥ Shipping</name>
+    <description>Billing and shipping deliberately do not collaborate.</description>
+    <participants>
+      <ref to="billing"/>
+      <ref to="shipping"/>
+    </participants>
+  </seam>
+</bounded-context>

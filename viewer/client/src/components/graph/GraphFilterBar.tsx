@@ -28,6 +28,11 @@ interface Props {
   onToggleContext: (id: string) => void;
   edges: Set<EdgeKind>;
   onToggleEdge: (k: EdgeKind) => void;
+  // Overlay mode (code lens only): draw the ownership lens's conceptual edges
+  // over the code node set. `overlayBadge` is a read-only model-health summary.
+  overlay: boolean;
+  onToggleOverlay: () => void;
+  overlayBadge?: string;
   layoutPanelOpen: boolean;
   onToggleLayoutPanel: () => void;
   search: string;
@@ -39,6 +44,17 @@ export default function GraphFilterBar(props: Props) {
   return (
     <div className="flex flex-wrap items-center gap-x-6 gap-y-2 px-6 py-2 border-b rule">
       <GraphLensSelector value={props.lens} onChange={props.onLensChange} />
+
+      {props.lens === "code" && (
+        <div className="flex items-center gap-2">
+          <Chip active={props.overlay} onClick={props.onToggleOverlay} label="Overlay conceptual edges">
+            Overlay
+          </Chip>
+          {props.overlay && props.overlayBadge && (
+            <span className="mono text-micro text-fg-3 whitespace-nowrap">{props.overlayBadge}</span>
+          )}
+        </div>
+      )}
 
       <FilterGroup label="Kinds">
         {FILTERABLE_KINDS.map(k => {

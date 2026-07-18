@@ -88,7 +88,100 @@ function lensOpts(lens: Lens, hasCrossClusterEdges: boolean): Record<string, str
         "elk.algorithm": "layered",
         "elk.direction": "DOWN",
       };
+    case "code":
+      // Inheritance/call edges read top-down (parent above children), the
+      // class-diagram convention. Only reached once the P1 backend emits edges.
+      return {
+        ...BASE_OPTS,
+        "elk.algorithm": "layered",
+        "elk.direction": "DOWN",
+        "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+      };
+    case "graphify":
+      // Unused: the graphify lens routes through layoutGraphify() (two-pass,
+      // below), NOT layoutModel/lensOpts. This stub only keeps the switch
+      // exhaustive over Lens.
+      return { "elk.algorithm": "stress" };
   }
+}
+
+// Dedicated layout for the graphify (territory) lens. Flat ego-graph, no
+// clusters, so it bypasses layoutModel's LCA/cluster/narrative machinery. Two
+// passes: `stress` for global shape (compact, edge-length driven), then
+// `sporeOverlap` to REMOVE rect overlaps — stress treats nodes as points, so
+// our wide mono-label rects pile up on their own (measured 459 overlapping
+// pairs on the invoke_agent 112-node star; sporeOverlap drops it to 0). Edges
+// are straight lines clipped to node rectangles, drawn post-layout.
+export async function layoutGraphify(model: GraphModel): Promise<LayoutResult> {
+  const children = model.nodes.map(n => ({ id: n.id, width: n.width, height: n.height }));
+  const edges = model.edges.map(e => ({ id: e.id, sources: [e.source], targets: [e.target] }));
+
+  if (children.length === 0) return { nodes: [], edges: [], width: 1, height: 1 };
+
+  const pass1 = await elk.layout(
+    structuredClone({
+      id: "root",
+      layoutOptions: { "elk.algorithm": "stress", "elk.stress.desiredEdgeLength": "140" },
+      children,
+      edges,
+    }),
+  );
+  const seeded = (pass1.children ?? []).map(c => ({
+    id: c.id!,
+    x: c.x ?? 0,
+    y: c.y ?? 0,
+    width: c.width ?? 0,
+    height: c.height ?? 0,
+  }));
+  const pass2 = await elk.layout(
+    structuredClone({
+      id: "root",
+      layoutOptions: { "elk.algorithm": "sporeOverlap", "elk.spacing.nodeNode": "14" },
+      children: seeded,
+      edges,
+    }),
+  );
+
+  const byId = new Map(model.nodes.map(n => [n.id, n]));
+  const nodes: PositionedNode[] = [];
+  for (const c of pass2.children ?? []) {
+    const src = byId.get(c.id!);
+    if (!src) continue;
+    nodes.push({
+      ...src,
+      x: c.x ?? 0,
+      y: c.y ?? 0,
+      width: c.width ?? src.width,
+      height: c.height ?? src.height,
+    });
+  }
+
+  const posById = new Map(nodes.map(n => [n.id, n]));
+  const outEdges: PositionedEdge[] = [];
+  for (const e of model.edges) {
+    const a = posById.get(e.source);
+    const b = posById.get(e.target);
+    if (!a || !b) continue;
+    const ac = center(a);
+    const bc = center(b);
+    const ahw = a.width / 2, ahh = a.height / 2, bhw = b.width / 2, bhh = b.height / 2;
+    // Overlapping rects (shouldn't happen post-sporeOverlap) get no segment.
+    if (Math.abs(bc.x - ac.x) <= ahw + bhw && Math.abs(bc.y - ac.y) <= ahh + bhh) {
+      outEdges.push({ ...e, points: [] });
+      continue;
+    }
+    outEdges.push({
+      ...e,
+      points: [
+        rectExit(ac.x, ac.y, bc.x, bc.y, ahw, ahh),
+        rectExit(bc.x, bc.y, ac.x, ac.y, bhw, bhh),
+      ],
+    });
+  }
+
+  const width = Math.max(1, ...nodes.map(n => n.x + n.width));
+  const height = Math.max(1, ...nodes.map(n => n.y + n.height));
+  return { nodes, edges: outEdges, width, height };
 }
 
 // How narrative edges are routed. Two top-level branches:

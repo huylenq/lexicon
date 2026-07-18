@@ -4,6 +4,7 @@ import { formatLineRange } from "@/lib/kinds";
 import KindBadge from "./KindBadge";
 import RefLink from "./RefLink";
 import CodeAnchorBadge from "./CodeAnchorBadge";
+import AtomDossier from "./AtomDossier";
 import InlineCode from "./InlineCode";
 import { Facets, FacetItem } from "./Facets";
 import Prose from "./Prose";
@@ -62,6 +63,7 @@ export default function Pane({
       <Header entity={entity} onClose={onClose} />
       <EntityFacets entity={entity} graph={graph} />
       <Body entity={entity} graph={graph} />
+      <AtomDossier entity={entity} graph={graph} />
     </article>
   );
 }

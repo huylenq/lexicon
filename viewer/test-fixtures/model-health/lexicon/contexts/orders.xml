@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bounded-context schema="1.0" id="orders" subdomain="core">
+  <name>Orders</name>
+  <purpose>Order placement.</purpose>
+
+  <term id="order" category="entity">
+    <name>Order</name>
+    <definition>A placed order. Uses Invoice from billing (a boundary leak).</definition>
+    <!-- line-start deliberately stale (999) → healthy anchor with a drifted-line sub-flag -->
+    <symbols><code-anchor file="src/orders.ts" symbol="Order" line-start="999"/></symbols>
+  </term>
+
+  <term id="order-service" category="service">
+    <name>OrderService</name>
+    <definition>Places orders.</definition>
+    <symbols><code-anchor file="src/orders.ts" symbol="OrderService"/></symbols>
+  </term>
+
+  <term id="audit-tag" category="value">
+    <name>AuditTag</name>
+    <definition>An anchored value with no edge and no inbound reference (orphan).</definition>
+    <symbols><code-anchor file="src/orders.ts" symbol="AuditTag"/></symbols>
+  </term>
+
+  <term id="refund" category="service">
+    <name>refund</name>
+    <definition>A code-mapping term with no anchor (unanchored-code-term).</definition>
+  </term>
+
+  <term id="ghost-term" category="concept">
+    <name>Ghost</name>
+    <definition>Anchors a symbol that does not exist in the file (dangling).</definition>
+    <symbols><code-anchor file="src/orders.ts" symbol="Ghost"/></symbols>
+  </term>
+
+  <term id="misplaced-ledger" category="concept">
+    <name>LedgerEntry</name>
+    <definition>Anchors a symbol that actually lives in billing.ts (drifted/moved).</definition>
+    <symbols><code-anchor file="src/orders.ts" symbol="LedgerEntry"/></symbols>
+  </term>
+
+  <term id="vendored-term" category="concept">
+    <name>Vendored</name>
+    <definition>Anchors a symbol under vendor/ — outside the project tree (external).</definition>
+    <symbols><code-anchor file="vendor/dep.ts" symbol="Vendored"/></symbols>
+  </term>
+
+  <seam id="orders-shipping" kind="customer-supplier">
+    <name>Orders → Shipping</name>
+    <description>Declared collaboration with no code behind it (unsupported-seam).</description>
+    <upstream><ref to="orders"/></upstream>
+    <downstream><ref to="shipping"/></downstream>
+  </seam>
+</bounded-context>

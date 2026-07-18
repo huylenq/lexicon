@@ -12,6 +12,7 @@ import {
   type GraphEdge,
   type GraphModel,
   type GraphNode,
+  type Lens,
 } from "./build-graph";
 import {
   layoutModel,
@@ -311,7 +312,7 @@ const VIEWER_ROOT = join(import.meta.dir, "..", "..", "..", "..");
 
 async function laidOut(
   projectRoot: string,
-  lens: "ownership" | "surfaces",
+  lens: Lens,
   layoutOpts: LayoutOptions = {},
 ) {
   const graph = asClientGraph(await loadLexicon(projectRoot));
@@ -493,6 +494,19 @@ describe("layoutModel — viewer's own lexicon integration", () => {
 
   test("surfaces lens: every emitted edge connects to its endpoints", async () => {
     const { model, layout } = await laidOut(VIEWER_ROOT, "surfaces");
+    expectNoProblems(model, layout);
+  });
+
+  test("code lens: structure-tier edges emitted and connected", async () => {
+    // The code-intel pass derives extends/implements/uses edges between anchored
+    // atoms by parsing their anchor files (tree-sitter). On the viewer's own cold
+    // layer this yields the lexicon-loading composition chain (ResolvedGraph →
+    // ResolvedEntity → EntityRef, …). Assert edges exist and lay out cleanly.
+    const { model, layout } = await laidOut(VIEWER_ROOT, "code");
+    expect(model.edges.length).toBeGreaterThan(0);
+    for (const e of model.edges) {
+      expect(["extends", "implements", "uses", "calls"]).toContain(e.kind);
+    }
     expectNoProblems(model, layout);
   });
 });

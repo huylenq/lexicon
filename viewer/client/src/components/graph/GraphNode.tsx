@@ -1,7 +1,8 @@
 import { memo } from "react";
 import type { PositionedNode } from "@/lib/graph/layout";
 import { KIND_ICON, KIND_LABEL, KIND_COLOR_VAR, clusterTag } from "@/lib/kinds";
-import type { EntityKind } from "@/lib/types";
+import { anchorBadge } from "@/lib/graph/health-style";
+import type { AnchorStatus, EntityKind } from "@/lib/types";
 import { splitBackticks } from "@/lib/inline-code";
 
 interface Props {
@@ -16,6 +17,9 @@ interface Props {
   // Manual layout: clusters become draggable; mousedown begins the drag.
   draggable?: boolean;
   onNodeMouseDown?: (e: React.MouseEvent) => void;
+  // Worst-wins anchor-health status from model-health (Decision 3); null/absent
+  // when the node's anchors are healthy or unchecked.
+  anchorStatus?: AnchorStatus | null;
 }
 
 function GraphNode(props: Props) {
@@ -141,9 +145,11 @@ function LeafNode({
   onMouseLeave,
   draggable,
   onNodeMouseDown,
+  anchorStatus,
 }: Props) {
   // LeafNode is dispatched only when !isCluster, so kind is always a leaf EntityKind.
   const kind = node.kind as EntityKind;
+  const badge = anchorBadge(anchorStatus ?? null);
   const stroke = selected
     ? "var(--color-mark-2)"
     : highlighted
@@ -178,6 +184,20 @@ function LeafNode({
       <KindIcon x={8} y={5} size={14} weight="fill" color={KIND_COLOR_VAR[kind]}>
         <title>{KIND_LABEL[kind]}</title>
       </KindIcon>
+      {badge && (
+        <text
+          x={node.width - 7}
+          y={15}
+          textAnchor="end"
+          className="mono"
+          fontSize={11}
+          fontWeight={600}
+          fill={badge.colorVar}
+        >
+          {badge.glyph}
+          <title>{badge.label}</title>
+        </text>
+      )}
       {/* Body font — Saira Condensed crushes at 13px (parens, brackets, word shapes go indistinct). */}
       <text
         x={8}

@@ -1,0 +1,212 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bounded-context schema="1.0" id="lexicon-loading" subdomain="core">
+  <name>Lexicon loading</name>
+
+  <purpose>
+    Read a lexicon-conform project's XML files from disk, validate them against
+    schema v1.0 with a typed traversal, resolve typed cross-references between
+    entities, and produce a `ResolvedGraph` the client can render. Surfaces
+    load issues (parse errors, schema errors, version mismatches, dangling
+    refs) without failing the whole load.
+  </purpose>
+
+  <narrative>
+    The loader runs in three passes. First it walks `lexicon/`, reads every XML
+    file, parses with `xast-util-from-xml`, and dispatches on the root element
+    name (`&lt;system&gt;`, `&lt;bounded-context&gt;`, `&lt;surface&gt;`) into a typed traversal
+    that builds a `LexiconFile` shape. Any single-file failure becomes a
+    <ref to="load-issue"/>; the loader never throws (<ref to="loader-never-throws"/>).
+    Then it registers every entity as a <ref to="resolved-entity"/> keyed by
+    <ref to="kernel/viewer-vocabulary/fqid"/> — duplicates raise an error issue
+    and the second registration is dropped (<ref to="fqid-unique"/>).
+
+    The second pass is <ref to="ref-resolution"/>: structural `&lt;ref to="..."/&gt;`
+    elements in XML (a term's `&lt;disambiguates-from&gt;`, an aggregate's
+    `&lt;members&gt;`, a seam's `&lt;upstream&gt;`/`&lt;downstream&gt;`, omission
+    `&lt;related-atoms&gt;`) are looked up against the registered map with
+    owner-scoped fallbacks first (including kernel-owner scope for kernel-owned
+    atoms), then common shorthands. Unresolved refs become warnings
+    (<ref to="ref-resolution-is-warning"/>).
+    The third pass scans every prose-bearing field for inline `&lt;ref/&gt;`
+    elements (collapsed to `[[fqid]]` markers during parse) and runs the same
+    resolver — a dangling prose ref is the same severity as a dangling
+    structural ref.
+
+    An <ref to="mtime-cache"/> short-circuits the whole pipeline on unchanged
+    files; `?refresh=1` clears every project's cache
+    (<ref to="cache-invalidates-on-refresh"/>) so the user's "Refresh" button
+    is a strong signal that means *re-read from disk*. The viewer is a triage
+    surface as much as a reader — every issue rides along on
+    `ResolvedGraph.issues` so the user can fix their XML in-place rather than
+    chase parse errors.
+  </narrative>
+
+  <term id="resolved-graph" category="value">
+    <name>ResolvedGraph</name>
+    <definition>
+      The post-load representation delivered to the client. Holds `system`
+      (the system root entity), `entities` (a flat map of fqid → ResolvedEntity),
+      `byKind` (fqids grouped by entity kind), `issues` (LoadIssues collected
+      during parse + resolve), and `projectRoot`. The full structure ships over
+      the wire on every `GET /api/projects/:id/lexicon`.
+    </definition>
+    <symbols>
+      <code-anchor file="server/schema.ts" symbol="ResolvedGraph"/>
+    </symbols>
+  </term>
+
+  <term id="resolved-entity" category="value">
+    <name>ResolvedEntity</name>
+    <definition>
+      One node of the `ResolvedGraph`. Carries a typed `ref: EntityRef`, the
+      `ownerContextId` (null for system-level / surfaces / shared kernels), an
+      optional `ownerKernelId` for kernel-owned atoms, the `source.file` for
+      git history and audit purposes, an optional `xastNode` reference for
+      future editor-mode AST↔model navigation, and entity-kind-specific typed
+      fields (definition, statement, rationale, body, anchors, category, seam
+      kind, aggregate root, …). Every cold-layer entity — system,
+      bounded-context, term, invariant, seam, boundary-rule, aggregate, module,
+      shared-kernel, surface, region — becomes one ResolvedEntity.
+    </definition>
+    <symbols>
+      <code-anchor file="server/schema.ts" symbol="ResolvedEntity"/>
+    </symbols>
+  </term>
+
+  <term id="entity-ref" category="value">
+    <name>EntityRef</name>
+    <definition>
+      The smallest pointer to an entity: `{kind, fqid, name}`. Used everywhere
+      the graph references another entity (disambiguatesFrom, contains,
+      regions, aggregate root/members/invariants, seam upstream/downstream,
+      service operatesOn, event consumers). Cheap to embed in many places
+      without duplicating prose.
+    </definition>
+    <symbols>
+      <code-anchor file="server/schema.ts" symbol="EntityRef"/>
+    </symbols>
+  </term>
+
+  <term id="load-issue" category="value">
+    <name>LoadIssue</name>
+    <definition>
+      A single parse / schema / resolution failure: `{file, message, severity}`
+      with severity `error` (file couldn't be loaded) or `warning` (loaded but
+      something inside is wrong — typically a dangling ref). Issues ride along
+      with `ResolvedGraph.issues`; the loader never throws on a bad file.
+    </definition>
+    <symbols>
+      <code-anchor file="server/schema.ts" symbol="LoadIssue"/>
+    </symbols>
+  </term>
+
+  <term id="ref-resolution" category="service">
+    <name>ref resolution</name>
+    <definition>
+      The second pass of the loader, where structural `&lt;ref to="..."/&gt;`
+      elements in XML (e.g. a term's `&lt;disambiguates-from&gt;&lt;ref to="other-term"/&gt;`)
+      are looked up against the registered entity map. The resolver tries
+      owner-scoped lookups first (sibling in the same context, or sibling in
+      the same shared kernel), then qualified forms (`&lt;ctx&gt;/&lt;slug&gt;`,
+      `kernel/&lt;kid&gt;/&lt;slug&gt;`), then common shorthands (`context/&lt;slug&gt;`,
+      `kernel/&lt;slug&gt;`, `surface/&lt;slug&gt;`). Unresolved refs become warnings —
+      they don't block the load.
+    </definition>
+    <symbols>
+      <code-anchor file="server/loader.ts" symbol="resolveRef"/>
+    </symbols>
+    <operates-on>
+      <ref to="resolved-entity"/>
+      <ref to="load-issue"/>
+    </operates-on>
+    <returns>
+      A resolved `EntityRef` if the slug matched, or null (with a warning
+      `LoadIssue` appended to the project's issue list).
+    </returns>
+  </term>
+
+  <term id="mtime-cache" category="concept">
+    <name>mtime cache</name>
+    <definition>
+      The loader keeps a per-`projectRoot` cache keyed by the latest mtime
+      across all XML files in the project's `lexicon/` dir. A subsequent
+      load with the same latest-mtime returns the cached `ResolvedGraph`
+      without re-parsing. The cache is invalidated explicitly on `refresh=1`
+      query and on project removal.
+    </definition>
+    <symbols>
+      <code-anchor file="server/loader.ts" symbol="cache"/>
+      <code-anchor file="server/loader.ts" symbol="invalidateCache"/>
+    </symbols>
+  </term>
+
+  <invariant id="fqid-unique" mode="code">
+    <name>fqid uniqueness within a graph</name>
+    <statement>
+      Every entity registered in a `ResolvedGraph` has a globally unique
+      `fqid`. Duplicates surface as an error `LoadIssue` and the second
+      registration is dropped.
+    </statement>
+    <rationale>
+      `fqid`s are used as React keys, route params, and graph node IDs.
+      Duplicates would silently break navigation and rendering. Surfacing as
+      a load-time error lets the user fix the XML before debugging UI glitches.
+    </rationale>
+    <constrains-code>
+      <code-anchor file="server/loader.ts" symbol="register"/>
+    </constrains-code>
+  </invariant>
+
+  <invariant id="loader-never-throws" mode="code">
+    <name>bad XML produces issues, not exceptions</name>
+    <statement>
+      Any single-file failure (read error, XML parse error, schema mismatch,
+      dangling ref) is recorded as a `LoadIssue` and the loader continues with
+      the remaining files. The graph response is always well-formed JSON.
+    </statement>
+    <rationale>
+      The viewer is a triage surface as much as a reader — it should help the
+      user *see* problems in their cold layer, not refuse to render when one
+      file is broken. Forward progress beats fail-fast in a read-only tool.
+    </rationale>
+    <constrains-code>
+      <code-anchor file="server/loader.ts"/>
+    </constrains-code>
+  </invariant>
+
+  <invariant id="cache-invalidates-on-refresh" mode="code">
+    <name>refresh=1 invalidates the cache globally</name>
+    <statement>
+      `GET /api/projects/:id/lexicon?refresh=1` calls `invalidateCache()` with
+      no argument, clearing every project's cached graph. Subsequent loads
+      re-read from disk.
+    </statement>
+    <rationale>
+      The viewer is a single-user dev tool; the user clicking "Refresh" is the
+      strong signal that they want fresh data. Clearing all caches keeps the
+      logic simple and avoids "stale despite refresh" surprises if the file
+      mtime hasn't changed (e.g., a `touch -m` of the same content).
+    </rationale>
+    <constrains-code>
+      <code-anchor file="server/index.ts" line-start="41" line-end="50"/>
+    </constrains-code>
+  </invariant>
+
+  <invariant id="ref-resolution-is-warning" mode="code">
+    <name>dangling refs are warnings, not errors</name>
+    <statement>
+      An unresolved ref (e.g., a term's `&lt;disambiguates-from&gt;` pointing at a
+      slug no entity claims) produces a `severity: warning` LoadIssue, not an
+      error. The owning entity loads with that ref simply absent from its
+      resolved field.
+    </statement>
+    <rationale>
+      Real lexicon authoring often involves renames mid-flight; a dangling ref
+      is a signal to fix in `lex-crystallize`, not a load failure. Same
+      forward-progress principle as `loader-never-throws`.
+    </rationale>
+    <constrains-code>
+      <code-anchor file="server/loader.ts" symbol="resolveRef"/>
+    </constrains-code>
+  </invariant>
+</bounded-context>

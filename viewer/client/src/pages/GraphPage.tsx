@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowsClockwise } from "@phosphor-icons/react";
-import type { EntityKind, LexiconResponse, ResolvedEntity } from "@/lib/types";
-import { buildModel, type EdgeKind, type Lens } from "@/lib/graph/build-graph";
+import type { CodeEdge, EntityKind, LexiconResponse, ResolvedEntity } from "@/lib/types";
+import { api } from "@/lib/api";
+import { buildModel, type EdgeKind, type GraphModel, type Lens } from "@/lib/graph/build-graph";
 import {
   layoutModel,
   DEFAULT_BUNDLE_TENSION,
@@ -14,8 +15,12 @@ import {
 } from "@/lib/graph/layout";
 import { applyManualLayout, seedFromLayout, type ContainerPositions, type LeafOffsets } from "@/lib/graph/manual-layout";
 import { loadManualLayout, saveManualLayout, emptyPositions, emptyLeafOffsets } from "@/lib/graph/manual-layout-store";
+import { useModelHealthData } from "@/lib/model-health";
 import { FILTERABLE_KINDS } from "@/lib/kinds";
 import GraphCanvas from "@/components/graph/GraphCanvas";
+import GraphifyLens from "@/components/graph/GraphifyLens";
+import FlowCanvas from "@/components/graph/FlowCanvas";
+import MermaidCanvas from "@/components/graph/MermaidCanvas";
 import GraphFilterBar from "@/components/graph/GraphFilterBar";
 import LayoutOptionsPanel from "@/components/graph/LayoutOptionsPanel";
 import type { ThreadStop } from "@/components/graph/NarrativeThread";
@@ -28,7 +33,7 @@ import {
 } from "@/lib/inspector";
 
 const DEFAULT_KINDS: EntityKind[] = FILTERABLE_KINDS.map(k => k.id);
-const DEFAULT_EDGES: EdgeKind[] = ["disambiguates", "seam", "narrative"];
+const DEFAULT_EDGES: EdgeKind[] = ["disambiguates", "seam", "narrative", "boundary-rule", "extends", "implements", "uses", "calls"];
 
 function makeSetToggle<T>(setter: React.Dispatch<React.SetStateAction<Set<T>>>) {
   return (k: T) =>
@@ -52,6 +57,10 @@ export default function GraphPage({
 
   const [kinds, setKinds] = useState<Set<EntityKind>>(new Set(DEFAULT_KINDS));
   const [edges, setEdges] = useState<Set<EdgeKind>>(new Set(DEFAULT_EDGES));
+  // Overlay mode (code lens only): also draw the ownership lens's conceptual
+  // edges over the code node set (Decision 1 — a mode on the code lens, not a
+  // fourth lens). Opt-in; off by default so the execution graph stays legible.
+  const [overlay, setOverlay] = useState(false);
   const [contextFilter, setContextFilter] = useState<Set<string>>(new Set());
   const [narrativeRouting, setNarrativeRouting] = useState<NarrativeRouting>(DEFAULT_NARRATIVE_ROUTING);
   const [narrativeFocusOnly, setNarrativeFocusOnly] = useState(false);
@@ -62,6 +71,9 @@ export default function GraphPage({
     reuseFactor: DEFAULT_ASTAR_REUSE_FACTOR,
   });
   const [layoutPanelOpen, setLayoutPanelOpen] = useState(false);
+  // SPIKE: which renderer draws the graph. "svg" is the production hand-rolled
+  // canvas; "flow" (React Flow) and "mermaid" are evaluation spikes.
+  const [renderer, setRenderer] = useState<"svg" | "flow" | "mermaid">("svg");
   const [search, setSearch] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -90,10 +102,57 @@ export default function GraphPage({
   }, [resp.project.id, layoutMode, manualPositions, manualLeafOffsets]);
   const { isOpen: inspectorOpen, open: openInspector } = useInspector();
 
-  const model = useMemo(
-    () => buildModel(resp.graph, lens, { kindFilter: kinds, edgeFilter: edges, contextFilter }),
-    [resp.graph, lens, kinds, edges, contextFilter]
-  );
+  // The call-flow tier (and LSP-disambiguated structure edges) are computed
+  // server-side on demand. Fetch this authoritative set only when the code lens
+  // is open, refetch when the graph changes (file edit / refresh). Until it
+  // arrives, the eager name-match structure edges from the loader render.
+  const [lazyEdges, setLazyEdges] = useState<CodeEdge[]>([]);
+  useEffect(() => {
+    if (lens !== "code") return;
+    let cancelled = false;
+    api.codeEdges(resp.project.id)
+      .then(r => { if (!cancelled) setLazyEdges(r.edges); })
+      .catch(() => { if (!cancelled) setLazyEdges([]); });
+    return () => { cancelled = true; };
+  }, [lens, resp.project.id, resp.graph]);
+
+  // Model-health pass — lazily fetched (shared with the per-atom dossier) while
+  // the code lens is open. Feeds the overlay's read-only summary, the
+  // contradiction edge styling, and the anchor-health node badges.
+  const { report: health, ensureLoaded: ensureHealth } = useModelHealthData();
+  useEffect(() => {
+    if (lens === "code") ensureHealth();
+  }, [lens, ensureHealth]);
+  const overlayBadge = useMemo(() => {
+    if (!health) return undefined;
+    const dangling = health.anchors.filter(a => a.status === "dangling").length;
+    const contra = health.contradictions.length;
+    if (!dangling && !contra) return "model-health clean";
+    const parts: string[] = [];
+    if (contra) parts.push(`${contra} contradiction${contra === 1 ? "" : "s"}`);
+    if (dangling) parts.push(`${dangling} dangling`);
+    return parts.join(" · ");
+  }, [health]);
+
+  const model = useMemo(() => {
+    // The graphify (territory) lens has a separate data source and renders via
+    // GraphifyLens (branched in the return below), so it never builds from the
+    // ResolvedGraph. Return an empty model to keep this memo total.
+    if (lens === "graphify") return { nodes: [], edges: [], topLevelIds: [], lens } as GraphModel;
+    const graph = lens === "code" && lazyEdges.length
+      ? { ...resp.graph, codeEdges: lazyEdges } // replace: lazy set is authoritative
+      : resp.graph;
+    const base = buildModel(graph, lens, { kindFilter: kinds, edgeFilter: edges, contextFilter });
+    if (lens !== "code" || !overlay) return base;
+    // Overlay: reuse buildModel for the ownership lens's conceptual edges, keep
+    // only those whose endpoints are both present in the code node set, and draw
+    // them over the same layout. The edge-kind filter applies to both passes,
+    // so the existing chips toggle conceptual edges in the overlay too.
+    const conceptual = buildModel(graph, "ownership", { kindFilter: kinds, edgeFilter: edges, contextFilter });
+    const nodeIds = new Set(base.nodes.map(n => n.id));
+    const overlayEdges = conceptual.edges.filter(e => nodeIds.has(e.source) && nodeIds.has(e.target));
+    return { ...base, edges: [...base.edges, ...overlayEdges] };
+  }, [resp.graph, lens, kinds, edges, contextFilter, lazyEdges, overlay]);
 
   const [layout, setLayout] = useState<LayoutResult | null>(null);
   const [layoutErr, setLayoutErr] = useState<string | null>(null);
@@ -262,6 +321,13 @@ export default function GraphPage({
     stack.pushPane(fqid, stack.panes.length - 1);
   };
 
+  // Territory lens: separate data source + surface. Branch here (after all
+  // hooks, so rules-of-hooks hold) — none of the cold-layer filter/canvas
+  // machinery below applies.
+  if (lens === "graphify") {
+    return <GraphifyLens projectId={resp.project.id} lens={lens} onLensChange={onLensChange} />;
+  }
+
   return (
     <div className="flex-1 min-h-0 flex flex-col relative">
       <GraphFilterBar
@@ -274,6 +340,9 @@ export default function GraphPage({
         onToggleContext={toggleContext}
         edges={edges}
         onToggleEdge={toggleEdge}
+        overlay={overlay}
+        onToggleOverlay={() => setOverlay(b => !b)}
+        overlayBadge={overlayBadge}
         layoutPanelOpen={layoutPanelOpen}
         onToggleLayoutPanel={() => setLayoutPanelOpen(b => !b)}
         search={search}
@@ -283,7 +352,18 @@ export default function GraphPage({
 
       <main className="flex-1 min-w-0 min-h-0 relative">
         <div className="absolute top-3 right-3 z-10 flex items-center gap-2 mono text-micro uppercase tracking-widest">
-          {layoutMode === "manual" && (
+          <div className="flex border rule rounded overflow-hidden bg-paper">
+            {(["svg", "flow", "mermaid"] as const).map(r => (
+              <button
+                key={r}
+                onClick={() => setRenderer(r)}
+                className={"px-2.5 py-1 " + (renderer === r ? "bg-fg text-paper" : "text-fg-3 hover:text-fg")}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
+          {renderer === "svg" && layoutMode === "manual" && (
             <button
               onClick={handleRelayout}
               className="p-1.5 border rule rounded bg-paper text-fg-3 hover:text-fg"
@@ -293,20 +373,22 @@ export default function GraphPage({
               <ArrowsClockwise size={14} weight="bold" />
             </button>
           )}
-          <div className="flex border rule rounded overflow-hidden bg-paper">
-            {(["auto", "manual"] as const).map(m => (
-              <button
-                key={m}
-                onClick={() => (m === "manual" ? enterManual() : setLayoutMode("auto"))}
-                className={
-                  "px-2.5 py-1 " +
-                  (layoutMode === m ? "bg-fg text-paper" : "text-fg-3 hover:text-fg")
-                }
-              >
-                {m}
-              </button>
-            ))}
-          </div>
+          {renderer === "svg" && (
+            <div className="flex border rule rounded overflow-hidden bg-paper">
+              {(["auto", "manual"] as const).map(m => (
+                <button
+                  key={m}
+                  onClick={() => (m === "manual" ? enterManual() : setLayoutMode("auto"))}
+                  className={
+                    "px-2.5 py-1 " +
+                    (layoutMode === m ? "bg-fg text-paper" : "text-fg-3 hover:text-fg")
+                  }
+                >
+                  {m}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         {layoutErr ? (
           <div className="p-6 mono text-small text-mark-2">Layout error: {layoutErr}</div>
@@ -314,6 +396,16 @@ export default function GraphPage({
           <div className="h-full flex items-center justify-center mono text-small text-fg-3">
             laying out…
           </div>
+        ) : renderer === "flow" ? (
+          <FlowCanvas
+            layout={displayLayout}
+            entities={resp.graph.entities}
+            selectedId={selectedId}
+            onSelect={handleSelect}
+            onActivate={handleActivate}
+          />
+        ) : renderer === "mermaid" ? (
+          <MermaidCanvas model={model} entities={resp.graph.entities} onSelect={handleSelect} />
         ) : (
           <GraphCanvas
             layout={displayLayout}
@@ -322,6 +414,7 @@ export default function GraphPage({
             onActivate={handleActivate}
             narrativeFocusOnly={narrativeFocusOnly}
             narrativeThread={narrativeThread}
+            health={lens === "code" ? health : null}
             manualMode={layoutMode === "manual"}
             onContainerMove={handleContainerMove}
             onLeafMove={handleLeafMove}

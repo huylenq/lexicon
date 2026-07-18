@@ -1,0 +1,32 @@
+{
+  "directed": false,
+  "multigraph": false,
+  "graph": {},
+  "nodes": [
+    { "label": "invoke_agent()", "file_type": "code", "source_file": "app/agent.py", "source_location": "L10", "id": "dom_a", "community": 1, "norm_label": "invoke_agent()" },
+    { "label": "BindRouter", "file_type": "code", "source_file": "app/router.py", "source_location": "L5", "id": "dom_b", "community": 1, "norm_label": "bindrouter" },
+    { "label": "Protocol", "file_type": "code", "source_file": "app/proto.py", "source_location": "L3", "id": "dom_c", "community": 1, "norm_label": "protocol" },
+    { "label": "big_module.py", "file_type": "code", "source_file": "app/big.py", "source_location": "L1", "id": "hub", "community": 2, "norm_label": "big_module.py" },
+    { "label": "_helper_one()", "file_type": "code", "source_file": "app/big.py", "source_location": "L20", "id": "c1", "community": 2, "norm_label": "_helper_one()" },
+    { "label": "_helper_two()", "file_type": "code", "source_file": "app/big.py", "source_location": "L40", "id": "c2", "community": 2, "norm_label": "_helper_two()" },
+    { "label": "_helper_three()", "file_type": "code", "source_file": "app/big.py", "source_location": "L60", "id": "c3", "community": 2, "norm_label": "_helper_three()" },
+    { "label": "_helper_four()", "file_type": "code", "source_file": "app/big.py", "source_location": "L80", "id": "c4", "community": 2, "norm_label": "_helper_four()" },
+    { "label": "PathResolver", "file_type": "code", "source_file": "app/resolver.py", "source_location": "L7", "id": "dom_path", "community": 1, "norm_label": "pathresolver" },
+    { "label": "Path", "file_type": "code", "source_file": "", "source_location": "", "id": "builtin_path", "community": 3, "norm_label": "path" }
+  ],
+  "links": [
+    { "relation": "calls", "confidence": "EXTRACTED", "source": "dom_a", "target": "dom_b" },
+    { "relation": "calls", "confidence": "EXTRACTED", "source": "dom_a", "target": "dom_c" },
+    { "relation": "references", "confidence": "EXTRACTED", "source": "dom_b", "target": "dom_c" },
+    { "relation": "extends", "confidence": "EXTRACTED", "source": "dom_c", "target": "dom_a" },
+    { "relation": "references", "confidence": "EXTRACTED", "source": "dom_a", "target": "builtin_path" },
+    { "relation": "calls", "confidence": "EXTRACTED", "source": "dom_path", "target": "dom_a" },
+    { "relation": "references", "confidence": "EXTRACTED", "source": "dom_path", "target": "dom_b" },
+    { "relation": "contains", "confidence": "EXTRACTED", "source": "hub", "target": "c1" },
+    { "relation": "contains", "confidence": "EXTRACTED", "source": "hub", "target": "c2" },
+    { "relation": "contains", "confidence": "EXTRACTED", "source": "hub", "target": "c3" },
+    { "relation": "contains", "confidence": "EXTRACTED", "source": "hub", "target": "c4" }
+  ],
+  "hyperedges": [],
+  "built_at_commit": "1111111111111111111111111111111111111111"
+}

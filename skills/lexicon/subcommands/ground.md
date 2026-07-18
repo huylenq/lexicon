@@ -29,6 +29,10 @@ If `lexicon/contexts/` exists, also read the file(s) matching the bounded contex
 
 If `lexicon/surfaces/` exists and the work touches UI, load the relevant surface file(s).
 
+### 2b. Consult the laxicon (if present)
+
+If the project has a sibling `laxicon/` directory (free-form human notes, possibly nested under `laxicon/knowledge/` and Obsidian-linked), skim the notes relevant to this work for the narrative the typed cold layer deliberately doesn't carry — design intent, rejected alternatives, the "why" behind a decision, half-formed ideas not yet distilled. Treat it as **read-only background**: it sharpens your scope declaration; it is never edited here. Don't read the whole vault eagerly — match note titles/topics to the task, the same way you load only the relevant context files. If a note clearly contradicts the cold layer, that's a crystallize signal worth surfacing, not something to silently reconcile.
+
 ### 3. Declare scope in conversation
 
 State, in chat, what you're about to do — using vocabulary from `system.xml` and the loaded context files. Cover:
@@ -43,6 +47,24 @@ State, in chat, what you're about to do — using vocabulary from `system.xml` a
 Be honest. If you don't know which bounded context the work lives in, say so — that's a real signal, not a failure.
 
 This declaration is for the conversation only. **Don't write it to a file.** It anchors the rest of the session; when `crystallize` later absorbs the work, it reads this exchange (alongside the git diff) to tell what was declared vs what shipped.
+
+Once the files likely to change are known, you may make this declaration concrete instead of impressionistic by running the standalone reload-card validator:
+
+```
+bun ${CLAUDE_SKILL_DIR}/validators/reground.ts <projectRoot> <file> [file...]
+```
+
+It is **standalone** — tree-sitter only, no running viewer server, no LSP. It prints the relevant slice of the cold layer for those files: the bounded context(s) that own them, the terms and invariants anchored in them, the derived structure-tier edges touching them, and the seams / deliberate-omissions in play. Use it to ground the scope declaration in real anchors rather than recall, and to recover structure **without slurping whole source files**. It is best-effort: for files with no anchored atom it reports "no structure," and you fall back to reading the files directly.
+
+To surface impact before any code is written — *"this change will touch invariant X"* — run the change-impact query over the same scope (files or a git range):
+
+```
+bun ${CLAUDE_SKILL_DIR}/validators/impact.ts <projectRoot> (<file> [file...] | <gitRange>)
+```
+
+It reports the anchored atoms the change touches, the invariants whose `<constrains-code>` falls in those files, and whether the change crosses a context boundary (and whether a seam or rule governs that crossing). Like `reground.ts`, it is standalone and tree-sitter-only; call-flow crossings announce "not checked (no LSP)" rather than implying coverage.
+
+Both scripts are read-only and write nothing. They make the declaration sharper; they don't replace it. **`ground` remains a no-file-writes conversational ritual** — the card and impact output inform what you say in chat, they are not artifacts to persist.
 
 ### 4. Check vocabulary completeness
 

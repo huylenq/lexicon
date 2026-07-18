@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<system schema="1.0" id="multistack">
+  <name>Multistack fixture</name>
+  <purpose>
+    Fixture exercising the code lens across TypeScript and Python through the
+    real loader: structure (extends) and call-flow (calls) in both languages.
+  </purpose>
+  <contexts>
+    <ref to="code"/>
+  </contexts>
+</system>

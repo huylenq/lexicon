@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bounded-context schema="1.0" id="code" subdomain="core">
+  <name>Code</name>
+  <purpose>Two same-named Widget types plus a consumer.</purpose>
+
+  <term id="widget-a" category="concept">
+    <name>Widget (a)</name>
+    <definition>The Widget defined in a.ts.</definition>
+    <symbols><code-anchor file="src/a.ts" symbol="Widget"/></symbols>
+  </term>
+
+  <term id="widget-b" category="concept">
+    <name>Widget (b)</name>
+    <definition>The Widget defined in b.ts.</definition>
+    <symbols><code-anchor file="src/b.ts" symbol="Widget"/></symbols>
+  </term>
+
+  <term id="consumer" category="concept">
+    <name>Consumer</name>
+    <definition>Uses a/Widget.</definition>
+    <symbols><code-anchor file="src/consumer.ts" symbol="Consumer"/></symbols>
+  </term>
+</bounded-context>

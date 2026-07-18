@@ -19,6 +19,12 @@
   --color-mark:    #c8401e;
   --color-mark-2:  #9c2e16;
   --color-highlight: #b8861a;
+  /* Model↔code overlay alert layer. --color-alert is the oxide accent pushed
+     toward true red (contradictions, dangling anchors); --color-warn is the
+     ochre/amber half-signal (drifted anchors). Both extend the existing
+     oxide/highlight identity rather than importing a generic warning palette. */
+  --color-alert:   #c4181a;
+  --color-warn:    #b8861a;
 
   --grid-line:   rgba(13, 42, 82, 0.12);
   --grid-line-5: rgba(13, 42, 82, 0.22);
@@ -75,6 +81,10 @@
   --color-mark:    #e0a015;
   --color-mark-2:  #ffce28;
   --color-highlight: #7dd3fc;
+  /* On Prussian navy the alert reads as a hot coral-red, the amber stays the
+     chinagraph gold — both pop against the cyanotype ground. */
+  --color-alert:   #ff5c42;
+  --color-warn:    #e0a015;
 
   --grid-line:   rgba(168, 188, 208, 0.10);
   --grid-line-5: rgba(168, 188, 208, 0.18);

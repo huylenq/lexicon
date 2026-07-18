@@ -1,0 +1,24 @@
+{
+  "directed": false,
+  "multigraph": false,
+  "graph": {},
+  "nodes": [
+    { "label": "run()", "file_type": "code", "source_file": "app/run.py", "source_location": "L1", "id": "seed", "community": 1, "norm_label": "run()" },
+    { "label": "helper_a()", "file_type": "code", "source_file": "app/a.py", "source_location": "L1", "id": "h1", "community": 1, "norm_label": "helper_a()" },
+    { "label": "helper_b()", "file_type": "code", "source_file": "app/b.py", "source_location": "L1", "id": "h2", "community": 1, "norm_label": "helper_b()" },
+    { "label": "helper_c()", "file_type": "code", "source_file": "app/c.py", "source_location": "L1", "id": "h3", "community": 1, "norm_label": "helper_c()" },
+    { "label": "test_alpha()", "file_type": "code", "source_file": "app/tests/test_alpha.py", "source_location": "L1", "id": "t_dir", "community": 2, "norm_label": "test_alpha()" },
+    { "label": "beta_test()", "file_type": "code", "source_file": "app/beta_test.py", "source_location": "L1", "id": "t_suffix", "community": 2, "norm_label": "beta_test()" },
+    { "label": "GammaView", "file_type": "code", "source_file": "web/GammaView.test.ts", "source_location": "L1", "id": "t_dot", "community": 2, "norm_label": "gammaview" }
+  ],
+  "links": [
+    { "relation": "calls", "confidence": "EXTRACTED", "source": "seed", "target": "t_dir" },
+    { "relation": "calls", "confidence": "EXTRACTED", "source": "seed", "target": "t_suffix" },
+    { "relation": "calls", "confidence": "EXTRACTED", "source": "seed", "target": "t_dot" },
+    { "relation": "calls", "confidence": "EXTRACTED", "source": "seed", "target": "h1" },
+    { "relation": "calls", "confidence": "EXTRACTED", "source": "seed", "target": "h2" },
+    { "relation": "calls", "confidence": "EXTRACTED", "source": "seed", "target": "h3" }
+  ],
+  "hyperedges": [],
+  "built_at_commit": "2222222222222222222222222222222222222222"
+}

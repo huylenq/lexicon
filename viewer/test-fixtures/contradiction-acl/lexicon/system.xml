@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<system schema="1.0" id="contradiction-acl-fixture">
+  <name>Contradiction: anticorruption-layer bypass</name>
+  <purpose>
+    An anticorruption-layer seam routes app→ext traffic through a single gateway
+    module (the Adapter). A second app type (Widget) reaches into ext directly,
+    bypassing the ACL module → acl-bypass.
+  </purpose>
+  <contexts>
+    <ref to="app"/>
+    <ref to="ext"/>
+  </contexts>
+</system>

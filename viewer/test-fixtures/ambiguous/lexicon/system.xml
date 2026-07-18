@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<system schema="1.0" id="ambiguous">
+  <name>Ambiguous fixture</name>
+  <purpose>
+    Two distinct types both named Widget, in different modules, plus a consumer
+    that uses one. Exercises same-name structure-tier disambiguation.
+  </purpose>
+  <contexts>
+    <ref to="code"/>
+  </contexts>
+</system>

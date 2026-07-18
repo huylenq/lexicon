@@ -32,12 +32,29 @@ Read:
 2. **The git diff since the marker.** This is the primary signal — what actually changed. Run `git log --since=<marker>` to see the sessions, and `git diff <commit-at-marker>..HEAD` over the relevant code paths to see the substance. The diff is what the structural checks run against.
 3. **Recent-session conversation, when available.** The scope declarations and vocabulary discussions from `ground` and from working sessions live in conversation, not in any file. If the current session did the work being crystallized, that context is right here; if crystallizing across older sessions, lean on the git diff and commit messages instead.
 4. **The cold layer.** `lexicon/system.xml` plus whichever `lexicon/contexts/*.xml` and `lexicon/surfaces/*.xml` files the diff touches. Don't load every file — read what's relevant to the diff.
+5. **The laxicon, if present.** A sibling `laxicon/` directory (free-form human notes, possibly under `laxicon/knowledge/`) is a *source* to mine — not a target to edit. Where the diff shows the work but not the reasoning, the laxicon often holds the "why" worth lifting into a `rationale:` field, or names a concept that stabilized and deserves a glossary term. Read the notes relevant to the period's work; never rewrite or restructure them. Distillation is one-way: laxicon → lexicon.
 
 Take the time on it. **Crystallization done badly is worse than crystallization skipped** — a wrong glossary entry is harder to remove than a missing one is to add.
 
+## Detect candidates mechanically (run before the checks)
+
+Before working the checks from memory, run the standalone signals validator over the same range and present what it finds. This turns the six checks from *recall* (notice every new cross-context import, remember every glossary term to spot a rename, recall which symbols are anchored) into *triage* (filter and confirm a candidate list):
+
+```
+bun ${CLAUDE_SKILL_DIR}/validators/crystallize-signals.ts <projectRoot> [gitRange]
+```
+
+It is **standalone** — tree-sitter only, no running viewer server, no LSP. The range defaults to commits newer than `lexicon/.last-crystallized` (the same window this subcommand already considers); pass the range explicitly for a feature-scoped run. It emits a candidate block — `**Detected N candidates — triage:**` — with three sub-sections:
+
+- **Consistency candidates (check 2 — HIGH)** — an anchored symbol renamed, moved, or deleted in the diff. High-priority because this is exactly the silent-rename drift lexicon exists to kill: the anchor is now stale and the atom needs re-pointing or renaming.
+- **Vocabulary candidates (check 1)** — new symbols in the diff that no term anchors. Glossary candidates.
+- **Boundary candidates (check 4)** — cross-context structure-tier edges (`extends` / `implements` / `uses`) touching the diff. Call-flow (`calls`-edge) crossings self-announce "not checked (no LSP)" — best-effort, never silently-wrong.
+
+Present this block **before** the proposal so the user sees the raw structural facts first. The candidates are **advisory structural triggers, never auto-applied** — they feed the proposal you build next, they don't bypass the user's per-mutation confirmation. They do **not** make `crystallize` agent-triggered; it stays user-triggered (this run already started because the user asked). And they carry **no significance or size scoring** — a candidate is a binary structural fact ("this symbol is unanchored", "this edge crosses a boundary"), never a judgment that something "looks important." Most candidates won't deserve a mutation; triaging them down is the job, and a large diff producing many vocabulary candidates is expected — filter aggressively.
+
 ## Run the structural checks at cumulative scope
 
-Run the six checks defined in `${CLAUDE_SKILL_DIR}/reference/checks.md`, applied **forward against the cumulative diff since the last crystallization**: *did the accumulated work shift the model?*
+Run the six checks defined in `${CLAUDE_SKILL_DIR}/reference/checks.md`, applied **forward against the cumulative diff since the last crystallization**: *did the accumulated work shift the model?* The candidate block above is the mechanical input to checks 1, 2, and 4 — work from it rather than re-deriving the same facts by reading.
 
 The cumulative framing changes how each check lands:
 

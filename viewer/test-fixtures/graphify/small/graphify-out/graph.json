@@ -1,0 +1,31 @@
+{
+  "directed": false,
+  "multigraph": false,
+  "graph": {},
+  "nodes": [
+    { "label": "loader.py", "file_type": "code", "source_file": "server/loader.py", "source_location": "L1", "_origin": "ast", "id": "server_loader_py", "community": 1, "norm_label": "loader.py" },
+    { "label": "loadLexicon()", "file_type": "code", "source_file": "server/loader.py", "source_location": "L47", "_origin": "ast", "id": "server_loader_load_lexicon", "community": 1, "norm_label": "loadlexicon()" },
+    { "label": "resolve()", "file_type": "code", "source_file": "server/loader.py", "source_location": "L939", "_origin": "ast", "id": "server_loader_resolve", "community": 1, "norm_label": "resolve()" },
+    { "label": "parseGraphJson()", "file_type": "code", "source_file": "server/graphify.py", "source_location": "L60", "_origin": "ast", "id": "server_graphify_parse", "community": 1, "norm_label": "parsegraphjson()" },
+    { "label": "graphify.py", "file_type": "code", "source_file": "server/graphify.py", "source_location": "L1", "_origin": "ast", "id": "server_graphify_py", "community": 1, "norm_label": "graphify.py" },
+    { "label": "ResolvedGraph", "file_type": "code", "source_file": "server/schema.py", "source_location": "L383", "_origin": "ast", "id": "server_schema_resolvedgraph", "community": 2, "norm_label": "resolvedgraph" },
+    { "label": "BaseModel", "file_type": "code", "source_file": "", "source_location": "", "_origin": "ast", "id": "ext_pydantic_basemodel", "community": 2, "norm_label": "basemodel" },
+    { "label": "Parse the artifact once per mtime, fail-fast on malformed JSON.", "file_type": "rationale", "source_file": "server/graphify.py", "source_location": "L48", "_origin": "ast", "id": "server_graphify_rationale_48", "community": 1, "norm_label": "parse the artifact once per mtime, fail-fast on malformed json." },
+    { "label": "index.py", "file_type": "code", "source_file": "server/index.py", "source_location": "L1", "_origin": "ast", "id": "server_index_py", "community": 3, "norm_label": "index.py" }
+  ],
+  "links": [
+    { "relation": "contains", "confidence": "EXTRACTED", "source": "server_loader_py", "target": "server_loader_load_lexicon", "weight": 1.0, "_origin": "ast" },
+    { "relation": "contains", "confidence": "EXTRACTED", "source": "server_loader_py", "target": "server_loader_resolve", "weight": 1.0, "_origin": "ast" },
+    { "relation": "contains", "confidence": "EXTRACTED", "source": "server_graphify_py", "target": "server_graphify_parse", "weight": 1.0, "_origin": "ast" },
+    { "relation": "calls", "confidence": "EXTRACTED", "source": "server_loader_load_lexicon", "target": "server_loader_resolve", "weight": 1.0, "_origin": "ast" },
+    { "relation": "calls", "confidence": "INFERRED", "source": "server_loader_load_lexicon", "target": "server_graphify_parse", "weight": 1.0, "_origin": "ast" },
+    { "relation": "imports", "confidence": "EXTRACTED", "source": "server_index_py", "target": "server_graphify_py", "weight": 1.0, "_origin": "ast" },
+    { "relation": "imports", "confidence": "EXTRACTED", "source": "server_index_py", "target": "server_loader_py", "weight": 1.0, "_origin": "ast" },
+    { "relation": "references", "confidence": "EXTRACTED", "source": "server_loader_resolve", "target": "server_schema_resolvedgraph", "weight": 1.0, "_origin": "ast" },
+    { "relation": "extends", "confidence": "EXTRACTED", "source": "server_schema_resolvedgraph", "target": "ext_pydantic_basemodel", "weight": 1.0, "_origin": "ast" },
+    { "relation": "rationale_for", "confidence": "EXTRACTED", "source": "server_graphify_rationale_48", "target": "server_graphify_parse", "weight": 1.0, "_origin": "ast" },
+    { "relation": "calls", "confidence": "INFERRED", "source": "server_graphify_parse", "target": "__dropped_by_collision__", "weight": 1.0, "_origin": "ast" }
+  ],
+  "hyperedges": [],
+  "built_at_commit": "0000000000000000000000000000000000000000"
+}

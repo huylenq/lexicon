@@ -38,16 +38,18 @@ There used to be a third "cool" tier: an always-written `retros/` directory of p
 
 ---
 
-## Plugin shape: one skill, six subcommands, six command wrappers
+## Plugin shape: two skills (awareness + action), six subcommands, six command wrappers
 
-The plugin contributes one Claude Code skill and six slash commands (`spec` was added after the v1.0 collapse; see "Why `spec` is its own subcommand" below):
+The plugin contributes two Claude Code skills — `using-lexicon` (the awareness primer) and `lexicon` (the action skill with six subcommands) — plus six slash commands (`spec` was added after the v1.0 collapse; see "Why `spec` is its own subcommand" below; `using-lexicon` was added later still — see "Why `using-lexicon` is a second skill"):
 
 ```
 .claude-plugin/plugin.json         ← plugin name: "lexicon"
 commands/                          ← thin slash wrappers for TUI autocomplete
   bootstrap.md  ground.md  crystallize.md  spec.md  validate.md  meta-evolve.md
 skills/
-  lexicon/                         ← the only skill
+  using-lexicon/                   ← awareness layer: parks the standing disposition, routes to lexicon
+    SKILL.md                        ← what the cold layer is for, the moves & their moments, the posture
+  lexicon/                         ← action layer: runs the moves
     SKILL.md                        ← entry, dispatch on $subcommand, standing rules
     reference/                      ← single source of truth, read on demand
       schema.md  schema.xsd  checks.md  rules.md  design.md
@@ -58,6 +60,8 @@ skills/
     templates/                      ← XML examples for bootstrap
     validators/                     ← future deterministic schema validators (empty for now)
 ```
+
+`using-lexicon` has no `commands/` wrapper and no subcommands: it's `user-invocable: true` and auto-fires on its description, so the user can turn it on deliberately or let it park itself when a lexicon project opens. The six command wrappers still map only to the action skill's verbs.
 
 > **Taxonomy note (v1.0).** This shape descends from the v0.11.0 six-subcommand layout (`adopt` / `ground` / `retro` / `crystallize` / `conform` / `meta-evolve`). v1.0 collapsed it to five: **`retro` was removed**, **`conform` was renamed `validate`**, and **`adopt` was renamed `bootstrap`**. The sections below were written for the six-verb shape; where they say `adopt` read `bootstrap`, where they say `conform` read `validate`, and the "Why session-end retro runs always" subsection is superseded by "Why retro was removed (v1.0)". The reasoning in the historical subsections is preserved because it still explains *why the lifecycle moments are distinct* — only retro's moment was judged not worth a standing step.
 
@@ -111,6 +115,26 @@ Honestly enumerated:
 - **Subcommand mis-routing.** When `$subcommand` is empty and the model infers from session context, it can pick wrong. The seven-skill design caught some of this mechanically at the description boundary; the unified dispatch leans harder on session-context judgment.
 - **Per-subcommand frontmatter is gone.** No way to give `conform` a different `effort` or `allowed-tools` than `ground`. Fine today; foreclosed for the future without re-splitting.
 - **Migration cost.** Every cross-reference in the bundle, viewer loader assumptions, CLAUDE.md, CHANGELOG — flipped at once. Done in v0.11.0.
+
+---
+
+## Why `using-lexicon` is a second skill (not a seventh subcommand)
+
+The consolidation above collapsed seven skills into one. So a future agent reading "Cost 1: SKILL.md duplication, with drift" will reasonably ask why the bundle now ships **two** skills again — `using-lexicon` alongside `lexicon`. The collapse was right; this addition doesn't undo it. They are different *kinds* of thing.
+
+The trigger came from real use: the six verbs rely on the user being disciplined about *which* to fire *when*. That's exactly the "fragmented, relies on user discipline" complaint — the user has to be the dispatcher. Lexicon already auto-fires on `lexicon/system.xml`, but its body is a **dispatcher**: load, pick a verb, run it. That posture reads as a strict workflow, not a collaborator who notices when a move would help.
+
+`using-lexicon` is the **awareness layer**, modeled on superpowers' `using-superpowers`: a skill whose only job is to *park a standing disposition* into the session — what the cold layer is for, which move fits which moment, and the posture of offering it proactively but advisorily. It does no work; it routes to the `lexicon` skill's subcommands. The two-layer split (awareness on top, action verbs underneath) is the shape superpowers uses, and the user picked it deliberately over folding the disposition into the existing skill.
+
+Why this is **not** a re-fragmentation, point by point against the original collapse costs:
+
+- **Not SKILL.md duplication (Cost 1).** The seven old skills each *restated the same rules*, and they drifted. `using-lexicon` restates almost nothing: it carries a deliberately thin pocket frame and an explicit "if this contradicts the shared references, they win" clause. The rules of engagement still live in exactly one place (`reference/rules.md`); the schema/checks still live in exactly one place. The primer adds *disposition*, which has no other home — it's not specification, so there's nothing to duplicate.
+- **Different kind, not a parallel verb (the audit/migrate lesson).** Cost 3 collapsed `lex-audit` + `lex-migrate` because they were *the same primitive*. The opposite holds here: an always-on advisory disposition and a forward-flow lifecycle mutation are genuinely different primitives. Folding awareness into `ground` (or any verb) would mean the disposition only exists once you've already decided to run that verb — too late to do its job, which is to help you decide.
+- **Different trigger posture.** The action skill fires per-move (often with a verb named). The primer wants the *broad* "you're in a lexicon project / make this session lexicon-aware" trigger, and it's `user-invocable: true` so the user can deliberately turn it on. Two postures, cleanly separated, rather than one skill straining to be both.
+
+What this *does* re-incur, honestly: the awareness frame and the action skill's "core idea" now say overlapping things, so they can drift. The mitigation is structural, not vigilance — the primer is explicitly subordinate ("they win") and points at the shared references rather than re-deriving them. If the overlap ever grows past a pocket summary, that's the signal it's creeping toward Cost 1; trim it back, don't let it accrete rules.
+
+The one soft spot: with two model-invocable skills auto-firing in a lexicon project, both load. That's intended (it mirrors `using-superpowers` + a domain skill both loading), but it does mean the primer and the action skill must not fight. The cross-reference at the top of each (`lexicon/SKILL.md` points up to the primer; the primer routes down to the verbs) is what keeps them composing rather than colliding.
 
 ---
 

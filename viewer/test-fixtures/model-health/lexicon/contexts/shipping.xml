@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bounded-context schema="1.0" id="shipping" subdomain="supporting">
+  <name>Shipping</name>
+  <purpose>Shipment tracking.</purpose>
+
+  <term id="shipment" category="entity">
+    <name>Shipment</name>
+    <definition>A shipment.</definition>
+    <symbols><code-anchor file="src/shipping.ts" symbol="Shipment"/></symbols>
+  </term>
+</bounded-context>

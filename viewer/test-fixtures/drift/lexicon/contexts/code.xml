@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bounded-context schema="1.0" id="code" subdomain="core">
+  <name>Code</name>
+  <purpose>Anchored symbols that have drifted away from their declared sites.</purpose>
+
+  <!-- drifted: Widget no longer lives in widget.ts (renamed there); the symbol
+       now lives in core.ts, which is itself an anchored file. -->
+  <term id="widget" category="entity">
+    <name>Widget</name>
+    <definition>A widget whose declaration moved to core.ts.</definition>
+    <symbols><code-anchor file="src/widget.ts" symbol="Widget"/></symbols>
+  </term>
+
+  <!-- healthy: Core lives where it says, and its file also now declares Widget. -->
+  <term id="core" category="service">
+    <name>Core</name>
+    <definition>The core service; its file absorbed the moved Widget.</definition>
+    <symbols><code-anchor file="src/core.ts" symbol="Core"/></symbols>
+  </term>
+
+  <!-- dangling: legacy.ts was deleted. -->
+  <term id="legacy" category="entity">
+    <name>Legacy</name>
+    <definition>Anchors a symbol whose file no longer exists.</definition>
+    <symbols><code-anchor file="src/legacy.ts" symbol="Legacy"/></symbols>
+  </term>
+</bounded-context>

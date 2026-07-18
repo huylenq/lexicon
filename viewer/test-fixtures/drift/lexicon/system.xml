@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<system schema="1.0" id="drift-fixture">
+  <name>Drift fixture</name>
+  <purpose>
+    Anchor-resolution drift: one anchored symbol was renamed/moved into another
+    anchored file (drifted), and another anchor's file was deleted (dangling).
+  </purpose>
+  <contexts>
+    <ref to="code"/>
+  </contexts>
+</system>

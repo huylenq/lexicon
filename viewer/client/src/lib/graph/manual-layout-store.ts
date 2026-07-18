@@ -28,18 +28,12 @@ export function loadManualLayout(projectId: number): StoredManualLayout | null {
     if (!raw) return null;
     const v = JSON.parse(raw);
     if (!v || (v.mode !== "auto" && v.mode !== "manual") || !v.positions) return null;
-    // Normalize so both lenses are always present — applyManualLayout indexes
-    // positions[lens] directly.
+    // Normalize so every lens is always present — applyManualLayout indexes
+    // positions[lens] directly. Driven by LENSES so a new lens needs no edit.
     return {
       mode: v.mode,
-      positions: {
-        ownership: v.positions.ownership ?? {},
-        surfaces: v.positions.surfaces ?? {},
-      },
-      leafOffsets: {
-        ownership: v.leafOffsets?.ownership ?? {},
-        surfaces: v.leafOffsets?.surfaces ?? {},
-      },
+      positions: { ...emptyPositions(), ...(v.positions ?? {}) },
+      leafOffsets: { ...emptyLeafOffsets(), ...(v.leafOffsets ?? {}) },
     };
   } catch {
     return null;

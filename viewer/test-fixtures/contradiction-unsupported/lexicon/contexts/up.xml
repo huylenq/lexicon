@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bounded-context schema="1.0" id="up" subdomain="core">
+  <name>Up</name>
+  <purpose>Upstream context; declares a seam to Down with no code behind it.</purpose>
+
+  <term id="up-thing" category="entity">
+    <name>UpThing</name>
+    <definition>A self-contained type; never references Down.</definition>
+    <symbols><code-anchor file="src/up.ts" symbol="UpThing"/></symbols>
+  </term>
+
+  <seam id="up-down" kind="customer-supplier">
+    <name>Up → Down</name>
+    <description>Declared collaboration with no code edge supporting it.</description>
+    <upstream><ref to="up"/></upstream>
+    <downstream><ref to="down"/></downstream>
+  </seam>
+</bounded-context>

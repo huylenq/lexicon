@@ -307,6 +307,10 @@ export interface ResolvedEntity {
   downstream?: EntityRef | null;
   participants?: EntityRef[];
 
+  // boundary-rule (resolved from/to context endpoints; either may be absent)
+  boundaryFrom?: EntityRef | null;
+  boundaryTo?: EntityRef | null;
+
   // aggregate
   aggregateRoot?: EntityRef | null;
   aggregateMembers?: EntityRef[];
@@ -363,12 +367,27 @@ export interface LoadIssue {
   severity: "error" | "warning";
 }
 
+// Code-lens structure-tier edge, derived from the codebase by code-intel.ts —
+// not from the cold layer. Endpoints are fqids of anchored atoms.
+export interface CodeEdge {
+  source: string;
+  target: string;
+  kind: "extends" | "implements" | "uses" | "calls";
+  // Derivation provenance (in-memory/wire only, never serialized to XML):
+  // tree-sitter = syntactic name-match; lsp = LSP-resolved (disambiguated
+  // structure or call-hierarchy); degraded = name-match fan-out, no provider
+  // resolved.
+  provenance: "tree-sitter" | "lsp" | "degraded";
+}
+
 export interface ResolvedGraph {
   system: ResolvedEntity | null;
   entities: Record<string, ResolvedEntity>;
   byKind: Record<EntityKind, string[]>;
   issues: LoadIssue[];
   projectRoot: string;
+  // Populated after resolution by the code-intel pass; absent on error paths.
+  codeEdges?: CodeEdge[];
 }
 
 export const ASYMMETRIC_SEAM_KINDS: ReadonlySet<SeamKind> = new Set([

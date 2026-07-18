@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bounded-context schema="1.0" id="beta" subdomain="supporting">
+  <name>Beta</name>
+  <purpose>The context Alpha is forbidden to touch.</purpose>
+
+  <term id="beta-thing" category="entity">
+    <name>BetaThing</name>
+    <definition>A type in beta, referenced from alpha across the boundary.</definition>
+    <symbols><code-anchor file="src/beta.ts" symbol="BetaThing"/></symbols>
+  </term>
+</bounded-context>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bounded-context schema="1.0" id="ext" subdomain="supporting">
+  <name>Ext</name>
+  <purpose>Upstream context whose model App must only touch through the ACL.</purpose>
+
+  <term id="legacy-model" category="entity">
+    <name>LegacyModel</name>
+    <definition>Ext's model type; reached both via Adapter (ok) and Widget (bypass).</definition>
+    <symbols><code-anchor file="src/ext.ts" symbol="LegacyModel"/></symbols>
+  </term>
+</bounded-context>

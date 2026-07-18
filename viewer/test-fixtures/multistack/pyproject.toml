@@ -1,0 +1,4 @@
+[project]
+name = "multistack-fixture"
+version = "0.0.0"
+description = "Marks src/ as a Python root for code-lens discovery."

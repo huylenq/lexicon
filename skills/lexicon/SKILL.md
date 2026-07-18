@@ -8,7 +8,9 @@ arguments: [subcommand]
 
 # Lexicon
 
-This is the single entry point for the lexicon workflow. The body is a dispatcher: pick a subcommand, read its file, follow the standing rules below.
+This skill runs the lexicon **moves**. The body is a dispatcher: pick a subcommand, read its file, follow the standing rules below.
+
+Above this skill sits the `using-lexicon` primer — the awareness layer that parks a standing disposition into the session (what the cold layer is for, which move fits which moment) and offers the right move advisorily. That primer doesn't *do* the work; it routes here. When a move is accepted or clearly called for, this skill is what actually runs it. If you arrived here via the primer with a subcommand already chosen, proceed straight to dispatch.
 
 **Bundle source of truth:** this bundle is wired via Claude's `--plugin-dir`, so every `${CLAUDE_SKILL_DIR}/…` path resolves to `<plugin-dir>/skills/lexicon` at runtime — canonically `~/src/lexicon/skills/lexicon/`. If the skill launched from a stub that left `${CLAUDE_SKILL_DIR}` unresolved, read the referenced files directly from `~/src/lexicon/skills/lexicon/` — never filesystem-search (`find /`) for them.
 
@@ -19,6 +21,12 @@ Code is the executable spec — it evolves freely, always true to itself. Above 
 The whole system rests on **ubiquitous language** in the DDD sense: the same nouns and verbs appear in the cold layer, in conversation, and in code. When all three layers use the same vocabulary, mental-model alignment between human and agent is enforced by repetition rather than by remembering.
 
 The cold layer is **structured XML files**, not markdown prose. Each entity (system, bounded context, term, invariant, seam, boundary rule, aggregate, module, shared kernel, surface, region) is a typed XML element with a stable `id` attribute and prose-bearing child elements. Cross-references are uniform `<ref to="fqid"/>` elements — inline in prose (mixed content) or inside structural wrappers like `<members>`, `<participating-contexts>`. When the project has a UI surface, design vocabulary — tokens, components, named surfaces, regions — counts as ubiquitous language too and lives in the same files.
+
+### The laxicon sibling
+
+A project may keep a sibling **laxicon** — the *lax* counterpart to the lexicon. The name is the pun: where the **lexicon** is precise, typed, terse, and agent-maintained (via `crystallize`), the **laxicon** is free-form, discursive, human-written prose — Zettelkasten / Obsidian notes, design musings, half-formed "why"s, dead-ends. It lives in a `laxicon/` directory at the project root (the notes themselves may nest, e.g. `laxicon/knowledge/`, and are often symlinked into an Obsidian vault).
+
+It is neither cold (not typed or structured) nor hot (not a transient per-feature plan) — it is the permanent **human free layer**, and it is **human-owned**. To the skill the laxicon is a *source, never a target*: `ground` reads it for narrative context the typed fields can't hold, and `crystallize` may mine it for vocabulary or rationale to lift into the cold layer — but the skill **never rewrites or restructures it**. Mining the laxicon into the lexicon is exactly the lax→precise distillation the two-name pun is about.
 
 ## Project shape
 
@@ -45,6 +53,8 @@ lexicon/
 ```
 
 If the structure isn't there, the `bootstrap` subcommand is the one-shot setup. The workflow is opt-in per project.
+
+A project may also have a sibling **`laxicon/`** directory next to (not inside) `lexicon/` — free-form human notes, possibly nested under `laxicon/knowledge/` and symlinked into an Obsidian vault. It sits outside the `lexicon/` tree precisely because it is human-owned and unstructured: the skill reads it as a source but never writes to it. See "The laxicon sibling" above.
 
 ## Dispatch
 
@@ -102,6 +112,7 @@ The full set lives in `reference/rules.md`; these are the load-bearing ones that
 4. **Crystallize on the user's call.** `crystallize` is user-triggered, never agent-triggered. It reads the git diff since the last crystallization, runs the structural checks over it, and proposes mutations — there is no separate per-session retro. If you suspect drift has accumulated (the git history shows substantive work but the cold layer hasn't moved), surface it as a question and let the user decide.
 5. **Cold-layer edits go through `crystallize`.** Don't drive-by-edit `lexicon/system.xml`, `lexicon/contexts/*.xml`, or `lexicon/surfaces/*.xml` as a side effect of unrelated work. Cold-layer changes are deliberate: propose, get explicit approval, then apply. (Direct edits are fine when the user explicitly asks — "fix this typo in system.xml.")
 6. **IDs are slugs; rename ≠ re-slug.** Display `name:` mutates freely. The `id:` (slug) is the stable handle. Refs in other files use the slug; renaming a slug breaks them. Slug changes go through `crystallize` as a rename mutation that cascades references.
+7. **The laxicon is read-only to the skill.** If the project has a sibling `laxicon/` (free-form human notes), treat it as a source: read it during `ground`, mine it during `crystallize`. Never write to it, restructure it, or "crystallize" it in place — it is the human's lax layer by design. Distillation flows one way: laxicon → lexicon.
 
 ## When this workflow doesn't apply
 

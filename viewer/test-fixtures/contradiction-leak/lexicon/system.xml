@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<system schema="1.0" id="contradiction-leak-fixture">
+  <name>Contradiction: separate-ways leak</name>
+  <purpose>
+    Two contexts declared as separate-ways, yet code in alpha references a type in
+    beta — a cross-context edge crossing a boundary that forbids collaboration.
+  </purpose>
+  <contexts>
+    <ref to="alpha"/>
+    <ref to="beta"/>
+  </contexts>
+</system>

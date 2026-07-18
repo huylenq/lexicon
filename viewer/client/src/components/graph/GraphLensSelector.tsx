@@ -3,6 +3,8 @@ import type { Lens } from "@/lib/graph/build-graph";
 const LENSES: { id: Lens; label: string }[] = [
   { id: "ownership", label: "Ownership" },
   { id: "surfaces", label: "Surfaces" },
+  { id: "code", label: "Code" },
+  { id: "graphify", label: "Territory" },
 ];
 
 export default function GraphLensSelector({

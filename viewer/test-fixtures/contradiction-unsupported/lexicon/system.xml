@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<system schema="1.0" id="contradiction-unsupported-fixture">
+  <name>Contradiction: unsupported seam</name>
+  <purpose>
+    A customer-supplier seam is declared between two contexts, but no code edge
+    crosses between them — an aspirational / stale boundary with nothing behind it.
+  </purpose>
+  <contexts>
+    <ref to="up"/>
+    <ref to="down"/>
+  </contexts>
+</system>

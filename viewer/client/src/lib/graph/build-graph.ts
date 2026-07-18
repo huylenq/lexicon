@@ -1,9 +1,9 @@
 // Translate the ResolvedGraph (server shape) into a lens-specific graph model.
-// One model per lens: ownership, surfaces.
+// One model per lens: ownership, surfaces, code.
 
 import type { EntityKind, ResolvedEntity, ResolvedGraph } from "@/lib/types";
 
-export const LENSES = ["ownership", "surfaces"] as const;
+export const LENSES = ["ownership", "surfaces", "code", "graphify"] as const;
 export type Lens = (typeof LENSES)[number];
 
 export type EdgeKind =
@@ -11,11 +11,22 @@ export type EdgeKind =
   | "seam"
   | "boundary-rule"
   | "contains"
-  | "narrative";
+  | "narrative"
+  // code lens. Derived from the codebase, not the cold layer. Structure tier
+  // (tree-sitter): extends/implements/uses. Call-flow tier (tsserver): calls.
+  | "extends"
+  | "implements"
+  | "uses"
+  | "calls"
+  // graphify (territory) lens. Raw tree-sitter relations from graph.json,
+  // collapsed to these styling buckets; the node's declared relation rides in
+  // the edge label. Never merged into the code lens (spec Decision 1).
+  | "imports"
+  | "references";
 
 export interface GraphNode {
-  id: string;            // fqid
-  kind: EntityKind | "cluster";
+  id: string;            // fqid (cold layer) or graphify node id (territory lens)
+  kind: EntityKind | "cluster" | "graphify";
   name: string;
   parent?: string;       // compound-graph parent id
   // a "cluster" node is a synthetic container (e.g. shared-kernel cluster)
@@ -25,6 +36,10 @@ export interface GraphNode {
   height: number;
 }
 
+// Derivation provenance for code-lens edges (later styling); absent on
+// cold-layer-derived edges.
+export type EdgeProvenance = "tree-sitter" | "lsp" | "degraded";
+
 export interface GraphEdge {
   id: string;
   source: string;
@@ -32,6 +47,11 @@ export interface GraphEdge {
   kind: EdgeKind;
   label?: string;
   directed: boolean;
+  provenance?: EdgeProvenance;
+  // For seam edges: the fqid of the declared seam atom this edge came from.
+  // Lets the overlay's contradiction layer match an unsupported-seam finding
+  // back to the rendered seam edge (health-style.contradictionForEdge).
+  originSeamId?: string;
 }
 
 export interface GraphModel {
@@ -49,10 +69,14 @@ export interface BuildOpts {
 }
 
 // width/height per kind, in px (pre-layout)
-function size(kind: EntityKind | "cluster", name: string): { width: number; height: number } {
+function size(kind: EntityKind | "cluster" | "graphify", name: string): { width: number; height: number } {
   // rough text width: ~7.5 px per char in Plex Mono at small size, plus padding
   const approxText = Math.max(name.length * 7, 60);
   switch (kind) {
+    case "graphify":
+      // Territory nodes render a mono label + a small provenance/community
+      // strip; size to the label like the code-lens leaves.
+      return { width: Math.min(approxText + 28, 240), height: 46 };
     case "bounded-context":
       return { width: 0, height: 0 }; // ELK computes from children
     case "surface":
@@ -92,6 +116,14 @@ export function buildModel(
       return buildOwnership(graph, opts);
     case "surfaces":
       return buildSurfaces(graph, opts);
+    case "code":
+      return buildCode(graph, opts);
+    case "graphify":
+      // The graphify lens does not build from the ResolvedGraph — it consumes
+      // the server neighborhood endpoint (see graphify-lens.ts / GraphifyLens).
+      // GraphPage routes to GraphifyLens before reaching buildModel, so this is
+      // unreachable; fail loud if the wiring ever regresses.
+      throw new Error("graphify lens builds from the neighborhood endpoint, not the resolved graph");
   }
 }
 
@@ -263,6 +295,7 @@ function buildOwnership(graph: ResolvedGraph, opts: BuildOpts): GraphModel {
             kind: "seam",
             directed: true,
             label: e.seamKind,
+            originSeamId: e.ref.fqid,
           });
         }
       } else if (e.participants && e.participants.length >= 2) {
@@ -276,6 +309,7 @@ function buildOwnership(graph: ResolvedGraph, opts: BuildOpts): GraphModel {
               kind: "seam",
               directed: false,
               label: e.seamKind,
+              originSeamId: e.ref.fqid,
             });
           }
         }
@@ -339,4 +373,92 @@ function buildSurfaces(graph: ResolvedGraph, opts: BuildOpts): GraphModel {
   void opts;
 
   return { nodes, edges, topLevelIds, lens: "surfaces" };
+}
+
+// ---------------- code ----------------
+
+// An entity earns a code-lens node when it carries a resolvable code anchor
+// (a `<symbols>` anchor on a term, or `<constrains-code>` on an invariant).
+// That anchored set IS the domain-selective filter — the cold layer marks
+// which symbols matter; the lens shows only those. Structural / call edges are
+// derived from the codebase by the server-side code-intel backend (P1); P0
+// ships nodes only, grouped under their owning bounded-context.
+function isCodeAnchored(e: ResolvedEntity): boolean {
+  return (e.symbols?.length ?? 0) > 0 || (e.constrainsCode?.length ?? 0) > 0;
+}
+
+function buildCode(graph: ResolvedGraph, opts: BuildOpts): GraphModel {
+  const nodes: GraphNode[] = [];
+  const edges: GraphEdge[] = [];
+  const topLevelIds: string[] = [];
+
+  const anchored = Object.values(graph.entities).filter(
+    e => isCodeAnchored(e) && include(e, opts),
+  );
+
+  // Group anchored atoms under their owning bounded-context (reuse the compound
+  // container pattern). Context-less anchored atoms (kernel-owned or orphan)
+  // render at the top level.
+  const byContext = new Map<string, ResolvedEntity[]>();
+  const orphans: ResolvedEntity[] = [];
+  for (const e of anchored) {
+    if (e.ownerContextId) {
+      const list = byContext.get(e.ownerContextId) ?? [];
+      list.push(e);
+      byContext.set(e.ownerContextId, list);
+    } else {
+      orphans.push(e);
+    }
+  }
+
+  for (const [ctxFqid, children] of byContext) {
+    const ctx = graph.entities[ctxFqid];
+    const ctxName = ctx?.ref.name ?? ctxFqid;
+    nodes.push({
+      id: ctxFqid,
+      kind: "bounded-context",
+      name: ctxName,
+      isCluster: true,
+      ...size("bounded-context", ctxName),
+    });
+    topLevelIds.push(ctxFqid);
+    for (const e of children) {
+      nodes.push({
+        id: e.ref.fqid,
+        kind: e.ref.kind,
+        name: e.ref.name,
+        parent: ctxFqid,
+        ...size(e.ref.kind, e.ref.name),
+      });
+    }
+  }
+
+  for (const e of orphans) {
+    nodes.push({
+      id: e.ref.fqid,
+      kind: e.ref.kind,
+      name: e.ref.name,
+      ...size(e.ref.kind, e.ref.name),
+    });
+    topLevelIds.push(e.ref.fqid);
+  }
+
+  // Structure-tier edges (P1): the server's code-intel pass derives
+  // extends/implements/uses between anchored atoms; render those whose endpoints
+  // are both present in this lens, honoring the edge-kind filter.
+  const nodeIds = new Set(nodes.map(n => n.id));
+  for (const ce of graph.codeEdges ?? []) {
+    if (!nodeIds.has(ce.source) || !nodeIds.has(ce.target)) continue;
+    if (!edgeAllowed(ce.kind, opts)) continue;
+    edges.push({
+      id: `code:${ce.kind}:${ce.source}->${ce.target}`,
+      source: ce.source,
+      target: ce.target,
+      kind: ce.kind,
+      directed: true,
+      provenance: ce.provenance,
+    });
+  }
+
+  return { nodes, edges, topLevelIds, lens: "code" };
 }

@@ -104,11 +104,26 @@ The semantic pass is the **backward-flow inversion** of the six structural check
 
 Phases 1–4 below are the inversion of checks 1–4. Phases 5–6 are validate-specific procedure (hygiene, distillation) with no forward-flow analogue.
 
+### Phase B0 — Deterministic model-health pass (run this first)
+
+Before grepping anything by hand, run the standalone model-health validator and let its deterministic output stand in for the heuristic anchor work:
+
+```
+bun ${CLAUDE_SKILL_DIR}/validators/anchor-health.ts <projectRoot>
+```
+
+It is **standalone** — tree-sitter only, no running viewer server, no LSP. It loads the cold layer, resolves every `<code-anchor symbol=>` against the code, and prints a `## Model health` block with three sub-sections (`### Anchor resolution` — healthy / drifted / dangling, `### Boundary contradictions`, `### Dead weight`) plus its own `### Items deliberately not flagged`. LSP-dependent checks (call-flow `calls`-edge contradictions) self-announce as "not checked (no LSP)" rather than implying coverage; only the structure tier (`extends` / `implements` / `uses`) is checked here. For LSP-confirmed call-flow coverage the user runs the viewer's Model Health view — don't claim it from this script.
+
+Use its result to **short-circuit the heuristic anchor work** in the phases below. Where the deterministic pass already resolved an anchored symbol, don't re-grep for it in Phase B1: a symbol the script reports `healthy` is present, `dangling` is the silent-rot case made loud, `drifted` is a moved symbol or stale line cache. The prose-grep fallback in Phase B1 is for terms with *no* anchor, where there's nothing deterministic to resolve.
+
+This pass is **advisory** — it never mutates the cold layer or code, and always exits 0. Its findings are triage, not fixes: a dangling anchor goes to the user as a flag, and the correction (re-point the anchor, rename the atom, or drop it) routes through `crystallize`, never through `validate`. Capture the script's `## Model health` block verbatim — it becomes a top-level section of the report (see Phase C); it already carries its own "deliberately not flagged" list for the deterministic findings.
+
 ### Phase B1 — Glossary validation (inverts check 1 + check 2)
 
 For each term in `system.xml`'s glossary AND each `lexicon/contexts/*.xml` and `lexicon/surfaces/*.xml`:
 
-- **Literal grep first.** Search the codebase for the term as identifier (class, type, function, constant) and as string literal.
+- **For anchored terms, trust Phase B0.** A term whose `<symbols>` the deterministic pass already resolved doesn't need a hand grep — its anchor status (healthy / drifted / dangling) is the answer. Grep only the terms with no anchor.
+- **Literal grep first** (unanchored terms only). Search the codebase for the term as identifier (class, type, function, constant) and as string literal.
 - **If literal grep finds nothing**, don't immediately flag. Try variants: plural, related forms (`Worker` → `WorkerPool`, `enqueueWorker`), kebab/snake/camel transformations. The concept may still be present under a slightly different surface.
 - **Classify each entry**:
   - *Healthy*: term has clear, consistent presence in code matching the definition.
@@ -260,6 +275,10 @@ Time since last validate: <N days, or "first validate">
 ### Distillation status
 - TODO markers in cold-layer files: <count>
 - <"distillation appears complete" | "many TODO markers remain — distillation likely skipped, run `bootstrap` with 'continue distillation' first">
+
+## Model health
+
+<Paste the `## Model health` block from `validators/anchor-health.ts` verbatim — its `### Anchor resolution`, `### Boundary contradictions`, `### Dead weight`, and `### Items deliberately not flagged` sub-sections. This is the deterministic, tree-sitter-only result; don't paraphrase or re-derive it by hand.>
 
 ## Recommended actions, prioritized
 1. <Highest-impact item, with concrete next step (often: run `crystallize` to absorb the semantic findings, or rerun the structural pass after a manual fix)>
