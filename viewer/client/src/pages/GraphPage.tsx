@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { CodeEdge, EntityKind, LexiconResponse, ResolvedEntity } from "@/lib/types";
 import { api } from "@/lib/api";
 import { buildModel, type EdgeKind, type GraphModel, type Lens } from "@/lib/graph/build-graph";
@@ -32,10 +32,12 @@ export default function GraphPage({
   resp,
   lens,
   onLensChange,
+  collapse,
 }: {
   resp: LexiconResponse;
   lens: Lens;
   onLensChange: (l: Lens) => void;
+  collapse?: ReactNode;
 }) {
   const stack = useStack();
 
@@ -200,12 +202,20 @@ export default function GraphPage({
   // hooks, so rules-of-hooks hold) — none of the cold-layer filter/canvas
   // machinery below applies.
   if (lens === "graphify") {
-    return <GraphifyLens projectId={resp.project.id} lens={lens} onLensChange={onLensChange} />;
+    return (
+      <GraphifyLens
+        projectId={resp.project.id}
+        lens={lens}
+        onLensChange={onLensChange}
+        collapse={collapse}
+      />
+    );
   }
 
   return (
     <div className="flex-1 min-h-0 flex flex-col relative">
       <GraphFilterBar
+        collapse={collapse}
         lens={lens}
         onLensChange={onLensChange}
         kinds={kinds}

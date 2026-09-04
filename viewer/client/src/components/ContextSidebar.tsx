@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 import type { ResolvedGraph } from "@/lib/types";
 import InlineCode from "./InlineCode";
@@ -7,10 +7,12 @@ export default function ContextSidebar({
   graph,
   projectId,
   activeFqid,
+  collapse,
 }: {
   graph: ResolvedGraph;
   projectId: number;
   activeFqid: string | null;
+  collapse?: ReactNode;
 }) {
   const loc = useLocation();
   // Preserve search params (panel visibility, lens) and hash across nav so the
@@ -45,10 +47,16 @@ export default function ContextSidebar({
   };
 
   return (
-    <nav className="h-full overflow-y-auto py-6 pr-3 pl-6">
+    <div className="h-full min-h-0 flex flex-col">
+      <div className="shrink-0 px-6 py-2 bg-paper border-b rule">
+        <div className="panel-toggle-row">
+          {collapse}
+          {graph.system && <div className="smallcap">System</div>}
+        </div>
+      </div>
+      <nav className="flex-1 min-h-0 overflow-y-auto pb-6 pr-3 pl-6">
       {graph.system && (
         <div className="mb-8">
-          <div className="smallcap mb-3">System</div>
           <Link
             to={linkTo(graph.system.ref.fqid)}
             className={`block py-1 -ml-3 pl-3 ${isActive(graph.system.ref.fqid) ? "active-rule" : ""}`}
@@ -167,6 +175,7 @@ export default function ContextSidebar({
         </div>
       )}
     </nav>
+    </div>
   );
 }
 

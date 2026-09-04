@@ -1078,24 +1078,27 @@
   .edge-rail-hotkey::after  { content: "]"; }
   .edge-rail:hover .edge-rail-hotkey { opacity: 0.85; }
 
-  /* Collapse chevron: discreet affordance at the top-OUTER corner of an open
-     panel. Outer so the rail visually emerges from the same spot when the
-     user clicks it — continuity of geography. */
-  .panel-collapse {
-    position: absolute;
-    top: 0.5rem;
-    left: 0.5rem;
-    width: 1.5rem;
-    height: 1.5rem;
+  /* First chrome row of an open collapsible panel. min-height matches the
+     graph lens selector (~29px) so the sidebar and graph toggle icons share
+     a vertical center below the titlebar. */
+  .panel-toggle-row {
     display: flex;
     align-items: center;
+    gap: 0.5rem;
+    min-height: 28.5px;
+  }
+
+  /* Collapse control: in-flow, sized to the smallcap/toolbar line. */
+  .panel-collapse {
+    width: 1.25rem;
+    height: 1.25rem;
+    display: inline-flex;
+    align-items: center;
     justify-content: center;
-    font-family: var(--font-mono);
-    font-size: 0.75rem;
+    flex-shrink: 0;
     color: var(--color-fg-3);
     background: transparent;
     cursor: pointer;
-    z-index: 10;
     opacity: 0.45;
     border-radius: 2px;
     transition: opacity 140ms ease, background 140ms ease, color 140ms ease;

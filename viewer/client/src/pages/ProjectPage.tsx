@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { Sidebar } from "@phosphor-icons/react";
 import { api } from "@/lib/api";
@@ -322,9 +322,16 @@ function WorkspaceBody({
         hotkey="S"
         onToggle={onToggleSidebar}
         width={sidebar}
-        className="border-r rule overflow-hidden"
+        className="border-r rule overflow-hidden min-h-0 flex flex-col"
       >
-        <ContextSidebar graph={graph} projectId={projectId} activeFqid={focusFqid} />
+        {collapse => (
+          <ContextSidebar
+            graph={graph}
+            projectId={projectId}
+            activeFqid={focusFqid}
+            collapse={collapse}
+          />
+        )}
       </CollapsiblePanel>
       <CollapsiblePanel
         gridColumn={2}
@@ -335,7 +342,15 @@ function WorkspaceBody({
         width={graphPanel}
         className="border-r rule min-w-0 min-h-0 flex flex-col"
       >
-        <GraphPage key={resp.project.id} resp={resp} lens={lens} onLensChange={onLensChange} />
+        {collapse => (
+          <GraphPage
+            key={resp.project.id}
+            resp={resp}
+            lens={lens}
+            onLensChange={onLensChange}
+            collapse={collapse}
+          />
+        )}
       </CollapsiblePanel>
       <aside
         ref={transientRef}
@@ -414,9 +429,12 @@ function CollapsiblePanel({
   onToggle: () => void;
   width: WidthCtl;
   className?: string;
-  children: React.ReactNode;
+  children: ReactNode | ((collapse: ReactNode) => ReactNode);
 }) {
   const ref = useRef<HTMLElement>(null);
+  const collapse = (
+    <PanelCollapse label={`Hide ${label.toLowerCase()} (${hotkey.toLowerCase()})`} onClick={onToggle} />
+  );
   return (
     <aside
       ref={ref}
@@ -425,8 +443,12 @@ function CollapsiblePanel({
     >
       {on ? (
         <>
-          {children}
-          <PanelCollapse label={`Hide ${label.toLowerCase()} (${hotkey.toLowerCase()})`} onClick={onToggle} />
+          {typeof children === "function" ? children(collapse) : (
+            <>
+              {collapse}
+              {children}
+            </>
+          )}
           <ResizeHandle
             side="right"
             panelRef={ref}
@@ -465,12 +487,12 @@ function EdgeRail({
   );
 }
 
-// Small chevron at the top-outer corner of an open panel that collapses it
-// back to a rail. Positioned at the OUTER edge so the rail visually emerges
-// from the same spot when collapsed.
+// Collapse control. In-flow leading item of the panel's first chrome row
+// (SYSTEM smallcap, graph toolbar) so it shares that row and the app gutter.
 function PanelCollapse({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <button
+      type="button"
       onClick={onClick}
       title={label}
       aria-label={label}

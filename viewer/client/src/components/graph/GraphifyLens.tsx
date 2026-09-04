@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { api } from "@/lib/api";
 import type { Lens } from "@/lib/graph/build-graph";
 import type {
@@ -24,10 +24,12 @@ export default function GraphifyLens({
   projectId,
   lens,
   onLensChange,
+  collapse,
 }: {
   projectId: number;
   lens: Lens;
   onLensChange: (l: Lens) => void;
+  collapse?: ReactNode;
 }) {
   const [summary, setSummary] = useState<GraphifyProbe | null>(null);
   const [q, setQ] = useState("");
@@ -126,7 +128,10 @@ export default function GraphifyLens({
     <div className="flex-1 min-h-0 flex flex-col relative">
       {/* Toolbar — mirrors GraphFilterBar's frame, graphify-specific controls. */}
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2 px-6 py-2 border-b rule">
-        <GraphLensSelector value={lens} onChange={onLensChange} />
+        <div className="panel-toggle-row">
+          {collapse}
+          <GraphLensSelector value={lens} onChange={onLensChange} />
+        </div>
         <span className="smallcap">Territory</span>
         {summary?.status === "ok" && <StalenessBadge summary={summary} />}
         {seed && (

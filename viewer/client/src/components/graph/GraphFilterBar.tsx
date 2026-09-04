@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { EntityKind } from "@/lib/types";
 import type { EdgeKind, Lens } from "@/lib/graph/build-graph";
 import { FILTERABLE_KINDS, KIND_ICON, KIND_COLOR_VAR } from "@/lib/kinds";
@@ -19,6 +20,7 @@ const LEGEND_DASH: Partial<Record<EdgeKind, string>> = {
 };
 
 interface Props {
+  collapse?: ReactNode;
   lens: Lens;
   onLensChange: (lens: Lens) => void;
   kinds: Set<EntityKind>;
@@ -41,7 +43,10 @@ interface Props {
 export default function GraphFilterBar(props: Props) {
   return (
     <div className="flex flex-wrap items-center gap-x-6 gap-y-2 px-6 py-2 border-b rule">
-      <GraphLensSelector value={props.lens} onChange={props.onLensChange} />
+      <div className="panel-toggle-row">
+        {props.collapse}
+        <GraphLensSelector value={props.lens} onChange={props.onLensChange} />
+      </div>
 
       {props.lens === "code" && (
         <div className="flex items-center gap-2">
