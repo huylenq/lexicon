@@ -1,5 +1,5 @@
 // Markdown-style inline code parser, shared between the DOM renderer
-// (`<InlineCode>`) and the SVG renderer (`<tspan>` in graph nodes).
+// (`<InlineCode>`) and graph node labels.
 
 export interface CodePart {
   text: string;

@@ -24,8 +24,9 @@
     centre column reads one entity in depth, and the right rail opens
     <ref to="kernel/viewer-vocabulary/code-anchor"/>s as live Monaco peeks. The second is the
     graph view (<ref to="surface/graph-view"/>): <ref to="context/graph-model"/> projects the same
-    `ResolvedGraph` through one of two <ref to="graph-model/lens"/>es, ELK lays it out, and a
-    custom SVG renders it with the editorial aesthetic. Peeks persist across the view
+    `ResolvedGraph` through one of two <ref to="graph-model/lens"/>es, ELK lays it out, and
+    xyflow renders it with the editorial aesthetic (four-corner cluster ticks
+    retained from the earlier SVG canvas). Peeks persist across the view
     toggle (<ref to="design-system/invariant/peek-persists-across-surfaces"/>) so the drawer
     never resets when the user switches.
 
@@ -188,12 +189,11 @@
         existing viewer," not "bolted on." If a tradeoff arises between
         capability and aesthetic, the aesthetic wins.
 
-        The layout layer (ELK.js) and rendering layer (custom SVG) were chosen
-        for this reason: Cytoscape / react-flow / d3-force all *work*, but
-        their default node aesthetics fight the editorial direction.
-        Layout-only ELK plus our own SVG keeps full control of typography and
-        edge styling. The trade is engineering cost — we own pan/zoom,
-        hover-dim, selection state, and routing — and it's been worth it.
+        The layout layer (ELK.js) and rendering layer (xyflow with custom
+        nodes) were chosen for this reason: stock graph-library chrome fights
+        the editorial direction. Layout-only ELK plus custom xyflow nodes
+        keeps control of typography, four-corner cluster ticks, and edge
+        styling, while xyflow owns pan/zoom, drag, and the minimap.
       </rationale>
     </invariant>
   </shared-kernel>

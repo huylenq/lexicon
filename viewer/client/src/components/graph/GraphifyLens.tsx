@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import type { Lens } from "@/lib/graph/build-graph";
 import type {
@@ -17,9 +17,9 @@ const DEFAULT_HOPS = 1;
 
 // The graphify (territory) lens surface. Self-contained: it owns its own probe,
 // entry picker, neighborhood fetch, relation filters, staleness badge, and
-// empty state — none of the cold-layer GraphFilterBar / kinds / health / manual
-// machinery applies. Reuses the ELK engine (layoutModel) via buildGraphifyModel
-// and renders through the dedicated GraphifyCanvas (spec Decision 4).
+// empty state — none of the cold-layer GraphFilterBar / kinds / health
+// machinery applies. Reuses the ELK engine via buildGraphifyModel and renders
+// through the dedicated GraphifyCanvas (spec Decision 4).
 export default function GraphifyLens({
   projectId,
   lens,
@@ -106,7 +106,6 @@ export default function GraphifyLens({
 
   const hopOf = useMemo(() => new Map((nb?.nodes ?? []).map(n => [n.id, n.hop])), [nb]);
   const fileOf = useMemo(() => new Map((nb?.nodes ?? []).map(n => [n.id, n.sourceFile])), [nb]);
-  const fitKey = useMemo(() => ({}), [layout]);
 
   const toggleRelation = (rel: string) => {
     setActiveRelations(prev => {
@@ -244,7 +243,6 @@ export default function GraphifyLens({
                 }}
                 hopOf={hopOf}
                 fileOf={fileOf}
-                fitKey={fitKey}
               />
               {nb?.truncated && (
                 <div className="absolute top-3 left-3 mono text-micro text-fg-3 border rule bg-paper px-2 py-1">

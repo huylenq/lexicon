@@ -2,7 +2,7 @@ import type { EntityKind } from "@/lib/types";
 import type { EdgeKind, Lens } from "@/lib/graph/build-graph";
 import { FILTERABLE_KINDS, KIND_ICON, KIND_COLOR_VAR } from "@/lib/kinds";
 import GraphLensSelector from "./GraphLensSelector";
-import { EDGE_STYLE } from "./GraphEdge";
+import { EDGE_STYLE } from "@/lib/graph/edge-style";
 import Tip from "../Tip";
 
 const EDGES: { id: EdgeKind; label: string }[] = [
@@ -33,8 +33,6 @@ interface Props {
   overlay: boolean;
   onToggleOverlay: () => void;
   overlayBadge?: string;
-  layoutPanelOpen: boolean;
-  onToggleLayoutPanel: () => void;
   search: string;
   onSearchChange: (s: string) => void;
   searchRef?: React.RefObject<HTMLInputElement>;
@@ -105,10 +103,6 @@ export default function GraphFilterBar(props: Props) {
           </Chip>
         ))}
       </FilterGroup>
-
-      <Chip active={props.layoutPanelOpen} onClick={props.onToggleLayoutPanel}>
-        Layout {props.layoutPanelOpen ? "▴" : "▾"}
-      </Chip>
 
       <div className="ml-auto flex items-center gap-2">
         <span className="smallcap">Find</span>

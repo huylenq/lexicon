@@ -77,9 +77,9 @@ export const KIND_COLOR_VAR: Record<EntityKind, string> = {
 };
 
 // Short header tag rendered on a cluster box, also used to size its title bar.
-// Single source of truth: the graph title renderer (GraphNode TitleBlock) and
-// the ELK min-width sizer (layout.ts) both read this, so the box can never clip
-// a tag the renderer shows.
+// Single source of truth: the cluster title on FlowCanvas and the ELK
+// min-width sizer (layout.ts) both read this, so the box can never clip a
+// tag the renderer shows.
 export function clusterTag(kind: string): string {
   switch (kind) {
     case "bounded-context":

@@ -5,8 +5,8 @@
   <purpose>
     Convert the server's `ResolvedGraph` into a renderable diagram. Build a
     lens-specific node/edge model from the cold layer, hand it to ELK.js for
-    layout, then render as custom SVG. Two lenses (ownership / surfaces) plus
-    per-lens edge styling, kind filters, and context filters.
+    layout, then render with xyflow. Lenses (ownership / surfaces / code /
+    territory) plus per-lens edge styling, kind filters, and context filters.
   </purpose>
 
   <narrative>
@@ -24,9 +24,10 @@
     (<ref to="filter-relayout"/>): the editorial choice is "the diagram reshapes,"
     not "things slide around."
 
-    Third, a custom SVG component renders the <ref to="layout-result"/> with the
-    editorial aesthetic. Nothing graph-specific lives on the server: the
-    graph view consumes the same `LexiconResponse` the reading room does
+    Third, xyflow renders the <ref to="layout-result"/> with the editorial
+    aesthetic (custom nodes, four-corner cluster ticks). Nothing
+    graph-specific lives on the server: the graph view consumes the same
+    `LexiconResponse` the reading room does
     (<ref to="resolved-graph-to-model"/>).
   </narrative>
 
@@ -98,28 +99,23 @@
   <term id="affects-routing" category="concept" status="deprecated">
     <name>affects routing</name>
     <definition>
-      Vestigial strategy for drawing ADR→entity `affects` edges from v0.2.
-      Four modes (`bundle` / `elbow` / `astar` / `straight`) chosen for noisy
-      ADR fanout. Survives in the layout infrastructure for type compatibility
-      but is dormant under v0.3 since ADRs and their affects edges are gone.
-      A polish pass can rip the dead code; until then the panel chip is
-      hidden by the absence of any `affects` edges in the built model.
+      Vestigial strategy for drawing ADR→entity `affects` edges from v0.2,
+      later reused as narrative polyline tactics (HEB / A* / elbow). Removed
+      when xyflow became the only canvas — ELK places nodes, xyflow draws
+      edges, so there is no layout-side path router left.
     </definition>
-    <symbols>
-      <code-anchor file="client/src/lib/graph/layout.ts" symbol="AffectsRouting"/>
-    </symbols>
   </term>
 
   <term id="layout-result" category="value">
     <name>LayoutResult</name>
     <definition>
-      What ELK + post-processing produces and the canvas consumes: a flat list
-      of `PositionedNode`s (with `x, y` plus the original GraphNode fields)
-      and `PositionedEdge`s (with computed routing points). The viewport size
-      is implied by the bounding box of positioned nodes.
+      What ELK produces and the canvas consumes: a flat list of
+      `PositionedNode`s (with `x, y` plus the original GraphNode fields)
+      and the model's edges (source/target/kind — xyflow routes them).
+      The viewport size is implied by the bounding box of positioned nodes.
     </definition>
     <symbols>
-      <code-anchor file="client/src/lib/graph/layout.ts" line-start="26" symbol="LayoutResult"/>
+      <code-anchor file="client/src/lib/graph/layout.ts" symbol="LayoutResult"/>
     </symbols>
   </term>
 
@@ -146,9 +142,9 @@
   <invariant id="layout-deterministic" mode="principle">
     <name>layout is deterministic per (model, options)</name>
     <statement>
-      Given the same `GraphModel` and the same `LayoutOptions`, ELK produces
-      the same node positions and edge routing. There is no per-session
-      randomness, no saved layout state, and no user-drag overrides.
+      Given the same `GraphModel`, ELK produces the same node positions.
+      There is no per-session randomness and no saved layout state. xyflow
+      lets the user drag nodes in the session; that does not persist.
     </statement>
     <rationale>
       Determinism is what lets filter toggles "reshape the diagram" rather

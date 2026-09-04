@@ -369,10 +369,138 @@
     margin-left: 4px;
   }
 
-  .svg-cluster-fill { fill: color-mix(in srgb, var(--color-paper-2) 50%, transparent); }
-  .svg-leaf-fill { fill: var(--color-paper-3); }
-  .svg-grid-minor { stroke: var(--grid-line); fill: none; }
-  .svg-grid-major { stroke: var(--grid-line-5); fill: none; }
+  /* xyflow canvas — editorial chrome, four-corner cluster ticks retained
+     from the retired SVG renderer. */
+  .flow-canvas {
+    width: 100%;
+    height: 100%;
+    background: var(--color-paper);
+    --xy-node-border-radius: 0;
+    --xy-node-boxshadow-default: none;
+    --xy-node-boxshadow-hover: none;
+    --xy-node-boxshadow-selected: none;
+  }
+  .flow-canvas .react-flow__node {
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+  .flow-canvas .react-flow__controls-button {
+    background: var(--color-paper);
+    border-color: var(--color-rule);
+    fill: var(--color-fg);
+  }
+  .flow-canvas .react-flow__minimap {
+    background: var(--color-paper-2);
+  }
+
+  .flow-leaf {
+    box-sizing: border-box;
+    background: var(--color-paper-3);
+    border-style: solid;
+    border-radius: 0;
+    padding: 6px 8px;
+    font: 500 13px var(--font-body);
+    color: var(--color-fg);
+    cursor: pointer;
+  }
+  .flow-leaf-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+  .flow-leaf-anchor {
+    margin-top: 4px;
+    font-size: 9.5px;
+    color: var(--color-fg-3);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .flow-cluster {
+    position: relative;
+    box-sizing: border-box;
+    border: 1px solid var(--color-rule);
+    border-radius: 0;
+    background: color-mix(in srgb, var(--color-paper-2) 50%, transparent);
+  }
+  .flow-cluster-title {
+    padding: 6px 10px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    color: var(--color-fg);
+    border-bottom: 1px solid var(--color-fg-3);
+  }
+
+  .flow-corners {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    --tick-size: 10px;
+    --tick-width: 1px;
+    --tick-color: var(--color-fg-2);
+  }
+  .flow-corners--highlighted {
+    --tick-size: 13px;
+    --tick-width: 1.25px;
+    --tick-color: var(--color-fg);
+  }
+  .flow-corners--selected {
+    --tick-size: 16px;
+    --tick-width: 2.25px;
+    --tick-color: var(--color-mark-2);
+  }
+  .flow-cluster:hover .flow-corners--default {
+    --tick-size: 13px;
+    --tick-width: 1.25px;
+    --tick-color: var(--color-fg);
+  }
+  .flow-corner {
+    position: absolute;
+    width: var(--tick-size);
+    height: var(--tick-size);
+    border-color: var(--tick-color);
+    border-style: solid;
+    border-width: 0;
+  }
+  .flow-corner--tl { top: 0; left: 0; border-top-width: var(--tick-width); border-left-width: var(--tick-width); }
+  .flow-corner--tr { top: 0; right: 0; border-top-width: var(--tick-width); border-right-width: var(--tick-width); }
+  .flow-corner--br { bottom: 0; right: 0; border-bottom-width: var(--tick-width); border-right-width: var(--tick-width); }
+  .flow-corner--bl { bottom: 0; left: 0; border-bottom-width: var(--tick-width); border-left-width: var(--tick-width); }
+
+  .flow-territory {
+    position: relative;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    background: var(--color-paper);
+    border-radius: 7px;
+    padding: 0 9px;
+    cursor: pointer;
+  }
+  .flow-territory-name {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    font-weight: 500;
+    color: var(--color-fg);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .flow-territory-anchor {
+    position: absolute;
+    top: 2px;
+    right: 6px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--color-mark);
+  }
 
   /* Kept as a no-op so legacy markup (`<div className="... grain">`) doesn't break. */
   .grain {}
