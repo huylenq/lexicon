@@ -147,7 +147,7 @@ function TermBody({ entity, graph }: { entity: ResolvedEntity; graph: ResolvedGr
   return (
     <div>
       {entity.definition && (
-        <Prose text={entity.definition} graph={graph} ownerContextId={entity.ownerContextId} ownerKernelId={entity.ownerKernelId} drop />
+        <Prose text={entity.definition} graph={graph} ownerContextId={entity.ownerContextId} ownerKernelId={entity.ownerKernelId} />
       )}
       {entity.identityRule && (
         <CategoryProse label="Identity" text={entity.identityRule} graph={graph} entity={entity} />
@@ -258,9 +258,7 @@ function SystemBody({ entity, graph }: { entity: ResolvedEntity; graph: Resolved
   );
 }
 
-// When a narrative is present, the purpose sits above as a small labelled lede
-// and the narrative carries the drop cap. When there's no narrative, the purpose
-// carries the drop cap.
+// When a narrative is present, the purpose sits above as a small labelled lede.
 export function PurposeAndNarrative({
   entity,
   graph,
@@ -286,7 +284,6 @@ export function PurposeAndNarrative({
             text={entity.narrative}
             graph={graph}
             ownerContextId={entity.ownerContextId} ownerKernelId={entity.ownerKernelId}
-            drop
           />
         </section>
       </>
@@ -298,7 +295,6 @@ export function PurposeAndNarrative({
         text={entity.purpose}
         graph={graph}
         ownerContextId={entity.ownerContextId} ownerKernelId={entity.ownerKernelId}
-        drop
       />
     );
   }
@@ -506,7 +502,7 @@ function SurfaceBody({ entity, graph }: { entity: ResolvedEntity; graph: Resolve
       {entity.route && (
         <div className="mb-6 mono text-small text-fg-2">{entity.route}</div>
       )}
-      {entity.body && <Prose text={entity.body} graph={graph} drop />}
+      {entity.body && <Prose text={entity.body} graph={graph} />}
     </div>
   );
 }
@@ -515,7 +511,7 @@ function RegionBody({ entity, graph }: { entity: ResolvedEntity; graph: Resolved
   const impl = entity.implementation;
   return (
     <div>
-      {entity.role && <Prose text={entity.role} graph={graph} drop />}
+      {entity.role && <Prose text={entity.role} graph={graph} />}
       {impl && (
         <div className="mt-8">
           <div className="smallcap mb-2">Implementation · {impl.kind}</div>
@@ -544,7 +540,6 @@ function SeamBody({ entity, graph }: { entity: ResolvedEntity; graph: ResolvedGr
           text={entity.definition}
           graph={graph}
           ownerContextId={entity.ownerContextId} ownerKernelId={entity.ownerKernelId}
-          drop
         />
       )}
       {entity.rationale && (
@@ -604,7 +599,7 @@ function ModuleBody({ entity, graph }: { entity: ResolvedEntity; graph: Resolved
   return (
     <div>
       {entity.description && (
-        <Prose text={entity.description} graph={graph} ownerContextId={entity.ownerContextId} ownerKernelId={entity.ownerKernelId} drop />
+        <Prose text={entity.description} graph={graph} ownerContextId={entity.ownerContextId} ownerKernelId={entity.ownerKernelId} />
       )}
       {entity.moduleMembers && entity.moduleMembers.length > 0 && (
         <RefSection title="Members" refs={entity.moduleMembers} graph={graph} />
@@ -623,7 +618,7 @@ function SharedKernelBody({ entity, graph }: { entity: ResolvedEntity; graph: Re
   return (
     <div>
       {entity.description && (
-        <Prose text={entity.description} graph={graph} drop />
+        <Prose text={entity.description} graph={graph} />
       )}
       {entity.kernelParticipatingContexts && entity.kernelParticipatingContexts.length > 0 && (
         <RefSection title="Participating contexts" refs={entity.kernelParticipatingContexts} graph={graph} />

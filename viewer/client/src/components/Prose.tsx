@@ -14,7 +14,6 @@ interface Props {
   graph: ResolvedGraph;
   ownerContextId?: string | null;
   ownerKernelId?: string | null;
-  drop?: boolean;
   emphasis?: boolean;
   className?: string;
 }
@@ -24,7 +23,6 @@ export default function Prose({
   graph,
   ownerContextId = null,
   ownerKernelId = null,
-  drop = false,
   emphasis = false,
   className = "",
 }: Props) {
@@ -35,7 +33,7 @@ export default function Prose({
       className={`prose-body ${emphasis ? "text-h3 display italic leading-snug" : ""} ${className}`}
     >
       {paras.map((p, i) =>
-        renderBlock(p, i, drop && i === 0 && !emphasis, graph, ownerContextId, ownerKernelId),
+        renderBlock(p, i, graph, ownerContextId, ownerKernelId),
       )}
     </div>
   );
@@ -44,7 +42,6 @@ export default function Prose({
 function renderBlock(
   block: string,
   index: number,
-  drop: boolean,
   graph: ResolvedGraph,
   ownerContextId: string | null,
   ownerKernelId: string | null,
@@ -79,48 +76,8 @@ function renderBlock(
   }
   return (
     <p key={index}>
-      {drop ? (
-        <DropCapFirst
-          text={trimmed}
-          graph={graph}
-          ownerContextId={ownerContextId}
-          ownerKernelId={ownerKernelId}
-        />
-      ) : (
-        renderInline(trimmed, graph, ownerContextId, ownerKernelId)
-      )}
+      {renderInline(trimmed, graph, ownerContextId, ownerKernelId)}
     </p>
-  );
-}
-
-function DropCapFirst({
-  text,
-  graph,
-  ownerContextId,
-  ownerKernelId,
-}: {
-  text: string;
-  graph: ResolvedGraph;
-  ownerContextId: string | null;
-  ownerKernelId: string | null;
-}) {
-  // Skip leading markdown emphasis markers and whitespace so the drop cap lands
-  // on the first actual letter — otherwise `**Bold lede**` would drop-cap the `*`.
-  const m = text.match(/^([^\p{L}\p{N}]*)([\p{L}\p{N}])([\s\S]*)$/u);
-  if (!m) return <>{renderInline(text, graph, ownerContextId, ownerKernelId)}</>;
-  const [, leading, first, rest] = m;
-  // Re-attach `leading` (e.g. `**`) so the remainder still parses as balanced markdown.
-  const remainder = leading + rest;
-  return (
-    <>
-      <span
-        className="display float-left text-[5rem] leading-[0.85] pr-3 pt-1 text-mark"
-        style={{ fontVariationSettings: "'opsz' 144, 'SOFT' 100" }}
-      >
-        {first}
-      </span>
-      {renderInline(remainder, graph, ownerContextId, ownerKernelId)}
-    </>
   );
 }
 
