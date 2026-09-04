@@ -120,7 +120,8 @@ export default function StackedPane({ graph, panes }: Props) {
         return (
           <article
             key={fqid}
-            className={`pane${isCollapsed ? " is-collapsed" : ""}`}
+            className={`pane${isCollapsed ? " is-collapsed" : ""}${isLast ? " is-active" : ""}`}
+            data-pane-position={`${idx + 1} / ${resolved.length}`}
             style={{ left: `${idx * 40}px` }}
             onClick={isCollapsed ? () => revealCollapsed(idx) : undefined}
           >
@@ -273,4 +274,3 @@ function BacklinkCard({
     </Tip>
   );
 }
-

@@ -64,7 +64,18 @@
   --color-kind-spec:            #b08968;
 }
 
-:root { color-scheme: light; }
+:root {
+  color-scheme: light;
+  /* Sliding entities read as vellum sheets raised above the fixed workspace.
+     These are deliberately subtler than paper-2: elevation, not a new panel
+     category. */
+  --color-pane: #f7f1df;
+  /* Match the established Cyanotype sidebar surface exactly. */
+  --color-pane-well: #0a1f3d;
+  --color-pane-edge: rgba(13, 42, 82, 0.48);
+  --shadow-pane: -1px 0 0 rgba(13, 42, 82, 0.12),
+                 -10px 0 18px -14px rgba(20, 26, 34, 0.22);
+}
 
 [data-theme="dark"] {
   --color-chrome:  #04102a;
@@ -88,6 +99,11 @@
 
   --grid-line:   rgba(168, 188, 208, 0.10);
   --grid-line-5: rgba(168, 188, 208, 0.18);
+
+  --color-pane: #10294a;
+  --color-pane-edge: rgba(168, 188, 208, 0.52);
+  --shadow-pane: -1px 0 0 rgba(168, 188, 208, 0.10),
+                 -12px 0 22px -15px rgba(0, 5, 18, 0.38);
 
   color-scheme: dark;
 }
@@ -856,13 +872,19 @@
   .stacked-pane {
     --pane-width: 880px;
     --pane-strip-width: 40px;
+    --pane-inset: 12px;
     height: 100%;
+    box-sizing: border-box;
     display: flex;
     align-items: stretch;
     overflow-x: auto;
     overflow-y: hidden;
-    background: var(--color-paper);
-    scroll-padding-left: calc(var(--pane-strip-width) * 4);
+    padding: var(--pane-inset);
+    /* Exposed only between sheets and past the end of the stack. The darker
+       desk plane makes the movable layer legible without adding card chrome. */
+    background: var(--color-paper-2);
+    box-shadow: inset 0 0 0 var(--pane-inset) var(--color-pane-well);
+    scroll-padding-left: calc(var(--pane-inset) + var(--pane-strip-width) * 4);
   }
 
   .pane {
@@ -870,23 +892,41 @@
     width: var(--pane-width);
     min-width: var(--pane-width);
     position: sticky;
-    background: var(--color-paper);
+    background: var(--color-pane);
     /* Border lives on the LEFT so it stays visible when the pane slides over
        its predecessor (sticky-positioning causes the next pane to cover the
        previous pane's right edge). The first pane has no preceding pane, so
        it skips the border. */
-    border-left: 1px solid var(--color-rule);
+    border-left: 2px solid var(--color-pane-edge);
+    border-top: 1px solid color-mix(in srgb, var(--color-pane-edge) 72%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, var(--color-pane-edge) 72%, transparent);
     /* Left-cast shadow lands on whatever this pane scrolls over — adds depth
        at the seam between sticky panes. */
-    box-shadow: -10px 0 18px -14px rgba(0, 0, 0, 0.22);
+    box-shadow: var(--shadow-pane);
     display: flex;
     flex-direction: column;
     overflow: hidden;
     transition: flex-basis 240ms ease, min-width 240ms ease, width 240ms ease;
   }
   .pane:first-of-type {
-    border-left: 0;
+    /* Even a one-sheet stack should remain distinct from fixed rails. */
+    border-left-width: 1px;
     box-shadow: none;
+  }
+  .pane.is-active {
+    border-left-color: color-mix(in srgb, var(--color-mark) 78%, var(--color-pane-edge));
+  }
+  .pane.is-active::after {
+    content: "PANE " attr(data-pane-position) " · ACTIVE";
+    position: absolute;
+    top: 0.45rem;
+    left: 3rem;
+    z-index: 4;
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    letter-spacing: 0.16em;
+    color: var(--color-mark-2);
+    pointer-events: none;
   }
   /* When ghost cards float to the right, the arrows need a wall to land on.
      Use :has() so this only kicks in when a .backlink-column actually
@@ -900,6 +940,9 @@
     min-width: var(--pane-strip-width);
     cursor: pointer;
     background: var(--color-paper-2);
+    border-left-color: var(--color-pane-edge);
+    box-shadow: inset -1px 0 0 color-mix(in srgb, var(--color-fg-2) 24%, transparent),
+                -5px 0 12px -10px rgba(0, 0, 0, 0.28);
     z-index: 2;
   }
   .pane.is-collapsed:hover {
@@ -1023,7 +1066,7 @@
     position: sticky;
     top: 0;
     z-index: 2;
-    background: var(--color-paper);
+    background: var(--color-pane);
     padding: 1.5rem 0 1rem;
     border-bottom: 1px solid var(--color-rule);
     margin-bottom: 1.25rem;
