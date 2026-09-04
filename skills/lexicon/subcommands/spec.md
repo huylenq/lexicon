@@ -6,17 +6,15 @@ Specs are **markdown**, human-directly-readable, and rendered by the lexicon vie
 
 ## Where specs live
 
-Under `lexicon/` so the viewer discovers them, in a two-tier lifecycle:
+Under `lexicon/docs/specs/` so the viewer discovers them:
 
 ```
-lexicon/specs/
-  <slug>-design.md        ← active design (Shape A) — a decision log, argues the design
-  <slug>.progress.md      ← cold-session handoff (transient) — deleted on promotion
-  established/
-    <slug>.md             ← as-built (Shape B) — describes the system as it is
+lexicon/docs/specs/
+  <slug>-design.md        ← the spec; update in place
+  <slug>.progress.md      ← optional cold-session handoff
 ```
 
-The same document changes *shape* as it matures: it starts as a decision-log design doc and, once built and confirmed, is **rewritten** as an as-built architecture doc and promoted to `established/` (dropping the `-design` suffix). Get the tier, the filename, and the shape right.
+Update the same file as the design meets reality. Shape A (decision log) and Shape B (as-built) below are useful writing shapes, not a required promotion ceremony. Do not invent a sibling `laxicon/specs/` home.
 
 ## Metadata is frontmatter
 
@@ -46,7 +44,7 @@ A reader (human or agent) should be able to jump from any domain term in the spe
 
 ## Two shapes — don't mix them
 
-### Shape A — design doc (active, in `lexicon/specs/`)
+### Shape A — design doc (active, in `lexicon/docs/specs/`)
 
 A decision log that *argues* the design. Structure:
 
@@ -57,7 +55,7 @@ A decision log that *argues* the design. Structure:
 - **Risks / open questions.**
 - As the build proceeds, **amend decisions in place** with a short revision note (`> **Revised <date>:** …`) rather than silently editing — the trail of what changed under contact with reality is the point. Running *status* does not go here; it goes in the progress note.
 
-### Shape B — architecture doc (established, in `lexicon/specs/established/`)
+### Shape B — architecture doc (established, in `lexicon/docs/specs/established/`)
 
 Rewritten to describe the system **as it is**, not how it was decided. Structure:
 
@@ -70,7 +68,7 @@ Rewritten to describe the system **as it is**, not how it was decided. Structure
 
 ## The progress note (transient — written for a cold session)
 
-**The moment implementation starts, open `lexicon/specs/<slug>.progress.md` and keep all running status there — never in the spec.** The spec stays a design; the progress note absorbs the chronological churn. This separation is what makes the later promotion clean: the spec was never polluted with status, so promoting it is a rewrite of design → as-built, not a cleanup of log entries.
+**The moment implementation starts, open `lexicon/docs/specs/<slug>.progress.md` and keep all running status there — never in the spec.** The spec stays a design; the progress note absorbs the chronological churn. This separation is what makes the later promotion clean: the spec was never polluted with status, so promoting it is a rewrite of design → as-built, not a cleanup of log entries.
 
 **Audience: a fresh agent session with zero memory of this work, not the user.** Write it as the briefing you'd want if you woke up cold and had to resume in one read. Format it as a **single overwritten snapshot of current state** (not an append-only log — newest-on-top history is noise to a cold reader). Each session edits it in place to reflect *now*. Lead with what's needed to resume:
 
@@ -84,14 +82,7 @@ Keep it terse and current — stale entries mislead a cold reader worse than mis
 
 ## Completion pairs with `crystallize`
 
-Promotion needs **explicit user confirmation that the implementation is done** — don't compact or move a spec on your own initiative just because the code looks finished. When the user confirms, the completion moment has **two coordinated outputs at two altitudes**:
-
-1. **`crystallize`** absorbs the vocabulary, invariants, and seams the work introduced into the cold layer (reading the git diff). New terms the spec had to reference get real atoms.
-2. **Promote the spec**: compact Shape A → Shape B (a *rewrite* to a state of facts, present tense — not an edit of the log), fold in and **delete** the progress note, then move it to `lexicon/specs/established/<slug>.md` in the shared artifact worktree (drop the `-design` suffix) and fix every cross-link. Use `git mv` only when the artifact is tracked; use an ordinary filesystem move when Lexicon is intentionally ignored or untracked.
-
-The established spec then links into the freshly-crystallized atoms via `[[fqid]]`, so the two artifacts reinforce each other: the cold layer holds the vocabulary; the spec holds the narrative that uses it.
-
-Only promote when the design is genuinely as-built. A spec that's still a problem statement or unbuilt proposal **stays** in `lexicon/specs/` with its `-design` name, even if work around it lands.
+When the user confirms the work is done, **`crystallize`** absorbs vocabulary, invariants, and seams into the cold layer. Update the spec in place so it describes the system as it is. Do not rewrite, relocate, or "promote" it unless the user asks. Delete a progress note only when it is no longer useful as a cold-session handoff.
 
 ## Style
 
@@ -102,7 +93,7 @@ Only promote when the design is genuinely as-built. A spec that's still a proble
 
 ## Quick checklist
 
-- New design? → `lexicon/specs/<slug>-design.md`, YAML frontmatter, Shape A, numbered decisions with alternatives-rejected, cold-layer terms linked via `[[fqid]]`.
-- Implementation starts? → open `lexicon/specs/<slug>.progress.md` as a live cold-session snapshot (Done / Next / decisions / gotchas, overwritten in place — not a log); the spec stays a design.
-- User confirms it's done? → run `crystallize` to absorb vocab/invariants, then promote in the shared artifact worktree: rewrite Shape A → Shape B (state of facts, mermaid + History, atoms linked), delete the progress note, move it to `lexicon/specs/established/<slug>.md` (`git mv` only if tracked), fix cross-links.
+- New design? → `lexicon/docs/specs/<slug>-design.md`, YAML frontmatter, numbered decisions with alternatives-rejected, cold-layer terms linked via `[[fqid]]`.
+- Implementation starts? → optional `lexicon/docs/specs/<slug>.progress.md` as a live cold-session snapshot; the spec stays a design.
+- User confirms it's done? → run `crystallize` to absorb vocab/invariants; update the spec in place.
 - Always: defer vocabulary to the cold layer, soft-wrap, decisive prose, link to real atoms and symbols.

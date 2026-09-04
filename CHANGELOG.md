@@ -12,6 +12,20 @@ While in 0.x, breaking project-shape changes bump the minor (0.x.0 → 0.(x+1).0
 
 ## [Unreleased]
 
+### Changed — README rebuilt around the map/territory picture
+
+- Hero still-life (small ink map on a dense city plan) plus mermaid diagrams for the three temperatures, the ubiquitous-language triangle, the ground/code/crystallize loop, and the move cadence. Plugin-internals tree dropped from the README (it still lives in `CLAUDE.md`).
+
+### Changed — prose folds under `lexicon/docs/`; sibling `laxicon/` retired
+
+- **One knowledge tree.** Markdown wiki/specs/plans/ideas live at `lexicon/docs/`. The sibling `laxicon/` directory is the old name for that folder, not a second product. Crystallize remains the only human-gated path into the typed cold layer; prose has no required status machine or promotion ceremony.
+- **Viewer** loads specs from `lexicon/docs/specs/` (falls back to `lexicon/specs/`). XML walk skips `docs/`.
+- **Laxicon skill** is now a thin authoring contract for `lexicon/docs/`. Runtime adapters still point at `skills/laxicon/SKILL.md`.
+
+### Removed — graphify as an engine (decision)
+
+- Graphify lost as a curation feed (measured). It will not become the viewer's graph engine either: lexicon's cold-layer graph plus tree-sitter/LSP code-intel stay the engine. Territory dumps belong to graphify's own `graph.html` if wanted. Viewer graphify-lens code is still in tree pending a dedicated removal pass.
+
 ## [1.2.0] - 2026-09-04
 
 ### Added — first-class `laxicon` sibling skill

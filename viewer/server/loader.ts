@@ -50,9 +50,11 @@ export async function loadLexicon(projectRoot: string, artifactRoot = projectRoo
   let files: string[];
   let mtimes: number[];
   let specFiles: string[];
+  let specsDir: string;
   try {
     files = await walkXml(lexiconDir);
-    specFiles = await walkMd(join(lexiconDir, "specs"));
+    specsDir = await resolveSpecsDir(lexiconDir);
+    specFiles = await walkMd(specsDir);
     mtimes = await Promise.all(
       [...files, ...specFiles].map(f => stat(f).then(s => s.mtimeMs)),
     );
@@ -150,7 +152,7 @@ export async function loadLexicon(projectRoot: string, artifactRoot = projectRoo
       issues.push({ file, message: `spec read failed: ${error.message}`, severity: "warning" });
       continue;
     }
-    const doc = parseSpecDoc(file, text, join(lexiconDir, "specs"));
+    const doc = parseSpecDoc(file, text, specsDir);
     if (doc) specs.push(doc);
   }
 
@@ -301,13 +303,32 @@ function parseSpecDoc(file: string, text: string, specsDir: string): SpecDoc | n
   };
 }
 
+async function resolveSpecsDir(lexiconDir: string): Promise<string> {
+  const docsSpecs = join(lexiconDir, "docs", "specs");
+  try {
+    const st = await stat(docsSpecs);
+    if (st.isDirectory()) return docsSpecs;
+  } catch {
+    // fall through to the pre-fold location
+  }
+  return join(lexiconDir, "specs");
+}
+
 async function walkXml(dir: string): Promise<string[]> {
   const entries = await readdir(dir, { withFileTypes: true });
   const nested = await Promise.all(
     entries.map(async e => {
       const full = join(dir, e.name);
       if (e.isDirectory()) {
-        if (e.name === "_archive" || /^_pre-.*-archive/.test(e.name)) return [];
+        if (
+          e.name === "docs" ||
+          e.name === "plans" ||
+          e.name === "specs" ||
+          e.name === "_archive" ||
+          /^_pre-.*-archive/.test(e.name)
+        ) {
+          return [];
+        }
         return walkXml(full);
       }
       if (e.isFile() && /\.xml$/i.test(e.name)) return [full];

@@ -77,7 +77,9 @@ export default defineConfig({
   server: {
     port: 5373,
     proxy: {
-      "/api": "http://localhost:8787",
+      // Dedicated env so a session PORT (Cursor, Grok, etc.) cannot steal the bind.
+      // 5374 avoids Cursor MCP OAuth on 8787.
+      "/api": `http://localhost:${process.env.LEXICON_VIEWER_API_PORT ?? 5374}`,
     },
   },
   build: {

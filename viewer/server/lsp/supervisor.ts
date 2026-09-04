@@ -102,7 +102,7 @@ export function getSupervisor(projectRoot: string): Supervisor {
     s = new Supervisor(key);
     supervisors.set(key, s);
     // Only `exit`: SIGINT/SIGTERM listeners swallow Node/Bun's default
-    // terminate-the-process behavior, which hung the mise viewer task on :8787.
+    // terminate-the-process behavior, which hung the mise viewer task on :5374.
     process.once("exit", () => s!.shutdown());
   }
   return s;

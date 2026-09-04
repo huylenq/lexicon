@@ -1,6 +1,6 @@
 // Model Health — the deterministic pass that turns the cold layer from
 // "prose trusted" into "mechanically checked" (spec:
-// lexicon/specs/model-health-design.md).
+// lexicon/docs/specs/model-health-design.md).
 //
 // One advisory pass, four checks, reusing the existing code-intel backend
 // (anchorsFromGraph, tree-sitter declaration extraction, the call-flow

@@ -4,9 +4,9 @@ Applies whenever a project's primary/default worktree has `lexicon/system.xml`. 
 
 ## 1. Use the shared artifact worktree
 
-Lexicon and Laxicon are project-level shared memory, not per-branch implementation state. Resolve the current code worktree and the repository's primary/default worktree separately. The first `worktree` path reported by `git worktree list --porcelain` is the artifact root; do not infer it from a branch name such as `main` or `develop`.
+Lexicon is project-level shared memory, not per-branch implementation state. Resolve the current code worktree and the repository's primary/default worktree separately. The first `worktree` path reported by `git worktree list --porcelain` is the artifact root; do not infer it from a branch name such as `main` or `develop`.
 
-Read and write `lexicon/` and sibling `laxicon/` only under that artifact root unless the human explicitly names another one. Never use a copy under an agent's linked worktree, and never treat its absence there as evidence that the project needs `bootstrap`. These directories are often intentionally untracked or ignored in the primary worktree.
+Read and write `lexicon/` only under that artifact root unless the human explicitly names another one. Never use a copy under an agent's linked worktree, and never treat its absence there as evidence that the project needs `bootstrap`. The directory is often intentionally untracked or ignored in the primary worktree. Markdown prose lives at `lexicon/docs/`; a leftover `laxicon/` is the old name for that folder.
 
 Code inspection, implementation, tests, git history, and feature-branch diffs remain rooted in the current agent worktree. In particular, `crystallize` reads the implementation diff from the current worktree while reading and writing the cold layer and `.last-crystallized` under the shared artifact root.
 

@@ -29,9 +29,9 @@ If `lexicon/contexts/` exists, also read the file(s) matching the bounded contex
 
 If `lexicon/surfaces/` exists and the work touches UI, load the relevant surface file(s).
 
-### 2b. Consult the laxicon (if present)
+### 2b. Consult `lexicon/docs/` (if present)
 
-If the project has a sibling `laxicon/` directory, skim the relevant human-facing pages under `laxicon/wiki/` (commonly Obsidian-linked) plus any in-scope ideas/specs for the narrative the typed cold layer deliberately doesn't carry — design intent, rejected alternatives, the "why" behind a decision, half-formed ideas not yet distilled. Treat it as **read-only background**: it sharpens your scope declaration; it is never edited here. Don't read the whole wiki eagerly — match page titles and `[[wikilinks]]` to the terms, contexts, and surfaces already in scope. If a page clearly contradicts the cold layer, that's a crystallize signal worth surfacing, not something to silently reconcile.
+If the project has `lexicon/docs/` (or a leftover `laxicon/` directory), skim the relevant wiki pages plus any in-scope ideas/specs for the narrative the typed cold layer deliberately doesn't carry — design intent, rejected alternatives, the "why" behind a decision, half-formed ideas not yet distilled. Treat it as **read-only background** during `ground`: it sharpens your scope declaration; it is never edited here. Don't read the whole wiki eagerly — match page titles and `[[wikilinks]]` to the terms, contexts, and surfaces already in scope. If a page clearly contradicts the cold layer, that's a crystallize signal worth surfacing, not something to silently reconcile.
 
 ### 3. Declare scope in conversation
 

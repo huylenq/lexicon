@@ -45,7 +45,7 @@ Bucket every file you find:
 |---|---|---|
 | **Cold-layer candidate** | Glossary fragments, "principles", architectural invariants, "why X over Y" reasoning, conceptual model descriptions | Distillation source for `system.xml` and `contexts/<slug>.xml` |
 | **ADR-like** | "We chose X because Y" prose, decision records, RFCs with a clear decision | Absorb into `rationale:` fields on affected atoms (Phase 6); archive the source under `_pre-migrate-archive/decisions/` for reference |
-| **Hot/feature docs** | Active feature specs, in-flight plans, "next quarter" docs | Move to `lexicon/plans/<feature>/` if active, `lexicon/plans/_archive/` if done |
+| **Hot/feature docs** | Active feature specs, in-flight plans, "next quarter" docs | Move to `lexicon/docs/plans/<feature>/` if active, `lexicon/docs/plans/_archive/` if done |
 | **Reference / runbook** | API docs, deployment guides, onboarding, "how to run X" | **Leave alone.** Not lexicon's domain. Don't touch. |
 | **Stale** | "TODO: clean up" from years ago, abandoned drafts | Surface for the user to decide. Don't auto-delete. |
 
@@ -121,10 +121,10 @@ Create:
 lexicon/
   contexts/
   surfaces/                    ← only if UI was detected
-  plans/_archive/
+  docs/plans/_archive/
 ```
 
-If `lexicon/plans/` exists with non-lexicon content, surface to the user before merging — don't silently restructure their existing plans folder.
+If `lexicon/docs/plans/` exists with non-lexicon content, surface to the user before merging — don't silently restructure their existing plans folder.
 
 ## Phase 6 — Absorb ADR-shaped content into rationale fields
 
@@ -145,8 +145,8 @@ Archived ADRs in `_pre-migrate-archive/decisions/` are append-only references �
 
 For files in the "hot/feature docs" and "stale" buckets, **do not auto-move**. Instead, recommend in the triage report:
 
-- For active feature docs: *"move `docs/feature-X-spec.md` to `lexicon/plans/<feature-X>/spec.md`?"*
-- For done feature docs: *"archive `docs/old-redesign-plan.md` to `lexicon/plans/_archive/old-redesign/`?"*
+- For active feature docs: *"move `docs/feature-X-spec.md` to `lexicon/docs/plans/<feature-X>/spec.md`?"*
+- For done feature docs: *"archive `docs/old-redesign-plan.md` to `lexicon/docs/plans/_archive/old-redesign/`?"*
 - For stale: *"this looks abandoned (last touched 2 years ago, references removed APIs) — archive or delete?"*
 
 Auto-moving feature docs is a high-blast-radius action — they may have URLs, links, or be cited elsewhere. Let the user choose.
@@ -236,7 +236,7 @@ Distillation status: <complete | paused mid-<category>: <N> of <T> items resolve
 - `lexicon/contexts/` with <K> context files: <list>
 - `lexicon/_pre-migrate-archive/decisions/` with <A> ADRs archived from <sources>; <L> lifted into rationale fields
 - `lexicon/surfaces/` with <S> surface files (or "no UI surfaces; backend-only")
-- `lexicon/plans/_archive/` (empty, ready to populate)
+- `lexicon/docs/plans/_archive/` (empty, ready to populate)
 
 ## Doc audit summary
 - <N> existing docs scanned across <locations>

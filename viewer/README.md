@@ -1,52 +1,36 @@
 # lexicon-viewer
 
-Local dev tool for browsing a lexicon-conform project (cold-layer YAML + codebase) in the browser. Editorial-meets-blueprint UI with Light Table-style Monaco code peeks.
+Local reading room for a lexicon-conform project: cold-layer XML, markdown under `lexicon/docs/`, and the codebase in one window. Editorial UI, Monaco peeks for code anchors. Read-only — corrections go through `crystallize` in the terminal.
 
 ```
 bun install
-bun dev          # http://localhost:5373
+bun run --hot server/index.ts   # API + built client on :5374
+bun run dev:client              # Vite HMR on :5373, proxies /api → :5374
 ```
 
-The dev script runs Bun (API on :8787) and Vite (client on :5373 proxying /api → :8787) together.
+Or from the plugin repo root: `mise run viewer`. Open **http://localhost:5373** while developing (live source). `:5374` is the API, and also serves `client/dist` if you've built.
+
+The API used to sit on `:8787`. That port is Cursor's MCP OAuth callback, so the default is now **5374**. Override with `LEXICON_VIEWER_API_PORT` if you need to — a generic `PORT` is ignored so Cursor/Grok sessions cannot steal the bind.
 
 ## Views
 
-Each project opens with two peer views, switchable from the top strip or the keyboard.
+Each project has two peer views, switchable from the top strip or the keyboard.
 
 ### Reading room
 
-The default. Sidebar catalog of contexts / terms / invariants / ADRs / surfaces; center column reads one entity in depth with marginalia; right column is the Monaco peek drawer for code anchors.
+The default. Sidebar catalog by bounded context; centre column reads one entity; right rail is the Monaco peek drawer for code anchors. Markdown specs under `lexicon/docs/specs/` show up as `spec` entities and resolve `[[fqid]]` links into the cold layer.
 
 ### Graph view
 
-A typeset diagram of the model — three lenses, each answering a different question.
+A typeset diagram of the same model. Lenses:
 
-- **Ownership** *(default)* — bounded contexts as outlined containers with their terms / invariants / seams / boundary rules nested inside. A `Cross-cutting` cluster holds system-level entries; a `Decisions` cluster floats alongside with `affects` edges fanning out to the entities each ADR touches.
-- **Decisions** — ADRs laid out as a timeline (oldest at top), with `supersedes` chains. Affected entities sit below their ADR as satellites.
-- **Surfaces** — surfaces as containers, regions nested inside.
+- **Ownership** *(default)* — bounded contexts and shared kernels as containers, atoms nested inside.
+- **Surfaces** — surfaces as containers, regions nested.
+- **Code** — symbols the cold layer pins via code-anchors, edges from tree-sitter / LSP.
+- **Territory** — leftover graphify neighborhood browser. Optional, artifact-only, not the engine. Candidate for removal.
 
-Edges are styled by relation: solid oxide-red for `disambiguates-from`, dashed vellum for seams, dotted saffron for ADR `affects`, vellum arrow for `supersedes`.
+## Keyboard
 
-#### Interactions
-
-- **Click** a node → populate the right detail rail. The rail mirrors the reading-room sections (definition, statement, status, affects, supersedes, code anchors) in a compact form and includes a link back to the full entity page.
-- **Hover** a node → highlight neighbors; non-neighbors dim to ~30%.
-- **Double-click** → exit the graph and open the entity in the reading room.
-- **Drag** the canvas to pan; mouse-wheel to zoom about the cursor. The graph fits the viewport on first paint.
-
-#### Keyboard shortcuts
-
-- `g` — switch to graph view (from anywhere).
-- `Escape` — exit graph back to the reading room.
-- `/` — focus the find box (jumps to the first matching node).
-- `1`..`7` — toggle entity-kind filters (terms, invariants, seams, boundary rules, ADRs, surfaces, regions).
-
-#### Filters
-
-The top strip carries the lens selector plus three filter groups:
-
-- **Kinds** — toggle entity kinds; layout re-runs.
-- **Contexts** — restrict the graph to selected bounded contexts (and/or `Cross-cutting`).
-- **Edges** — toggle which edge classes are drawn (`disambiguates`, `affects`, `supersedes`).
-
-Filtering re-runs the layout deterministically — there's no animation in or out; the diagram simply reshapes.
+- `g` — graph view
+- `Escape` — back to the reading room
+- `/` — find

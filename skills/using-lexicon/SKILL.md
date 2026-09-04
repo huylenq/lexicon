@@ -24,13 +24,13 @@ A lexicon project keeps a small **cold layer** above the code: `lexicon/system.x
 
 The whole point is **ubiquitous language**: the same nouns and verbs appear in the cold layer, in conversation, and in code, so human and agent stay aligned by repetition rather than by remembering. When you use a project's own words, drift can't hide.
 
-Some projects also keep a **laxicon** — a sibling `laxicon/` directory that is durable, prose-first, human-governed, and schema-lax. Agents may author it under explicit task authority; humans retain semantic authority. Read relevant Laxicon artifacts during `ground` and mine stable vocabulary or rationale during `crystallize`. For first-class `ideas/`, `specs/`, `plans/`, promotion, or lifecycle work, load the sibling `laxicon` skill rather than improvising rules here.
+Markdown prose lives under `lexicon/docs/` (wiki, specs, plans, ideas). Read the relevant pages during `ground` and mine stable vocabulary or rationale during `crystallize`. There is no sibling `laxicon/` product and no promotion ceremony; a leftover `laxicon/` directory is the old name for `lexicon/docs/`.
 
 This is a pocket summary. The authoritative frame lives in the shared references the `lexicon` skill owns (`skills/lexicon/reference/design.md` and `rules.md`, canonically under `~/src/lexicon/`). When a move is actually taken, that move's subcommand reads them. **If this primer ever contradicts those references, they win.**
 
 ## Resolve the shared artifact worktree first
 
-Lexicon and Laxicon live only in the repository's primary/default worktree, not in each agent's linked feature worktree. Before checking whether either directory exists, use the first `worktree` path from `git worktree list --porcelain` as the shared artifact root; do not guess from branch names. Read and write knowledge artifacts only there. Keep code, tests, history, and implementation diffs rooted in the current agent worktree. A missing `lexicon/` in the current worktree is not evidence that the project needs `bootstrap`.
+Lexicon lives only in the repository's primary/default worktree, not in each agent's linked feature worktree. Before checking whether `lexicon/` exists, use the first `worktree` path from `git worktree list --porcelain` as the shared artifact root; do not guess from branch names. Read and write knowledge artifacts only there. Keep code, tests, history, and implementation diffs rooted in the current agent worktree. A missing `lexicon/` in the current worktree is not evidence that the project needs `bootstrap`.
 
 ## First, read the room
 
@@ -48,7 +48,7 @@ Each is a subcommand of the `lexicon` skill. Reframed here as offers you make at
 
 - **`ground`** — *about to do non-trivial work.* Read `system.xml` and the relevant context files, declare scope (task, bounded context, vocabulary in play, invariants depended on, files likely to change), surface vocabulary gaps. No writes. This is the near-default move; skipping it is the most common source of silent drift.
 - **`crystallize`** — *a chunk just shipped, or the git log has outrun `.last-crystallized`.* Absorb accumulated work into the cold layer: read the diff since the last marker, run the structural checks, propose typed mutations, apply on the user's yes. **Always user-triggered** — you notice and offer; you never auto-run it.
-- **`spec`** — *designing a subsystem end-to-end.* Author or file a markdown design/architecture doc under `lexicon/specs/`: per-feature narrative, flows, decisions, history. Defers vocabulary to the cold layer via `[[fqid]]` links rather than carrying its own glossary.
+- **`spec`** — *designing a subsystem end-to-end.* Author or update a markdown design/architecture doc under `lexicon/docs/specs/`. Defers vocabulary to the cold layer via `[[fqid]]` links rather than carrying its own glossary. Update in place; no promotion ceremony.
 - **`validate`** — *the cold layer feels out of sync with the code, or the schema is old.* Two-pass drift check: schema-structural (offers the migration delta chain) and semantic (read-only triage). Project-scoped, backward-looking.
 - **`bootstrap`** — *no cold layer yet.* One-time setup: draft the cold layer from existing docs and code, archive ADR-shaped docs into rationale, interview the user one decision at a time.
 

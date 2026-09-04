@@ -108,7 +108,7 @@ test("model-health: a clean cold layer (multistack) yields healthy anchors and n
 
 // ---------------------------------------------------------------------------
 // Focused synthetic fixtures (one verdict per fixture) — Decision 3 of
-// lexicon/specs/playground-cognition-fixture.md. Each is a tiny self-contained
+// lexicon/docs/specs/playground-cognition-fixture.md. Each is a tiny self-contained
 // project (a cold layer + a little TS source). Tree-sitter only (useLsp:false)
 // keeps them fast and deterministic — no provider spawn.
 // ---------------------------------------------------------------------------

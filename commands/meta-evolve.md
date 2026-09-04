@@ -5,7 +5,7 @@ argument-hint: "[optional prompt pointing at the moment]"
 
 Read these two files, then follow them in order:
 
-1. `${CLAUDE_PLUGIN_ROOT}/skills/lexicon/SKILL.md` — the dispatcher: core idea, the laxicon sibling, and the standing rules every move obeys.
+1. `${CLAUDE_PLUGIN_ROOT}/skills/lexicon/SKILL.md` — the dispatcher: core idea, prose under lexicon/docs/, and the standing rules every move obeys.
 2. `${CLAUDE_PLUGIN_ROOT}/skills/lexicon/subcommands/meta-evolve.md` — the meta-evolve procedure.
 
 If `${CLAUDE_PLUGIN_ROOT}` doesn't resolve, the bundle lives at `~/src/lexicon/skills/lexicon/`. Don't `find /` for these files, and don't call the Skill tool on `lexicon:meta-evolve` — that name loops back to this command.

@@ -1,140 +1,167 @@
 # lexicon
 
-Plain text / documentation is the medium of alignment (not a spec-driven development workflow, this is not it). The main pains lexicon aimed to solve are:
+<p align="center">
+  <img src="assets/map-and-territory.jpg" alt="A small ink map resting on a dense printed city plan" width="100%">
+</p>
+<p align="center"><em>The cold layer is the small map. Code is the city.</em></p>
 
-- Cognitive / mental models gaps and drifts between human and agents.
-- An ideal surface for attention-level that needs human.
+Working with a coding agent, the same three things keep going wrong:
 
-Rationale:
+1. **Vocabulary drifts.** "Case" becomes "Record" becomes "Entry" across three turns, and nobody notices until something breaks.
+2. **Boundaries leak.** The agent fixes a bug in module A by reaching into module B, violating a rule that was never written down.
+3. **Decisions vanish.** By turn 40, neither of you can find the choice made on turn 12.
 
-> Code is the executable spec. Above the code, a small **cold-layer doc** captures what code can't express well: vocabulary, invariants, bounded contexts, and the "why"s. Lexicon makes sure the human and the agent stay aligned on that doc — through grounding before work, and crystallization (which reads the git diff since the last one) when a body of work lands.
+Lexicon's bet: **a small living document captures the invariant parts of the system** — the words, the rules, the why — and a workflow makes both human and agent read it before work, then update it deliberately when something is learned.
 
-Built on Eric Evans' [Domain-Driven Design](https://en.wikipedia.org/wiki/Domain-driven_design): ubiquitous language inside bounded contexts, entities and value objects and services and events as term categories, aggregates with roots, shared kernels for inter-context coordination, the eight context-map relationship kinds as typed seams, subdomains classified core / supporting / generic. Built for the messy reality of working with coding agents on real codebases. When the project has a UI surface, the same discipline extends to design vocabulary — tokens, component names, layout primitives, named layout zones (surfaces & regions), and accessibility contracts live in the same cold doc, with no separate workflow.
+Code is the executable spec. It evolves freely. Above it, a **cold layer** of typed XML (`lexicon/system.xml`) holds what code expresses badly: vocabulary, invariants, bounded contexts. Markdown under `lexicon/docs/` holds the rest of the prose. The cold layer evolves at the speed of *learning*, not the speed of typing.
 
-## What it does
+This is not spec-driven development. Alignment is a small document both of you keep true.
 
-This repository co-hosts **three Claude Code skills**: an awareness primer (`using-lexicon`), the typed cold-layer action skill (`lexicon`) with **six subcommands**, and the prose-layer contract (`laxicon`). Lexicon reference files (schema, structural checks, rules) remain centralized in `skills/lexicon/reference/`; the Laxicon contract is canonical in `skills/laxicon/SKILL.md`.
+Built on Eric Evans' [Domain-Driven Design](https://en.wikipedia.org/wiki/Domain-driven_design): ubiquitous language inside bounded contexts, term categories (entity / value / service / event / concept), aggregates, shared kernels, typed context-map seams, subdomains. If the project has a UI, design vocabulary — tokens, components, named surfaces and regions, a11y contracts — lives in the same cold doc.
 
-`laxicon` governs the shared operational seam of a sibling project-root `laxicon/`: pre-authoritative `ideas/`, a human-facing `wiki/` for understanding and learning the project, durable architectural `specs/`, disposable execution `plans/`, minimal lifecycle frontmatter, and provenance. It is human-governed rather than human-only. Wiki pages encourage `[[wikilinks]]` but keep their taxonomy and metadata project-defined; other prose directories remain uncontracted.
+## Three temperatures
 
-`using-lexicon` is the **awareness layer**, modeled on superpowers' `using-superpowers`. It does no work itself — invoke it once (or let it auto-fire when a lexicon project opens) and it parks a standing disposition for the rest of the session: it knows what the cold layer is for and which move fits which moment, and it **offers the right move proactively but advisorily — never as a gate**. It exists so you don't have to be the dispatcher, remembering which of the six verbs to fire when. The verbs themselves live in the action skill:
+```mermaid
+flowchart TB
+  code["Code — the executable spec. Evolves freely."]
+  docs["lexicon/docs — wiki, specs, plans, ideas. Markdown. Agents write; git is the log."]
+  cold["lexicon/*.xml — vocabulary, invariants, boundaries. Small. Slow. You say yes."]
 
-| Subcommand | Fires when | Does |
+  docs -->|"crystallize mines stable words"| cold
+  code -->|"git diff since last crystallization"| cold
+  cold -->|"ground before work"| code
+```
+
+| Layer | What it is | Who writes | When it changes |
+|---|---|---|---|
+| **Cold** `system.xml`, `contexts/`, `surfaces/` | Typed graph of words and rules | Agent proposes, you approve | When you run `crystallize` |
+| **Docs** `lexicon/docs/` | Wiki, specs, plans, ideas | Agent or you, under the current task | Whenever the work needs it |
+| **Code** | What actually runs | Agent or you | Freely |
+
+There is one human gate: **cold-layer XML**. Markdown is not a second government. Distillation is one-way: prose and git history into XML, only through `crystallize`.
+
+## Same words, three places
+
+The load-bearing idea is **ubiquitous language**. The same nouns have to appear in conversation, in the cold layer, and in code. When they don't, drift has somewhere to hide.
+
+```mermaid
+flowchart LR
+  talk["Conversation"]
+  xml["Cold layer"]
+  src["Code"]
+  talk --- xml
+  xml --- src
+  src --- talk
+```
+
+If the agent starts saying "Tile" for something the glossary calls `Card`, that is a crystallize signal — not a clever rename.
+
+## The loop
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor You
+  participant Agent
+  participant Cold as Cold layer
+  participant Git as Git history
+
+  You->>Agent: start a task
+  Agent->>Cold: ground — read, declare scope in chat
+  Agent->>Git: write code
+  Note over You,Git: work proceeds as usual
+  You->>Agent: crystallize
+  Agent->>Git: read the diff since .last-crystallized
+  Agent->>You: propose typed XML mutations
+  You->>Agent: yes / revise / no
+  Agent->>Cold: apply on yes, bump the marker
+```
+
+- **`ground`** happens at the start of non-trivial work. Read the cold layer, say out loud which context and terms are in play. No file writes.
+- **Code** happens as it always does.
+- **`crystallize`** happens when *you* say the work landed. The agent is a bad judge of "done." It reads the git diff since `lexicon/.last-crystallized`, proposes mutations, and waits.
+
+Git history is the session log. There is no separate retro step.
+
+Occasionally, **`validate`** looks backward: is the schema current, and does the cold layer still match the code? **`spec`** is just "write a markdown design doc under `lexicon/docs/specs/`," linking cold-layer atoms with `[[fqid]]` instead of inventing a second glossary.
+
+```mermaid
+flowchart LR
+  B["bootstrap — once"] --> G["ground"]
+  G --> W["code"]
+  W --> C["crystallize — you trigger"]
+  C --> G
+  C -.-> V["validate — now and then"]
+```
+
+## In a project
+
+```
+lexicon/
+  system.xml               # cold layer root
+  contexts/<slug>.xml      # one file per bounded context
+  surfaces/<slug>.xml      # UI surfaces and regions, if any
+  docs/
+    wiki/                  # explanation a human can read
+    specs/                 # design / architecture
+    plans/                 # disposable execution notes
+    ideas/                 # pre-commitment thinking
+  .last-crystallized       # crystallize reads the git diff newer than this
+  bootstrap.md             # one-shot setup report
+  validate.md              # drift report
+```
+
+The workflow is opt-in. Small scripts and throwaway prototypes usually don't want it. Decline the bootstrap prompt, or drop a `.lexicon-skip` file at the repo root.
+
+## Moves
+
+A Claude Code plugin with three skills: `using-lexicon` (awareness — parks the disposition, offers the right move, never gates), `lexicon` (the verbs), and `laxicon` (thin contract: prose lives at `lexicon/docs/`).
+
+| Command | When | What |
 |---|---|---|
-| `/lexicon:bootstrap` | Once, at setup time | Scans existing docs and code, drafts a first-cut `system.xml`, archives ADR-shaped content (with optional rationale-lift onto affected atoms), sets up `lexicon/` structure, then interviews you to resolve gaps / drift flags / inconsistencies — one decision per conversational turn |
-| `/lexicon:ground` | Before substantive coding work | Reads `lexicon/system.xml` and the relevant context files, declares scope (terms, invariants, bounded context) **in conversation**, surfaces vocabulary gaps. No file writes. |
-| `/lexicon:crystallize` | **You trigger it** ("crystallize", "update lexicon", "feature X is done") | Reads the git diff since the last crystallization, runs the structural checks over it, proposes a typed mutation set inline in chat, applies it directly on your yes. This is where session drift is caught and absorbed — git history is the session log, so there's no separate per-session retro step |
-| `/lexicon:spec` | You write or finalize a design/architecture doc | Authors and files **markdown specs** under `lexicon/specs/` — per-feature design/architecture docs that sit above code and below the cold layer. They defer vocabulary to the cold layer (link atoms via `[[fqid]]`) instead of carrying a glossary; the viewer renders them with cross-links. Two-tier lifecycle: an active `<slug>-design.md` decision log (+ a transient `<slug>.progress.md` cold-session handoff) → an established `established/<slug>.md` as-built doc. On your confirmation that work is done, promotion pairs with `crystallize` |
-| `/lexicon:validate` | Periodically (quarterly, on demand) or when schema bumps | Two-pass check: structural pass detects schema-version drift and offers to apply the migration delta chain; semantic pass re-validates the cold layer against current code (stale glossary, dead invariants, untyped seams, hygiene rot). Writes a triage report to `lexicon/validate.md` |
-| `/lexicon:meta-evolve` | **You trigger it** (`/lexicon:meta-evolve`) after correcting something a lexicon subcommand produced | The self-evolve channel for the bundle itself: takes the session conversation as the primary signal, amends the responsible `~/src/lexicon/skills/lexicon/<path>`, leaves the bundle repo uncommitted so accumulated edits stay visible |
+| `/lexicon:bootstrap` | Once, at setup | Drafts `system.xml` from existing docs and code, then interviews you one decision per turn |
+| `/lexicon:ground` | Before substantive work | Reads the cold layer, declares scope in conversation. No writes |
+| `/lexicon:crystallize` | **You** say so | Reads the git diff since the last marker, proposes XML mutations, applies on yes |
+| `/lexicon:spec` | Writing a design doc | Markdown under `lexicon/docs/specs/`. Vocabulary stays in the cold layer via `[[fqid]]` |
+| `/lexicon:validate` | Periodically, or on a schema bump | Structural migration + semantic triage against current code |
+| `/lexicon:meta-evolve` | After you correct the skill itself | Amends this bundle. Slash-only; writes to `~/src/lexicon/` |
 
-Cold-layer edits (`system.xml`, per-context files) go through `crystallize` — propose, agree, apply. There's no separate proposal file or merge queue: the proposal happens in chat and the edit happens immediately.
+Cold-layer edits go through `crystallize`: propose in chat, agree, apply. No proposal files, no merge queue.
 
-## Why
-
-Working with a coding agent over a long session, the same problems keep showing up:
-
-- The agent silently renames concepts. "Case" becomes "Record" becomes "Entry" across three turns, and you don't notice until something breaks.
-- Architectural rules drift. The agent fixes a bug in module A by reaching into module B, violating a boundary that was never written down.
-- Long chats become unscannable. By turn 40, neither of you can find the decision that was made on turn 12.
-
-Lexicon's bet: a small, living document captures the *invariant* parts of the system (vocabulary, bounded contexts, "why"s) — and a workflow makes sure both human and agent ground in that document before work, and update it deliberately when learning happens.
+A local **viewer** renders the cold layer as a reading room and a graph, with specs linked in. It does not write.
 
 ## Install
 
 ```bash
-# As a Claude Code plugin (from this GitHub repo)
+# As a Claude Code plugin
 /plugin install github:huylenq/lexicon
 ```
 
-Or for local development:
+Local development:
 
 ```bash
 git clone https://github.com/huylenq/lexicon
 claude --plugin-dir ./lexicon
 ```
 
-The plugin contributes three skills (`using-lexicon`, `lexicon`, `laxicon`) and six Lexicon slash commands (`bootstrap`, `ground`, `crystallize`, `spec`, `validate`, `meta-evolve`) — all namespaced as `/lexicon:<command>`. The action skill (`lexicon`) is `user-invocable: false`; the model auto-fires it based on its description when context warrants, or you invoke a subcommand explicitly via slash. The awareness skill (`using-lexicon`) is `user-invocable: true`. The `laxicon` skill auto-loads from natural-language tasks involving a project Laxicon, idea promotion, architectural specs, execution plans, or their lifecycle.
+The six verbs are namespaced `/lexicon:<command>`. `using-lexicon` auto-fires in a project that already has `lexicon/system.xml`.
 
-## First use in a project
+## First use
 
-The first time you do substantive work in a project, the `lexicon` skill will detect there's no `lexicon/system.xml` and prompt you to run `/lexicon:bootstrap` — the dedicated, one-shot setup pass. Run it (either by saying "set up lexicon" or by accepting the prompt), and you'll get:
-
-```
-lexicon/
-  system.xml               # drafted from existing docs + code, honest about gaps
-  contexts/                # one file per bounded context (when ≥3 atoms)
-  surfaces/                # UI surfaces + regions (only if the project has a UI)
-  plans/_archive/          # archived plan folders
-  _pre-migrate-archive/    # only if bootstrap archived ADR-shaped existing docs
-```
-
-After writing the draft, `bootstrap` immediately interviews you **one decision per conversational turn** to resolve TODO markers, drift flags, and inconsistencies — no separate "focused distillation session" to schedule later, no bulk-confirm shortcodes. You can say "pause" at any item boundary to stop and resume another time. The final **triage report** at `lexicon/bootstrap.md` reflects what was resolved vs. deferred.
-
-If you don't want to use lexicon on a particular project, decline the prompt. The skill won't ask again that session. Drop a `.lexicon-skip` marker file at the repo root if you want the skip to persist across sessions.
-
-## Project shape
-
-```
-lexicon/
-  system.xml               # cold layer root: shared kernels, contexts index, overlays, deliberate omissions
-  contexts/                # one file per bounded context (terms, invariants, seams, boundary rules, aggregates, modules)
-    <slug>.xml
-  surfaces/                # optional: UI surfaces with regions
-    <slug>.xml
-  specs/                   # optional: markdown design/architecture docs (created by spec)
-    <slug>-design.md       # active design (decision log)
-    <slug>.progress.md     # transient cold-session handoff
-    established/<slug>.md  # as-built architecture doc
-  bootstrap.md             # one-shot setup report (created by bootstrap)
-  validate.md              # drift report (created by validate; overwritten each run)
-  .last-crystallized       # marker: crystallize reads the git diff newer than this
-  plans/
-    <feature>/             # in-flight materialized plans
-    _archive/              # archived plan folders
-  _pre-migrate-archive/    # frozen pre-migration originals (e.g. archived ADRs)
-```
-
-## Plugin shape
-
-```
-~/src/lexicon/                      # plugin repo
-  .claude-plugin/plugin.json
-  README.md
-  CLAUDE.md                          # meta-context for iterating lexicon itself
-  CHANGELOG.md
-  commands/                          # thin slash wrappers for TUI autocomplete
-    bootstrap.md  ground.md  crystallize.md  spec.md  validate.md  meta-evolve.md
-  skills/
-    laxicon/                         # prose-first sibling contract
-      SKILL.md                        # canonical ideas/specs/plans lifecycle contract
-    using-lexicon/                   # awareness primer: parks the disposition, routes to lexicon
-      SKILL.md
-    lexicon/                         # action skill: runs the moves
-      SKILL.md                        # entry, dispatch, standing rules
-      reference/                      # single source of truth
-        schema.md  checks.md  rules.md  design.md
-      subcommands/                    # lifecycle bodies, loaded on demand
-        bootstrap.md  ground.md  crystallize.md  spec.md  validate.md  meta-evolve.md
-      migrations/                     # per-version deltas, used by validate
-        v0.x-to-v0.1.md  v0.1-to-v0.2.md  v0.2-to-v0.3.md  v0.3-to-v1.0.md
-      templates/                      # XML examples for bootstrap
-      validators/                     # standalone tree-sitter validators (`<codeRoot> --artifact-root <artifactRoot>`)
-  viewer/                            # local web viewer for browsing cold layers
-```
+On the first substantive task in a project without `lexicon/system.xml`, the skill will offer `bootstrap`. Accept it (or say "set up lexicon") and you get a first-cut cold layer plus a one-decision-per-turn interview to resolve gaps. Pause at any item boundary; the triage report at `lexicon/bootstrap.md` records what was resolved vs deferred.
 
 ## What this is not
 
-- **Not a planning tool.** Lexicon doesn't replace native plan mode. It complements it.
-- **Not a code-review tool.** It runs *before* code, not after.
-- **Not a documentation generator.** The doc lives in your repo and is maintained by you and the agent together.
-- **Not a substitute for clarity.** If you don't know what your invariants are, lexicon can help you discover them, but it can't invent them.
+- **Not a planning tool.** Native plan mode still exists. `lexicon/docs/plans/` is just where a plan file can live.
+- **Not a code-review tool.** It runs before code, not after.
+- **Not a documentation generator.** The doc lives in the repo and is kept by you and the agent together.
+- **Not a substitute for knowing the domain.** It can help you discover invariants. It cannot invent them.
 
 ## Status
 
-Early. Cold-layer schema v1.0 (XML) is the current target. The skill is a single `lexicon` skill with six subcommands (`bootstrap`, `ground`, `crystallize`, `spec`, `validate`, `meta-evolve`), centralizing shared reference docs (schema, checks, rules, design) in one place. The per-session `retro` step was removed in favor of `crystallize` reading the git diff directly — git history is the session log. The shape is plausible but unproven on real projects. Issues and PRs welcome.
+Early. Cold-layer schema is v1.0 XML. The per-session retro step was removed: `crystallize` reads the git diff directly. The shape is in use on real projects; it is still being simplified. Issues and PRs welcome.
 
-For the design rationale, rejected alternatives, and open questions, see [`CLAUDE.md`](./CLAUDE.md). For version history, see [`CHANGELOG.md`](./CHANGELOG.md).
+Design rationale and rejected alternatives: [`CLAUDE.md`](./CLAUDE.md). Version history: [`CHANGELOG.md`](./CHANGELOG.md).
 
 ## License
 

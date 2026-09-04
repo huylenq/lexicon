@@ -1,7 +1,7 @@
 {
   "name": "lexicon",
   "version": "1.2.0",
-  "description": "Co-hosted Lexicon and Laxicon workflows for coding agents. Lexicon keeps human and agent aligned on a small typed XML cold layer through grounding and crystallization. Laxicon is the human-governed, prose-first sibling contract for ideas, a human-facing wiki, durable architectural specs, disposable execution plans, provenance, and lifecycle. Ships three skills: `using-lexicon`, `lexicon`, and `laxicon`, plus the existing Lexicon slash commands and local viewer.",
+  "description": "Living domain-driven documentation for coding agents. A small typed XML cold layer (lexicon/system.xml) captures vocabulary and invariants; markdown prose lives under lexicon/docs/. Ground before work, crystallize on the user's call. Ships three skills: using-lexicon, lexicon, and laxicon, plus slash commands and a local viewer.",
   "author": {
     "name": "Huy Le",
     "url": "https://github.com/huylenq"

@@ -22,21 +22,21 @@ The whole system rests on **ubiquitous language** in the DDD sense: the same nou
 
 ### Shared artifact worktree
 
-Lexicon and Laxicon are project-level shared memory, not per-branch implementation state. Their canonical project instances live in the repository's **primary/default worktree**, even when an agent is coding in a linked feature worktree. They are often intentionally untracked or ignored there.
+Lexicon is project-level shared memory, not per-branch implementation state. The canonical project instance lives in the repository's **primary/default worktree**, even when an agent is coding in a linked feature worktree. It is often intentionally untracked or ignored there.
 
 - Resolve the current code worktree and the primary/default worktree separately. Use the first `worktree` path reported by `git worktree list --porcelain` as the primary/default worktree; do not infer it from a branch name such as `main` or `develop`.
-- Read and write `lexicon/` and sibling `laxicon/` only under that primary/default worktree unless the human explicitly names another artifact root. Never read from, create, copy, or update those directories in the agent's linked worktree.
+- Read and write `lexicon/` only under that primary/default worktree unless the human explicitly names another artifact root. Never read from, create, copy, or update it in the agent's linked worktree.
 - Absence from the current linked worktree does not mean the project lacks these artifacts. Check the primary/default worktree before offering `bootstrap` or creating any knowledge directory.
 - Keep code inspection, implementation, tests, git history, and feature-branch diffs rooted in the agent's current worktree. `crystallize` reads the implementation diff from the current worktree but reads and writes the cold layer and `.last-crystallized` in the primary/default worktree.
 - Every bundled standalone validator accepts separate roots: pass the current implementation checkout as `<codeRoot>` and the primary/default worktree as `--artifact-root <artifactRoot>`. The second flag may be omitted only when both roots are genuinely the same. Never copy knowledge artifacts into a linked worktree merely to satisfy tooling.
 
 The cold layer is **structured XML files**, not markdown prose. Each entity (system, bounded context, term, invariant, seam, boundary rule, aggregate, module, shared kernel, surface, region) is a typed XML element with a stable `id` attribute and prose-bearing child elements. Cross-references are uniform `<ref to="fqid"/>` elements — inline in prose (mixed content) or inside structural wrappers like `<members>`, `<participating-contexts>`. When the project has a UI surface, design vocabulary — tokens, components, named surfaces, regions — counts as ubiquitous language too and lives in the same files.
 
-### The laxicon sibling
+### Prose under `lexicon/docs/`
 
-A project may keep a sibling **laxicon** — the *lax* counterpart to the lexicon. Where the **lexicon** is precise, typed, terse, and maintained through deliberate crystallization, the **laxicon** is durable, prose-first, human-governed, and schema-lax. It lives in a `laxicon/` directory at the project root and may contain first-class ideas, architectural specs, execution plans, and project-defined prose surfaces.
+Markdown lives in `lexicon/docs/`, not in a sibling product. Wiki pages, specs, plans, and ideas are ordinary files the agent may write under the current task. There is no required status machine and no promotion ceremony. Git is the session log. `ground` may read relevant prose; `crystallize` may mine stable vocabulary or rationale from it. Distillation is one-way: prose → cold-layer XML, and only through `crystallize`.
 
-Human-governed does not mean human-written-only or agent-read-only. Agents may author and update Laxicon artifacts under explicit task authority; the human retains semantic authority and adoption/rejection rights. `ground` may read relevant Laxicon prose and `crystallize` may mine stable vocabulary or rationale from it. Authoring, promotion, and lifecycle behavior belong to the sibling `laxicon` skill; this Lexicon skill must not silently restructure Laxicon as a side effect of cold-layer work. Distillation can flow laxicon → lexicon without making either layer subordinate to the other.
+A leftover `laxicon/` directory is the old name for this folder. Do not create a new sibling.
 
 ## Project shape
 
@@ -49,22 +49,18 @@ lexicon/
     <context-slug>.xml
   surfaces/                         ← optional: UI surfaces with regions
     <surface-slug>.xml
-  specs/                            ← optional: markdown design/architecture docs (subcommand: spec)
-    <slug>-design.md                ← active design (decision log)
-    <slug>.progress.md              ← transient cold-session handoff
-    established/<slug>.md           ← as-built architecture doc
+  docs/                             ← all markdown prose
+    wiki/                           ← human-facing explanation (optional)
+    specs/                          ← design/architecture docs
+    plans/                          ← disposable execution notes
+    ideas/                          ← pre-commitment thinking (optional)
   validate.md                       ← drift report (created by validate)
   bootstrap.md                      ← one-shot setup report (created by bootstrap)
   .last-crystallized                ← ISO timestamp marker; crystallize reads the git diff newer than this
-  plans/
-    <feature>/                      ← in-flight materialized plans
-    _archive/                       ← archived plan folders
   _pre-migrate-archive/             ← created by validate's structural pass; preserves pre-v1.0 originals
 ```
 
-If the structure isn't there, the `bootstrap` subcommand is the one-shot setup. The workflow is opt-in per project.
-
-A project may also have a sibling **`laxicon/`** directory next to (not inside) `lexicon/`. Its first-class shared surfaces are `ideas/`, `specs/`, and `plans/`; other prose directories remain project-defined. Load the sibling `laxicon` skill before authoring or evolving those artifacts. See "The laxicon sibling" above.
+If the structure isn't there, the `bootstrap` subcommand is the one-shot setup. The workflow is opt-in per project. A project may keep `lexicon/docs/` without a cold layer.
 
 ## Dispatch
 
@@ -89,7 +85,7 @@ So dispatch can choose without reading the whole file:
 - **`bootstrap`** — One-time per project. Drafts the cold layer from existing docs and code, sets up the directory structure, archives ADR-shaped docs and lifts their content into `rationale:` fields, then interviews the user one decision at a time to resolve gaps. Writes `lexicon/bootstrap.md`.
 - **`ground`** — Read `system.xml` and the relevant context files, declare scope in conversation, surface vocabulary gaps. No file writes. The agent's context window holds the grounding.
 - **`crystallize`** — User-triggered. Reads the git diff newer than `.last-crystallized` plus recent-session conversation, runs the six structural checks over it, proposes typed mutations (create / update / rename / move / deprecate / add-anchor / add-rationale / set-category / set-seam-kind / set-status / delete) inline in conversation, applies on the user's yes, bumps the marker. This is where session drift gets caught and absorbed — there is no separate per-session retro step; git history is the session log.
-- **`spec`** — Author/evolve/file a markdown design or architecture doc under `lexicon/specs/`. Specs sit above code and below the cold layer: per-feature narratives with flows, decisions, and history. They defer vocabulary to the cold layer (link atoms via `[[fqid]]`) rather than carrying a glossary, and the viewer renders them. Two-tier lifecycle: an active `<slug>-design.md` decision log + a transient `<slug>.progress.md` cold-session handoff → an established `established/<slug>.md` as-built doc. On the user's confirmation that work is done, promotion pairs with `crystallize` (one moment, two outputs: vocabulary into the cold layer, narrative into the established spec).
+- **`spec`** — Author or update a markdown design/architecture doc under `lexicon/docs/specs/`. Specs sit above code and below the cold layer. They defer vocabulary to the cold layer (link atoms via `[[fqid]]`) rather than carrying a glossary; the viewer renders them. Update the same file in place; do not run a promotion ceremony.
 - **`validate`** — Two-pass drift detection: **schema-structural** (cold-layer files vs. current schema; offers to apply the migration delta chain from `migrations/`) and **semantic** (cold-layer claims vs. current code; read-only triage). Writes a unified `lexicon/validate.md` report.
 - **`meta-evolve`** — Slash-only (`/lexicon:meta-evolve [optional prompt]`). After a correction this session, take the conversation as primary signal and the project's `lexicon/` diff as corroborating evidence, then amend the responsible part of this bundle (`~/src/lexicon/skills/lexicon/` — `SKILL.md`, a `subcommands/<name>.md`, or a `reference/<name>.md`). Cross-repo write; does not commit.
 
@@ -116,14 +112,14 @@ XML templates and (eventually) deterministic scripts are at:
 
 The full set lives in `reference/rules.md`; these are the load-bearing ones that apply across every subcommand. If a subcommand contradicts what's here, that subcommand is wrong.
 
-1. **Use the shared artifact worktree.** Resolve the primary/default worktree before looking for project knowledge. Read and write `lexicon/` and `laxicon/` only there; use the current agent worktree for code and implementation diffs. Never treat a missing local copy in a linked worktree as an absent project artifact.
+1. **Use the shared artifact worktree.** Resolve the primary/default worktree before looking for project knowledge. Read and write `lexicon/` only there; use the current agent worktree for code and implementation diffs. Never treat a missing local copy in a linked worktree as an absent project artifact.
 2. **Read `lexicon/system.xml` first.** Before substantive work, end to end. It's small by design (~500 lines). Past that, surface for partitioning into `contexts/<slug>.xml`. If relevant context files exist, load only the ones that match the work — don't read every context file eagerly.
 3. **Ground before code.** For any task that isn't strictly mechanical (typo fix, dependency bump, log tweak), run `ground` before writing or modifying code. Skipping grounding is the most common source of silent drift.
 4. **Surface contradictions.** If the cold layer contradicts the code or the user's request, stop and surface it. Don't quietly work around it or hallucinate that the doc is right.
 5. **Crystallize on the user's call.** `crystallize` is user-triggered, never agent-triggered. It reads the current implementation worktree's git diff since the shared artifact root's last crystallization marker, runs the structural checks over it, and proposes mutations — there is no separate per-session retro. If you suspect drift has accumulated (the git history shows substantive work but the cold layer hasn't moved), surface it as a question and let the user decide.
 6. **Cold-layer edits go through `crystallize`.** Don't drive-by-edit `lexicon/system.xml`, `lexicon/contexts/*.xml`, or `lexicon/surfaces/*.xml` as a side effect of unrelated work. Cold-layer changes are deliberate: propose, get explicit approval, then apply in the shared artifact worktree. (Direct edits are fine when the user explicitly asks — "fix this typo in system.xml.")
 7. **IDs are slugs; rename ≠ re-slug.** Display `name:` mutates freely. The `id:` (slug) is the stable handle. Refs in other files use the slug; renaming a slug breaks them. Slug changes go through `crystallize` as a rename mutation that cascades references.
-8. **Respect Laxicon authority.** During `ground` and `crystallize`, read or mine only the relevant sibling `laxicon/` artifacts from the shared artifact worktree. Do not rewrite, promote, relocate, or normalize them as a side effect of a Lexicon move. When the user explicitly asks to author or evolve Laxicon artifacts, load the sibling `laxicon` skill and follow its human-governed lifecycle contract.
+8. **Prose is markdown under `lexicon/docs/`.** During `ground` and `crystallize`, read the relevant pages. Do not invent a sibling `laxicon/` directory or a status/promotion workflow. Cold-layer XML still goes through `crystallize`; prose files may be edited under the current task.
 
 ## When this workflow doesn't apply
 

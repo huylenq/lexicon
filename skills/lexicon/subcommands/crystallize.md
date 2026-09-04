@@ -32,7 +32,7 @@ Read:
 2. **The git diff since the marker.** This is the primary signal — what actually changed. Run `git log --since=<marker>` to see the sessions, and `git diff <commit-at-marker>..HEAD` over the relevant code paths to see the substance. The diff is what the structural checks run against.
 3. **Recent-session conversation, when available.** The scope declarations and vocabulary discussions from `ground` and from working sessions live in conversation, not in any file. If the current session did the work being crystallized, that context is right here; if crystallizing across older sessions, lean on the git diff and commit messages instead.
 4. **The cold layer.** `lexicon/system.xml` plus whichever `lexicon/contexts/*.xml` and `lexicon/surfaces/*.xml` files the diff touches. Don't load every file — read what's relevant to the diff.
-5. **The laxicon, if present.** A sibling `laxicon/` directory — especially its human-facing `wiki/` pages — is a *source* to mine, not a target to edit. Where the diff shows the work but not the reasoning, the wiki often holds the "why" worth lifting into a `rationale:` field, or names a concept that stabilized and deserves a glossary term. Follow relevant `[[wikilinks]]` selectively; never rewrite or restructure the wiki during crystallization. Distillation is one-way: laxicon → lexicon.
+5. **`lexicon/docs/`, if present.** Wiki pages and specs are a *source* to mine, not a target to edit during crystallization. Where the diff shows the work but not the reasoning, the prose often holds the "why" worth lifting into a `rationale:` field, or names a concept that stabilized and deserves a glossary term. Follow relevant `[[wikilinks]]` selectively; never rewrite or restructure the docs tree during crystallization. Distillation is one-way: prose → cold-layer XML.
 
 Take the time on it. **Crystallization done badly is worse than crystallization skipped** — a wrong glossary entry is harder to remove than a missing one is to add.
 
@@ -154,7 +154,7 @@ When the user says yes:
 
 1. **Apply each mutation** to its target file using Edit. Single Edit per mutation where possible.
 2. **For rename / move operations**, cascade reference updates across all files in `lexicon/`. Don't ask per-file — that's what the cascade declaration in the proposal was for. If a cascade can't be performed mechanically (ambiguous ref), surface the specific case and ask.
-3. **If a feature plan was involved**, move `lexicon/plans/<feature>/` to `lexicon/plans/_archive/<feature>/` (ask first if the user didn't explicitly ask to wrap up the feature).
+3. **If a feature plan was involved**, move `lexicon/docs/plans/<feature>/` to `lexicon/docs/plans/_archive/<feature>/` (ask first if the user didn't explicitly ask to wrap up the feature).
 4. **Update the marker.** Write the current ISO timestamp to `lexicon/.last-crystallized`.
 5. **Confirm in chat**: *"Crystallized. <N> mutations applied across <F> files; <R> reference cascades. Marker updated."*
 

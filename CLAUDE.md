@@ -59,7 +59,7 @@ skills/
       v0.x-to-v0.1.md  v0.1-to-v0.2.md  v0.2-to-v0.3.md  v0.3-to-v1.0.md
     templates/                      ← XML examples for bootstrap
     validators/                     ← standalone tree-sitter validators (`<codeRoot> --artifact-root <artifactRoot>`)
-  laxicon/                         ← human-governed prose sibling (canonical contract; runtime adapters point here)
+  laxicon/                         ← thin prose contract: markdown lives at lexicon/docs/
     SKILL.md
 ```
 

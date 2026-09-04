@@ -313,7 +313,7 @@ app.notFound(async c => {
   }
 });
 
-const port = Number(process.env.PORT ?? 8787);
+const port = Number(process.env.LEXICON_VIEWER_API_PORT ?? 5374);
 console.log(`lexicon-viewer api on http://localhost:${port}`);
 
 export default {
