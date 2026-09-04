@@ -1,7 +1,7 @@
 {
   "name": "lexicon",
-  "version": "1.0.0",
-  "description": "Document-mediated workflow for coding agents. Keeps human and agent aligned on a shared mental model via a small cold-layer XML doc (vocabulary, invariants, bounded contexts, design system): ground before substantive work, crystallize accumulated work into the cold layer on the user's call. Inspired by domain-driven design's ubiquitous language; extends the same discipline to design vocabulary on UI projects. Ships as two skills — a `using-lexicon` awareness primer that parks a standing disposition (know the moves, offer the right one advisorily) and a `lexicon` action skill with six subcommands (bootstrap / ground / crystallize / spec / validate / meta-evolve) exposed as plugin-namespaced slash commands — plus a local web viewer that renders the cold layer and specs.",
+  "version": "1.2.0",
+  "description": "Co-hosted Lexicon and Laxicon workflows for coding agents. Lexicon keeps human and agent aligned on a small typed XML cold layer through grounding and crystallization. Laxicon is the human-governed, prose-first sibling contract for ideas, a human-facing wiki, durable architectural specs, disposable execution plans, provenance, and lifecycle. Ships three skills: `using-lexicon`, `lexicon`, and `laxicon`, plus the existing Lexicon slash commands and local viewer.",
   "author": {
     "name": "Huy Le",
     "url": "https://github.com/huylenq"
@@ -9,5 +9,5 @@
   "homepage": "https://github.com/huylenq/lexicon",
   "repository": "https://github.com/huylenq/lexicon",
   "license": "MIT",
-  "keywords": ["workflow", "ddd", "ubiquitous-language", "spec", "agent-coordination", "design-system", "accessibility"]
+  "keywords": ["workflow", "ddd", "ubiquitous-language", "laxicon", "wiki", "ideas", "spec", "planning", "agent-coordination", "design-system", "accessibility"]
 }

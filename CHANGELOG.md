@@ -12,11 +12,17 @@ While in 0.x, breaking project-shape changes bump the minor (0.x.0 → 0.(x+1).0
 
 ## [Unreleased]
 
-### Added — the **laxicon** sibling (free-form human knowledge layer)
+## [1.2.0] - 2026-09-04
 
-- **Named the laxicon.** A project may keep a sibling `laxicon/` directory next to `lexicon/` — free-form, human-written prose notes (Zettelkasten / Obsidian, often nested under `laxicon/knowledge/`). The name is a pun: where the **lexicon** is precise, typed, terse, and agent-maintained, the **laxicon** is lax, discursive, and **human-owned**. It is neither the cold layer (not typed/structured) nor the hot layer (not a transient per-feature plan) — it's the permanent human free layer. Documented in `lexicon/SKILL.md` ("The laxicon sibling" + Project shape note).
-- **One-way distillation, read-only to the skill.** Standing rule 7: the skill treats the laxicon as a *source, never a target*. `ground` (new step 2b) reads it for the narrative and half-formed "why"s the typed fields can't hold; `crystallize` (new gather-input 5) mines it for vocabulary or rationale to lift into the cold layer — but the skill never rewrites or restructures it. Distillation flows one way: laxicon → lexicon.
-- **Primer awareness.** `using-lexicon`'s pocket frame now names the laxicon so the disposition is parked early in a session.
+### Added — first-class `laxicon` sibling skill
+
+- **Canonical co-hosted contract.** Added `skills/laxicon/SKILL.md` beside the existing Lexicon skills. It is the source of truth for the human-governed, prose-first, schema-lax sibling layer; runtime adapters must point back to it rather than copy the contract.
+- **Human-facing wiki.** Replaced the provisional `knowledge/` name with `laxicon/wiki/`: durable prose for humans to read, understand, and learn the project. The contract standardizes only the name and broad purpose, encourages Obsidian-style `[[wikilinks]]`, and leaves taxonomy and metadata project-defined.
+- **Thin lifecycle surface.** Contract v0 standardizes first-class `laxicon/ideas/`, `laxicon/specs/`, and `laxicon/plans/`, their minimal frontmatter, provenance, and conversion rules. `wiki/` is a named prose surface but is deliberately outside the lifecycle state machine; all other prose directories remain project-defined.
+- **Idea promotion.** Neutral pre-authoritative ideas promote to durable architectural specs when a decision is costly to reverse, or directly to disposable execution plans when only local/reversible implementation detail remains.
+- **Hybrid lifecycle.** Frontmatter `status` is semantic truth. Specs keep stable paths; projects may relocate or delete terminal plans when durable rationale/evidence has been absorbed and links allow it.
+- **Human-governed, not human-only.** Agents may author and update Laxicon artifacts under explicit task authority; the human retains semantic adoption/rejection authority. Lexicon grounding and crystallization may read/mine Laxicon, but must not silently restructure it.
+- **Compatibility boundary.** Existing `lexicon/specs/` and `lexicon/plans/` consumers are not drive-by migrated. New Laxicon adoption and any path/tooling migration are explicit, separately verified work.
 
 ### Added — `using-lexicon` awareness primer (two-layer split)
 

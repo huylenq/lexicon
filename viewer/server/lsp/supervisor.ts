@@ -36,7 +36,7 @@ function langForFile(file: string): RootLanguage | null {
 export class Supervisor {
   private roots: RootInfo[];
   private providers = new Map<string, CallFlowProvider>();
-  private health = new Map<string, boolean>(); // root.dir -> healthy?
+  private health = new Map<string, boolean>(); // `${language}:${root.dir}` -> healthy?
 
   constructor(projectRoot: string) {
     this.roots = discoverRoots(projectRoot);
@@ -63,22 +63,23 @@ export class Supervisor {
   // imports resolve from source regardless of interpreter. Degrade on the
   // average crossing the threshold (ratio, robust to root size).
   async isRootHealthy(files: string[]): Promise<boolean> {
-    let hit: { root: { dir: string } } | null = null;
+    let hit: { root: RootInfo } | null = null;
     for (const f of files) { const h = this.providerForFile(f); if (h) { hit = h; break; } }
     if (!hit) return false;
-    const cached = this.health.get(hit.root.dir);
+    const key = `${hit.root.language}:${hit.root.dir}`;
+    const cached = this.health.get(key);
     if (cached !== undefined) return cached;
 
     let total = 0, probed = 0;
     for (const f of files.slice(0, HEALTH_PROBE_FILES)) {
       const h = this.providerForFile(f);
-      if (!h || h.root.dir !== hit.root.dir) continue;
+      if (!h || h.root.dir !== hit.root.dir || h.root.language !== hit.root.language) continue;
       await h.provider.open(f);
       total += await h.provider.unresolvedImportCount(f);
       probed++;
     }
     const healthy = probed === 0 || total < UNRESOLVED_THRESHOLD * probed;
-    this.health.set(hit.root.dir, healthy);
+    this.health.set(key, healthy);
     return healthy;
   }
 
@@ -100,10 +101,9 @@ export function getSupervisor(projectRoot: string): Supervisor {
   if (!s) {
     s = new Supervisor(key);
     supervisors.set(key, s);
-    const kill = () => s!.shutdown();
-    process.once("exit", kill);
-    process.once("SIGINT", kill);
-    process.once("SIGTERM", kill);
+    // Only `exit`: SIGINT/SIGTERM listeners swallow Node/Bun's default
+    // terminate-the-process behavior, which hung the mise viewer task on :8787.
+    process.once("exit", () => s!.shutdown());
   }
   return s;
 }

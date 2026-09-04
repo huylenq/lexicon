@@ -22,12 +22,13 @@
 // STANDALONE: tree-sitter only, no viewer server, no LSP. READ-ONLY.
 //
 // Usage:
-//   bun skills/lexicon/validators/crystallize-signals.ts <projectRoot> [gitRange]
+//   bun skills/lexicon/validators/crystallize-signals.ts <codeRoot> [--artifact-root <artifactRoot>] [gitRange]
 //   (gitRange defaults to commits newer than lexicon/.last-crystallized)
 
 import {
   loadGraphOrError,
   makeOut,
+  parseValidatorArgs,
   parseRange,
   gitFilesInRange,
   gitShow,
@@ -37,27 +38,31 @@ import {
 } from "./lib.ts";
 import type { ResolvedGraph, CodeEdge } from "../../../viewer/server/schema.ts";
 
-const [, , projectRootArg, rangeArg] = process.argv;
-
-if (!projectRootArg) {
-  console.error("usage: bun crystallize-signals.ts <projectRoot> [gitRange]");
+const argv = process.argv.slice(2);
+if (argv.length === 0) {
+  console.error("usage: bun crystallize-signals.ts <codeRoot> [--artifact-root <artifactRoot>] [gitRange]");
   process.exit(2);
 }
-const projectRoot = projectRootArg;
+const { codeRoot: projectRoot, artifactRoot, rest } = parseValidatorArgs(argv);
+if (rest.length > 1) {
+  console.error("usage: bun crystallize-signals.ts <codeRoot> [--artifact-root <artifactRoot>] [gitRange]");
+  process.exit(2);
+}
+const rangeArg = rest[0];
 
 const out = makeOut();
-const { graph, errorMarkdown } = await loadGraphOrError(projectRoot, "Crystallize signals");
+const { graph, errorMarkdown } = await loadGraphOrError(projectRoot, "Crystallize signals", artifactRoot);
 if (errorMarkdown) {
   console.log(errorMarkdown);
   process.exit(0);
 }
 
-const range = rangeArg ?? lastCrystallizedRange(projectRoot);
+const range = rangeArg ?? lastCrystallizedRange(projectRoot, artifactRoot);
 if (!range) {
   out(`## Crystallize signals`);
   out();
   out(`No git range given and no usable \`lexicon/.last-crystallized\` marker.`);
-  out(`Pass a range explicitly, e.g. \`bun crystallize-signals.ts <projectRoot> HEAD~10..HEAD\`.`);
+  out(`Pass a range explicitly, e.g. \`bun crystallize-signals.ts <codeRoot> --artifact-root <artifactRoot> HEAD~10..HEAD\`.`);
   console.log(out.toString());
   process.exit(0);
 }

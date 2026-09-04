@@ -32,7 +32,7 @@ Read:
 2. **The git diff since the marker.** This is the primary signal — what actually changed. Run `git log --since=<marker>` to see the sessions, and `git diff <commit-at-marker>..HEAD` over the relevant code paths to see the substance. The diff is what the structural checks run against.
 3. **Recent-session conversation, when available.** The scope declarations and vocabulary discussions from `ground` and from working sessions live in conversation, not in any file. If the current session did the work being crystallized, that context is right here; if crystallizing across older sessions, lean on the git diff and commit messages instead.
 4. **The cold layer.** `lexicon/system.xml` plus whichever `lexicon/contexts/*.xml` and `lexicon/surfaces/*.xml` files the diff touches. Don't load every file — read what's relevant to the diff.
-5. **The laxicon, if present.** A sibling `laxicon/` directory (free-form human notes, possibly under `laxicon/knowledge/`) is a *source* to mine — not a target to edit. Where the diff shows the work but not the reasoning, the laxicon often holds the "why" worth lifting into a `rationale:` field, or names a concept that stabilized and deserves a glossary term. Read the notes relevant to the period's work; never rewrite or restructure them. Distillation is one-way: laxicon → lexicon.
+5. **The laxicon, if present.** A sibling `laxicon/` directory — especially its human-facing `wiki/` pages — is a *source* to mine, not a target to edit. Where the diff shows the work but not the reasoning, the wiki often holds the "why" worth lifting into a `rationale:` field, or names a concept that stabilized and deserves a glossary term. Follow relevant `[[wikilinks]]` selectively; never rewrite or restructure the wiki during crystallization. Distillation is one-way: laxicon → lexicon.
 
 Take the time on it. **Crystallization done badly is worse than crystallization skipped** — a wrong glossary entry is harder to remove than a missing one is to add.
 
@@ -41,10 +41,10 @@ Take the time on it. **Crystallization done badly is worse than crystallization 
 Before working the checks from memory, run the standalone signals validator over the same range and present what it finds. This turns the six checks from *recall* (notice every new cross-context import, remember every glossary term to spot a rename, recall which symbols are anchored) into *triage* (filter and confirm a candidate list):
 
 ```
-bun ${CLAUDE_SKILL_DIR}/validators/crystallize-signals.ts <projectRoot> [gitRange]
+bun ${CLAUDE_SKILL_DIR}/validators/crystallize-signals.ts <codeRoot> --artifact-root <artifactRoot> [gitRange]
 ```
 
-It is **standalone** — tree-sitter only, no running viewer server, no LSP. The range defaults to commits newer than `lexicon/.last-crystallized` (the same window this subcommand already considers); pass the range explicitly for a feature-scoped run. It emits a candidate block — `**Detected N candidates — triage:**` — with three sub-sections:
+It is **standalone** — tree-sitter only, no running viewer server, no LSP. `<codeRoot>` supplies the implementation history and diff; `<artifactRoot>` supplies the cold layer and `lexicon/.last-crystallized`. The range defaults to commits newer than that shared marker; pass the range explicitly for a feature-scoped run. It emits a candidate block — `**Detected N candidates — triage:**` — with three sub-sections:
 
 - **Consistency candidates (check 2 — HIGH)** — an anchored symbol renamed, moved, or deleted in the diff. High-priority because this is exactly the silent-rename drift lexicon exists to kill: the anchor is now stale and the atom needs re-pointing or renaming.
 - **Vocabulary candidates (check 1)** — new symbols in the diff that no term anchors. Glossary candidates.

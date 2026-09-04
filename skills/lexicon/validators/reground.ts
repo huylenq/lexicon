@@ -14,11 +14,12 @@
 // Best-effort: degrades to "no structure" for files with no anchors.
 //
 // Usage:
-//   bun skills/lexicon/validators/reground.ts <projectRoot> <file> [file...]
+//   bun skills/lexicon/validators/reground.ts <codeRoot> [--artifact-root <artifactRoot>] <file> [file...]
 
 import {
   loadGraphOrError,
   makeOut,
+  parseValidatorArgs,
   toRepoRel,
   anchorsInFiles,
   contextsForFiles,
@@ -30,18 +31,20 @@ import {
   shortProse,
 } from "./lib.ts";
 
-const [, , projectRootArg, ...fileArgs] = process.argv;
-
-if (!projectRootArg || fileArgs.length === 0) {
-  console.error("usage: bun reground.ts <projectRoot> <file> [file...]");
+const argv = process.argv.slice(2);
+if (argv.length === 0) {
+  console.error("usage: bun reground.ts <codeRoot> [--artifact-root <artifactRoot>] <file> [file...]");
   process.exit(2);
 }
-
-const projectRoot = projectRootArg;
+const { codeRoot: projectRoot, artifactRoot, rest: fileArgs } = parseValidatorArgs(argv);
+if (fileArgs.length === 0) {
+  console.error("usage: bun reground.ts <codeRoot> [--artifact-root <artifactRoot>] <file> [file...]");
+  process.exit(2);
+}
 const files = new Set(fileArgs.map(f => toRepoRel(projectRoot, f)));
 
 const out = makeOut();
-const { graph, errorMarkdown } = await loadGraphOrError(projectRoot, "Reload card");
+const { graph, errorMarkdown } = await loadGraphOrError(projectRoot, "Reload card", artifactRoot);
 if (errorMarkdown) {
   console.log(errorMarkdown);
   process.exit(0);

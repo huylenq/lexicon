@@ -87,7 +87,7 @@ Keep it terse and current — stale entries mislead a cold reader worse than mis
 Promotion needs **explicit user confirmation that the implementation is done** — don't compact or move a spec on your own initiative just because the code looks finished. When the user confirms, the completion moment has **two coordinated outputs at two altitudes**:
 
 1. **`crystallize`** absorbs the vocabulary, invariants, and seams the work introduced into the cold layer (reading the git diff). New terms the spec had to reference get real atoms.
-2. **Promote the spec**: compact Shape A → Shape B (a *rewrite* to a state of facts, present tense — not an edit of the log), fold in and **delete** the progress note, then `git mv` to `lexicon/specs/established/<slug>.md` (drop the `-design` suffix) and fix every cross-link.
+2. **Promote the spec**: compact Shape A → Shape B (a *rewrite* to a state of facts, present tense — not an edit of the log), fold in and **delete** the progress note, then move it to `lexicon/specs/established/<slug>.md` in the shared artifact worktree (drop the `-design` suffix) and fix every cross-link. Use `git mv` only when the artifact is tracked; use an ordinary filesystem move when Lexicon is intentionally ignored or untracked.
 
 The established spec then links into the freshly-crystallized atoms via `[[fqid]]`, so the two artifacts reinforce each other: the cold layer holds the vocabulary; the spec holds the narrative that uses it.
 
@@ -104,5 +104,5 @@ Only promote when the design is genuinely as-built. A spec that's still a proble
 
 - New design? → `lexicon/specs/<slug>-design.md`, YAML frontmatter, Shape A, numbered decisions with alternatives-rejected, cold-layer terms linked via `[[fqid]]`.
 - Implementation starts? → open `lexicon/specs/<slug>.progress.md` as a live cold-session snapshot (Done / Next / decisions / gotchas, overwritten in place — not a log); the spec stays a design.
-- User confirms it's done? → run `crystallize` to absorb vocab/invariants, then promote: rewrite Shape A → Shape B (state of facts, mermaid + History, atoms linked), delete the progress note, `git mv` to `lexicon/specs/established/<slug>.md`, fix cross-links.
+- User confirms it's done? → run `crystallize` to absorb vocab/invariants, then promote in the shared artifact worktree: rewrite Shape A → Shape B (state of facts, mermaid + History, atoms linked), delete the progress note, move it to `lexicon/specs/established/<slug>.md` (`git mv` only if tracked), fix cross-links.
 - Always: defer vocabulary to the cold layer, soft-wrap, decisive prose, link to real atoms and symbols.

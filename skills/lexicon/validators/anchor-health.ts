@@ -15,9 +15,9 @@
 // LSP)" rather than implying coverage they don't have.
 //
 // Usage:
-//   bun skills/lexicon/validators/anchor-health.ts [PROJECT_ROOT]
-//   (PROJECT_ROOT defaults to the current working directory; it must contain a
-//    lexicon/ cold layer.)
+//   bun skills/lexicon/validators/anchor-health.ts [CODE_ROOT] [--artifact-root ARTIFACT_ROOT]
+//   (CODE_ROOT defaults to the current working directory. ARTIFACT_ROOT defaults
+//    to CODE_ROOT and points at the worktree containing the lexicon/ cold layer.)
 //
 // Advisory only: it never writes atoms, never mutates the cold layer or code,
 // and always exits 0 — findings are triage, corrections route through
@@ -25,16 +25,23 @@
 
 import { resolve } from "node:path";
 import { computeModelHealth, type AnchorFinding } from "../../../viewer/server/model-health.ts";
-import { loadGraphOrError } from "./lib.ts";
+import { loadGraphOrError, parseValidatorArgs } from "./lib.ts";
 
-const projectRoot = resolve(process.argv[2] ?? process.cwd());
+const argv = process.argv.slice(2);
+const parsed = parseValidatorArgs(argv.length > 0 ? argv : [process.cwd()]);
+if (parsed.rest.length > 0) {
+  console.error("usage: bun anchor-health.ts [CODE_ROOT] [--artifact-root ARTIFACT_ROOT]");
+  process.exit(2);
+}
+const projectRoot = resolve(parsed.codeRoot);
+const artifactRoot = resolve(parsed.artifactRoot);
 
 const lines: string[] = [];
 const out = (s = "") => lines.push(s);
 
 // Surface a stale/broken cold layer up front rather than printing an empty,
 // falsely-clean report (shared with the other standalone validators via lib.ts).
-const { graph, errorMarkdown } = await loadGraphOrError(projectRoot, "Model health");
+const { graph, errorMarkdown } = await loadGraphOrError(projectRoot, "Model health", artifactRoot);
 if (errorMarkdown) {
   console.log(errorMarkdown);
   process.exit(0);

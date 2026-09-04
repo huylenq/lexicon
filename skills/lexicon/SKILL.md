@@ -1,6 +1,6 @@
 ---
 name: lexicon
-description: "Living domain-driven documentation. A small cold-layer XML doc (lexicon/system.xml, contexts/<slug>.xml, surfaces/<slug>.xml) captures vocabulary, invariants, bounded contexts, design-system surfaces; on-demand crystallization keeps it true. Auto-fires whenever a project has lexicon/system.xml — at the start of substantive work (subcommand: ground), when the user wants to absorb accumulated work into the cold layer (crystallize), author or file a design/architecture spec (spec), check schema or semantic drift (validate), set up a fresh project (bootstrap), or amend the lexicon bundle itself after correcting a lexicon skill (meta-evolve)."
+description: "Living domain-driven documentation. A small cold-layer XML doc (lexicon/system.xml, contexts/<slug>.xml, surfaces/<slug>.xml) captures vocabulary, invariants, bounded contexts, design-system surfaces; on-demand crystallization keeps it true. Auto-fires whenever a project's primary/default worktree has lexicon/system.xml, including sessions running in a linked worktree with no local copy — at the start of substantive work (subcommand: ground), when the user wants to absorb accumulated work into the cold layer (crystallize), author or file a design/architecture spec (spec), check schema or semantic drift (validate), set up a fresh project (bootstrap), or amend the lexicon bundle itself after correcting a lexicon skill (meta-evolve)."
 user-invocable: false
 argument-hint: "[bootstrap|ground|crystallize|spec|validate|meta-evolve]"
 arguments: [subcommand]
@@ -20,13 +20,23 @@ Code is the executable spec — it evolves freely, always true to itself. Above 
 
 The whole system rests on **ubiquitous language** in the DDD sense: the same nouns and verbs appear in the cold layer, in conversation, and in code. When all three layers use the same vocabulary, mental-model alignment between human and agent is enforced by repetition rather than by remembering.
 
+### Shared artifact worktree
+
+Lexicon and Laxicon are project-level shared memory, not per-branch implementation state. Their canonical project instances live in the repository's **primary/default worktree**, even when an agent is coding in a linked feature worktree. They are often intentionally untracked or ignored there.
+
+- Resolve the current code worktree and the primary/default worktree separately. Use the first `worktree` path reported by `git worktree list --porcelain` as the primary/default worktree; do not infer it from a branch name such as `main` or `develop`.
+- Read and write `lexicon/` and sibling `laxicon/` only under that primary/default worktree unless the human explicitly names another artifact root. Never read from, create, copy, or update those directories in the agent's linked worktree.
+- Absence from the current linked worktree does not mean the project lacks these artifacts. Check the primary/default worktree before offering `bootstrap` or creating any knowledge directory.
+- Keep code inspection, implementation, tests, git history, and feature-branch diffs rooted in the agent's current worktree. `crystallize` reads the implementation diff from the current worktree but reads and writes the cold layer and `.last-crystallized` in the primary/default worktree.
+- Every bundled standalone validator accepts separate roots: pass the current implementation checkout as `<codeRoot>` and the primary/default worktree as `--artifact-root <artifactRoot>`. The second flag may be omitted only when both roots are genuinely the same. Never copy knowledge artifacts into a linked worktree merely to satisfy tooling.
+
 The cold layer is **structured XML files**, not markdown prose. Each entity (system, bounded context, term, invariant, seam, boundary rule, aggregate, module, shared kernel, surface, region) is a typed XML element with a stable `id` attribute and prose-bearing child elements. Cross-references are uniform `<ref to="fqid"/>` elements — inline in prose (mixed content) or inside structural wrappers like `<members>`, `<participating-contexts>`. When the project has a UI surface, design vocabulary — tokens, components, named surfaces, regions — counts as ubiquitous language too and lives in the same files.
 
 ### The laxicon sibling
 
-A project may keep a sibling **laxicon** — the *lax* counterpart to the lexicon. The name is the pun: where the **lexicon** is precise, typed, terse, and agent-maintained (via `crystallize`), the **laxicon** is free-form, discursive, human-written prose — Zettelkasten / Obsidian notes, design musings, half-formed "why"s, dead-ends. It lives in a `laxicon/` directory at the project root (the notes themselves may nest, e.g. `laxicon/knowledge/`, and are often symlinked into an Obsidian vault).
+A project may keep a sibling **laxicon** — the *lax* counterpart to the lexicon. Where the **lexicon** is precise, typed, terse, and maintained through deliberate crystallization, the **laxicon** is durable, prose-first, human-governed, and schema-lax. It lives in a `laxicon/` directory at the project root and may contain first-class ideas, architectural specs, execution plans, and project-defined prose surfaces.
 
-It is neither cold (not typed or structured) nor hot (not a transient per-feature plan) — it is the permanent **human free layer**, and it is **human-owned**. To the skill the laxicon is a *source, never a target*: `ground` reads it for narrative context the typed fields can't hold, and `crystallize` may mine it for vocabulary or rationale to lift into the cold layer — but the skill **never rewrites or restructures it**. Mining the laxicon into the lexicon is exactly the lax→precise distillation the two-name pun is about.
+Human-governed does not mean human-written-only or agent-read-only. Agents may author and update Laxicon artifacts under explicit task authority; the human retains semantic authority and adoption/rejection rights. `ground` may read relevant Laxicon prose and `crystallize` may mine stable vocabulary or rationale from it. Authoring, promotion, and lifecycle behavior belong to the sibling `laxicon` skill; this Lexicon skill must not silently restructure Laxicon as a side effect of cold-layer work. Distillation can flow laxicon → lexicon without making either layer subordinate to the other.
 
 ## Project shape
 
@@ -54,7 +64,7 @@ lexicon/
 
 If the structure isn't there, the `bootstrap` subcommand is the one-shot setup. The workflow is opt-in per project.
 
-A project may also have a sibling **`laxicon/`** directory next to (not inside) `lexicon/` — free-form human notes, possibly nested under `laxicon/knowledge/` and symlinked into an Obsidian vault. It sits outside the `lexicon/` tree precisely because it is human-owned and unstructured: the skill reads it as a source but never writes to it. See "The laxicon sibling" above.
+A project may also have a sibling **`laxicon/`** directory next to (not inside) `lexicon/`. Its first-class shared surfaces are `ideas/`, `specs/`, and `plans/`; other prose directories remain project-defined. Load the sibling `laxicon` skill before authoring or evolving those artifacts. See "The laxicon sibling" above.
 
 ## Dispatch
 
@@ -100,19 +110,20 @@ The migration deltas live next to them:
 XML templates and (eventually) deterministic scripts are at:
 
 - `${CLAUDE_SKILL_DIR}/templates/{system,bounded-context,surface}.xml.example`, `${CLAUDE_SKILL_DIR}/templates/plan.md.template` — reference shapes used by `bootstrap`.
-- `${CLAUDE_SKILL_DIR}/validators/` — future home for deterministic schema validators. Empty until the first script lands.
+- `${CLAUDE_SKILL_DIR}/validators/` — standalone tree-sitter validators (`anchor-health.ts`, `crystallize-signals.ts`, `reground.ts`, `impact.ts`). Invoke as `bun <script> <codeRoot> --artifact-root <artifactRoot> …`.
 
 ## Standing rules (terse)
 
 The full set lives in `reference/rules.md`; these are the load-bearing ones that apply across every subcommand. If a subcommand contradicts what's here, that subcommand is wrong.
 
-1. **Read `lexicon/system.xml` first.** Before substantive work, end to end. It's small by design (~500 lines). Past that, surface for partitioning into `contexts/<slug>.xml`. If relevant context files exist, load only the ones that match the work — don't read every context file eagerly.
-2. **Ground before code.** For any task that isn't strictly mechanical (typo fix, dependency bump, log tweak), run `ground` before writing or modifying code. Skipping grounding is the most common source of silent drift.
-3. **Surface contradictions.** If the cold layer contradicts the code or the user's request, stop and surface it. Don't quietly work around it or hallucinate that the doc is right.
-4. **Crystallize on the user's call.** `crystallize` is user-triggered, never agent-triggered. It reads the git diff since the last crystallization, runs the structural checks over it, and proposes mutations — there is no separate per-session retro. If you suspect drift has accumulated (the git history shows substantive work but the cold layer hasn't moved), surface it as a question and let the user decide.
-5. **Cold-layer edits go through `crystallize`.** Don't drive-by-edit `lexicon/system.xml`, `lexicon/contexts/*.xml`, or `lexicon/surfaces/*.xml` as a side effect of unrelated work. Cold-layer changes are deliberate: propose, get explicit approval, then apply. (Direct edits are fine when the user explicitly asks — "fix this typo in system.xml.")
-6. **IDs are slugs; rename ≠ re-slug.** Display `name:` mutates freely. The `id:` (slug) is the stable handle. Refs in other files use the slug; renaming a slug breaks them. Slug changes go through `crystallize` as a rename mutation that cascades references.
-7. **The laxicon is read-only to the skill.** If the project has a sibling `laxicon/` (free-form human notes), treat it as a source: read it during `ground`, mine it during `crystallize`. Never write to it, restructure it, or "crystallize" it in place — it is the human's lax layer by design. Distillation flows one way: laxicon → lexicon.
+1. **Use the shared artifact worktree.** Resolve the primary/default worktree before looking for project knowledge. Read and write `lexicon/` and `laxicon/` only there; use the current agent worktree for code and implementation diffs. Never treat a missing local copy in a linked worktree as an absent project artifact.
+2. **Read `lexicon/system.xml` first.** Before substantive work, end to end. It's small by design (~500 lines). Past that, surface for partitioning into `contexts/<slug>.xml`. If relevant context files exist, load only the ones that match the work — don't read every context file eagerly.
+3. **Ground before code.** For any task that isn't strictly mechanical (typo fix, dependency bump, log tweak), run `ground` before writing or modifying code. Skipping grounding is the most common source of silent drift.
+4. **Surface contradictions.** If the cold layer contradicts the code or the user's request, stop and surface it. Don't quietly work around it or hallucinate that the doc is right.
+5. **Crystallize on the user's call.** `crystallize` is user-triggered, never agent-triggered. It reads the current implementation worktree's git diff since the shared artifact root's last crystallization marker, runs the structural checks over it, and proposes mutations — there is no separate per-session retro. If you suspect drift has accumulated (the git history shows substantive work but the cold layer hasn't moved), surface it as a question and let the user decide.
+6. **Cold-layer edits go through `crystallize`.** Don't drive-by-edit `lexicon/system.xml`, `lexicon/contexts/*.xml`, or `lexicon/surfaces/*.xml` as a side effect of unrelated work. Cold-layer changes are deliberate: propose, get explicit approval, then apply in the shared artifact worktree. (Direct edits are fine when the user explicitly asks — "fix this typo in system.xml.")
+7. **IDs are slugs; rename ≠ re-slug.** Display `name:` mutates freely. The `id:` (slug) is the stable handle. Refs in other files use the slug; renaming a slug breaks them. Slug changes go through `crystallize` as a rename mutation that cascades references.
+8. **Respect Laxicon authority.** During `ground` and `crystallize`, read or mine only the relevant sibling `laxicon/` artifacts from the shared artifact worktree. Do not rewrite, promote, relocate, or normalize them as a side effect of a Lexicon move. When the user explicitly asks to author or evolve Laxicon artifacts, load the sibling `laxicon` skill and follow its human-governed lifecycle contract.
 
 ## When this workflow doesn't apply
 
@@ -126,4 +137,4 @@ The workflow is opt-in per project. Small scripts, throwaway prototypes, and exp
 
 - The agent is a fallible filter. Drift flags will sometimes be noise; real changes will sometimes be missed. The fix for systematic miscalibration is `/lexicon:meta-evolve`, which amends the responsible part of this bundle.
 - Cold-layer rot is real. If the cold layer isn't getting crystallized despite the code moving underneath it, the workflow degrades to ceremony. The *user* has to actually run `crystallize` periodically; no skill design fixes a doc that's never reviewed.
-- Concurrent agents on the same repo are not coordinated. Each session reads the cold layer and does its work. Conflicts surface as ordinary git conflicts.
+- Concurrent agents share one artifact root even when their code worktrees are isolated. Re-read an artifact immediately before editing it, keep writes narrow, and surface concurrent changes rather than overwriting them; untracked shared artifacts may not produce ordinary git conflicts.

@@ -1,12 +1,11 @@
-// Warm-singleton tsserver client — the call-flow provider for one TypeScript root
+// Warm-singleton tsserver client — the call-flow provider for TypeScript roots
 // (spec: code-lens-design.md, P2 / D7). Speaks tsserver's line-delimited JSON
-// protocol over stdio. This is the minimal "LSP supervisor" for TS: one long-lived
-// process, reused across loads, lazily spawned. Multi-root + non-TS providers
-// (pyright, …) are the remaining D7 work.
+// protocol over stdio. One long-lived process, reused across loads, lazily spawned.
+// Python roots go through PyrightProvider; this process is not killed by
+// Supervisor.shutdown because it is shared across every TS root.
 //
-// Everything is fail-soft: if the binary is missing, the spawn fails, or a query
-// times out, methods return empty — the call-flow tier degrades to nothing and
-// the structure tier (tree-sitter) still carries the lens.
+// Fail-soft: missing binary, spawn failure, or query timeout returns empty —
+// the call-flow tier degrades and the structure tier still carries the lens.
 
 import { spawn, type ChildProcess } from "node:child_process";
 import { resolve } from "node:path";
@@ -27,7 +26,7 @@ export class TsServer implements CallFlowProvider {
   private async ensure(): Promise<boolean> {
     if (this.proc) return true;
     try {
-      const bin = resolve("node_modules/.bin/tsserver");
+      const bin = resolve(import.meta.dir, "..", "..", "node_modules", ".bin", "tsserver");
       const p = spawn(bin, ["--disableAutomaticTypingAcquisition"], {
         stdio: ["pipe", "pipe", "pipe"],
       });
@@ -144,10 +143,8 @@ let singleton: TsServer | null = null;
 export function getTsServer(): TsServer {
   if (!singleton) {
     singleton = new TsServer();
-    const kill = () => singleton?.shutdown();
-    process.once("exit", kill);
-    process.once("SIGINT", kill);
-    process.once("SIGTERM", kill);
+    // Only `exit`: SIGINT/SIGTERM listeners swallow default process termination.
+    process.once("exit", () => singleton?.shutdown());
   }
   return singleton;
 }

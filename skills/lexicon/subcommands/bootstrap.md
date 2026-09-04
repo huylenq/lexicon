@@ -182,7 +182,7 @@ Then go directly into item 1. No table-of-contents preview of upcoming items.
 7. **Seam kinds at `unknown`** — walk each one, ask the user to pick from the Evans context-map enum, and (for asymmetric kinds) which participant is upstream vs. downstream.
 8. **Term categories** — for terms not yet categorized, walk through one at a time: entity / value / service / event / concept. Skip is allowed; defaults to concept.
 9. **Design-system gaps** (UI projects only) — token names, component vocabulary, surface/region names, a11y invariants. Mark for forwarding if the user isn't the design owner.
-10. **File moves** — confirm or decline each recommended move from Phase 7. Apply accepted ones with `git mv`.
+10. **File moves** — confirm or decline each recommended move from Phase 7. Apply accepted ones in the shared artifact worktree; use `git mv` only for tracked files and an ordinary filesystem move for intentionally ignored or untracked artifacts.
 
 ### Per-item flow
 
@@ -249,7 +249,7 @@ Distillation status: <complete | paused mid-<category>: <N> of <T> items resolve
 - Unresolved invariants: <N total, C confirmed, V revised, D dropped, U remaining>
 - Bounded-context gaps: <N total, R resolved, U remaining>
 - ADR rationale lifts: <N archived ADRs, L lifted into rationale fields, R remaining as archive-only>
-- File moves: <N recommended, A accepted (applied via git mv), D declined, U deferred>
+- File moves: <N recommended, A accepted (applied; tracked via git mv where applicable), D declined, U deferred>
 
 ## Deferred items (need follow-up)
 - <Brief description of each unresolved inconsistency / drift flag / gap and why it was deferred>

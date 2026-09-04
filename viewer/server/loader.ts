@@ -44,8 +44,9 @@ import { parseProseLinks, resolveFqid } from "./prose-links.ts";
 
 const cache = new Map<string, { mtime: number; graph: ResolvedGraph }>();
 
-export async function loadLexicon(projectRoot: string): Promise<ResolvedGraph> {
-  const lexiconDir = join(projectRoot, "lexicon");
+export async function loadLexicon(projectRoot: string, artifactRoot = projectRoot): Promise<ResolvedGraph> {
+  const lexiconDir = join(artifactRoot, "lexicon");
+  const cacheKey = `${projectRoot}\0${artifactRoot}`;
   let files: string[];
   let mtimes: number[];
   let specFiles: string[];
@@ -66,7 +67,7 @@ export async function loadLexicon(projectRoot: string): Promise<ResolvedGraph> {
   }
   const latestMtime = mtimes.reduce((a, b) => (b > a ? b : a), 0);
 
-  const cached = cache.get(projectRoot);
+  const cached = cache.get(cacheKey);
   if (cached && cached.mtime === latestMtime) return cached.graph;
 
   const issues: LoadIssue[] = [];
@@ -165,7 +166,7 @@ export async function loadLexicon(projectRoot: string): Promise<ResolvedGraph> {
     graph.codeEdges = [];
   }
 
-  cache.set(projectRoot, { mtime: latestMtime, graph });
+  cache.set(cacheKey, { mtime: latestMtime, graph });
   return graph;
 }
 
@@ -1487,7 +1488,13 @@ function resolve(
 }
 
 export function invalidateCache(projectRoot?: string) {
-  if (projectRoot) cache.delete(projectRoot);
-  else cache.clear();
+  if (projectRoot) {
+    const prefix = `${projectRoot}\0`;
+    for (const key of [...cache.keys()]) {
+      if (key === projectRoot || key.startsWith(prefix)) cache.delete(key);
+    }
+  } else {
+    cache.clear();
+  }
   invalidateCodeEdges(projectRoot); // keep the lazily-cached code edges in step
 }

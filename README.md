@@ -13,7 +13,9 @@ Built on Eric Evans' [Domain-Driven Design](https://en.wikipedia.org/wiki/Domain
 
 ## What it does
 
-Lexicon ships as **two Claude Code skills**: an awareness primer (`using-lexicon`) and an action skill (`lexicon`) with **six subcommands**, each exposed as a slash command for tab-completion ergonomics. The substance lives in `skills/lexicon/`; reference files (schema, structural checks, rules) are centralized in `skills/lexicon/reference/` and read by whichever subcommand needs them.
+This repository co-hosts **three Claude Code skills**: an awareness primer (`using-lexicon`), the typed cold-layer action skill (`lexicon`) with **six subcommands**, and the prose-layer contract (`laxicon`). Lexicon reference files (schema, structural checks, rules) remain centralized in `skills/lexicon/reference/`; the Laxicon contract is canonical in `skills/laxicon/SKILL.md`.
+
+`laxicon` governs the shared operational seam of a sibling project-root `laxicon/`: pre-authoritative `ideas/`, a human-facing `wiki/` for understanding and learning the project, durable architectural `specs/`, disposable execution `plans/`, minimal lifecycle frontmatter, and provenance. It is human-governed rather than human-only. Wiki pages encourage `[[wikilinks]]` but keep their taxonomy and metadata project-defined; other prose directories remain uncontracted.
 
 `using-lexicon` is the **awareness layer**, modeled on superpowers' `using-superpowers`. It does no work itself — invoke it once (or let it auto-fire when a lexicon project opens) and it parks a standing disposition for the rest of the session: it knows what the cold layer is for and which move fits which moment, and it **offers the right move proactively but advisorily — never as a gate**. It exists so you don't have to be the dispatcher, remembering which of the six verbs to fire when. The verbs themselves live in the action skill:
 
@@ -52,7 +54,7 @@ git clone https://github.com/huylenq/lexicon
 claude --plugin-dir ./lexicon
 ```
 
-The plugin contributes two skills (`using-lexicon`, `lexicon`) and six slash commands (`bootstrap`, `ground`, `crystallize`, `spec`, `validate`, `meta-evolve`) — all namespaced as `/lexicon:<command>`. The action skill (`lexicon`) is `user-invocable: false`; the model auto-fires it based on its description when context warrants, or you invoke a subcommand explicitly via slash. The awareness skill (`using-lexicon`) is `user-invocable: true` — it auto-fires when a lexicon project opens and can also be invoked deliberately to make a session lexicon-aware.
+The plugin contributes three skills (`using-lexicon`, `lexicon`, `laxicon`) and six Lexicon slash commands (`bootstrap`, `ground`, `crystallize`, `spec`, `validate`, `meta-evolve`) — all namespaced as `/lexicon:<command>`. The action skill (`lexicon`) is `user-invocable: false`; the model auto-fires it based on its description when context warrants, or you invoke a subcommand explicitly via slash. The awareness skill (`using-lexicon`) is `user-invocable: true`. The `laxicon` skill auto-loads from natural-language tasks involving a project Laxicon, idea promotion, architectural specs, execution plans, or their lifecycle.
 
 ## First use in a project
 
@@ -104,6 +106,8 @@ lexicon/
   commands/                          # thin slash wrappers for TUI autocomplete
     bootstrap.md  ground.md  crystallize.md  spec.md  validate.md  meta-evolve.md
   skills/
+    laxicon/                         # prose-first sibling contract
+      SKILL.md                        # canonical ideas/specs/plans lifecycle contract
     using-lexicon/                   # awareness primer: parks the disposition, routes to lexicon
       SKILL.md
     lexicon/                         # action skill: runs the moves
@@ -115,7 +119,7 @@ lexicon/
       migrations/                     # per-version deltas, used by validate
         v0.x-to-v0.1.md  v0.1-to-v0.2.md  v0.2-to-v0.3.md  v0.3-to-v1.0.md
       templates/                      # XML examples for bootstrap
-      validators/                     # future deterministic schema validators
+      validators/                     # standalone tree-sitter validators (`<codeRoot> --artifact-root <artifactRoot>`)
   viewer/                            # local web viewer for browsing cold layers
 ```
 

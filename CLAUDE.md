@@ -38,9 +38,9 @@ There used to be a third "cool" tier: an always-written `retros/` directory of p
 
 ---
 
-## Plugin shape: two skills (awareness + action), six subcommands, six command wrappers
+## Plugin shape: three skills (awareness + action + laxicon), six subcommands, six command wrappers
 
-The plugin contributes two Claude Code skills — `using-lexicon` (the awareness primer) and `lexicon` (the action skill with six subcommands) — plus six slash commands (`spec` was added after the v1.0 collapse; see "Why `spec` is its own subcommand" below; `using-lexicon` was added later still — see "Why `using-lexicon` is a second skill"):
+The plugin contributes three Claude Code skills — `using-lexicon` (the awareness primer), `lexicon` (the action skill with six subcommands), and `laxicon` (the human-governed prose sibling) — plus six slash commands (`spec` was added after the v1.0 collapse; see "Why `spec` is its own subcommand" below; `using-lexicon` was added later still — see "Why `using-lexicon` is a second skill"):
 
 ```
 .claude-plugin/plugin.json         ← plugin name: "lexicon"
@@ -58,7 +58,9 @@ skills/
     migrations/                     ← per-version deltas, used by validate's structural pass
       v0.x-to-v0.1.md  v0.1-to-v0.2.md  v0.2-to-v0.3.md  v0.3-to-v1.0.md
     templates/                      ← XML examples for bootstrap
-    validators/                     ← future deterministic schema validators (empty for now)
+    validators/                     ← standalone tree-sitter validators (`<codeRoot> --artifact-root <artifactRoot>`)
+  laxicon/                         ← human-governed prose sibling (canonical contract; runtime adapters point here)
+    SKILL.md
 ```
 
 `using-lexicon` has no `commands/` wrapper and no subcommands: it's `user-invocable: true` and auto-fires on its description, so the user can turn it on deliberately or let it park itself when a lexicon project opens. The six command wrappers still map only to the action skill's verbs.
@@ -317,9 +319,9 @@ If validate + crystallize both go neglected, lexicon has no recourse. The right 
 
 ### Validators
 
-`skills/lexicon/validators/` is empty. The first script will likely be a deterministic XML validator for v1.0 — running `xmllint --schema reference/schema.xsd` against project XML, then a richer TypeScript pass for ref resolution, duplicate-slug detection, seam-direction sanity (semantics XSD can't express). Adoption candidates: invoked by `validate` ahead of the semantic pass to short-circuit when files don't parse; invoked by `crystallize` after applying mutations to verify the result.
+`skills/lexicon/validators/` now has four standalone tree-sitter scripts (`anchor-health.ts`, `crystallize-signals.ts`, `reground.ts`, `impact.ts`) invoked with `<codeRoot> --artifact-root <artifactRoot>`. They are advisory: they emit mechanical candidates for `validate` / `ground` / `crystallize` to triage. The viewer's loader at `viewer/server/loader.ts` remains the source of truth for structural validity.
 
-The design question: is the validator authoritative (its output is the source of truth for structural validity) or advisory (the loader is still authoritative, validator is faster)? Probably advisory — the viewer's loader at `viewer/server/loader.ts` is already the source of truth for structural validity; a script would be a faster cross-check.
+Still unbuilt: a deterministic XML/`xmllint --schema` pass, plus a richer TypeScript check for ref resolution, duplicate-slug detection, and seam-direction sanity (semantics XSD can't express).
 
 ---
 

@@ -12,12 +12,13 @@
 // STANDALONE: tree-sitter only, no viewer server, no LSP. ADVISORY / READ-ONLY.
 //
 // Usage:
-//   bun skills/lexicon/validators/impact.ts <projectRoot> <file> [file...]
-//   bun skills/lexicon/validators/impact.ts <projectRoot> <gitRange>
+//   bun skills/lexicon/validators/impact.ts <codeRoot> [--artifact-root <artifactRoot>] <file> [file...]
+//   bun skills/lexicon/validators/impact.ts <codeRoot> [--artifact-root <artifactRoot>] <gitRange>
 
 import {
   loadGraphOrError,
   makeOut,
+  parseValidatorArgs,
   toRepoRel,
   gitFilesInRange,
   isFileLike,
@@ -28,16 +29,19 @@ import {
   shortProse,
 } from "./lib.ts";
 
-const [, , projectRootArg, ...rest] = process.argv;
-
-if (!projectRootArg || rest.length === 0) {
-  console.error("usage: bun impact.ts <projectRoot> (<file> [file...] | <gitRange>)");
+const argv = process.argv.slice(2);
+if (argv.length === 0) {
+  console.error("usage: bun impact.ts <codeRoot> [--artifact-root <artifactRoot>] (<file> [file...] | <gitRange>)");
   process.exit(2);
 }
-const projectRoot = projectRootArg;
+const { codeRoot: projectRoot, artifactRoot, rest } = parseValidatorArgs(argv);
+if (rest.length === 0) {
+  console.error("usage: bun impact.ts <codeRoot> [--artifact-root <artifactRoot>] (<file> [file...] | <gitRange>)");
+  process.exit(2);
+}
 
 const out = makeOut();
-const { graph, errorMarkdown } = await loadGraphOrError(projectRoot, "Change impact");
+const { graph, errorMarkdown } = await loadGraphOrError(projectRoot, "Change impact", artifactRoot);
 if (errorMarkdown) {
   console.log(errorMarkdown);
   process.exit(0);

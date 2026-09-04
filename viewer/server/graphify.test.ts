@@ -2,7 +2,9 @@
 // the fixtures aren't repos, so staleness degrades to nulls (advisory), while
 // the JSON parse stays fail-fast.
 
-import { test, expect } from "bun:test";
+import { afterEach, test, expect } from "bun:test";
+import { cpSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   parseGraphJson,
@@ -47,8 +49,17 @@ test("parse: collision defect surfaced as a dropped-node warning, not a silent d
   expect(load.warnings[0]).toContain("missing from the graph");
 });
 
+const scratch: string[] = [];
+afterEach(() => {
+  for (const dir of scratch.splice(0)) rmSync(dir, { recursive: true, force: true });
+});
+
 test("probe: staleness degrades gracefully when the artifact dir is not a git repo", async () => {
-  const probe = await probeGraphify(SMALL);
+  // Copy out of this repo so git walk-up cannot find lexicon's HEAD.
+  const isolated = mkdtempSync(join(tmpdir(), "graphify-nongit-"));
+  scratch.push(isolated);
+  cpSync(SMALL, isolated, { recursive: true });
+  const probe = await probeGraphify(isolated);
   expect(probe.status).toBe("ok");
   if (probe.status !== "ok") return;
   expect(probe.nodeCount).toBe(9);

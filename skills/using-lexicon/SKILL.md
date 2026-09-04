@@ -1,6 +1,6 @@
 ---
 name: using-lexicon
-description: "Use at the start of any session in a project that has a lexicon/ cold layer (lexicon/system.xml), or whenever the user asks to make this session lexicon-aware. Parks a standing disposition: know what the cold layer is for, watch for the moments where a lexicon move (ground / crystallize / spec / validate / bootstrap) earns its keep, and proactively but advisorily offer it — never gate. Read once; it stays in context for the rest of the session. This skill does no work itself; the moves live in the `lexicon` skill's subcommands."
+description: "Use at the start of any session in a project whose primary/default worktree has a lexicon/ cold layer (lexicon/system.xml), including sessions running in a linked worktree with no local copy, or whenever the user asks to make this session lexicon-aware. Parks a standing disposition: know what the cold layer is for, watch for the moments where a lexicon move (ground / crystallize / spec / validate / bootstrap) earns its keep, and proactively but advisorily offer it — never gate. Read once; it stays in context for the rest of the session. This skill does no work itself; the moves live in the `lexicon` skill's subcommands."
 user-invocable: true
 ---
 
@@ -24,9 +24,13 @@ A lexicon project keeps a small **cold layer** above the code: `lexicon/system.x
 
 The whole point is **ubiquitous language**: the same nouns and verbs appear in the cold layer, in conversation, and in code, so human and agent stay aligned by repetition rather than by remembering. When you use a project's own words, drift can't hide.
 
-Some projects also keep a **laxicon** — a sibling `laxicon/` directory (free-form, human-written prose notes; the *lax* counterpart to the precise lexicon, often Obsidian-linked under `laxicon/knowledge/`). It's a *source* you read during `ground` and mine during `crystallize`, never something the skill writes to. Distillation flows one way: laxicon → lexicon.
+Some projects also keep a **laxicon** — a sibling `laxicon/` directory that is durable, prose-first, human-governed, and schema-lax. Agents may author it under explicit task authority; humans retain semantic authority. Read relevant Laxicon artifacts during `ground` and mine stable vocabulary or rationale during `crystallize`. For first-class `ideas/`, `specs/`, `plans/`, promotion, or lifecycle work, load the sibling `laxicon` skill rather than improvising rules here.
 
 This is a pocket summary. The authoritative frame lives in the shared references the `lexicon` skill owns (`skills/lexicon/reference/design.md` and `rules.md`, canonically under `~/src/lexicon/`). When a move is actually taken, that move's subcommand reads them. **If this primer ever contradicts those references, they win.**
+
+## Resolve the shared artifact worktree first
+
+Lexicon and Laxicon live only in the repository's primary/default worktree, not in each agent's linked feature worktree. Before checking whether either directory exists, use the first `worktree` path from `git worktree list --porcelain` as the shared artifact root; do not guess from branch names. Read and write knowledge artifacts only there. Keep code, tests, history, and implementation diffs rooted in the current agent worktree. A missing `lexicon/` in the current worktree is not evidence that the project needs `bootstrap`.
 
 ## First, read the room
 

@@ -37,6 +37,32 @@ export function makeOut(): Out {
   return fn;
 }
 
+// ---------------- validator CLI roots ----------------
+
+export interface ValidatorArgs {
+  codeRoot: string;
+  artifactRoot: string;
+  rest: string[];
+}
+
+export function parseValidatorArgs(args: string[]): ValidatorArgs {
+  const codeRoot = args[0];
+  if (!codeRoot) throw new Error("missing code root");
+
+  let artifactRoot = codeRoot;
+  const rest: string[] = [];
+  for (let i = 1; i < args.length; i++) {
+    if (args[i] !== "--artifact-root") {
+      rest.push(args[i]);
+      continue;
+    }
+    const value = args[++i];
+    if (!value) throw new Error("--artifact-root requires a path");
+    artifactRoot = value;
+  }
+  return { codeRoot, artifactRoot, rest };
+}
+
 // ---------------- cold-layer loading ----------------
 
 // Load the graph, or return a ready-to-print markdown error block when the
@@ -46,14 +72,15 @@ export function makeOut(): Out {
 export async function loadGraphOrError(
   projectRoot: string,
   heading: string,
+  artifactRoot = projectRoot,
 ): Promise<{ graph: ResolvedGraph; errorMarkdown?: string }> {
-  const graph = await loadLexicon(projectRoot);
+  const graph = await loadLexicon(projectRoot, artifactRoot);
   const errors = graph.issues.filter(i => i.severity === "error");
   if (!graph.system && errors.length > 0) {
     const out = makeOut();
     out(`## ${heading}`);
     out();
-    out(`Could not resolve the cold layer at \`${join(projectRoot, "lexicon")}\`:`);
+    out(`Could not resolve the cold layer at \`${join(artifactRoot, "lexicon")}\`:`);
     out();
     for (const e of errors.slice(0, 10)) out(`- ${e.file}: ${e.message}`);
     return { graph, errorMarkdown: out.toString() };
@@ -120,8 +147,8 @@ export function gitShow(projectRoot: string, rev: string, file: string): string 
 // The `.last-crystallized` marker carries one ISO timestamp. Derive a default
 // range "<last-commit-at-or-before-marker>..HEAD" — i.e. commits newer than the
 // marker. Returns null when the marker is absent/empty or no commit predates it.
-export function lastCrystallizedRange(projectRoot: string): string | null {
-  const marker = join(projectRoot, "lexicon", ".last-crystallized");
+export function lastCrystallizedRange(projectRoot: string, artifactRoot = projectRoot): string | null {
+  const marker = join(artifactRoot, "lexicon", ".last-crystallized");
   if (!existsSync(marker)) return null;
   let ts: string;
   try {

@@ -109,7 +109,7 @@ Phases 1–4 below are the inversion of checks 1–4. Phases 5–6 are validate-
 Before grepping anything by hand, run the standalone model-health validator and let its deterministic output stand in for the heuristic anchor work:
 
 ```
-bun ${CLAUDE_SKILL_DIR}/validators/anchor-health.ts <projectRoot>
+bun ${CLAUDE_SKILL_DIR}/validators/anchor-health.ts <codeRoot> --artifact-root <artifactRoot>
 ```
 
 It is **standalone** — tree-sitter only, no running viewer server, no LSP. It loads the cold layer, resolves every `<code-anchor symbol=>` against the code, and prints a `## Model health` block with three sub-sections (`### Anchor resolution` — healthy / drifted / dangling, `### Boundary contradictions`, `### Dead weight`) plus its own `### Items deliberately not flagged`. LSP-dependent checks (call-flow `calls`-edge contradictions) self-announce as "not checked (no LSP)" rather than implying coverage; only the structure tier (`extends` / `implements` / `uses`) is checked here. For LSP-confirmed call-flow coverage the user runs the viewer's Model Health view — don't claim it from this script.
