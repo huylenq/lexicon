@@ -66,6 +66,15 @@ type EdgeData = GraphConnection & {
   [key: string]: unknown;
 };
 type FlowEdge = Edge<EdgeData>;
+const objectLegend = [
+  ["context", "context", "Context"],
+  ["concept", "concept", "Concept"],
+  ["entity", "entity", "Entity"],
+  ["value", "value", "Value"],
+  ["aggregate", "aggregate", "Aggregate"],
+  ["service", "service", "Service"],
+  ["event", "event", "Event"],
+] as const;
 const Actions = createContext({
   select: (_s: GraphSelection) => {},
   collapse: (_id: string) => {},
@@ -920,14 +929,24 @@ function GraphCanvas({
         </div>
       )}
       {statusHost && createPortal(<div className="graph-legend" aria-label="Graph legend and counts">
-        <span>
-          <i /> Relationship
+        <span className="graph-object-legend" aria-label="Object icon legend">
+          {objectLegend.map(([tone, icon, label]) => (
+            <span className="graph-object-key object-name" data-tone={tone} key={tone}>
+              <Icon name={icon} size={13} className="type-icon" />
+              {label}
+            </span>
+          ))}
         </span>
-        <span>
-          <i className="code" /> Code mapping
-        </span>
-        <span>
-          <i className="summary" /> Summary
+        <span className="graph-edge-legend" aria-label="Connection legend">
+          <span>
+            <i /> Relationship
+          </span>
+          <span>
+            <i className="code" /> Code mapping
+          </span>
+          <span>
+            <i className="summary" /> Summary
+          </span>
         </span>
         <span className="graph-count">
           {projection.nodes.filter((n) => n.kind === "concept").length} concepts

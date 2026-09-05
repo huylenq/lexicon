@@ -20,6 +20,9 @@
   gap: 16px;
 }
 .workspace-status-bar .graph-count { margin-left: auto; }
+@media (max-width: 1100px) {
+  .workspace-status-bar .graph-object-legend { display: none; }
+}
 .agent-toggle {
   align-self: stretch;
   flex-shrink: 0;

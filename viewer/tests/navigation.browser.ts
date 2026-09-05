@@ -160,6 +160,13 @@ test("one shared status bar follows graph counts and keeps Agent reachable acros
   const bar = page.getByRole("region", { name: "Workspace status", exact: true });
   const agent = bar.getByRole("button", { name: "Agent", exact: true });
   await expect(bar.locator(".graph-count")).toHaveText("8 concepts · 0 code");
+  const objectLegend = bar.getByLabel("Object icon legend", { exact: true });
+  await expect(objectLegend).toBeVisible();
+  for (const [tone, label] of [["context", "Context"], ["concept", "Concept"], ["entity", "Entity"], ["value", "Value"], ["aggregate", "Aggregate"], ["service", "Service"], ["event", "Event"]]) {
+    const key = objectLegend.locator(`.graph-object-key[data-tone="${tone}"]`);
+    await expect(key).toHaveText(label);
+    await expect(key.locator("use")).toHaveAttribute("href", `/icons.svg#${tone}`);
+  }
   await expect(bar.getByText("Relationship", { exact: true })).toBeVisible();
   await expect(page.locator(".graph-legend")).toHaveCount(1);
   await expect(page.locator(".reader-header").getByRole("button", { name: "Agent", exact: true })).toHaveCount(0);
@@ -171,6 +178,7 @@ test("one shared status bar follows graph counts and keeps Agent reachable acros
   await page.getByRole("button", { name: "Show all code", exact: true }).click();
   await expect(bar.locator(".graph-count")).toHaveText("8 concepts · 6 code");
   await page.setViewportSize({ width: 390, height: 844 });
+  await expect(objectLegend).toBeHidden();
   await expect(bar.locator(".graph-count")).toBeVisible();
   await expect(agent).toBeVisible();
   await page.goto("/p/dentalml?item=selected-tooth");
