@@ -1,36 +1,33 @@
-# lexicon-viewer
+# Lexicon reader
 
-Local reading room for a lexicon-conform project: cold-layer XML, markdown under `lexicon/docs/`, and the codebase in one window. Editorial UI, Monaco peeks for code anchors. Read-only — corrections go through `crystallize` in the terminal.
+A local reader for the four-object domain model: contexts, concepts, relationships, and code links. Read the explanation, explore its connections, and inspect the implementation.
 
+```sh
+bun install --frozen-lockfile
+bun run build:client
+bun start
 ```
-bun install
-bun run --hot server/index.ts   # API + built client on :5374
-bun run dev:client              # Vite HMR on :5373, proxies /api → :5374
+
+Open http://127.0.0.1:5374. Development uses `mise run viewer` from the repository root, with Vite on http://127.0.0.1:5373.
+
+The library includes a DentalML example plus your registered projects. DentalML source links use a sibling `dentalml` checkout. Add a project by its absolute folder path. Removal affects its library registration only.
+
+- **Read:** context catalog, concept explanations, annotations, incoming/outgoing relationships, implementation links.
+- **Map:** focused rows of named relationships with clickable endpoints.
+- **Code:** declared source with line numbers, syntax coloring, symbol highlighting, and the explanation for the link.
+- **Find:** search names, descriptions, annotations, files, and symbols. `/` focuses search; Escape closes code or navigation.
+- **History:** item, view, and source selection live in the URL. Browser Back/Forward and Copy link preserve them.
+- **Refresh:** reread the model from disk. Parsing is uncached.
+
+Earlier XML models open through a read-only import adapter. See [MIGRATION.md](../MIGRATION.md). The model format is in [MODEL.md](../MODEL.md).
+
+## Checks
+
+```sh
+bun run test
+bun run typecheck
+bun run build:client
+bun run check examples/dentalml --code-root /path/to/dentalml
 ```
 
-Or from the plugin repo root: `mise run viewer`. Open **http://localhost:5373** while developing (live source). `:5374` is the API, and also serves `client/dist` if you've built.
-
-The API used to sit on `:8787`. That port is Cursor's MCP OAuth callback, so the default is now **5374**. Override with `LEXICON_VIEWER_API_PORT` if you need to — a generic `PORT` is ignored so Cursor/Grok sessions cannot steal the bind.
-
-## Views
-
-Each project has two peer views, switchable from the top strip or the keyboard.
-
-### Reading room
-
-The default. Sidebar catalog by bounded context; centre column reads one entity; right rail is the Monaco peek drawer for code anchors. Markdown specs under `lexicon/docs/specs/` show up as `spec` entities and resolve `[[fqid]]` links into the cold layer.
-
-### Graph view
-
-A typeset diagram of the same model. Lenses:
-
-- **Ownership** *(default)* — bounded contexts and shared kernels as containers, atoms nested inside.
-- **Surfaces** — surfaces as containers, regions nested.
-- **Code** — symbols the cold layer pins via code-anchors, edges from tree-sitter / LSP.
-- **Territory** — leftover graphify neighborhood browser. Optional, artifact-only, not the engine. Candidate for removal.
-
-## Keyboard
-
-- `g` — graph view
-- `Escape` — back to the reading room
-- `/` — find
+The API binds to `127.0.0.1`. `LEXICON_VIEWER_API_PORT` changes port 5374. `LEXICON_VIEWER_DB` chooses a separate SQLite registry for tests; the default preserves `lexicon-viewer.db`. API source requests identify an item and its code-link index, and the server confines the resolved file to the code root.

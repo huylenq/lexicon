@@ -6,19 +6,12 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "jsx": "react-jsx",
     "strict": true,
-    "noUnusedLocals": false,
-    "noUnusedParameters": false,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "resolveJsonModule": true,
     "allowImportingTsExtensions": true,
     "noEmit": true,
     "isolatedModules": true,
-    "types": ["bun-types"],
-    "paths": {
-      "@/*": ["./client/src/*"],
-      "@server/*": ["./server/*"]
-    }
+    "types": ["bun-types"]
   },
-  "include": ["server/**/*", "client/**/*"]
+  "include": ["server/**/*", "client/**/*", "shared/**/*", "tests/**/*"]
 }

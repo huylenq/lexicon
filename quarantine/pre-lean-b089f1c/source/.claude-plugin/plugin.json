@@ -1,0 +1,13 @@
+{
+  "name": "lexicon",
+  "version": "1.2.0",
+  "description": "Living domain-driven documentation for coding agents. A small typed XML cold layer (lexicon/system.xml) captures vocabulary and invariants; markdown prose lives under lexicon/docs/. Ground before work, crystallize on the user's call. Ships three skills: using-lexicon, lexicon, and laxicon, plus slash commands and a local viewer.",
+  "author": {
+    "name": "Huy Le",
+    "url": "https://github.com/huylenq"
+  },
+  "homepage": "https://github.com/huylenq/lexicon",
+  "repository": "https://github.com/huylenq/lexicon",
+  "license": "MIT",
+  "keywords": ["workflow", "ddd", "ubiquitous-language", "laxicon", "wiki", "ideas", "spec", "planning", "agent-coordination", "design-system", "accessibility"]
+}

@@ -1,0 +1,1015 @@
+{
+  "revision": "b089f1c9798d4b21b63d3d5bf0a29dc3af2d935e",
+  "files": [
+    {
+      "path": ".claude-plugin/plugin.json",
+      "git_blob": "6df2341ad5c9b3645b37fe782c45996b5f899858",
+      "mode": "100644"
+    },
+    {
+      "path": ".gitignore",
+      "git_blob": "6a34aa2aadb61e755deea939e28ec7f7cc4689a4",
+      "mode": "100644"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "git_blob": "d48eaf8999c517aeb6b467bfb65888b241aec80b",
+      "mode": "100644"
+    },
+    {
+      "path": "CLAUDE.md",
+      "git_blob": "a3e94211cb51292870bd95207e73d5cd9fed20c3",
+      "mode": "100644"
+    },
+    {
+      "path": "LICENSE",
+      "git_blob": "0dc925f6e940a0c2e5190ff427ab6040f08cc384",
+      "mode": "100644"
+    },
+    {
+      "path": "README.md",
+      "git_blob": "b43278cec2376ccb49f929f1dba924569d6ee3be",
+      "mode": "100644"
+    },
+    {
+      "path": "artifacts/ui/sliding-pane-first-dark.png",
+      "git_blob": "940d1c8f9b4e00af1e9d82505a559260936bac58",
+      "mode": "100644"
+    },
+    {
+      "path": "artifacts/ui/sliding-panes-dark.png",
+      "git_blob": "9135f211240b0cff1e74107368e166c11a63ef27",
+      "mode": "100644"
+    },
+    {
+      "path": "artifacts/ui/sliding-panes-light.png",
+      "git_blob": "a3560174382c710474fd1c261f9ab2476a0b1d6b",
+      "mode": "100644"
+    },
+    {
+      "path": "assets/map-and-territory.jpg",
+      "git_blob": "96bbd2b462848f2059f85cbf9920b110356d6656",
+      "mode": "100644"
+    },
+    {
+      "path": "commands/bootstrap.md",
+      "git_blob": "4011530bb15fbb980fb69fc3e10c4369f773506c",
+      "mode": "100644"
+    },
+    {
+      "path": "commands/crystallize.md",
+      "git_blob": "1bacbcef7d6f234689cdafc95e703d21cfea3e9b",
+      "mode": "100644"
+    },
+    {
+      "path": "commands/ground.md",
+      "git_blob": "bca9aab19de208258e01233edb70f265378b75a3",
+      "mode": "100644"
+    },
+    {
+      "path": "commands/meta-evolve.md",
+      "git_blob": "50077d7f66ed7958fb0d6a3a85136e3635b88ca1",
+      "mode": "100644"
+    },
+    {
+      "path": "commands/spec.md",
+      "git_blob": "21915b56db854c5571bc0b2344a7c693dd29fd22",
+      "mode": "100644"
+    },
+    {
+      "path": "commands/validate.md",
+      "git_blob": "c23fe1a6d048f0762ae3fda2b47f30d0dd8c127c",
+      "mode": "100644"
+    },
+    {
+      "path": "lexicon-prefs.md",
+      "git_blob": "6963d2398c24ec7c89059da53b491f1d83400bc1",
+      "mode": "100644"
+    },
+    {
+      "path": "lexicon/docs/ddd-essence.md",
+      "git_blob": "d1209be2f18f0841ed2be2e266f5de05d403562a",
+      "mode": "100644"
+    },
+    {
+      "path": "lexicon/docs/plans/graphify-adoption.md",
+      "git_blob": "24a3d4a9009e35536c1a686be37861bd172e4efc",
+      "mode": "100644"
+    },
+    {
+      "path": "lexicon/docs/specs/graphify-adoption-design.md",
+      "git_blob": "7eec3b5ef596c143306fdcdbd53b762df07ca274",
+      "mode": "100644"
+    },
+    {
+      "path": "mise.toml",
+      "git_blob": "7926bb47295d564f190584e40b0da1ce0a1bdc0a",
+      "mode": "100644"
+    },
+    {
+      "path": "skills/laxicon/SKILL.md",
+      "git_blob": "341a7fc569f6e3dae46d907899979692fbbe309b",
+      "mode": "100644"
+    },
+    {
+      "path": "skills/lexicon/SKILL.md",
+      "git_blob": "0ac60fed7260eca71de6514d65176557836625b8",
+      "mode": "100644"
+    },
+    {
+      "path": "skills/lexicon/migrations/v0.1-to-v0.2.md",
+      "git_blob": "80a73e6d949f4562f705bbcb5737a6800966bec1",
+      "mode": "100644"
+    },
+    {
+      "path": "skills/lexicon/migrations/v0.2-to-v0.3.md",
+      "git_blob": "a831d75202c12d78583edab7f257184f03e89c59",
+      "mode": "100644"
+    },
+    {
+      "path": "skills/lexicon/migrations/v0.3-to-v1.0.md",
+      "git_blob": "aa526926f4795e19dd8104cc02cb9d0d7de3816c",
+      "mode": "100644"
+    },
+    {
+      "path": "skills/lexicon/migrations/v0.x-to-v0.1.md",
+      "git_blob": "91627a849e70ab765572fee2b3502886e9f89923",
+      "mode": "100644"
+    },
+    {
+      "path": "skills/lexicon/reference/checks.md",
+      "git_blob": "80f0a93acd296e11ba3d4a0d8b5be35ef40ea8da",
+      "mode": "100644"
+    },
+    {
+      "path": "skills/lexicon/reference/design.md",
+      "git_blob": "8171091aadb916fa901140c11b12f8a70dd39dbb",
+      "mode": "100644"
+    },
+    {
+      "path": "skills/lexicon/reference/rules.md",
+      "git_blob": "e21417286fce71db5b5146e24ed2855eccc772a5",
+      "mode": "100644"
+    },
+    {
+      "path": "skills/lexicon/reference/schema.example.xml",
+      "git_blob": "b3d90a85603394fee5c80ffe0282e731cf86e21b",
+      "mode": "100644"
+    },
+    {
+      "path": "skills/lexicon/reference/schema.md",
+      "git_blob": "6c4bfc68f23b01834384d05f5ea4ffe70d9e180e",
+      "mode": "100644"
+    },
+    {
+      "path": "skills/lexicon/reference/schema.xsd",
+      "git_blob": "312b1305c209808d0fedfb06f4ef8aa44bd4326d",
+      "mode": "100644"
+    },
+    {
+      "path": "skills/lexicon/subcommands/bootstrap.md",
+      "git_blob": "9202a458d5914d0fe8504cc0bc41fef74b0fe29b",
+      "mode": "100644"
+    },
+    {
+      "path": "skills/lexicon/subcommands/crystallize.md",
+      "git_blob": "88cd6891ed68e1bbeb35ae9f33c187d4e46cbb7b",
+      "mode": "100644"
+    },
+    {
+      "path": "skills/lexicon/subcommands/ground.md",
+      "git_blob": "b53ff112e2c60fa84f81aef860cb1fe3f36f61d8",
+      "mode": "100644"
+    },
+    {
+      "path": "skills/lexicon/subcommands/meta-evolve.md",
+      "git_blob": "df7b300e09ccf0224dcaba8cb530b1af37052cec",
+      "mode": "100644"
+    },
+    {
+      "path": "skills/lexicon/subcommands/spec.md",
+      "git_blob": "0a5a6f25967cef933fd67be76f9727dc1b258f40",
+      "mode": "100644"
+    },
+    {
+      "path": "skills/lexicon/subcommands/validate.md",
+      "git_blob": "de27f92dfc9c468dacbb5ab934162881d426046d",
+      "mode": "100644"
+    },
+    {
+      "path": "skills/lexicon/templates/bounded-context.xml.example",
+      "git_blob": "096399639f219eeee5bdd997028ef101fb0204ff",
+      "mode": "100644"
+    },
+    {
+      "path": "skills/lexicon/templates/plan.md.template",
+      "git_blob": "72b8cdab51ac86dbe6c7a9018043e57edad4fc47",
+      "mode": "100644"
+    },
+    {
+      "path": "skills/lexicon/templates/surface.xml.example",
+      "git_blob": "347bc8751dd98fe651faf095ea32db865744461f",
+      "mode": "100644"
+    },
+    {
+      "path": "skills/lexicon/templates/system.xml.example",
+      "git_blob": "03e55c5eaaaf304089d33955c92a37dd663f7958",
+      "mode": "100644"
+    },
+    {
+      "path": "skills/lexicon/validators/anchor-health.ts",
+      "git_blob": "b6f3683ab62ec17b8c3f950b03a19328f0e63015",
+      "mode": "100644"
+    },
+    {
+      "path": "skills/lexicon/validators/cli.test.ts",
+      "git_blob": "738581cf36b4273e51d8322158925c1498e0ec49",
+      "mode": "100644"
+    },
+    {
+      "path": "skills/lexicon/validators/crystallize-signals.ts",
+      "git_blob": "bbe99e84a63344d6ee2402e5d282d7dceb702750",
+      "mode": "100644"
+    },
+    {
+      "path": "skills/lexicon/validators/impact.ts",
+      "git_blob": "35b3adef61846ba79522a8ca92a06b8b33104b5e",
+      "mode": "100644"
+    },
+    {
+      "path": "skills/lexicon/validators/lib.test.ts",
+      "git_blob": "784276d705dad4a87e9aa9c9e94ca8a04d2f3daa",
+      "mode": "100644"
+    },
+    {
+      "path": "skills/lexicon/validators/lib.ts",
+      "git_blob": "7bfe2e444e49eaec61639382ecd0b7eaf17bc50b",
+      "mode": "100644"
+    },
+    {
+      "path": "skills/lexicon/validators/reground.ts",
+      "git_blob": "e6cf6e1b06f9eb4b2ed5b88ea97b218822a6923a",
+      "mode": "100644"
+    },
+    {
+      "path": "skills/using-lexicon/SKILL.md",
+      "git_blob": "2c63b7ede083be3e3756a115846f28e834cb2f2c",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/.gitignore",
+      "git_blob": "0878f48d8320574e7dc885b3bbc5c320f6bed3f2",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/README.md",
+      "git_blob": "020d5d9f5d2bd51df590f1976f17ecf82bba85f6",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/bun.lock",
+      "git_blob": "8ad4eac7c13ff9dd40cd657ba3fc09b12528309d",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/client/index.html",
+      "git_blob": "ce52959b180b9605cf8fc9a32b139590c8abd77e",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/client/public/icon-maskable.svg",
+      "git_blob": "479418c7ab4e78b9cfc698324b0855d746ea44fc",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/client/public/icon.svg",
+      "git_blob": "e1f1734e46e8d31c204c86b6ba0e1a786a7f64bf",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/client/src/App.tsx",
+      "git_blob": "9dd8cd1fcfd002dcf7d727b8cb7ed04198a56a7c",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/client/src/components/AtomDossier.tsx",
+      "git_blob": "68e4b99e661c041ac1e2cc07cdde69a18dfe59b4",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/client/src/components/CodeAnchorBadge.tsx",
+      "git_blob": "0009a789dd6fe6eb90ee6fc9edb4c3435fa52cb8",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/client/src/components/ContextSidebar.tsx",
+      "git_blob": "a5dd890bdb2b9f5a1f0eb12801f4ee959f52beef",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/client/src/components/Facets.tsx",
+      "git_blob": "21654a4ed4b8425a5e82cd3dd42bbf156a03d64d",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/client/src/components/InlineCode.tsx",
+      "git_blob": "133f0fd07f78f8a92bb8b3743c540bb8fde39703",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/client/src/components/KindBadge.tsx",
+      "git_blob": "09aeba400a955ed0034bae84470b64f38f62e754",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/client/src/components/Mermaid.tsx",
+      "git_blob": "625764903151e590e2c8040efb71240cc2445825",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/client/src/components/Pane.tsx",
+      "git_blob": "b0360e9e9846c5a360aa55e79bec0b81baf56f70",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/client/src/components/PeekDrawer.tsx",
+      "git_blob": "9c6dd4b7b394969554252ccf036d6fef3bfeb2c2",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/client/src/components/Prose.tsx",
+      "git_blob": "f1dc1d271964f9098e13d7c93a3be9c9a757d551",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/client/src/components/RefLink.tsx",
+      "git_blob": "d23b95c6b95b99ce89e4a653172709f794c78706",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/client/src/components/SpecMarkdown.tsx",
+      "git_blob": "0a5ce424a11a5f456e5b4f057c4e83ef093d4199",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/client/src/components/StackedPane.tsx",
+      "git_blob": "8b76db45290a45bef5fae240caeba4b91f198073",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/client/src/components/ThemeToggle.tsx",
+      "git_blob": "1c366e0f6b561f2a573f400d0ab87bea7e927393",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/client/src/components/Tip.tsx",
+      "git_blob": "4f462130125407195c7ef792757c3144ac68a9dd",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/client/src/components/YamlInspector.tsx",
+      "git_blob": "efc434241b11c2aadc2c5095f8bbe76193a9b387",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/client/src/components/graph/FlowCanvas.tsx",
+      "git_blob": "06501b9dfd01acc3ad9e7b16b07b230f6991555d",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/client/src/components/graph/GraphFilterBar.tsx",
+      "git_blob": "7878f61aefee30ae2c1846c536698704eaa032c8",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/client/src/components/graph/GraphLensSelector.tsx",
+      "git_blob": "ee62f43d5459c9278cad9c7a627a56046ced9cfe",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/client/src/components/graph/GraphifyCanvas.tsx",
+      "git_blob": "2edd0c8b936f6a7edd1076c125fe775ba8787e7e",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/client/src/components/graph/GraphifyLens.tsx",
+      "git_blob": "accd0ff03f81dfcdd2c6ac75c02238fb4b34ac4b",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/client/src/components/graph/GraphifyNodeRail.tsx",
+      "git_blob": "56f99bdf30808b51f90d10bffaf265be0e2af52f",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/client/src/lib/api.ts",
+      "git_blob": "ec693ae6c1d9046cb398a6e109ad9856a153e8e6",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/client/src/lib/backlinks.ts",
+      "git_blob": "13a87b9aa20b19002e2bee0d781417d9236305ec",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/client/src/lib/graph/build-graph.ts",
+      "git_blob": "1c926e621b44b7ab5b03e2ee475f1e03e41cd609",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/client/src/lib/graph/edge-style.ts",
+      "git_blob": "ccc145b0712cb18d7bdf4222cceec6d8796ce6fe",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/client/src/lib/graph/edges.test.ts",
+      "git_blob": "aaad93b63c220a08d7982e3047ef094cef4c7fa4",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/client/src/lib/graph/elk-node-setup.ts",
+      "git_blob": "d860152904133c4583804dab9198a9b36a1352df",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/client/src/lib/graph/graphify-lens.test.ts",
+      "git_blob": "bd2729dc5350e550d4d82a599bd2dc72043be706",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/client/src/lib/graph/graphify-lens.ts",
+      "git_blob": "ca18c0d4a50a217f7610dac33260b94e97cd95ae",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/client/src/lib/graph/health-style.test.ts",
+      "git_blob": "31194abb1ea3306a460234437448b60836073ff2",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/client/src/lib/graph/health-style.ts",
+      "git_blob": "6507a5c5e386cd49b05b1909e76dded5fbb053fd",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/client/src/lib/graph/layout.ts",
+      "git_blob": "09ea3450e76b520b1fcf536705b0ca4fb3298c16",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/client/src/lib/inline-code.ts",
+      "git_blob": "8f41ae5e7410efc98608f5868b7257d4f49c882d",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/client/src/lib/inspector.tsx",
+      "git_blob": "8242d986cb14937bf16cd35fbcf64f1cf7f9778d",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/client/src/lib/kinds.ts",
+      "git_blob": "cfcc8eb634a82552b18a835cf25f8799ffddfe66",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/client/src/lib/model-health.tsx",
+      "git_blob": "7c4123eb419fb00d92bb55437a54afd9100d5cb0",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/client/src/lib/monaco-lang.ts",
+      "git_blob": "23f38467f98f062307a29feef532d265aa1a5c2b",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/client/src/lib/peek.tsx",
+      "git_blob": "4ec3885f4808a8b909704b4140bdd1b1a3750efc",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/client/src/lib/remark-wiki-links.ts",
+      "git_blob": "4ba0315e96b37959224761c6eb8aaa746194bf45",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/client/src/lib/resize.tsx",
+      "git_blob": "e12f90d909832debe19ff9b470a54fe575220fe1",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/client/src/lib/stack.tsx",
+      "git_blob": "194e56edf5020a3eff9ba6ca83bbbaab5d7453b6",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/client/src/lib/types.ts",
+      "git_blob": "48a495f712d0472b57d1eb708ed54cb5a6933bc3",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/client/src/main.tsx",
+      "git_blob": "702da9180511daf66c98d20527df49e4c464ef9a",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/client/src/pages/GraphPage.tsx",
+      "git_blob": "c85f71aca1ca63320c230ec15f42f080b58400ee",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/client/src/pages/ProjectPage.tsx",
+      "git_blob": "361ca47cb1679d02fb45ac0b6ab9c245a6873305",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/client/src/pages/ProjectsPage.tsx",
+      "git_blob": "f294d403cc02a50cc7954e0781587f31a011179f",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/client/src/styles/index.css",
+      "git_blob": "59fe631fea6e333e82e9dea87806c0f272c560d9",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/client/vite-env.d.ts",
+      "git_blob": "64251fba07826fb9f05570afb6d4b7d2b0cea3a2",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/client/vite.config.ts",
+      "git_blob": "b539231ac22d051190cb66e62596e029a2352126",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/lexicon/contexts/design-system.xml",
+      "git_blob": "657462436daa1d269a7810b2638e55af77128720",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/lexicon/contexts/graph-model.xml",
+      "git_blob": "b19b0eb2ddd17a7452e3aa6825b1cfa899da5585",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/lexicon/contexts/lexicon-loading.xml",
+      "git_blob": "7356b35ef1cb3f178b2e55a7d96d3271c86e7105",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/lexicon/contexts/project-registry.xml",
+      "git_blob": "a2db21142fcfc92c7251af35c2a1eb8b1e11284e",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/lexicon/docs/plans/graphify-lens/plan.md",
+      "git_blob": "184ef18e3a5d95b978c24d26ba1bc2f9bf7ff6b1",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/lexicon/docs/specs/code-lens-design.md",
+      "git_blob": "c494e3601b3f996c676e12f0014241b451a034f8",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/lexicon/docs/specs/code-lens.progress.md",
+      "git_blob": "549382d6052437dabe73711a662670b17d68fa71",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/lexicon/docs/specs/graphify-lens-design.md",
+      "git_blob": "21c62c59b799bdb1f68572e32f0177499f4095ab",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/lexicon/docs/specs/graphify-lens.progress.md",
+      "git_blob": "b4ec78ac9f42b860401145413e92de1580397427",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/lexicon/docs/specs/model-code-overlay-design.md",
+      "git_blob": "66425ebc0cd06befc53293d6695679d1d0f3d981",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/lexicon/docs/specs/model-health-design.md",
+      "git_blob": "2b11d5afecbf811625ff6878f2acd9a7124770c0",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/lexicon/docs/specs/playground-cognition-fixture.md",
+      "git_blob": "6049668a71f0a10d71e4d4ba9b65b4e35feb286a",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/lexicon/docs/specs/workflow-mechanization-design.md",
+      "git_blob": "cf43fbd697efdc6bbaa247cfe974fac871185ca4",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/lexicon/surfaces/graph-view.xml",
+      "git_blob": "2926bf285427d678b27270b36f62dd1341dad62e",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/lexicon/surfaces/projects-page.xml",
+      "git_blob": "6e6a1a47651a40ce6efb84bce4d1a879fe1cb2ab",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/lexicon/surfaces/reading-room.xml",
+      "git_blob": "30e429b949ba1aecc40693ac972c816b0fb51624",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/lexicon/system.xml",
+      "git_blob": "30c48cb9408e2ab55ef4ecd5cf2b4005e292d90a",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/package.json",
+      "git_blob": "e1c75ebd8b5227955d839af2b1de1b11f5b4057e",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/sample-lexicon/lexicon/contexts/billing.xml",
+      "git_blob": "9a93680fa512b5c9749b91a7017341da4df42aa5",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/sample-lexicon/lexicon/contexts/catalog.xml",
+      "git_blob": "c56f318e6a08135fe753ca57204f4558d17c78ce",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/sample-lexicon/lexicon/contexts/inventory.xml",
+      "git_blob": "3539c561c13e99586f8cd99a6d0398ea80d8eb8e",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/sample-lexicon/lexicon/contexts/orders.xml",
+      "git_blob": "f4215b60cb31477da2da7b576fbeef2b6d34f0a5",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/sample-lexicon/lexicon/contexts/shipping.xml",
+      "git_blob": "f942ffe821c7fbfe3daa05569dbfaf155f33209e",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/sample-lexicon/lexicon/docs/specs/order-placement-design.md",
+      "git_blob": "a5018f96e738ddfe9711baee9851dfeac96f6498",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/sample-lexicon/lexicon/surfaces/admin-orders.xml",
+      "git_blob": "1f33c0fd620f0f811acad7811e23cc3651c88eb9",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/sample-lexicon/lexicon/surfaces/storefront.xml",
+      "git_blob": "6b131deeb07b814ae09ceafed3c2cbb5a2d59b3e",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/sample-lexicon/lexicon/system.xml",
+      "git_blob": "4fc664187461429562e8218ec2b35b258fbfb98c",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/sample-lexicon/skills",
+      "git_blob": "5dcab58e15ae984de046bafda48a36961763a9e3",
+      "mode": "120000"
+    },
+    {
+      "path": "viewer/server/call-flow.ts",
+      "git_blob": "715d81f7d11a00e0280273a5ae2033f603b232b3",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/server/code-intel.test.ts",
+      "git_blob": "5ffb4beeb0064d5ac971978446c3ea99a4ee6011",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/server/code-intel.ts",
+      "git_blob": "71da5a02bd772b4ba526be0fc50623ccaa190d71",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/server/db.ts",
+      "git_blob": "7c1d15cddcdce14629393e5c756fd6c2a63104f6",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/server/grammars.ts",
+      "git_blob": "fc37315d28f6f92a82207c470ad22e88cd934918",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/server/graphify.test.ts",
+      "git_blob": "2929539841589c999a8586f7d9e68af991739d0d",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/server/graphify.ts",
+      "git_blob": "d0e1867261ef1533e558493815a5baa91d3aeaa2",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/server/index.ts",
+      "git_blob": "37b0e385e5d239eaf3e19c14ee32b64279fd765b",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/server/loader-roots.test.ts",
+      "git_blob": "d23e3e951b5a04307052fa76d1868050a92c8b92",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/server/loader.ts",
+      "git_blob": "3b6a38dbb66d6a91cf98bbf44fe051cd4dd4b005",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/server/lsp/provider.ts",
+      "git_blob": "d96251b9a7bf93dc91eb280fd3c62e148fae6525",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/server/lsp/pyright-client.ts",
+      "git_blob": "a882b7fa6515af9dab5202f50eab9b3c9dd86113",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/server/lsp/roots.ts",
+      "git_blob": "5b66a2c2f7e8232f3ec546c476949a9ffd0e2ba7",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/server/lsp/supervisor.ts",
+      "git_blob": "bada6b377b9f83b8d13720b6048e2dcde7040f13",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/server/lsp/tsserver-client.ts",
+      "git_blob": "5f3add85ddf9bd0f635b831e24e3f9dc14743649",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/server/model-health.test.ts",
+      "git_blob": "afab264fd00875f3a0bf2f44f2a56e00a021c67c",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/server/model-health.ts",
+      "git_blob": "4fc5a186bdb518744b343ed84cec577d7c90c47f",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/server/prose-links.ts",
+      "git_blob": "af056d093b881703517812fde6dcd2e1468eb2ee",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/server/schema.ts",
+      "git_blob": "558dbc46067d57ab16ed8147b85acaea6912aa71",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/server/watch.ts",
+      "git_blob": "c9136921655679afc227517112a858942775f2fc",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/test-fixtures/ambiguous/lexicon/contexts/code.xml",
+      "git_blob": "55f194c4e408023ed0cd83d59127303d45a6f792",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/test-fixtures/ambiguous/lexicon/system.xml",
+      "git_blob": "472ea8e9697f6c409cf9f87008ae7ab39d602704",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/test-fixtures/ambiguous/src/a.ts",
+      "git_blob": "2e112bcc406260195b9a0d0c6de50d90f6beafb4",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/test-fixtures/ambiguous/src/b.ts",
+      "git_blob": "e26277f70feeb978a06665de73c87c4597934ade",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/test-fixtures/ambiguous/src/consumer.ts",
+      "git_blob": "7afa8604cc8abb07cafa0c0b0b5bbe5c3b183820",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/test-fixtures/ambiguous/tsconfig.json",
+      "git_blob": "08fa4ce2efa7185b92fbd545908626b0d4a96086",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/test-fixtures/contradiction-acl/lexicon/contexts/app.xml",
+      "git_blob": "794d2cc5d6ce5894a2409ff503acfaa5c355df0e",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/test-fixtures/contradiction-acl/lexicon/contexts/ext.xml",
+      "git_blob": "4d8cb876db10f76c8ebebca9763e7fa71a17c756",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/test-fixtures/contradiction-acl/lexicon/system.xml",
+      "git_blob": "62a21acd32cd33f4ee39044d376488fba0759152",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/test-fixtures/contradiction-acl/src/adapter.ts",
+      "git_blob": "456d723fb10931617a9bbd6c74d9a651eb3d8f64",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/test-fixtures/contradiction-acl/src/ext.ts",
+      "git_blob": "3e2d4908d303bf8bcd9eea69f6195de3dd81efb0",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/test-fixtures/contradiction-acl/src/widget.ts",
+      "git_blob": "1c4a0d5d43497d4310e4b99cf5845a09abfea412",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/test-fixtures/contradiction-leak/lexicon/contexts/alpha.xml",
+      "git_blob": "aca7e3773f387f4b46e7a55b4f6d4749a55f589d",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/test-fixtures/contradiction-leak/lexicon/contexts/beta.xml",
+      "git_blob": "7ccfc0981598f0eb62a92a94968d807b1965b11f",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/test-fixtures/contradiction-leak/lexicon/system.xml",
+      "git_blob": "552fff75e68b3426e6e68fc0e307e675644e8841",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/test-fixtures/contradiction-leak/src/alpha.ts",
+      "git_blob": "18355136b158141f2826739493842586ec9c0df7",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/test-fixtures/contradiction-leak/src/beta.ts",
+      "git_blob": "623fd97ae3e9c86a7c7d85f51cd0de2b1cd670d1",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/test-fixtures/contradiction-unsupported/lexicon/contexts/down.xml",
+      "git_blob": "199a98d3847751453e0538f8095780b206a5ebee",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/test-fixtures/contradiction-unsupported/lexicon/contexts/up.xml",
+      "git_blob": "ddb41e14a5b35194149bb6f754026541aaa89ee9",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/test-fixtures/contradiction-unsupported/lexicon/system.xml",
+      "git_blob": "6ba719c6d01bd3cb483b92a136e5d6744bcd8ca6",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/test-fixtures/contradiction-unsupported/src/down.ts",
+      "git_blob": "5ddaa361ace2797ee62ea4181f12c1c9fe866125",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/test-fixtures/contradiction-unsupported/src/up.ts",
+      "git_blob": "9db1a72767f1a91a64c85b685458b5bf98563857",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/test-fixtures/drift/lexicon/contexts/code.xml",
+      "git_blob": "0623478602e7d09ba7815611d2e16f619588d754",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/test-fixtures/drift/lexicon/system.xml",
+      "git_blob": "89b124497171c400a974a2e0fe16d07839135f81",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/test-fixtures/drift/src/core.ts",
+      "git_blob": "4fa7afbef4ee34f9822607d7f913398e2cf2f690",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/test-fixtures/drift/src/widget.ts",
+      "git_blob": "8f8b59cf4c0324ab5b3c10b9ed6e463391e2a27d",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/test-fixtures/graphify/absent/.gitkeep",
+      "git_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/test-fixtures/graphify/hidetests/graphify-out/graph.json",
+      "git_blob": "4c6db27264ac70d88f4119ae25d13c2d0892d091",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/test-fixtures/graphify/malformed/graphify-out/graph.json",
+      "git_blob": "b6830a2702fa8bfbc9f4b436c3597e3fe0fbdb0e",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/test-fixtures/graphify/ranking/graphify-out/graph.json",
+      "git_blob": "3bb0a3770549dac923a80b11b09dfdd916ea018d",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/test-fixtures/graphify/small/graphify-out/graph.json",
+      "git_blob": "f2567a26ea90d8397db5aafe545b7deb5470eed5",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/test-fixtures/model-health/lexicon/contexts/billing.xml",
+      "git_blob": "91e5f7af3d26c1c2305e71c6bb1ddf6d94616a2d",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/test-fixtures/model-health/lexicon/contexts/orders.xml",
+      "git_blob": "b9d547e71c027fa4989e786d0294b9564a235285",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/test-fixtures/model-health/lexicon/contexts/shipping.xml",
+      "git_blob": "95eece63390634efb940bf178967313aa2ed9069",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/test-fixtures/model-health/lexicon/system.xml",
+      "git_blob": "5ad554a0a363bb747ee57863a572c04b30ed9987",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/test-fixtures/model-health/src/billing.ts",
+      "git_blob": "bc5cc25d51e8850d185c17618c414e86e11ad7f8",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/test-fixtures/model-health/src/orders.ts",
+      "git_blob": "c6684724c63297e5d0fbc5f85ec475a6a0cb6898",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/test-fixtures/model-health/src/shipping.ts",
+      "git_blob": "3a3a92c1146070bbe57aea32e6c846ee70a4ee6e",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/test-fixtures/model-health/vendor/dep.ts",
+      "git_blob": "687f43c30509ee465469a875877fa36146598f1c",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/test-fixtures/multistack/lexicon/contexts/code.xml",
+      "git_blob": "d9e8ec39022f988333b7de3e2642349871664e3d",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/test-fixtures/multistack/lexicon/system.xml",
+      "git_blob": "dd3c048f03227d6f4760bbac8cda7bf4dc755f64",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/test-fixtures/multistack/pyproject.toml",
+      "git_blob": "d264e3d2e19dd2eb3cab675ba3daf1a3c6723738",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/test-fixtures/multistack/src/calc.py",
+      "git_blob": "9392175dc5893551a9b2d2ee632f4459a3e00c5b",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/test-fixtures/multistack/src/shapes.ts",
+      "git_blob": "ecaa9ab7f52c9e7816086f07451b754cc79bb9fd",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/test-fixtures/multistack/tsconfig.json",
+      "git_blob": "08fa4ce2efa7185b92fbd545908626b0d4a96086",
+      "mode": "100644"
+    },
+    {
+      "path": "viewer/tsconfig.json",
+      "git_blob": "cada6fab377e6bd29fa608838761c9031ba448b9",
+      "mode": "100644"
+    }
+  ]
+}

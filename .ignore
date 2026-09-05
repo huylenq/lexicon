@@ -1,0 +1,6 @@
+# Historical reference; use rg --no-ignore with an explicit path to inspect.
+/quarantine/
+/lexicon/docs/
+/viewer/lexicon/docs/
+/viewer/sample-lexicon/
+/artifacts/

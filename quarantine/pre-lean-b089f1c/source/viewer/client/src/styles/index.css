@@ -1,0 +1,1318 @@
+@import "tailwindcss";
+
+/* If --color-paper or its dark-mode counterpart changes, also update the
+   matching <meta name="theme-color"> in index.html and the manifest's
+   theme_color/background_color in vite.config.ts — neither can read CSS
+   vars. */
+@theme {
+  --color-chrome:  #ece2cb;
+  --color-paper:   #f0ead8;
+  --color-paper-2: #e6ddc4;
+  --color-paper-3: #ddd2b3;
+  --color-paper-4: #cec3a1;
+  --color-fg:      #0d2a52;
+  --color-fg-2:    #1f3e6e;
+  --color-fg-3:    #4f6788;
+  --color-rule:    rgba(13, 42, 82, 0.28);
+  /* mark-2 is *deeper* than mark in light mode — selection on cream needs
+     oxblood, not orange. Dark-mode block below inverts this relationship. */
+  --color-mark:    #c8401e;
+  --color-mark-2:  #9c2e16;
+  --color-highlight: #b8861a;
+  /* Model↔code overlay alert layer. --color-alert is the oxide accent pushed
+     toward true red (contradictions, dangling anchors); --color-warn is the
+     ochre/amber half-signal (drifted anchors). Both extend the existing
+     oxide/highlight identity rather than importing a generic warning palette. */
+  --color-alert:   #c4181a;
+  --color-warn:    #b8861a;
+
+  --grid-line:   rgba(13, 42, 82, 0.12);
+  --grid-line-5: rgba(13, 42, 82, 0.22);
+
+  --font-display: "Saira Condensed", "Inter Tight", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Inter Tight", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --font-sans: "Inter Tight", "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  --text-display: 4.5rem;
+  --text-h1: 2.75rem;
+  --text-h2: 1.875rem;
+  --text-h3: 1.25rem;
+  --text-body: 1rem;
+  --text-small: 0.8125rem;
+  --text-micro: 0.6875rem;
+
+  --radius-card: 0;
+  --radius-pill: 2px;
+
+  /* Entity-kind palette — single source of truth shared across light/dark.
+     Chosen at OKLCH L≈0.6, moderate chroma, so the same hex reads as a
+     decorative accent on both cream (#f0ead8) and navy (#0a1f3d) without
+     a per-theme override. Used for kind icons today; can extend to graph
+     fills, kind badges, and filter chips. */
+  --color-kind-system:          #9a8c7a;
+  --color-kind-bounded-context: #7d8a9c;
+  --color-kind-term:            #5b8dc4;
+  --color-kind-invariant:       #c45b5b;
+  --color-kind-seam:            #3fa595;
+  --color-kind-boundary-rule:   #a85ba8;
+  --color-kind-aggregate:       #c98b2a;
+  --color-kind-module:          #b07a3f;
+  --color-kind-shared-kernel:   #6b7d9a;
+  --color-kind-surface:         #5fa15f;
+  --color-kind-region:          #8fa838;
+  --color-kind-spec:            #b08968;
+}
+
+:root {
+  color-scheme: light;
+  /* Sliding entities read as vellum sheets raised above the fixed workspace.
+     These are deliberately subtler than paper-2: elevation, not a new panel
+     category. */
+  --color-pane: #f7f1df;
+  /* Match the established Cyanotype sidebar surface exactly. */
+  --color-pane-well: #0a1f3d;
+  --color-pane-edge: rgba(13, 42, 82, 0.48);
+  --shadow-pane: -1px 0 0 rgba(13, 42, 82, 0.12),
+                 -10px 0 18px -14px rgba(20, 26, 34, 0.22);
+}
+
+[data-theme="dark"] {
+  --color-chrome:  #04102a;
+  --color-paper:   #0a1f3d;
+  --color-paper-2: #0f2a52;
+  --color-paper-3: #15355f;
+  --color-paper-4: #1e4275;
+  --color-fg:      #dce8f5;
+  --color-fg-2:    #a8bcd0;
+  --color-fg-3:    #7388a0;
+  --color-rule:    rgba(168, 188, 208, 0.30);
+  /* Chinagraph amber (mark) + sky cyan (highlight) — period-correct annotation
+     for cyanotype. Red on Prussian navy was historically wrong and visually muted. */
+  --color-mark:    #e0a015;
+  --color-mark-2:  #ffce28;
+  --color-highlight: #7dd3fc;
+  /* On Prussian navy the alert reads as a hot coral-red, the amber stays the
+     chinagraph gold — both pop against the cyanotype ground. */
+  --color-alert:   #ff5c42;
+  --color-warn:    #e0a015;
+
+  --grid-line:   rgba(168, 188, 208, 0.10);
+  --grid-line-5: rgba(168, 188, 208, 0.18);
+
+  --color-pane: #10294a;
+  --color-pane-edge: rgba(168, 188, 208, 0.52);
+  --shadow-pane: -1px 0 0 rgba(168, 188, 208, 0.10),
+                 -12px 0 22px -15px rgba(0, 5, 18, 0.38);
+
+  color-scheme: dark;
+}
+
+@layer base {
+  html, body {
+    background: var(--color-chrome);
+    color: var(--color-fg);
+    font-family: var(--font-body);
+    font-feature-settings: "kern", "liga", "calt";
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  ::selection {
+    background: var(--color-fg);
+    color: var(--color-paper);
+  }
+  *:focus-visible {
+    outline: 1px solid var(--color-fg);
+    outline-offset: 2px;
+  }
+  #root { min-height: 100vh; }
+}
+
+@layer components {
+  .mono { font-family: var(--font-mono); }
+
+  .display {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+    font-weight: 600;
+    text-transform: none;
+  }
+  .display-tight {
+    font-family: var(--font-display);
+    letter-spacing: -0.025em;
+    line-height: 0.95;
+    font-weight: 700;
+  }
+
+  .smallcap {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--color-fg-3);
+  }
+  .rule { border-color: var(--color-rule); }
+
+  .truncate-hover-expand {
+    @apply truncate;
+    position: relative;
+  }
+  .truncate-hover-expand:hover {
+    overflow: visible;
+    white-space: nowrap;
+    z-index: 10;
+    background: var(--color-paper-2);
+    padding-right: 0.5rem;
+    box-shadow: 0 0 0 1px var(--color-rule);
+  }
+
+  .ref-link {
+    /* `--ref-color` is set per-link via inline style (kind palette).
+       Native text-decoration underlines text-only (not the blank space
+       around wrapped fragments) and wraps cleanly across lines. */
+    --ref-color: var(--color-fg);
+    display: inline;
+    text-decoration-line: underline;
+    text-decoration-color: color-mix(in srgb, var(--ref-color) 45%, transparent);
+    text-decoration-thickness: 2px;
+    text-underline-offset: 2px;
+    text-decoration-skip-ink: auto;
+    color: inherit;
+    font-weight: 500;
+    transition: color 120ms ease, text-decoration-color 120ms ease;
+  }
+  .ref-link:hover {
+    /* Label takes the accent on hover; underline goes denser in the kind
+       color so the rule reads as "more itself", not as a yellow stripe. */
+    color: var(--color-mark-2);
+    text-decoration-color: color-mix(in srgb, var(--ref-color) 90%, transparent);
+  }
+  /* Facet entries are list-like and short — the underline is noise.
+     Inline ref-links inside prose (definitions, narratives) still get it. */
+  .entity-facets .ref-link {
+    text-decoration-line: none;
+  }
+  .ref-link > svg {
+    /* Inline display means no flex baseline tools — pin the icon manually. */
+    display: inline-block;
+    vertical-align: -2px;
+    margin-right: 4px;
+    transition: filter 120ms ease;
+  }
+  .ref-link:hover > svg {
+    /* Bump contrast + saturation so the kind color reads as "more itself"
+       on hover. Works in both themes without picking a hover hex. */
+    filter: contrast(1.2) saturate(1.25);
+  }
+
+  .callout-link {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--color-fg);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5em;
+    padding: 0.25em 0;
+    transition: color 120ms ease;
+  }
+  .callout-link::before { content: "["; color: var(--color-fg-3); }
+  .callout-link::after  { content: "]"; color: var(--color-fg-3); }
+  .callout-link:hover,
+  .callout-link:hover::before,
+  .callout-link:hover::after { color: var(--color-mark-2); }
+
+  .card {
+    background: var(--color-paper-2);
+    border: 1px solid var(--color-rule);
+  }
+  .card-inset {
+    background: var(--color-paper-3);
+    border: 1px solid var(--color-rule);
+  }
+
+  /*
+    Corner-tick: TL/BR registration marks. Default sits at the rect edge
+    (-1px). `.card-tick--inset` shifts them inside (8px) — needed when an
+    ancestor has overflow:hidden that would clip edge-aligned ticks.
+  */
+  .card-tick { --tick-offset: -1px; position: relative; }
+  .card-tick--inset { --tick-offset: 8px; }
+  .card-tick::before,
+  .card-tick::after {
+    content: "";
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border: 1px solid var(--color-fg-2);
+    pointer-events: none;
+    z-index: 2;
+  }
+  .card-tick::before {
+    top: var(--tick-offset);
+    left: var(--tick-offset);
+    border-right: 0;
+    border-bottom: 0;
+  }
+  .card-tick::after {
+    bottom: var(--tick-offset);
+    right: var(--tick-offset);
+    border-left: 0;
+    border-top: 0;
+  }
+
+  .hr-rule { height: 1px; background: var(--color-rule); border: 0; }
+
+  .active-rule { position: relative; }
+  .active-rule::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 0; bottom: 0; width: 2px;
+    background: var(--color-mark);
+  }
+
+  .prose-body {
+    font-family: var(--font-body);
+    line-height: 1.55;
+    color: var(--color-fg);
+  }
+  .prose-body p + p { margin-top: 0.85em; }
+
+  /* Rendered markdown body of a spec. Mirrors prose-body's reading rhythm but
+     covers the fuller markdown surface (headings, lists, tables, code fences,
+     blockquotes) that cold-layer prose never needs. */
+  .spec-prose {
+    font-family: var(--font-body);
+    line-height: 1.6;
+    color: var(--color-fg);
+    max-width: 70ch;
+  }
+  .spec-prose > :first-child { margin-top: 0; }
+  .spec-prose p { margin: 0.85em 0; }
+  .spec-prose h2 {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 1.35rem;
+    margin: 1.8em 0 0.6em;
+    padding-bottom: 0.2em;
+    border-bottom: 1px solid var(--color-rule);
+  }
+  .spec-prose h3 {
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    margin: 1.4em 0 0.4em;
+  }
+  .spec-prose h4 {
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.78rem;
+    color: var(--color-fg-3);
+    margin: 1.2em 0 0.3em;
+  }
+  .spec-prose ul, .spec-prose ol { margin: 0.7em 0; padding-left: 1.4em; }
+  .spec-prose li { margin: 0.25em 0; }
+  .spec-prose ul { list-style: none; padding-left: 0.2em; }
+  .spec-prose ul > li::before {
+    content: "·";
+    color: var(--color-fg-3);
+    font-family: var(--font-mono);
+    margin-right: 0.6em;
+  }
+  .spec-prose ol { list-style: decimal; padding-left: 1.6em; }
+  .spec-prose a { color: var(--color-mark-2); text-decoration: underline; text-underline-offset: 2px; }
+  .spec-prose code {
+    font-family: var(--font-mono);
+    font-size: 0.88em;
+    background: var(--color-paper-2);
+    padding: 0.05em 0.3em;
+    border-radius: 2px;
+  }
+  .spec-prose pre {
+    background: var(--color-paper-2);
+    border: 1px solid var(--color-rule);
+    border-radius: 3px;
+    padding: 0.9em 1em;
+    overflow-x: auto;
+    margin: 1em 0;
+  }
+  .spec-prose pre code { background: transparent; padding: 0; font-size: 0.82rem; }
+  .spec-prose blockquote {
+    border-left: 2px solid var(--color-mark);
+    padding-left: 1em;
+    margin: 1em 0;
+    color: var(--color-fg-2);
+    font-style: italic;
+  }
+  .spec-prose table {
+    border-collapse: collapse;
+    margin: 1.1em 0;
+    font-size: 0.9rem;
+    width: 100%;
+  }
+  .spec-prose th, .spec-prose td {
+    border: 1px solid var(--color-rule);
+    padding: 0.4em 0.7em;
+    text-align: left;
+    vertical-align: top;
+  }
+  .spec-prose th { background: var(--color-paper-2); font-weight: 600; }
+  .spec-prose hr { border: 0; height: 1px; background: var(--color-rule); margin: 1.6em 0; }
+  .spec-mermaid { margin: 1.2em 0; overflow-x: auto; }
+  .spec-mermaid svg { max-width: 100%; height: auto; }
+  .spec-mermaid-error {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--color-mark-2);
+    border: 1px dashed var(--color-mark-2);
+    border-radius: 3px;
+    padding: 0.6em 0.8em;
+    white-space: pre-wrap;
+  }
+
+  .peek-highlight-line {
+    background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--color-highlight) 22%, transparent),
+      color-mix(in srgb, var(--color-highlight) 0%, transparent)
+    );
+  }
+  .peek-highlight-gutter {
+    background: var(--color-highlight);
+    width: 2px !important;
+    margin-left: 4px;
+  }
+
+  /* xyflow canvas — editorial chrome, four-corner cluster ticks retained
+     from the retired SVG renderer. */
+  .flow-canvas {
+    width: 100%;
+    height: 100%;
+    background: var(--color-paper);
+    /* React Flow's stylesheet is intentionally unlayered, so its direct
+       control rules outrank declarations made in this Tailwind layer. Feed
+       the canvas theme through React Flow's variables instead; the SVG icons
+       use the button's currentColor and stay readable in both themes. */
+    --xy-controls-button-background-color: var(--color-paper);
+    --xy-controls-button-background-color-hover: var(--color-paper-2);
+    --xy-controls-button-color: var(--color-fg);
+    --xy-controls-button-color-hover: var(--color-fg);
+    --xy-controls-button-border-color: var(--color-rule);
+    --xy-controls-box-shadow: 0 0 0 1px var(--color-rule);
+    --xy-node-border-radius: 0;
+    --xy-node-boxshadow-default: none;
+    --xy-node-boxshadow-hover: none;
+    --xy-node-boxshadow-selected: none;
+  }
+  .flow-canvas .react-flow__node {
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+  .flow-canvas .react-flow__minimap {
+    background: var(--color-paper-2);
+  }
+
+  .flow-leaf {
+    box-sizing: border-box;
+    background: var(--color-paper-3);
+    border-style: solid;
+    border-radius: 0;
+    padding: 6px 8px;
+    font: 500 13px var(--font-body);
+    color: var(--color-fg);
+    cursor: pointer;
+  }
+  .flow-leaf-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+  .flow-leaf-anchor {
+    margin-top: 4px;
+    font-size: 9.5px;
+    color: var(--color-fg-3);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .flow-cluster {
+    position: relative;
+    box-sizing: border-box;
+    border: 1px solid var(--color-rule);
+    border-radius: 0;
+    background: color-mix(in srgb, var(--color-paper-2) 50%, transparent);
+  }
+  .flow-cluster-title {
+    padding: 6px 10px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    color: var(--color-fg);
+    border-bottom: 1px solid var(--color-fg-3);
+  }
+
+  .flow-corners {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    --tick-size: 10px;
+    --tick-width: 1px;
+    --tick-color: var(--color-fg-2);
+  }
+  .flow-corners--highlighted {
+    --tick-size: 13px;
+    --tick-width: 1.25px;
+    --tick-color: var(--color-fg);
+  }
+  .flow-corners--selected {
+    --tick-size: 16px;
+    --tick-width: 2.25px;
+    --tick-color: var(--color-mark-2);
+  }
+  .flow-cluster:hover .flow-corners--default {
+    --tick-size: 13px;
+    --tick-width: 1.25px;
+    --tick-color: var(--color-fg);
+  }
+  .flow-corner {
+    position: absolute;
+    width: var(--tick-size);
+    height: var(--tick-size);
+    border-color: var(--tick-color);
+    border-style: solid;
+    border-width: 0;
+  }
+  .flow-corner--tl { top: 0; left: 0; border-top-width: var(--tick-width); border-left-width: var(--tick-width); }
+  .flow-corner--tr { top: 0; right: 0; border-top-width: var(--tick-width); border-right-width: var(--tick-width); }
+  .flow-corner--br { bottom: 0; right: 0; border-bottom-width: var(--tick-width); border-right-width: var(--tick-width); }
+  .flow-corner--bl { bottom: 0; left: 0; border-bottom-width: var(--tick-width); border-left-width: var(--tick-width); }
+
+  .flow-territory {
+    position: relative;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    background: var(--color-paper);
+    border-radius: 7px;
+    padding: 0 9px;
+    cursor: pointer;
+  }
+  .flow-territory-name {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    font-weight: 500;
+    color: var(--color-fg);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .flow-territory-anchor {
+    position: absolute;
+    top: 2px;
+    right: 6px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--color-mark);
+  }
+
+  /* Kept as a no-op so legacy markup (`<div className="... grain">`) doesn't break. */
+  .grain {}
+
+  /* ────────────────────────────────────────────────────────────────────────
+     SPECIMEN SLAB — YAML source inspector
+     ────────────────────────────────────────────────────────────────────────
+     The slab is a precision-cut inspection panel that opens alongside the
+     entity reading view. Visually: drafting-table chrome, blueprint editor
+     surface, with a sibling-atom rail running down the left edge.        */
+
+  .slab {
+    background: var(--color-paper);
+    border-left: 1px solid var(--color-rule);
+    position: relative;
+  }
+  .slab::before {
+    /* Faint vertical hairline tying the slab to the page chrome — a single
+       extra rule, 1px inside the border, evoking a print-binding edge. */
+    content: "";
+    position: absolute;
+    left: 5px; top: 0; bottom: 0;
+    width: 1px;
+    background: var(--color-rule);
+    opacity: 0.6;
+    pointer-events: none;
+  }
+
+  .slab-strip {
+    background: linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--color-paper-3) 70%, transparent),
+      var(--color-paper-2)
+    );
+    border-bottom: 1px solid var(--color-rule);
+    position: relative;
+  }
+  .slab-strip::before {
+    /* The leading vertical "binding tape" — a 2px mark-coloured stripe at
+       the slab's left edge, signaling "this surface is annotated, not for
+       editing." */
+    content: "";
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: var(--color-mark);
+  }
+
+  .slab-tag {
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--color-paper);
+    background: var(--color-mark);
+    padding: 2px 6px 1px;
+    line-height: 1;
+    display: inline-block;
+  }
+
+  .slab-line-chip {
+    font-size: 0.6875rem;
+    letter-spacing: 0.06em;
+    color: var(--color-fg);
+    background: var(--color-paper);
+    border: 1px solid var(--color-fg);
+    padding: 2px 8px 1px;
+    line-height: 1.2;
+    white-space: nowrap;
+    box-shadow: 2px 2px 0 var(--color-fg);
+  }
+
+  .slab-x {
+    color: var(--color-fg-3);
+    width: 22px; height: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--color-rule);
+    background: transparent;
+    transition: all 120ms ease;
+  }
+  .slab-x:hover {
+    color: var(--color-paper);
+    background: var(--color-fg);
+    border-color: var(--color-fg);
+  }
+
+  .slab-crumb {
+    background: var(--color-paper);
+    border-bottom: 1px solid var(--color-rule);
+  }
+
+  /* The atom rail — vertical sibling navigator on the left edge.            */
+  .slab-rail {
+    width: 28px;
+    background: var(--color-paper-2);
+    border-right: 1px solid var(--color-rule);
+    position: relative;
+    overflow: visible;
+    flex-shrink: 0;
+  }
+  .slab-rail-center {
+    position: absolute;
+    left: 13px; right: auto;
+    top: 0; bottom: 0;
+    width: 1px;
+    background: var(--color-rule);
+    pointer-events: none;
+  }
+
+  .slab-tick {
+    position: absolute;
+    left: 9px;
+    width: 10px;
+    border: 1px solid var(--color-fg-3);
+    background: var(--color-paper);
+    cursor: pointer;
+    padding: 0;
+    transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
+  }
+  .slab-tick:hover {
+    background: var(--color-highlight);
+    border-color: var(--color-fg);
+    transform: scaleX(1.6);
+  }
+  .slab-tick--active {
+    background: var(--color-mark);
+    border-color: var(--color-mark-2);
+    box-shadow: -3px 0 0 var(--color-mark-2);
+  }
+  .slab-tick--active::after {
+    content: "";
+    position: absolute;
+    right: -16px;
+    top: 50%;
+    width: 12px;
+    height: 1px;
+    background: var(--color-mark);
+    transform: translateY(-50%);
+  }
+
+  /* Family-resembles `.slab-tip` but smaller. Block triggers (backlink
+     cards) pass `className="block"` on <Tip> to override the default. */
+  .tip-wrap {
+    position: relative;
+    display: inline;
+  }
+  .tip-wrap::after {
+    content: attr(data-tip);
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    opacity: 0;
+    pointer-events: none;
+    /* Default = disappearance: short delay + soft fade so cursor-out-and-back
+       doesn't flicker. Hover/focus rules below override for appearance. */
+    transition: opacity 160ms ease 200ms;
+    white-space: nowrap;
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    background: var(--color-paper);
+    color: var(--color-fg);
+    border: 1px solid var(--color-fg);
+    padding: 3px 7px;
+    box-shadow: 2px 2px 0 var(--color-fg);
+    z-index: 100;
+  }
+  .tip-wrap:hover::after,
+  .tip-wrap:has(:focus-visible)::after {
+    opacity: 1;
+    transition: opacity 120ms ease 120ms;
+  }
+  /* Tooltips that disambiguate but aren't the primary affordance
+     (inline entity-link FQIDs — icon already conveys the kind).
+     Disappearance stays quick. */
+  .tip-wrap--slow:hover::after,
+  .tip-wrap--slow:has(:focus-visible)::after {
+    transition: opacity 120ms ease 1500ms;
+  }
+
+  .slab-tip {
+    position: absolute;
+    left: calc(100% + 12px);
+    z-index: 50;
+    width: 240px;
+    background: var(--color-paper);
+    border: 1px solid var(--color-fg);
+    padding: 10px 12px 10px;
+    box-shadow: 4px 4px 0 var(--color-fg);
+    pointer-events: none;
+  }
+  .slab-tip::before {
+    /* A small triangle pointing back at the tick. */
+    content: "";
+    position: absolute;
+    left: -7px;
+    top: 14px;
+    width: 0; height: 0;
+    border-top: 6px solid transparent;
+    border-bottom: 6px solid transparent;
+    border-right: 7px solid var(--color-fg);
+  }
+
+  /* Editor decorations — spotlight + dim                                    */
+  .slab-dim-line {
+    opacity: 0.22;
+    filter: saturate(0.4);
+  }
+  .slab-spotlight-line {
+    background: color-mix(in srgb, var(--color-highlight) 13%, transparent);
+    box-shadow: inset 2px 0 0 var(--color-mark);
+  }
+  .slab-spotlight-gutter {
+    background: var(--color-mark);
+    width: 3px !important;
+    margin-left: 2px;
+  }
+
+  /* Bottom toolbar                                                          */
+  .slab-foot {
+    background: var(--color-paper-2);
+    border-top: 1px solid var(--color-rule);
+  }
+  .slab-tool {
+    font-size: 0.625rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--color-fg-3);
+    padding: 4px 8px;
+    background: transparent;
+    border: 0;
+    transition: color 120ms ease, background 120ms ease;
+    cursor: pointer;
+  }
+  .slab-tool:hover {
+    color: var(--color-fg);
+    background: var(--color-paper);
+  }
+  .slab-tool--active {
+    color: var(--color-mark);
+  }
+  .slab-tool--active:hover {
+    color: var(--color-mark-2);
+  }
+  .slab-tool-div {
+    width: 1px;
+    align-self: stretch;
+    background: var(--color-rule);
+    margin: 0 2px;
+  }
+
+  /* ────────────────────────────────────────────────────────────────────────
+     INSPECTOR TAB — the affordance on the right edge of Pane that
+     opens the slab. Designed to read as a "drawer pull" — a small vertical
+     tab in mono, with a chinagraph-amber accent and an L-range chip when
+     the entity's source range is known.
+     ──────────────────────────────────────────────────────────────────── */
+  .inspector-pull {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    background: var(--color-paper-2);
+    border: 1px solid var(--color-rule);
+    color: var(--color-fg);
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    line-height: 1;
+    cursor: pointer;
+    transition: all 140ms ease;
+    position: relative;
+  }
+  .inspector-pull::before {
+    /* Leading amber pip — drafting-marker dot. */
+    content: "";
+    width: 6px; height: 6px;
+    background: var(--color-highlight);
+    border-radius: 50%;
+    box-shadow: 0 0 0 1px var(--color-fg-3);
+  }
+  .inspector-pull:hover {
+    background: var(--color-paper-3);
+    border-color: var(--color-fg);
+  }
+  .inspector-pull[data-active="true"] {
+    background: var(--color-fg);
+    color: var(--color-paper);
+    border-color: var(--color-fg);
+  }
+  .inspector-pull[data-active="true"]::before {
+    background: var(--color-mark);
+    box-shadow: 0 0 0 1px var(--color-paper);
+  }
+  .inspector-pull-file {
+    font-size: 0.6875rem;
+    letter-spacing: 0.04em;
+    text-transform: none;
+    color: var(--color-fg-2);
+    max-width: 22ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .inspector-pull[data-active="true"] .inspector-pull-file {
+    color: color-mix(in srgb, var(--color-paper) 90%, transparent);
+  }
+  .inspector-pull-range {
+    font-size: 0.6875rem;
+    letter-spacing: 0.04em;
+    color: var(--color-fg-3);
+    text-transform: none;
+  }
+  .inspector-pull[data-active="true"] .inspector-pull-range {
+    color: color-mix(in srgb, var(--color-paper) 70%, transparent);
+  }
+
+  /* Window Controls Overlay — env() padding clears macOS traffic lights
+     (left) and Windows min/max/close (right) when the app is installed. */
+  .titlebar {
+    -webkit-app-region: drag;
+            app-region: drag;
+  }
+  .titlebar :is(a, button, input, select, textarea, label, [role="button"], [tabindex], [contenteditable]) {
+    -webkit-app-region: no-drag;
+            app-region: no-drag;
+  }
+  .titlebar-nodrag {
+    -webkit-app-region: no-drag;
+            app-region: no-drag;
+  }
+  @media (display-mode: window-controls-overlay) {
+    .titlebar {
+      padding-left: max(env(titlebar-area-x, 0px), 0.75rem);
+      padding-right: calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw) + 0.75rem);
+      min-height: env(titlebar-area-height, 40px);
+    }
+  }
+
+  /* ────────────────────────────────────────────────────────────────────────
+     STACKED ENTITIES — horizontal reading stack
+     ────────────────────────────────────────────────────────────────────────
+     A pane corresponds to one entity. Click a RefLink inside a pane → new
+     pane opens to its right. Older panes collapse to 40px strips with
+     vertical titles, sticky-positioned at the left so they remain reachable.
+     The right-edge column lists the last pane's backlinks.              */
+
+  .stacked-pane {
+    --pane-width: 880px;
+    --pane-strip-width: 40px;
+    --pane-inset: 12px;
+    height: 100%;
+    box-sizing: border-box;
+    display: flex;
+    align-items: stretch;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: var(--pane-inset);
+    /* Exposed only between sheets and past the end of the stack. The darker
+       desk plane makes the movable layer legible without adding card chrome. */
+    background: var(--color-paper-2);
+    box-shadow: inset 0 0 0 var(--pane-inset) var(--color-pane-well);
+    scroll-padding-left: calc(var(--pane-inset) + var(--pane-strip-width) * 4);
+  }
+
+  .pane {
+    flex: 0 0 var(--pane-width);
+    width: var(--pane-width);
+    min-width: var(--pane-width);
+    position: sticky;
+    background: var(--color-pane);
+    /* Border lives on the LEFT so it stays visible when the pane slides over
+       its predecessor (sticky-positioning causes the next pane to cover the
+       previous pane's right edge). The first pane has no preceding pane, so
+       it skips the border. */
+    border-left: 2px solid var(--color-pane-edge);
+    border-top: 1px solid color-mix(in srgb, var(--color-pane-edge) 72%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, var(--color-pane-edge) 72%, transparent);
+    /* Left-cast shadow lands on whatever this pane scrolls over — adds depth
+       at the seam between sticky panes. */
+    box-shadow: var(--shadow-pane);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: flex-basis 240ms ease, min-width 240ms ease, width 240ms ease;
+  }
+  .pane:first-of-type {
+    /* Even a one-sheet stack should remain distinct from fixed rails. */
+    border-left-width: 1px;
+    box-shadow: none;
+  }
+  .pane.is-active {
+    border-left-color: color-mix(in srgb, var(--color-mark) 78%, var(--color-pane-edge));
+  }
+  .pane.is-active::after {
+    content: "PANE " attr(data-pane-position) " · ACTIVE";
+    position: absolute;
+    top: 0.45rem;
+    left: 3rem;
+    z-index: 4;
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    letter-spacing: 0.16em;
+    color: var(--color-mark-2);
+    pointer-events: none;
+  }
+  /* When ghost cards float to the right, the arrows need a wall to land on.
+     Use :has() so this only kicks in when a .backlink-column actually
+     follows — keeps the right edge clean in single-pane mode. */
+  .pane:has(+ .backlink-column) {
+    border-right: 1px solid var(--color-rule);
+  }
+  .pane.is-collapsed {
+    flex: 0 0 var(--pane-strip-width);
+    width: var(--pane-strip-width);
+    min-width: var(--pane-strip-width);
+    cursor: pointer;
+    background: var(--color-paper-2);
+    border-left-color: var(--color-pane-edge);
+    box-shadow: inset -1px 0 0 color-mix(in srgb, var(--color-fg-2) 24%, transparent),
+                -5px 0 12px -10px rgba(0, 0, 0, 0.28);
+    z-index: 2;
+  }
+  .pane.is-collapsed:hover {
+    background: var(--color-paper-3);
+  }
+
+  .pane.is-flashing {
+    animation: pane-flash 900ms ease-out;
+  }
+
+  /* Transient pane: lives in its own grid column next to the graph. Shows the
+     graph's current selection as a preview. Double-click anywhere on it
+     promotes the entity into the committed stack on the right. */
+  .transient-pane {
+    background: var(--color-paper);
+    border-right: 1px dashed var(--color-rule);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .transient-pane-label {
+    position: absolute;
+    top: 0.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: var(--font-mono, monospace);
+    font-size: 0.6875rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-fg-3);
+    pointer-events: none;
+    z-index: 3;
+  }
+  .transient-pane-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
+  @keyframes pane-flash {
+    0%   { box-shadow: 0 0 0 2px var(--color-mark), -8px 0 16px -12px rgba(0, 0, 0, 0.18); }
+    100% { box-shadow: 0 0 0 0  transparent, -8px 0 16px -12px rgba(0, 0, 0, 0.18); }
+  }
+
+  /* Passive hover outline — painted by direct-DOM toggling from a linked
+     backlink card's onMouseEnter/Leave. No scroll, no animation, just a
+     visual tie between "this ghost" and "that pane already in the stack". */
+  .pane.is-hover-highlight {
+    outline: 2px solid color-mix(in srgb, var(--color-mark) 70%, transparent);
+    outline-offset: -2px;
+  }
+
+  .pane-strip {
+    display: none;
+    width: 100%;
+    height: 100%;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    padding: 16px 0;
+    color: var(--color-fg-3);
+  }
+  .pane.is-collapsed .pane-strip {
+    display: flex;
+  }
+  .pane-strip-kind {
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    color: var(--color-fg-3);
+  }
+  .pane-strip-name {
+    font-family: var(--font-display, var(--font-body));
+    font-size: 0.95rem;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    color: var(--color-fg);
+    max-height: calc(100% - 80px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .pane-close {
+    width: 24px;
+    height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--color-rule);
+    background: transparent;
+    color: var(--color-fg-3);
+    font-size: 15px;
+    line-height: 1;
+    cursor: pointer;
+    transition: all 120ms ease;
+  }
+  .pane-close:hover {
+    color: var(--color-paper);
+    background: var(--color-fg);
+    border-color: var(--color-fg);
+  }
+
+  .pane-body {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+  }
+
+  .pane-article {
+    padding: 0 3rem 3rem;
+  }
+
+  /* Sticky title strip keeps kind/title/fqid/Specimen/× visible while the
+     body scrolls. Background must be opaque so prose doesn't bleed through. */
+  .pane-header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--color-pane);
+    padding: 1.5rem 0 1rem;
+    border-bottom: 1px solid var(--color-rule);
+    margin-bottom: 1.25rem;
+  }
+
+  /* Edge rail: the closed state of a collapsible panel. Always anchored to
+     the panel's grid track, so its position IS the panel's position. Reads as
+     architectural annotation rather than a control — rotated monospace caps
+     in the same register as the smallcap labels used throughout. */
+  .edge-rail {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.625rem;
+    background: var(--color-paper);
+    cursor: pointer;
+    user-select: none;
+    transition: background 140ms ease, color 140ms ease;
+    /* Subtle inner shadow on the inner edge so the rail reads as "pushed in"
+       relative to the live workspace. */
+    box-shadow: inset -1px 0 0 0 transparent;
+  }
+  .edge-rail:hover {
+    background: var(--color-paper-2);
+  }
+  .edge-rail:hover .edge-rail-label,
+  .edge-rail:hover .edge-rail-hotkey {
+    color: var(--color-fg);
+  }
+  .edge-rail-label {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--color-fg-3);
+    transition: color 140ms ease;
+  }
+  .edge-rail-hotkey {
+    font-family: var(--font-mono);
+    font-size: 0.5625rem;
+    color: var(--color-fg-3);
+    opacity: 0.55;
+    /* Small bracketed mark so it reads as a glyph not a letter of the label */
+    transition: color 140ms ease, opacity 140ms ease;
+  }
+  .edge-rail-hotkey::before { content: "["; }
+  .edge-rail-hotkey::after  { content: "]"; }
+  .edge-rail:hover .edge-rail-hotkey { opacity: 0.85; }
+
+  /* First chrome row of an open collapsible panel. min-height matches the
+     graph lens selector (~29px) so the sidebar and graph toggle icons share
+     a vertical center below the titlebar. */
+  .panel-toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 28.5px;
+  }
+
+  /* Collapse control: in-flow, sized to the smallcap/toolbar line. */
+  .panel-collapse {
+    width: 1.25rem;
+    height: 1.25rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: var(--color-fg-3);
+    background: transparent;
+    cursor: pointer;
+    opacity: 0.45;
+    border-radius: 2px;
+    transition: opacity 140ms ease, background 140ms ease, color 140ms ease;
+  }
+  .panel-collapse:hover {
+    opacity: 1;
+    background: var(--color-paper-2);
+    color: var(--color-fg);
+  }
+
+  /* Corner strip: kind chip top-left, source pull + close top-right.
+     Mirrors the graph detail rail's chrome strip so the entity view feels
+     the same regardless of which surface introduced it. */
+  .pane-corner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.875rem;
+  }
+
+  /* Facet rows: label column auto-sized, value column flows inline with
+     `·` separators between siblings. Wraps when narrow. */
+  .entity-facets {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    column-gap: 1rem;
+    row-gap: 0.4rem;
+    margin-bottom: 2rem;
+    align-items: baseline;
+  }
+  .entity-facets dt {
+    align-self: baseline;
+  }
+  .entity-facets dd {
+    margin: 0;
+    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0 0.5rem;
+  }
+  .entity-facets .facet-value + .facet-value::before {
+    content: "·";
+    color: var(--color-fg-3);
+    margin-right: 0.5rem;
+  }
+
+  /* Right-edge backlink column — sits at the tail of the stack, scrolls
+     with it. Floating dashed cards on the page background (no column bg)
+     with arrow connectors pointing back at the last pane. */
+  .backlink-column {
+    flex: 0 0 280px;
+    width: 280px;
+    padding: 28px 24px 28px 56px; /* extra left padding leaves room for arrows */
+    overflow: visible;
+    align-self: center;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+  .backlink-group-label {
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--color-fg-3);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .backlink-group-label::before,
+  .backlink-group-label::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--color-rule);
+  }
+  .backlink-group {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .backlink-card {
+    position: relative;
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 10px 12px;
+    background: transparent;
+    border: 1.5px dashed var(--color-rule);
+    cursor: pointer;
+    opacity: 0.78;
+    transition: opacity 120ms ease, border-color 120ms ease, background 120ms ease;
+    overflow: visible;
+  }
+  .backlink-card:hover {
+    opacity: 1;
+    border-color: var(--color-fg-3);
+    background: color-mix(in srgb, var(--color-paper) 60%, transparent);
+  }
+  .backlink-card.is-linked {
+    border-style: solid;
+    opacity: 0.55;
+  }
+  .backlink-card.is-linked:hover {
+    opacity: 1;
+    background: color-mix(in srgb, var(--color-highlight) 8%, transparent);
+  }
+
+  /* Arrow connector: horizontal line pointing left toward the main pane,
+     terminating in an arrowhead at the far (left) end. Built with
+     pseudo-elements (no SVG data URIs) so they pick up theme colors. */
+  .backlink-card::before {
+    content: "";
+    position: absolute;
+    right: calc(100% + 4px);
+    top: 50%;
+    width: 41px;
+    height: 1px;
+    background: var(--color-fg-3);
+    transform: translateY(-50%);
+    opacity: 0.55;
+    transition: opacity 120ms ease, background 120ms ease;
+  }
+  .backlink-card::after {
+    content: "";
+    position: absolute;
+    right: calc(100% + 45px);
+    top: 50%;
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 4px 7px 4px 0;
+    border-color: transparent var(--color-fg-3) transparent transparent;
+    transform: translateY(-50%);
+    opacity: 0.55;
+    transition: opacity 120ms ease, border-color 120ms ease;
+  }
+  .backlink-card:hover::before,
+  .backlink-card:hover::after {
+    opacity: 1;
+  }
+  .backlink-card:hover::before { background: var(--color-fg); }
+  .backlink-card:hover::after { border-right-color: var(--color-fg); }
+
+  /* Inline backlinks at the bottom of non-last panes — same dashed-card
+     vocabulary as the right-edge ghost column, just without arrows (no
+     adjacent main pane for them to point at). */
+  .pane-inline-backlinks {
+    margin: 24px 24px 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  /* Suppress the arrow pseudo-elements when cards are rendered inline. */
+  .pane-inline-backlinks .backlink-card::before,
+  .pane-inline-backlinks .backlink-card::after {
+    display: none;
+  }
+
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}

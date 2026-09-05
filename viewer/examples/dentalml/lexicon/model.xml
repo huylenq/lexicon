@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<lexicon schema="2.0" id="dentalml-canal-measurement">
+  <name>Canal measurement</name>
+  <description>A researcher selects a tooth, derives its canal geometry, and reads a measurement alongside a spatial view. This model explains the selected-tooth workflow in DentalML, especially why the displayed path can differ from the measured path.</description>
+  <context id="selection">
+    <name>Tooth selection</name>
+    <description>Choose a tooth by its FDI label and isolate the matching tooth and pulp masks.</description>
+    <concept id="selected-tooth" classification="entity">
+      <name>Selected tooth</name>
+      <description>The FDI-labelled tooth chosen from the loaded volumes. The same label selects its tooth mask and pulp mask.</description>
+      <code-link file="apps/pages/canal_measurement_app.py" role="implementation" symbol="measure_canal">Parses the FDI selection and isolates both masks.</code-link>
+    </concept>
+    <concept id="tooth-input" classification="value">
+      <name>Tooth input</name>
+      <description>Selected masks, volume metadata, and full-arch data supplied to the measurement workflow.</description>
+      <code-link file="dentalml/endo/canal_measurement.py" role="implementation" symbol="canal_measurement_module_v2">Receives the selected tooth data and calculation parameters.</code-link>
+    </concept>
+  </context>
+  <context id="measurement">
+    <name>Canal measurement</name>
+    <description>Derive local geometry and physical measurements for each extracted canal.</description>
+    <concept id="canal-result" classification="aggregate">
+      <name>Canal measurement</name>
+      <description>One canal’s geometry, reference points, and derived values, considered together as a consistency boundary. The current Canal class is a mutable result container.</description>
+      <annotation kind="rule" evidence="intended">Geometry, reference point, spacing, and measurements should describe the same calculation. Changing the geometry requires recalculating dependent values.</annotation>
+      <annotation kind="explanation" evidence="observed">The aggregate is a proposed domain interpretation. Callers currently coordinate mutation; the class permits direct field assignment.</annotation>
+      <code-link file="dentalml/endo/canal_measurement.py" role="representation" symbol="Canal">Gathers endpoints, path, region, and result fields.</code-link>
+      <code-link file="dentalml/endo/canal_measurement.py" role="implementation" symbol="canal_measurement_module_v2">Populates the result through extraction and calculation.</code-link>
+    </concept>
+    <concept id="canal-index" classification="value">
+      <name>Canal index</name>
+      <description>An enumeration identifying a canal within one extraction result. The implementation stores it in Canal.tooth_id. It has a different meaning from the selected tooth’s FDI label.</description>
+      <annotation kind="explanation" evidence="observed">extract_canal_and_centerline assigns the enumerated apice_id to tooth_id. A new extraction may produce a different enumeration.</annotation>
+      <code-link file="dentalml/endo/canal_measurement.py" role="implementation" symbol="extract_canal_and_centerline">Assigns the local canal index when constructing each Canal.</code-link>
+    </concept>
+    <concept id="measurement-path" classification="value">
+      <name>Measurement path</name>
+      <description>The ordered local voxel points used to calculate length and angle. Its starting reference depends on the calculation branch.</description>
+      <annotation kind="explanation" evidence="observed">The single-canal branch prepends a crown reference to the measurement path itself. This branch is selected by multi_canal_flag; posterior handling is selected separately.</annotation>
+      <code-link file="dentalml/endo/canal_measurement.py" role="implementation" symbol="extract_canal_and_centerline">Builds a path using the selected extraction method.</code-link>
+      <code-link file="dentalml/endo/canal_measurement.py" role="implementation" symbol="canal_measurement_module_v2">May extend the calculation path with a crown reference.</code-link>
+    </concept>
+    <concept id="reference-point" classification="value">
+      <name>Reference point</name>
+      <description>The point that establishes the starting reference for a measurement. The posterior strategy derives Point O using full-arch geometry and maps it into the local frame.</description>
+      <annotation kind="rule" evidence="enforced">The posterior branch requires teeth_instance and raises ValueError when it is absent.</annotation>
+      <code-link file="dentalml/endo/canal_util.py" role="implementation" symbol="ref_point_posterior">Derives the posterior reference point.</code-link>
+      <code-link file="dentalml/endo/canal_measurement.py" role="implementation" symbol="canal_measurement_module_v2">Maps reference coordinates through cropping and orientation handling.</code-link>
+    </concept>
+    <concept id="length-result" classification="value">
+      <name>Length result</name>
+      <description>Physical path length and, when populated by the posterior branch, reference distance and combined working length, in millimeters.</description>
+      <annotation kind="rule" evidence="observed">centerline_length_mm converts voxel differences using spacing in Z,Y,X order before summing segment lengths.</annotation>
+      <annotation kind="rule" evidence="observed">When the posterior branch completes, working_length_mm is length_b_mm plus length_mm.</annotation>
+      <code-link file="dentalml/endo/canal_measurement.py" role="implementation" symbol="centerline_length_mm">Converts a voxel path to physical length.</code-link>
+      <code-link file="dentalml/endo/canal_measurement.py" role="implementation" symbol="canal_measurement_module_v2">Combines the posterior length components.</code-link>
+    </concept>
+  </context>
+  <context id="presentation">
+    <name>Measurement presentation</name>
+    <description>Turn the computed results into table rows and geometry a researcher can inspect.</description>
+    <concept id="displayed-path" classification="value">
+      <name>Displayed path</name>
+      <description>Points restored for drawing. The app may prepend Point O to a new array so the visual path includes the reference segment.</description>
+      <code-link file="apps/pages/canal_measurement_app.py" role="implementation" symbol="measure_canal">Restores local coordinates and constructs the line annotation.</code-link>
+    </concept>
+  </context>
+  <relationship id="selects-input" from="selected-tooth" to="tooth-input">
+    <name>selects</name>
+    <description>The FDI selection isolates the matching tooth and pulp masks.</description>
+    <code-link file="apps/pages/canal_measurement_app.py" role="implementation" symbol="measure_canal">Selects both masks with the same label.</code-link>
+  </relationship>
+  <relationship id="input-result" from="tooth-input" to="canal-result">
+    <name>supplies</name>
+    <description>Cropping, orientation handling, extraction, and calculation produce canal results.</description>
+    <code-link file="dentalml/endo/canal_measurement.py" role="implementation" symbol="canal_measurement_module_v2">Orchestrates the selected-tooth workflow.</code-link>
+  </relationship>
+  <relationship id="local-identity" from="canal-index" to="canal-result">
+    <name>identifies locally</name>
+    <description>The canal index identifies one result within its returned list. Persistent identity across recalculation remains a separate modeling decision.</description>
+    <code-link file="dentalml/endo/canal_measurement.py" role="implementation" symbol="extract_canal_and_centerline">Enumerates recovered apices and assigns tooth_id.</code-link>
+  </relationship>
+  <relationship id="owns-path" from="canal-result" to="measurement-path">
+    <name>contains</name>
+    <description>The proposed aggregate gathers the measured path with its endpoints and region.</description>
+  </relationship>
+  <relationship id="owns-reference" from="canal-result" to="reference-point">
+    <name>contains</name>
+    <description>Reference geometry participates in the consistency of the measurement.</description>
+  </relationship>
+  <relationship id="owns-length" from="canal-result" to="length-result">
+    <name>contains</name>
+    <description>Derived values depend on the same geometry and spacing.</description>
+  </relationship>
+  <relationship id="renders-path" from="measurement-path" to="displayed-path">
+    <name>becomes</name>
+    <description>Why does the drawn path differ from the path being measured? Presentation restores coordinates and may prepend Point O to a new display array. The measured path remains the input for the tabulated length and angle.</description>
+    <annotation kind="explanation" evidence="observed">The app extends display_centerline when point_O exists. The single-canal calculation branch separately extends canal.centerline with a crown reference. These are distinct operations with distinct branch conditions.</annotation>
+    <code-link file="apps/pages/canal_measurement_app.py" role="implementation" symbol="measure_canal">Compare centerline, display_centerline, and the Point O branch.</code-link>
+    <code-link file="dentalml/endo/canal_measurement.py" role="implementation" symbol="canal_measurement_module_v2">The single-canal branch modifies the calculation path itself.</code-link>
+  </relationship>
+  <relationship id="selected-measurement" from="selection" to="measurement">
+    <name>supplies selected tooth to</name>
+    <description>Selection and measurement use the FDI label for different responsibilities: isolating masks and selecting calculation behavior.</description>
+  </relationship>
+  <relationship id="presents-results" from="measurement" to="presentation">
+    <name>supplies results to</name>
+    <description>The app reads measurement objects and builds table rows and spatial annotations.</description>
+    <code-link file="apps/pages/canal_measurement_app.py" role="implementation" symbol="measure_canal">Builds the researcher-facing result from the computed canals.</code-link>
+  </relationship>
+</lexicon>

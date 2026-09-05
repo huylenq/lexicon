@@ -1,0 +1,10 @@
+node_modules/
+dist/
+client/dev-dist/
+*.log
+*.tsbuildinfo
+.DS_Store
+lexicon-viewer.db
+lexicon-viewer.db-journal
+lexicon-viewer.db-shm
+lexicon-viewer.db-wal
