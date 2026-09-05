@@ -1,5 +1,7 @@
 import type { GraphIndex, GraphSelection, Mapping } from "./graph/model";
 import { Paragraph } from "./ui";
+import Icon from "./Icon";
+import ObjectName from "./ObjectName";
 
 export default function GraphReading({
   selection,
@@ -29,21 +31,22 @@ export default function GraphReading({
   const mappingCard = (m: Mapping) => (
     <div className="mapping-card" key={m.id}>
       <span className="eyebrow">
-        {m.link.role} · {m.owner.type}
+        {m.link.role}
       </span>
       <button
         className="mapping-owner"
         onClick={() => onSelect({ kind: "item", id: m.owner.id })}
       >
-        {m.owner.name} ↗
+        <ObjectName type={m.owner.type} name={m.owner.name}
+          classification={m.owner.type === "concept" ? m.owner.classification : undefined} />
       </button>
       <Paragraph text={m.link.description} />
       <button
         className="mapping-target"
         onClick={() => onSelect({ kind: "mapping", id: m.id })}
       >
-        {m.link.symbol || m.link.file}
-        {m.link.line && !m.link.symbol ? `:${m.link.line}` : ""} ↗
+        <ObjectName type="code-link" name={m.link.symbol || m.link.file} size={14} />
+        {m.link.line && !m.link.symbol ? `:${m.link.line}` : ""} <Icon name="open" size={14} />
       </button>
       {selection.kind === "bundle" && (
         <button

@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import type { CodeExcerpt } from "../../shared/model";
 import type { Mapping, Target } from "./graph/model";
 import { request, ErrorNotice } from "./ui";
+import Icon from "./Icon";
+import ObjectName from "./ObjectName";
 export default function CodePane({
   projectId,
   target,
@@ -70,9 +72,9 @@ export default function CodePane({
       ? lines.length
       : Math.min(lines.length, result.endLine + 4, start + 250);
   return (
-    <aside className="code-pane" aria-label="Code workspace" hidden={!open}>
+    <aside id="code-pane" className="code-pane" aria-label="Code workspace" hidden={!open}>
       <div className="code-pane-heading" ref={heading} tabIndex={-1}>
-        <span className="eyebrow">Code</span>
+        <span className="pane-title">Code</span>
         <div className="code-navigation">
           <button
             className="quiet"
@@ -80,7 +82,7 @@ export default function CodePane({
             disabled={!canBack}
             onClick={onBack}
           >
-            ←
+            <Icon name="arrow-left" />
           </button>
           <button
             className="quiet"
@@ -88,19 +90,20 @@ export default function CodePane({
             disabled={!canForward}
             onClick={onForward}
           >
-            →
+            <Icon name="arrow-right" />
           </button>
           <button
-            className="quiet"
+            className="quiet icon-button pane-close"
+            title="Hide Code"
             aria-label="Close code pane"
             onClick={onClose}
           >
-            ✕
+            <Icon name="close" />
           </button>
         </div>
       </div>
       <button className="quiet code-back-to-reader" onClick={onBackToReader}>
-        ← Back to reader
+        <Icon name="arrow-left" /> Back to reader
       </button>
       {!link ? (
         <div className="code-empty">
@@ -120,8 +123,8 @@ export default function CodePane({
           <nav className="code-breadcrumb" aria-label="Code location">
             <code>{link.file}</code>
             <h2>
-              {link.symbol ||
-                (link.line ? `Line ${link.line}` : link.file.split("/").pop())}
+              <ObjectName type="code" name={link.symbol ||
+                (link.line ? `Line ${link.line}` : link.file.split("/").pop() || link.file)} />
             </h2>
           </nav>
           <div className="code-target-actions">
@@ -134,7 +137,8 @@ export default function CodePane({
               <span className="code-role">
                 {mapping.link.role} ·{" "}
                 <button onClick={() => onOwner(mapping.owner.id)}>
-                  {mapping.owner.name} ↗
+                  <ObjectName type={mapping.owner.type} name={mapping.owner.name} size={14}
+                    classification={mapping.owner.type === "concept" ? mapping.owner.classification : undefined} />
                 </button>
               </span>
               <p>{mapping.link.description}</p>
@@ -149,7 +153,8 @@ export default function CodePane({
                     className="mapping-owner"
                     onClick={() => onOwner(m.owner.id)}
                   >
-                    {m.owner.name} ↗
+                    <ObjectName type={m.owner.type} name={m.owner.name} size={14}
+                      classification={m.owner.type === "concept" ? m.owner.classification : undefined} />
                   </button>
                   <button
                     className="quiet"

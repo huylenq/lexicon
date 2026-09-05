@@ -5,7 +5,7 @@ const codePane = (page: Page) =>
 const browse = (page: Page, name: string) =>
   page.locator(".sidebar .nav-item").filter({ hasText: name }).click();
 const graph = (page: Page) =>
-  page.getByRole("button", { name: "◇ Graph", exact: true });
+  page.getByRole("button", { name: "Graph", exact: true });
 const toggle = (page: Page) =>
   page.getByRole("button", { name: "Toggle code workspace", exact: true });
 
@@ -177,7 +177,7 @@ test("on narrow screens Code has its own full-screen surface and returns to the 
   await expect(page.locator("main")).toBeHidden();
   expect((await codePane(page).boundingBox())!.width).toBe(390);
   await page
-    .getByRole("button", { name: "← Back to reader", exact: true })
+    .getByRole("button", { name: "Back to reader", exact: true })
     .click();
   await expect(page.locator("main h1")).toHaveText("Selected tooth");
   await expect(codePane(page)).toBeHidden();

@@ -20,11 +20,52 @@ const positions = (page: Page) =>
   );
 async function openGraph(page: Page) {
   await page.goto("/p/dentalml");
-  await page.getByRole("button", { name: "◇ Graph", exact: true }).click();
+  await page.getByRole("button", { name: "Graph", exact: true }).click();
   await expect(page.locator(".graph-vertex.concept")).toHaveCount(8);
   await expect(page.getByText("Arranging the graph…")).toBeHidden();
   await expect.poll(() => viewport(page)).not.toContain("scale(1)");
 }
+
+test("object type tooltips work with hover, keyboard, and a zoomed graph", async ({ page }) => {
+  await page.goto("/p/dentalml?item=selected-tooth");
+  const tooth = page.getByRole("button", { name: "Concept · entity Selected tooth", exact: true });
+  const icon = tooth.getByRole("img", { name: "Concept · entity", exact: true });
+  await expect(tooth).toHaveText("Selected tooth");
+  await icon.hover();
+  await expect(page.getByRole("tooltip")).toHaveText("Concept · entity");
+  await page.getByRole("tooltip").hover();
+  await page.waitForTimeout(180); // The tooltip remains readable after crossing from its icon.
+  await expect(page.getByRole("tooltip")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("tooltip")).toBeHidden();
+  await expect(page.locator("main h1")).toHaveText("Selected tooth");
+  await page.mouse.move(0, 0);
+  await page.keyboard.press("Tab");
+  await tooth.focus();
+  await expect(page.getByRole("tooltip")).toHaveText("Concept · entity");
+  await page.keyboard.press("Tab");
+  await expect(tooth).not.toBeFocused();
+  await page.keyboard.press("Escape");
+
+  await openGraph(page);
+  const graphIcon = page.getByRole("button", { name: "concept: Selected tooth", exact: true })
+    .getByRole("img", { name: "Concept · entity", exact: true });
+  await graphIcon.hover();
+  const tooltip = page.getByRole("tooltip");
+  await expect(tooltip).toHaveText("Concept · entity");
+  const anchorBox = await graphIcon.boundingBox();
+  const tipBox = await tooltip.boundingBox();
+  expect(Math.abs(tipBox!.y - anchorBox!.y - anchorBox!.height - 8)).toBeLessThan(2);
+  await page.mouse.wheel(0, -100);
+  await expect(tooltip).toBeHidden();
+  const relationship = page.getByRole("button", { name: "Read relationship: selects", exact: true });
+  const relationshipIcon = relationship.getByRole("img", { name: "Relationship", exact: true });
+  const relationshipBox = await relationshipIcon.boundingBox();
+  expect(relationshipBox!.width).toBeGreaterThan(0);
+  expect(relationshipBox!.height).toBeGreaterThan(0);
+  await relationshipIcon.hover();
+  await expect(tooltip).toHaveText("Relationship");
+});
 
 test("domain selection, context collapse, code expansion, focus, and history", async ({
   page,
@@ -161,7 +202,7 @@ test("shared code nodes, mapping readers, graph toggles, search, and resizing", 
   await expect(
     page.getByRole("button", { name: "concept: Reference point", exact: true }),
   ).toBeInViewport();
-  await page.getByRole("button", { name: "◇ Graph", exact: true }).click();
+  await page.getByRole("button", { name: "Graph", exact: true }).click();
   await expect(page.getByRole("region", { name: "Domain graph" })).toBeHidden();
   await expect(page.locator("main h1")).toHaveText("Reference point");
 });
@@ -214,7 +255,7 @@ test("narrow screens and dark theme retain graph state and show readable code er
   await expect(page.locator("main h1")).toHaveText("Selected tooth");
   await expect(page.locator(".graph-slot")).toBeHidden();
   await page
-    .getByRole("button", { name: "← Back to graph", exact: true })
+    .getByRole("button", { name: "Graph", exact: true })
     .click();
   await expect(page.locator(".graph-slot")).toBeVisible();
   await page.getByRole("button", { name: "Use dark theme" }).click();
@@ -263,7 +304,7 @@ test("a registered model with parallel edges, self-links, stale links, and inval
     const response = await request.post("/api/projects", { data: { root } });
     id = (await response.json()).id;
     await page.goto(`/p/${id}`);
-    await page.getByRole("button", { name: "◇ Graph", exact: true }).click();
+    await page.getByRole("button", { name: "Graph", exact: true }).click();
     await expect(page.locator(".graph-vertex.concept")).toHaveCount(2);
     await expect(page.locator(".graph-notice")).toContainText(
       "1 connections have unavailable endpoints",

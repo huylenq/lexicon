@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import type { Project } from "../../shared/model";
 import { request, Theme, ErrorNotice } from "./ui";
 import InstallApp from "./InstallApp";
+import Icon from "./Icon";
 export default function Library() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [root, setRoot] = useState("");
@@ -61,7 +62,7 @@ export default function Library() {
                     A DentalML domain example.
                   </p>
                   <div className="card-link">
-                    Explore the workflow <span>↗</span>
+                    Explore the workflow <Icon name="open" />
                   </div>
                 </Link>
               ))}

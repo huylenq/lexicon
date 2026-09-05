@@ -8,13 +8,15 @@ import {
   useState,
   type CSSProperties,
 } from "react";
-import { Link, useParams, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useNavigationType, useParams, useSearchParams } from "react-router-dom";
 import type { Model, ModelItem, Project } from "../../shared/model";
 import { related } from "../../shared/model";
 import { request, Theme, ErrorNotice, Paragraph } from "./ui";
 import CodePane from "./CodePane";
 import { useCodeNavigation, type CodeLocation } from "./codeNavigation";
 import InstallApp from "./InstallApp";
+import Icon from "./Icon";
+import ObjectName from "./ObjectName";
 import GraphReading from "./GraphReading";
 import {
   indexModel,
@@ -33,6 +35,23 @@ export default function Reader() {
 }
 function ReaderProject({ projectId }: { projectId: string }) {
   const [params, setParams] = useSearchParams();
+  const routeLocation = useLocation();
+  const navigate = useNavigate();
+  const navigationType = useNavigationType();
+  const historyIndex = Number(window.history.state?.idx) || 0;
+  const [furthestHistory, setFurthestHistory] = useState(historyIndex);
+  useEffect(() => {
+    setFurthestHistory((last) => navigationType === "PUSH" ? historyIndex : Math.max(last, historyIndex));
+  }, [routeLocation.key, navigationType, historyIndex]);
+  const [compact, setCompact] = useState(() => window.matchMedia("(max-width: 1000px)").matches);
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 1000px)");
+    const update = () => setCompact(media.matches);
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+  const browseToggle = useRef<HTMLButtonElement>(null);
+  const graphToggle = useRef<HTMLButtonElement>(null);
   const [workspace, setWorkspace] = useWorkspace(projectId);
   const [mobileCode, setMobileCode] = useState(!!params.get("code"));
   const codeToggle = useRef<HTMLButtonElement>(null);
@@ -75,6 +94,23 @@ function ReaderProject({ projectId }: { projectId: string }) {
   const [query, setQuery] = useState("");
   const [menu, setMenu] = useState(false);
   const [copied, setCopied] = useState(false);
+  const browseVisible = compact ? menu : workspace.sidebar;
+  const closeBrowse = () => {
+    setMenu(false);
+    if (!compact) setWorkspace((w) => ({ ...w, sidebar: false }));
+    browseToggle.current?.focus();
+  };
+  const closeGraph = () => {
+    setWorkspace((w) => ({ ...w, open: false }));
+    setMobileRead(true);
+    graphToggle.current?.focus();
+  };
+  const travel = (direction: number) => {
+    navigate(direction);
+    setMobileRead(true);
+    setMobileCode(false);
+    setMenu(false);
+  };
   const seq = useRef(0);
   const refresh = useCallback(async () => {
     const token = ++seq.current;
@@ -115,6 +151,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
       ) {
         e.preventDefault();
         setMenu(true);
+        setWorkspace((w) => ({ ...w, sidebar: true }));
         search.current?.focus();
       }
       if (e.key === "Escape") {
@@ -168,6 +205,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
     content.current?.scrollTo(0, 0);
   };
   const itemLink = (id: string, label: string, relationship = false) => {
+    const linked = model?.items.find((i) => i.id === id);
     const p = new URLSearchParams(params);
     p.set("item", id);
     p.delete("selection");
@@ -188,7 +226,8 @@ function ReaderProject({ projectId }: { projectId: string }) {
           content.current?.scrollTo(0, 0);
         }}
       >
-        {label}
+        {linked ? <ObjectName type={linked.type} name={label} size={14}
+          classification={linked.type === "concept" ? linked.classification : undefined} /> : label}
       </Link>
     );
   };
@@ -254,10 +293,8 @@ function ReaderProject({ projectId }: { projectId: string }) {
       onClick={() => select(i.id)}
       aria-current={item?.id === i.id ? "page" : undefined}
     >
-      <span>{i.name}</span>
-      {i.type === "concept" && i.classification && (
-        <small>{i.classification}</small>
-      )}
+      <ObjectName type={i.type} name={i.name}
+        classification={i.type === "concept" ? i.classification : undefined} />
     </button>
   );
   return (
@@ -268,6 +305,12 @@ function ReaderProject({ projectId }: { projectId: string }) {
         Skip to the model
       </a>
       <header className="reader-header app-header">
+        <button ref={browseToggle} className="quiet icon-button pane-toggle browse-toggle"
+          aria-label="Toggle navigation" aria-pressed={browseVisible}
+          aria-controls="browse-pane" title={browseVisible ? "Hide Browse" : "Show Browse"}
+          onClick={() => compact ? setMenu((m) => !m) : setWorkspace((w) => ({ ...w, sidebar: !w.sidebar }))}>
+          <Icon name="browse" size={18} />
+        </button>
         <Link to="/" className="brand" aria-label="Lexicon library">
           <span className="brand-mark" aria-hidden="true" />
           <span className="brand-text">lexicon</span>
@@ -275,35 +318,29 @@ function ReaderProject({ projectId }: { projectId: string }) {
         <span className="header-divider" />
         <span className="project-name">{model?.name || "Opening project"}</span>
         <div className="header-actions">
-          <InstallApp />
+          <div className="pane-toggles" role="group" aria-label="Pane visibility">
           <button
-            className="quiet"
-            aria-label="Toggle navigation"
-            aria-pressed={workspace.sidebar}
-            onClick={() =>
-              window.matchMedia("(max-width: 1000px)").matches
-                ? setMenu((m) => !m)
-                : setWorkspace((w) => ({ ...w, sidebar: !w.sidebar }))
-            }
-          >
-            ☰ Browse
-          </button>
-          <button
-            className={`quiet graph-toggle ${workspace.open ? "active" : ""}`}
-            aria-pressed={workspace.open}
+            ref={graphToggle}
+            className="quiet icon-button pane-toggle graph-toggle"
+            title={workspace.open && (!compact || !mobileRead && !mobileCode) ? "Hide Graph" : "Show Graph"}
+            aria-controls="graph-pane"
+            aria-label="Graph"
+            aria-pressed={workspace.open && (!compact || !mobileRead && !mobileCode)}
             onClick={() => {
-              setWorkspace((w) => ({ ...w, open: !w.open }));
+              setWorkspace((w) => ({ ...w, open: compact && (mobileRead || mobileCode) ? true : !w.open }));
               setMobileRead(false);
               setMobileCode(false);
             }}
           >
-            ◇ Graph
+            <Icon name="panel-graph" size={18} />
           </button>
           <button
             ref={codeToggle}
-            className={`quiet code-toggle ${codeNavigation.open ? "active" : ""}`}
+            className="quiet icon-button pane-toggle code-toggle"
+            title={codeNavigation.open && (!compact || mobileCode) ? "Hide Code" : "Show Code"}
+            aria-controls="code-pane"
             aria-label="Toggle code workspace"
-            aria-pressed={codeNavigation.open}
+            aria-pressed={codeNavigation.open && (!compact || mobileCode)}
             onClick={() => {
               if (
                 codeNavigation.open &&
@@ -317,25 +354,31 @@ function ReaderProject({ projectId }: { projectId: string }) {
               }
             }}
           >
-            {"</> Code"}
+            <Icon name="panel-right" size={18} />
           </button>
-          <button className="quiet" disabled={loading} onClick={refresh}>
-            {loading ? "Loading…" : "↻ Refresh"}
+          </div>
+          <div className="header-utilities" role="group" aria-label="App utilities">
+          <InstallApp />
+          <button className="quiet icon-button" title="Refresh model" aria-label={loading ? "Loading model" : "Refresh"} disabled={loading} onClick={refresh}>
+            <Icon name="refresh" />
           </button>
           <Theme />
+          </div>
         </div>
       </header>
       <aside
         className={`sidebar ${menu ? "open" : ""}`}
+        id="browse-pane"
         aria-label="Model navigation"
       >
-        <button
-          className="quiet mobile-menu nav-close"
-          onClick={() => setMenu(false)}
-        >
-          Close navigation ✕
-        </button>
+        <div className="browse-pane-heading">
+          <span className="pane-title">Browse</span>
+          <button className="quiet icon-button pane-close" aria-label="Close Browse pane" title="Hide Browse" onClick={closeBrowse}>
+            <Icon name="close" />
+          </button>
+        </div>
         <div className="search-wrap">
+          <Icon name="search" size={14} />
           <input
             ref={search}
             aria-label="Search model"
@@ -364,7 +407,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
               className={`nav-item overview-link ${!item && !params.get("item") ? "active" : ""}`}
               onClick={() => select()}
             >
-              Overview <span>↗</span>
+              <span className="nav-name"><Icon name="overview" size={14} />Overview</span>
             </button>
             <div className="eyebrow nav-heading">
               Contexts <span>{contexts.length}</span>
@@ -418,6 +461,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
                   }}
                   command={graphCommand}
                   onReset={() => setMobileRead(false)}
+                  onClose={closeGraph}
                 />
               </Suspense>
             </div>
@@ -467,28 +511,17 @@ function ReaderProject({ projectId }: { projectId: string }) {
           )}
           <main className="reading-pane" ref={content} id="main-content">
             <div className="reader-toolbar">
-              {workspace.open && (
-                <button
-                  className="quiet back-to-graph"
-                  onClick={() => setMobileRead(false)}
-                >
-                  ← Back to graph
-                </button>
-              )}
-              <button
-                className="quiet mobile-menu"
-                onClick={() => setMenu(!menu)}
-                aria-expanded={menu}
-              >
-                ☰ Browse
-              </button>
+              <div className="reader-history" role="group" aria-label="Navigation history">
+                <button className="quiet icon-button" aria-label="Go back" title="Back" disabled={historyIndex <= 0} onClick={() => travel(-1)}><Icon name="arrow-left" /></button>
+                <button className="quiet icon-button" aria-label="Go forward" title="Forward" disabled={historyIndex >= furthestHistory} onClick={() => travel(1)}><Icon name="arrow-right" /></button>
+              </div>
               <nav aria-label="Breadcrumb">
                 <button onClick={() => select()}>Overview</button>
                 {owner && (
                   <>
-                    <span>/</span>
-                    <button onClick={() => select(owner.id)}>
-                      {owner.name}
+                    <span className="breadcrumb-owner">/</span>
+                    <button className="breadcrumb-owner" onClick={() => select(owner.id)}>
+                      <ObjectName type={owner.type} name={owner.name} size={14} />
                     </button>
                   </>
                 )}
@@ -507,7 +540,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
                 {item && (
                   <>
                     <span>/</span>
-                    <span>{item.name}</span>
+                    <ObjectName type={item.type} classification={item.type === "concept" ? item.classification : undefined} name={item.name} size={14} />
                   </>
                 )}
               </nav>
@@ -583,27 +616,21 @@ function ReaderProject({ projectId }: { projectId: string }) {
                   </div>
                 ) : (
                   <>
-                    <div className="eyebrow">
-                      {item
-                        ? `${item.type}${item.type === "concept" && item.classification ? ` · ${item.classification}` : ""}`
-                        : "The system at a glance"}
-                    </div>
+                    {!item && <div className="eyebrow">The system at a glance</div>}
                     <h1>
-                      {item?.type === "relationship"
-                        ? `${model.items.find((i) => i.id === item.from)?.name || item.from} ${item.name} ${model.items.find((i) => i.id === item.to)?.name || item.to}`
-                        : item?.name || model.name}
+                      {item ? (
+                        <ObjectName type={item.type} size={24}
+                          classification={item.type === "concept" ? item.classification : undefined}
+                          name={item.type === "relationship"
+                            ? [model.items.find((i) => i.id === item.from)?.name || item.from, item.name, model.items.find((i) => i.id === item.to)?.name || item.to].join(" ")
+                            : item.name} />
+                      ) : model.name}
                     </h1>
                     {item?.type === "relationship" && (
                       <div className="relationship-endpoints">
-                        <button onClick={() => select(item.from)}>
-                          {model.items.find((i) => i.id === item.from)?.name ||
-                            item.from}
-                        </button>
-                        <span>→</span>
-                        <button onClick={() => select(item.to)}>
-                          {model.items.find((i) => i.id === item.to)?.name ||
-                            item.to}
-                        </button>
+                        {itemLink(item.from, model.items.find((i) => i.id === item.from)?.name || item.from)}
+                        <Icon name="arrow-right" />
+                        {itemLink(item.to, model.items.find((i) => i.id === item.to)?.name || item.to)}
                       </div>
                     )}
                     <Paragraph text={item?.description || model.description} />
@@ -630,16 +657,13 @@ function ReaderProject({ projectId }: { projectId: string }) {
                           <h2>Understand it by context</h2>
                         </div>
                         <div className="context-grid">
-                          {contexts.map((ctx, index) => (
+                          {contexts.map((ctx) => (
                             <button
                               className="context-card"
                               onClick={() => select(ctx.id)}
                               key={ctx.id}
                             >
-                              <span className="eyebrow">
-                                0{index + 1} / CONTEXT
-                              </span>
-                              <h3>{ctx.name}</h3>
+                              <h3><ObjectName type="context" name={ctx.name} /></h3>
                               <p>{ctx.description}</p>
                               <span className="card-link">
                                 {
@@ -649,7 +673,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
                                       i.context === ctx.id,
                                   ).length
                                 }{" "}
-                                concepts <span>→</span>
+                                concepts <Icon name="arrow-right" />
                               </span>
                             </button>
                           ))}
@@ -668,7 +692,9 @@ function ReaderProject({ projectId }: { projectId: string }) {
                             .map((i) => (
                               <button key={i.id} onClick={() => select(i.id)}>
                                 <h3>
-                                  {i.name} <span>↗</span>
+                                  <ObjectName type={i.type} name={i.name}
+                                    classification={i.type === "concept" ? i.classification : undefined} />
+                                  <Icon name="open" />
                                 </h3>
                                 <p>{i.description}</p>
                               </button>
@@ -692,7 +718,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
                             {item.annotations.map((a, index) => (
                               <div className="annotation" key={index}>
                                 <div className="annotation-label">
-                                  <span>{a.kind}</span>
+                                  <span className="object-label"><Icon name="annotation" size={14} />{a.kind}</span>
                                   {a.evidence && (
                                     <span className={`evidence ${a.evidence}`}>
                                       {a.evidence}
@@ -707,7 +733,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
                         {item.type !== "relationship" && (
                           <section>
                             <div className="section-heading">
-                              <h2>Relationships</h2>
+                              <h2 className="object-label"><Icon name="relationship" />Relationships</h2>
                               <span className="muted">
                                 {related(model, item.id).length} connections
                               </span>
@@ -747,7 +773,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
                         {item.codeLinks.length > 0 && (
                           <section>
                             <div className="section-heading">
-                              <h2>In the implementation</h2>
+                              <h2 className="object-label"><Icon name="code-link" />In the implementation</h2>
                               <span className="muted">
                                 {item.codeLinks.length} code links
                               </span>
@@ -768,10 +794,10 @@ function ReaderProject({ projectId }: { projectId: string }) {
                                   }
                                 >
                                   <span className="code-role">
-                                    {l.role} <span>↗</span>
+                                    <span>{l.role}</span> <Icon name="open" size={14} />
                                   </span>
                                   <strong>
-                                    {l.symbol || l.file.split("/").pop()}
+                                    <ObjectName type="code-link" name={l.symbol || l.file.split("/").pop() || l.file} size={14} />
                                   </strong>
                                   <code>
                                     {l.file}
@@ -801,7 +827,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
                           }
                         }}
                       >
-                        {copied ? "Copied" : "Copy link"}
+                        <Icon name={copied ? "check" : "copy"} /> {copied ? "Copied" : "Copy link"}
                       </button>
                     </div>
                   </>

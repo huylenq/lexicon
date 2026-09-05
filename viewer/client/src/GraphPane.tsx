@@ -48,6 +48,8 @@ import {
 } from "./graph/layout";
 import { defaults, type Workspace } from "./graph/storage";
 import type { Model } from "../../shared/model";
+import ObjectName from "./ObjectName";
+import Icon from "./Icon";
 import "./styles/graph.css";
 
 type NodeData = GraphVertex & { [key: string]: unknown };
@@ -79,9 +81,6 @@ function Vertex({ data }: NodeProps<FlowNode>) {
       {group ? (
         <div className="graph-group-heading">
           <div>
-            <span className="graph-kind">
-              {data.kind === "file" ? "Implementation" : "Context"}
-            </span>
             <button
               className="nodrag graph-node-title"
               title={data.subtitle}
@@ -91,7 +90,7 @@ function Vertex({ data }: NodeProps<FlowNode>) {
                 if (data.selection) actions.select(data.selection);
               }}
             >
-              {data.title}
+              <ObjectName type={data.kind === "file" ? "code" : "context"} name={data.title} />
             </button>
             {data.kind === "file" && (
               <span className="graph-file-path" title={data.subtitle}>
@@ -109,17 +108,18 @@ function Vertex({ data }: NodeProps<FlowNode>) {
                   actions.collapse(data.selection.id);
               }}
             >
-              {data.collapsed ? "+" : "−"}
+              <Icon name={data.collapsed ? "plus" : "minus"} size={14} />
               <span>{data.count}</span>
             </button>
           )}
         </div>
       ) : (
         <>
-          <span className="graph-kind">
-            {data.kind === "code" ? "Code" : data.subtitle}
-          </span>
-          <strong title={data.title}>{data.title}</strong>
+          <strong>
+            <ObjectName type={data.kind === "code" ? "code" : "concept"}
+              classification={data.kind === "concept" ? data.subtitle : undefined}
+              name={data.title} />
+          </strong>
           {data.kind === "code" && (
             <span className="graph-file-path" title={data.subtitle}>
               {data.subtitle.split("/").pop()}
@@ -170,7 +170,7 @@ function Connection(props: EdgeProps<FlowEdge>) {
             {data.attached && (
               <span className="graph-attachment" aria-hidden="true" />
             )}
-            {data.label}
+            <ObjectName type={data.kind === "mapping" ? "code-link" : "relationship"} name={data.label} size={13} />
           </button>
         </div>
       </foreignObject>
@@ -196,6 +196,7 @@ type Props = {
   onClearSelection: () => void;
   command?: GraphCommand;
   onReset: () => void;
+  onClose: () => void;
 };
 export default function GraphPane(props: Props) {
   return (
@@ -242,6 +243,7 @@ function GraphCanvas({
   onClearSelection,
   command,
   onReset,
+  onClose,
 }: Props) {
   const index = useMemo(() => indexModel(model), [model]);
   const projection = useMemo(
@@ -484,7 +486,7 @@ function GraphCanvas({
       },
       markerEnd: {
         type: MarkerType.ArrowClosed,
-        color: c.kind === "mapping" ? "var(--graph-code)" : "var(--accent)",
+        color: c.kind === "mapping" ? "var(--graph-code)" : "var(--type-relationship)",
         width: 16,
         height: 16,
       },
@@ -652,6 +654,7 @@ function GraphCanvas({
   };
   return (
     <section
+      id="graph-pane"
       className="graph-pane"
       aria-label="Domain graph"
       onKeyDownCapture={(event) => {
@@ -664,7 +667,7 @@ function GraphCanvas({
     >
       <div className="graph-toolbar">
         <div>
-          <span className="eyebrow">Domain graph</span>
+          <span className="pane-title">Graph</span>
           <span className="graph-scope">
             {focus ? "Focused neighborhood" : "Overall domain"}
           </span>
@@ -683,7 +686,7 @@ function GraphCanvas({
             {workspace.allCode ? "All code shown" : "Show all code"}
           </button>
           <details className="graph-menu">
-            <summary aria-label="Graph options">•••</summary>
+            <summary aria-label="Graph options"><Icon name="more" /></summary>
             <div>
               <button
                 onClick={() => {
@@ -697,6 +700,7 @@ function GraphCanvas({
               <button onClick={reset}>Reset graph view</button>
             </div>
           </details>
+          <button className="quiet icon-button pane-close" aria-label="Close Graph pane" title="Hide Graph" onClick={onClose}><Icon name="close" /></button>
         </div>
       </div>
       <div className="graph-selection-bar">
@@ -808,7 +812,7 @@ function GraphCanvas({
             <Panel position="bottom-left" className="graph-view-controls">
               <Controls showInteractive={false} showFitView={false} />
               <button className="graph-fit quiet" onClick={fit}>
-                Fit view
+                <Icon name="fit" size={14} /> Fit view
               </button>
             </Panel>
           </ReactFlow>

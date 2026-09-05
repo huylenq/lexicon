@@ -23,6 +23,12 @@ The library includes a DentalML example plus your registered projects. DentalML 
 - **History:** item and source selection live in the URL. Browser Back/Forward and Copy link preserve them.
 - **Refresh:** reread the model from disk. Parsing is uncached.
 
+The light and dark themes use neutral surfaces, a vivid pink interaction accent, and the system UI font. Dark mode uses near-black backgrounds. Navigation, toolbars, and metadata use compact spacing; explanations retain a comfortable reading measure. Object names remain neutral, with semantic color confined to their leading icons across Browse, Read, Graph, and Code. Context icons are neutral. Entity, value (including value object), aggregate, service, and event have stable icon colors; other classifications use the generic concept icon and color. Hovering an icon or focusing its containing control reveals its type and authored classification. The sidebar uses a flat selection tint matching the object icon, including neutral gray for Contexts, without an indentation guide or vertical selection bar. Code syntax has its own theme colors.
+
+Browse visibility sits beside the project identity; Graph and Code have a separate pane-control group. Each optional pane has a local close button and restores its state when reopened. Back and Forward beside the breadcrumb follow browser history; Code retains its independent source history.
+
+The [icon catalogue](client/public/icons.svg) contains 32 original SVG symbols for model objects, classifications, annotations, and viewer controls. Each uses a 20-unit grid, 1.5-unit rounded strokes, and inherited text color. The catalogue is also the production sprite; `Icon.tsx` provides typed names and hides decorative SVGs from assistive technology while adjacent text or button labels carry their meaning.
+
 ## Graph
 
 Use **Graph** in the header to open a resizable pane to the left of the reader. **Browse** controls navigation independently. Concepts appear inside their contexts; clicking a node or relationship opens its explanation without moving the camera. On narrow screens, a selection opens the reader and **Back to graph** returns to the same view.

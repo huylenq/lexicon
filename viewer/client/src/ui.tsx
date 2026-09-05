@@ -1,4 +1,5 @@
 import { useLayoutEffect, useState } from "react";
+import Icon from "./Icon";
 export async function request<T>(
   path: string,
   options?: RequestInit,
@@ -39,7 +40,7 @@ export function Theme() {
         } catch {}
       }}
     >
-      {dark ? "◑" : "◐"}{" "}
+      <Icon name={dark ? "sun" : "moon"} />{" "}
       <span className="theme-label">{dark ? "Light" : "Dark"}</span>
     </button>
   );

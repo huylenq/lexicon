@@ -1,8 +1,8 @@
 :root {
-  --graph-code: #73609a;
+  --graph-code: var(--type-code);
 }
 :root[data-theme="dark"] {
-  --graph-code: #bea6df;
+  --graph-code: var(--type-code);
 }
 .reader-workspace {
   display: flex;
@@ -21,7 +21,7 @@
   display: none;
 }
 .reader.with-graph {
-  grid-template-columns: 225px minmax(0, 1fr);
+  grid-template-columns: 252px minmax(0, 1fr);
 }
 .reader.with-graph.without-sidebar {
   grid-template-columns: minmax(0, 1fr);
@@ -71,21 +71,23 @@
   background: var(--paper);
 }
 .graph-toolbar {
-  padding: 16px 18px;
+  padding: 8px 14px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
   border-bottom: 1px solid var(--line);
   background: var(--panel);
-  min-height: 70px;
+  min-height: var(--toolbar-height);
 }
 .graph-scope {
   display: block;
-  font-size: 12px;
-  margin-top: 7px;
+  font-size: 11px;
+  margin-top: 2px;
   color: var(--muted);
+  line-height: 1.35;
 }
+.graph-toolbar .eyebrow { line-height: 1.2; }
 .graph-toolbar-actions {
   display: flex;
   align-items: center;
@@ -101,7 +103,8 @@
 .graph-menu > summary {
   list-style: none;
   cursor: pointer;
-  padding: 10px 6px;
+  padding: 6px;
+  line-height: 18px;
   color: var(--muted);
 }
 .graph-menu > summary::-webkit-details-marker {
@@ -134,7 +137,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  min-height: 42px;
+  min-height: 36px;
   padding: 5px 12px;
   gap: 0;
   border-bottom: 1px solid var(--line);
@@ -144,7 +147,7 @@
   font-size: 11px;
   color: var(--muted);
   padding: 5px;
-  flex: 1 1 140px;
+  flex: 1 1 80px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -160,7 +163,7 @@
 }
 .graph-canvas .react-flow {
   --xy-background-color: var(--paper);
-  --xy-edge-stroke: var(--accent);
+  --xy-edge-stroke: var(--type-relationship);
   --xy-controls-button-background-color: var(--panel);
   --xy-controls-button-background-color-hover: var(--soft);
   --xy-controls-button-color: var(--ink);
@@ -222,39 +225,42 @@
   width: 100%;
   border: 1px solid var(--line);
   background: var(--panel);
-  border-radius: 9px;
+  border-radius: 7px;
   padding: 12px 16px;
   text-align: left;
-  box-shadow: 0 3px 10px #142a1910;
+  box-shadow: 0 2px 6px #00000008;
 }
 .graph-vertex strong {
+  display: block;
+  font-size: 14px;
+  line-height: 1.35;
+  font-weight: 550;
+  margin-top: 8px;
+}
+.graph-vertex strong .object-name-text {
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  font-size: 14px;
-  line-height: 1.35;
-  font-weight: 550;
-  margin-top: 5px;
 }
 .graph-kind {
   display: block;
   color: var(--muted);
-  font-size: 8px;
-  letter-spacing: 1.2px;
+  font-size: 10px;
+  letter-spacing: 0.4px;
   text-transform: uppercase;
 }
 .graph-vertex.context {
-  background: color-mix(in srgb, var(--accent-soft) 50%, var(--paper));
-  border-color: color-mix(in srgb, var(--accent) 32%, var(--line));
-  border-radius: 13px;
+  background: var(--soft);
+  border-color: var(--line);
+  border-radius: 9px;
   padding: 0;
   box-shadow: none;
 }
 .graph-vertex.file {
   background: color-mix(in srgb, var(--graph-code) 5%, var(--paper));
   border: 1px dashed color-mix(in srgb, var(--graph-code) 45%, var(--line));
-  border-radius: 13px;
+  border-radius: 9px;
   padding: 0;
   box-shadow: none;
 }
@@ -262,7 +268,7 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  padding: 15px 20px;
+  padding: 12px 16px;
   gap: 10px;
   cursor: default;
 }
@@ -274,7 +280,7 @@
   padding: 0;
   display: block;
   text-align: left;
-  margin-top: 5px;
+  margin-top: 0;
   font-size: 15px;
   font-weight: 600;
   overflow: hidden;
@@ -307,7 +313,7 @@
   color: var(--graph-code);
 }
 .graph-vertex.code strong {
-  font-family: "SFMono-Regular", Consolas, monospace;
+  font-family: var(--font-code);
   font-size: 11px;
   white-space: nowrap;
   display: block;
@@ -315,7 +321,7 @@
 }
 .graph-file-path {
   display: block;
-  font-size: 9px;
+  font-size: 10px;
   color: var(--muted);
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -342,7 +348,7 @@
   opacity: 0.15;
 }
 .graph-canvas .react-flow__edge-path {
-  stroke: var(--accent);
+  stroke: var(--type-relationship);
   stroke-width: 1.3;
 }
 .graph-canvas .react-flow__edge.mapping .react-flow__edge-path {
@@ -375,6 +381,10 @@
 .graph-edge-label-position {
   pointer-events: none;
 }
+/* React Flow positions descendant edge SVGs absolutely; inline icons need flow layout. */
+.graph-canvas .graph-edge-label svg.icon {
+  position: static;
+}
 .graph-edge-label-position {
   display: flex;
   justify-content: center;
@@ -400,7 +410,7 @@
 .graph-edge-label.mapping {
   color: var(--graph-code);
   opacity: 0;
-  font-size: 9px;
+  font-size: 10px;
 }
 .graph-edge-label.mapping:hover,
 .graph-edge-label.mapping:focus-visible,
@@ -429,21 +439,21 @@
   background: var(--graph-code);
 }
 .graph-legend {
-  min-height: 38px;
-  padding: 10px 14px;
+  min-height: 32px;
+  padding: 7px 12px;
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 10px 16px;
   border-top: 1px solid var(--line);
   background: var(--panel);
-  font-size: 9px;
+  font-size: 10px;
   color: var(--muted);
 }
 .graph-legend i {
   display: inline-block;
   width: 17px;
-  border-top: 1px solid var(--accent);
+  border-top: 1px solid var(--type-relationship);
   vertical-align: middle;
   margin-right: 5px;
 }
@@ -451,7 +461,7 @@
   border-top: 1px dashed var(--graph-code);
 }
 .graph-legend i.summary {
-  border-top: 3px solid var(--accent);
+  border-top: 3px solid var(--type-relationship);
 }
 .graph-count {
   margin-left: auto;
@@ -483,19 +493,19 @@
 }
 .reader-graph-actions {
   display: flex;
-  padding: 8px 24px 0;
+  padding: 4px 20px 0;
   gap: 6px;
 }
 .with-graph .reading-pane article {
-  padding: 32px clamp(22px, 3vw, 42px);
+  padding: 24px clamp(20px, 2vw, 28px);
 }
 .with-graph .reading-pane h1 {
-  font-size: clamp(30px, 3vw, 42px);
-  letter-spacing: -1px;
+  font-size: clamp(24px, 2.2vw, 30px);
+  letter-spacing: -0.7px;
   overflow-wrap: anywhere;
 }
 .with-graph .reader-toolbar {
-  padding: 15px 24px;
+  padding: 8px 20px;
   flex-wrap: wrap;
 }
 .graph-reading h1 {
@@ -504,7 +514,7 @@
 .mapping-card {
   border: 1px solid var(--line);
   border-radius: 7px;
-  padding: 18px;
+  padding: 14px;
   margin-bottom: 12px;
   background: var(--panel);
 }
@@ -521,10 +531,7 @@
   font-size: 13px;
 }
 .mapping-target {
-  font:
-    11px/1.6 "SFMono-Regular",
-    Consolas,
-    monospace;
+  font: 12px/1.6 var(--font-code);
   overflow-wrap: anywhere;
   color: var(--graph-code);
   padding: 0;
@@ -603,7 +610,7 @@
     padding: 6px 4px;
   }
   .graph-toolbar {
-    padding: 13px 14px;
+    padding: 8px 14px;
   }
   .graph-legend {
     font-size: 8px;
@@ -613,6 +620,19 @@
     margin-left: 0;
   }
   .with-graph .reading-pane article {
-    padding: 25px 22px;
+    padding: 24px 20px;
   }
 }
+
+.graph-edge-label .object-name-text,
+.graph-node-title .object-name-text,
+.graph-vertex.code strong .object-name-text {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.graph-toolbar > div:first-child { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.graph-toolbar .graph-scope { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.graph-toolbar-actions { flex-shrink: 0; }

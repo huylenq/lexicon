@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="904" viewBox="0 0 760 904" role="img" aria-labelledby="title desc">
+<title id="title">Lexicon icon set</title>
+<desc id="desc">Thirty-two original icons on a 20-unit grid. Four model objects, five DDD classifications, annotations, and viewer controls. Each glyph is shown at 28 and 16 pixels. Reuse symbols by their IDs.</desc>
+<defs>
+<symbol id="context" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="3.5" width="15" height="13" rx="3" stroke-dasharray="2 2.5"/><circle cx="7" cy="10" r="1.5"/><circle cx="13" cy="10" r="1.5"/><path d="M8.5 10h3"/></g></symbol>
+<symbol id="concept" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="6.5"/><circle cx="10" cy="10" r="1.5" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="relationship" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="3.5" cy="10" r="2"/><circle cx="16.5" cy="10" r="2"/><path d="M5.5 10h9m-4-3 3 3-3 3"/></g></symbol>
+<symbol id="code-link" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="4" cy="10" r="2.5"/><path d="M6.5 10H10m3-4-3 4 3 4m3-8 3 4-3 4"/></g></symbol>
+<symbol id="entity" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="6.5"/><path d="M7 8h6m-6 4h3"/></g></symbol>
+<symbol id="value" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m10 2.5 7.5 7.5-7.5 7.5L2.5 10Z"/><path d="M7.5 10h5"/></g></symbol>
+<symbol id="aggregate" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="2.5" width="15" height="15" rx="3"/><circle cx="10" cy="6.5" r="1.5"/><circle cx="6.5" cy="13" r="1.5"/><circle cx="13.5" cy="13" r="1.5"/><path d="m9.2 8-2 3.5m3.6-3.5 2 3.5"/></g></symbol>
+<symbol id="service" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m10 2 7 4v8l-7 4-7-4V6Z"/><circle cx="10" cy="10" r="2.5"/></g></symbol>
+<symbol id="event" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m11.5 2-8 9H9l-.5 7 8-10H11Z"/></g></symbol>
+<symbol id="annotation" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 15.5 3 18V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6.5Z"/><path d="M6.5 7h7m-7 4h4"/></g></symbol>
+<symbol id="browse" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="3.5" width="15" height="13" rx="2"/><path d="M7 3.5v13m-1.5-9h0m0 3h0"/></g></symbol>
+<symbol id="graph" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="4" cy="10" r="2.5"/><circle cx="15.5" cy="4.5" r="2"/><circle cx="15.5" cy="15.5" r="2"/><path d="m6.3 8.9 7.3-3.5m-7.3 5.7 7.3 3.5"/></g></symbol>
+<symbol id="code" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 5-4.5 5L6 15m8-10 4.5 5-4.5 5m-3-12-2 14"/></g></symbol>
+<symbol id="overview" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="5" height="5" rx="1"/><rect x="12" y="3" width="5" height="5" rx="1"/><rect x="3" y="12" width="5" height="5" rx="1"/><rect x="12" y="12" width="5" height="5" rx="1"/></g></symbol>
+<symbol id="search" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.5" cy="8.5" r="5"/><path d="m12 12 5 5"/></g></symbol>
+<symbol id="refresh" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 7A7 7 0 1 0 17 12m-.5-9v4H12"/></g></symbol>
+<symbol id="open" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 15 15 5M6 5h9v9"/></g></symbol>
+<symbol id="arrow-left" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 10H3m5-5-5 5 5 5"/></g></symbol>
+<symbol id="arrow-right" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10h14m-5-5 5 5-5 5"/></g></symbol>
+<symbol id="close" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m5 5 10 10M15 5 5 15"/></g></symbol>
+<symbol id="plus" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 10h13M10 3.5v13"/></g></symbol>
+<symbol id="minus" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 10h13"/></g></symbol>
+<symbol id="copy" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M13 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/></g></symbol>
+<symbol id="check" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m3.5 10 4.5 4.5L17 5.5"/></g></symbol>
+<symbol id="sun" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="3"/><path d="M10 1.5V3m0 14v1.5M1.5 10H3m14 0h1.5M4 4l1 1m10 10 1 1M16 4l-1 1M5 15l-1 1"/></g></symbol>
+<symbol id="moon" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 11.8A7.5 7.5 0 0 1 8.2 3 7.5 7.5 0 1 0 17 11.8Z"/></g></symbol>
+<symbol id="install" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2v10m-4-4 4 4 4-4M3 13v3a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3"/></g></symbol>
+<symbol id="more" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="4" cy="10" r="1" fill="currentColor" stroke="none"/><circle cx="10" cy="10" r="1" fill="currentColor" stroke="none"/><circle cx="16" cy="10" r="1" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="fit" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3H3v4m10-4h4v4M3 13v4h4m10-4v4h-4"/></g></symbol>
+<symbol id="locate" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="5.5"/><circle cx="10" cy="10" r="1.5"/><path d="M10 1v3m0 12v3M1 10h3m12 0h3"/></g></symbol>
+<symbol id="panel-graph" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="3.5" width="15" height="13" rx="2"/><path d="M10 3.5v13M4.5 7l3 3-3 3"/><circle cx="4.5" cy="7" r=".6"/><circle cx="7.5" cy="10" r=".6"/><circle cx="4.5" cy="13" r=".6"/></g></symbol>
+<symbol id="panel-right" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="3.5" width="15" height="13" rx="2"/><path d="M12.5 3.5v13"/><path d="M14.5 6h1m-1 4h1m-1 4h1"/></g></symbol>
+</defs>
+<rect width="760" height="904" rx="12" fill="#fff"/>
+<g font-family="-apple-system, BlinkMacSystemFont, sans-serif" fill="#242424" color="#242424">
+<text x="32" y="40" font-size="22" font-weight="600">Lexicon icons</text>
+<text x="32" y="64" font-size="12" fill="#666">20-unit grid · 1.5-unit strokes · currentColor · 28px / 16px previews</text>
+<text x="32" y="100" font-size="11" fill="#666" letter-spacing="1">MODEL OBJECTS</text>
+<g transform="translate(32 120)"><use href="#context" width="28" height="28"/><use href="#context" x="40" y="6" width="16" height="16"/><text y="49" font-size="12">Context</text></g>
+<g transform="translate(176 120)"><use href="#concept" width="28" height="28"/><use href="#concept" x="40" y="6" width="16" height="16"/><text y="49" font-size="12">Concept</text></g>
+<g transform="translate(320 120)"><use href="#relationship" width="28" height="28"/><use href="#relationship" x="40" y="6" width="16" height="16"/><text y="49" font-size="12">Relationship</text></g>
+<g transform="translate(464 120)"><use href="#code-link" width="28" height="28"/><use href="#code-link" x="40" y="6" width="16" height="16"/><text y="49" font-size="12">Code link</text></g>
+<text x="32" y="230" font-size="11" fill="#666" letter-spacing="1">CLASSIFICATIONS &amp; ANNOTATIONS</text>
+<g transform="translate(32 250)"><use href="#entity" width="28" height="28"/><use href="#entity" x="40" y="6" width="16" height="16"/><text y="49" font-size="12">Entity</text></g>
+<g transform="translate(176 250)"><use href="#value" width="28" height="28"/><use href="#value" x="40" y="6" width="16" height="16"/><text y="49" font-size="12">Value</text></g>
+<g transform="translate(320 250)"><use href="#aggregate" width="28" height="28"/><use href="#aggregate" x="40" y="6" width="16" height="16"/><text y="49" font-size="12">Aggregate</text></g>
+<g transform="translate(464 250)"><use href="#service" width="28" height="28"/><use href="#service" x="40" y="6" width="16" height="16"/><text y="49" font-size="12">Service</text></g>
+<g transform="translate(608 250)"><use href="#event" width="28" height="28"/><use href="#event" x="40" y="6" width="16" height="16"/><text y="49" font-size="12">Event</text></g>
+<g transform="translate(32 334)"><use href="#annotation" width="28" height="28"/><use href="#annotation" x="40" y="6" width="16" height="16"/><text y="49" font-size="12">Annotation</text></g>
+<text x="32" y="440" font-size="11" fill="#666" letter-spacing="1">VIEWER CONTROLS</text>
+<g transform="translate(32 460)"><use href="#browse" width="28" height="28"/><use href="#browse" x="40" y="6" width="16" height="16"/><text y="49" font-size="12">Browse</text></g>
+<g transform="translate(176 460)"><use href="#graph" width="28" height="28"/><use href="#graph" x="40" y="6" width="16" height="16"/><text y="49" font-size="12">Graph</text></g>
+<g transform="translate(320 460)"><use href="#code" width="28" height="28"/><use href="#code" x="40" y="6" width="16" height="16"/><text y="49" font-size="12">Code</text></g>
+<g transform="translate(464 460)"><use href="#overview" width="28" height="28"/><use href="#overview" x="40" y="6" width="16" height="16"/><text y="49" font-size="12">Overview</text></g>
+<g transform="translate(608 460)"><use href="#search" width="28" height="28"/><use href="#search" x="40" y="6" width="16" height="16"/><text y="49" font-size="12">Search</text></g>
+<g transform="translate(32 544)"><use href="#refresh" width="28" height="28"/><use href="#refresh" x="40" y="6" width="16" height="16"/><text y="49" font-size="12">Refresh</text></g>
+<g transform="translate(176 544)"><use href="#open" width="28" height="28"/><use href="#open" x="40" y="6" width="16" height="16"/><text y="49" font-size="12">Open</text></g>
+<g transform="translate(320 544)"><use href="#arrow-left" width="28" height="28"/><use href="#arrow-left" x="40" y="6" width="16" height="16"/><text y="49" font-size="12">Arrow left</text></g>
+<g transform="translate(464 544)"><use href="#arrow-right" width="28" height="28"/><use href="#arrow-right" x="40" y="6" width="16" height="16"/><text y="49" font-size="12">Arrow right</text></g>
+<g transform="translate(608 544)"><use href="#close" width="28" height="28"/><use href="#close" x="40" y="6" width="16" height="16"/><text y="49" font-size="12">Close</text></g>
+<g transform="translate(32 628)"><use href="#plus" width="28" height="28"/><use href="#plus" x="40" y="6" width="16" height="16"/><text y="49" font-size="12">Plus</text></g>
+<g transform="translate(176 628)"><use href="#minus" width="28" height="28"/><use href="#minus" x="40" y="6" width="16" height="16"/><text y="49" font-size="12">Minus</text></g>
+<g transform="translate(320 628)"><use href="#copy" width="28" height="28"/><use href="#copy" x="40" y="6" width="16" height="16"/><text y="49" font-size="12">Copy</text></g>
+<g transform="translate(464 628)"><use href="#check" width="28" height="28"/><use href="#check" x="40" y="6" width="16" height="16"/><text y="49" font-size="12">Check</text></g>
+<g transform="translate(608 628)"><use href="#sun" width="28" height="28"/><use href="#sun" x="40" y="6" width="16" height="16"/><text y="49" font-size="12">Sun</text></g>
+<g transform="translate(32 712)"><use href="#moon" width="28" height="28"/><use href="#moon" x="40" y="6" width="16" height="16"/><text y="49" font-size="12">Moon</text></g>
+<g transform="translate(176 712)"><use href="#install" width="28" height="28"/><use href="#install" x="40" y="6" width="16" height="16"/><text y="49" font-size="12">Install</text></g>
+<g transform="translate(320 712)"><use href="#more" width="28" height="28"/><use href="#more" x="40" y="6" width="16" height="16"/><text y="49" font-size="12">More</text></g>
+<g transform="translate(464 712)"><use href="#fit" width="28" height="28"/><use href="#fit" x="40" y="6" width="16" height="16"/><text y="49" font-size="12">Fit</text></g>
+<g transform="translate(608 712)"><use href="#locate" width="28" height="28"/><use href="#locate" x="40" y="6" width="16" height="16"/><text y="49" font-size="12">Locate</text></g>
+<g transform="translate(32 796)"><use href="#panel-graph" width="28" height="28"/><use href="#panel-graph" x="40" y="6" width="16" height="16"/><text y="49" font-size="12">Graph pane</text></g>
+<g transform="translate(176 796)"><use href="#panel-right" width="28" height="28"/><use href="#panel-right" x="40" y="6" width="16" height="16"/><text y="49" font-size="12">Right pane</text></g>
+</g>
+</svg>

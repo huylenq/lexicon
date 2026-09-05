@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#fffef9" />
+    <meta name="theme-color" content="#f7f7f7" />
     <meta name="apple-mobile-web-app-title" content="Lexicon" />
     <title>Lexicon · Meaning linked to code</title>
     <link rel="icon" href="/icon.svg?v=connected-mark" type="image/svg+xml" />
@@ -14,7 +14,7 @@
         document.documentElement.dataset.theme =
           localStorage.getItem("lexicon.theme") || "light";
         document.querySelector('meta[name="theme-color"]').content =
-          document.documentElement.dataset.theme === "dark" ? "#1e2c27" : "#fffef9";
+          document.documentElement.dataset.theme === "dark" ? "#0a0a0a" : "#f7f7f7";
       } catch {}
     </script>
   </head>

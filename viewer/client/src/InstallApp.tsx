@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import Icon from "./Icon";
 
 interface InstallPrompt extends Event {
   prompt(): Promise<{ outcome: "accepted" | "dismissed" }>;
@@ -23,5 +24,5 @@ export default function InstallApp() {
   return <button className="quiet install-app" onClick={async () => {
     setPrompt(null);
     try { await prompt.prompt(); } catch { /* Browser install menu stays available. */ }
-  }}>Install app</button>;
+  }}><Icon name="install" /> Install app</button>;
 }

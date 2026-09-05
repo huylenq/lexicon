@@ -19,7 +19,7 @@
     app-region: no-drag;
   }
   .app-header .brand {
-    font-size: 20px;
+    font-size: 18px;
     flex-shrink: 0;
   }
   .app-header .brand-mark {

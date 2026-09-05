@@ -5,8 +5,8 @@ test("legacy theme tags follow the app theme instead of the OS theme", async ({ 
   await page.route("/", async (route) => {
     const response = await route.fetch();
     const html = (await response.text()).replace(
-      '<meta name="theme-color" content="#fffef9" />',
-      '<meta name="theme-color" content="#fffef9" media="(prefers-color-scheme: light)" />' +
+      '<meta name="theme-color" content="#f7f7f7" />',
+      '<meta name="theme-color" content="#f7f7f7" media="(prefers-color-scheme: light)" />' +
       '<meta name="theme-color" content="#f0ead8" media="(prefers-color-scheme: dark)" />',
     );
     await route.fulfill({ response, body: html });
@@ -15,12 +15,12 @@ test("legacy theme tags follow the app theme instead of the OS theme", async ({ 
   const themeColor = page.locator('meta[name="theme-color"]');
   await expect(themeColor).toHaveCount(1);
   await expect(themeColor).not.toHaveAttribute("media");
-  await expect(themeColor).toHaveAttribute("content", "#fffef9");
+  await expect(themeColor).toHaveAttribute("content", "#f7f7f7");
   await page.getByRole("button", { name: "Use dark theme" }).click();
-  await expect(themeColor).toHaveAttribute("content", "#1e2c27");
+  await expect(themeColor).toHaveAttribute("content", "#0a0a0a");
   await expect(page.locator("html")).toHaveCSS("color-scheme", "dark");
   await page.getByRole("button", { name: "Use light theme" }).click();
-  await expect(themeColor).toHaveAttribute("content", "#fffef9");
+  await expect(themeColor).toHaveAttribute("content", "#f7f7f7");
   await expect(page.locator("html")).toHaveCSS("color-scheme", "light");
 });
 
@@ -72,14 +72,14 @@ test("install metadata, offline deep links, and uncached local API", async ({ pa
 
 test("inline header remains usable across themes and narrow screens", async ({ page }) => {
   await page.goto("/");
-  await expect(page.locator(".library-header")).toHaveCSS("height", "64px");
+  await expect(page.locator(".library-header")).toHaveCSS("height", "48px");
   await page.getByRole("button", { name: "Use dark theme" }).click();
-  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", "#1e2c27");
+  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", "#0a0a0a");
   await page.screenshot({ path: test.info().outputPath("library-dark.png") });
   await page.goto("/p/dentalml");
-  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", "#1e2c27");
+  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", "#0a0a0a");
   await page.getByRole("button", { name: "Use light theme" }).click();
-  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", "#fffef9");
+  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", "#f7f7f7");
   await page.screenshot({ path: test.info().outputPath("reader-light.png") });
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.getByRole("button", { name: "Use dark theme" })).toBeInViewport();
