@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import type { Project } from "../../shared/model";
 import { request, Theme, ErrorNotice } from "./ui";
+import InstallApp from "./InstallApp";
 export default function Library() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [root, setRoot] = useState("");
@@ -21,11 +22,14 @@ export default function Library() {
   }, [refresh]);
   return (
     <div className="library">
-      <header className="library-header">
+      <header className="library-header app-header">
         <Link to="/" className="brand">
           <span className="brand-mark">L</span> lexicon
         </Link>
-        <Theme />
+        <div className="header-actions">
+          <InstallApp />
+          <Theme />
+        </div>
       </header>
       <main>
         <div className="eyebrow">A model you can think with</div>

@@ -9,6 +9,7 @@
   background: #f6f5ef;
   font-synthesis: none;
   --paper: #f6f5ef;
+  --app-header-height: 64px;
   --panel: #fffef9;
   --soft: #eeeee5;
   --ink: #243c36;
@@ -199,7 +200,13 @@ small {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 32px 0;
+  height: var(--app-header-height);
+  margin-inline: calc(50% - 50vw);
+  padding: 0 max(24px, calc((100vw - 1032px) / 2));
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--panel);
   border-bottom: 1px solid var(--line);
 }
 .library main {
@@ -349,7 +356,7 @@ footer {
 .reader {
   display: grid;
   grid-template-columns: 260px minmax(0, 1fr);
-  grid-template-rows: 64px calc(100dvh - 64px);
+  grid-template-rows: var(--app-header-height) minmax(0, 1fr);
   height: 100dvh;
   overflow: hidden;
 }
@@ -376,11 +383,11 @@ footer {
   text-overflow: ellipsis;
 }
 .header-actions {
-  flex-shrink: 0;
   margin-left: auto;
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-shrink: 0;
 }
 .sidebar {
   border-right: 1px solid var(--line);
@@ -833,7 +840,7 @@ article section {
   .sidebar.open {
     display: flex;
     position: fixed;
-    top: 64px;
+    top: var(--app-header-height);
     bottom: 0;
     left: 0;
     width: 280px;

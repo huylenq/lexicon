@@ -1,0 +1,43 @@
+/* Native controls can live on either side. Keep the header inside the safe area. */
+@media (display-mode: window-controls-overlay) {
+  :root {
+    --app-header-height: max(40px, env(titlebar-area-height, 40px));
+  }
+  .app-header {
+    padding-left: calc(env(titlebar-area-x, 0px) + 12px);
+    padding-right: calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw) + 12px);
+    padding-top: env(titlebar-area-y, 0px);
+    -webkit-app-region: drag;
+    app-region: drag;
+    user-select: none;
+    gap: 16px;
+  }
+  .app-header a,
+  .app-header button,
+  .app-header input {
+    -webkit-app-region: no-drag;
+    app-region: no-drag;
+  }
+  .app-header .brand {
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+  .app-header .brand-mark {
+    width: 30px;
+    height: 24px;
+  }
+  .app-header .header-actions {
+    gap: 4px;
+  }
+  .app-header .quiet {
+    padding: 5px 8px;
+  }
+}
+
+@media (display-mode: standalone), (display-mode: window-controls-overlay) {
+  .install-app { display: none; }
+}
+
+@media (max-width: 700px) {
+  .reader-header .install-app { display: none; }
+}

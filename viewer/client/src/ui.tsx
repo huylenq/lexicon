@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useLayoutEffect, useState } from "react";
 export async function request<T>(
   path: string,
   options?: RequestInit,
@@ -13,6 +13,19 @@ export function Theme() {
   const [dark, setDark] = useState(
     document.documentElement.dataset.theme === "dark",
   );
+  useLayoutEffect(() => {
+    // Older installed shells have separate light/dark tags. Chrome may select
+    // either by the OS theme, so replace them with one explicit app theme.
+    const tags = [...document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')];
+    const themeColor = tags.shift() || document.createElement("meta");
+    themeColor.name = "theme-color";
+    themeColor.removeAttribute("media");
+    themeColor.content = getComputedStyle(document.documentElement)
+      .getPropertyValue("--panel").trim();
+    for (const tag of tags) tag.remove();
+    if (!themeColor.isConnected) document.head.append(themeColor);
+    document.documentElement.style.colorScheme = dark ? "dark" : "light";
+  }, [dark]);
   return (
     <button
       className="quiet"

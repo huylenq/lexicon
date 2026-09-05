@@ -3,13 +3,18 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#f6f5ef" />
+    <meta name="theme-color" content="#fffef9" />
+    <meta name="apple-mobile-web-app-title" content="Lexicon" />
     <title>Lexicon · Meaning linked to code</title>
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <script>
       try {
         document.documentElement.dataset.theme =
           localStorage.getItem("lexicon.theme") || "light";
+        document.querySelector('meta[name="theme-color"]').content =
+          document.documentElement.dataset.theme === "dark" ? "#1e2c27" : "#fffef9";
       } catch {}
     </script>
   </head>

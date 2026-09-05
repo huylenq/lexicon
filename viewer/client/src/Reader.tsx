@@ -14,6 +14,7 @@ import { related } from "../../shared/model";
 import { request, Theme, ErrorNotice, Paragraph } from "./ui";
 import CodePane from "./CodePane";
 import { useCodeNavigation, type CodeLocation } from "./codeNavigation";
+import InstallApp from "./InstallApp";
 import GraphReading from "./GraphReading";
 import {
   indexModel,
@@ -266,7 +267,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
       <a className="skip-link" href="#main-content">
         Skip to the model
       </a>
-      <header className="reader-header">
+      <header className="reader-header app-header">
         <Link to="/" className="brand" aria-label="Lexicon library">
           <span className="brand-mark">L</span>
           <span className="brand-text">lexicon</span>
@@ -274,6 +275,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
         <span className="header-divider" />
         <span className="project-name">{model?.name || "Opening project"}</span>
         <div className="header-actions">
+          <InstallApp />
           <button
             className="quiet"
             aria-label="Toggle navigation"
