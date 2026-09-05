@@ -45,6 +45,26 @@ For an artifact root separate from the code checkout, add `--code-root /path/to/
 
 ## Use with an agent
 
+For local development, link the skill into the shared agent directory from this checkout:
+
+```sh
+mkdir -p ~/.agents/skills
+ln -s "$PWD/skills/lexicon" ~/.agents/skills/lexicon
+cd viewer
+bun install --frozen-lockfile
+```
+
+The link keeps the skill and its launcher attached to this checkout, including uncommitted edits. No copy, publish, build, or reinstall is needed after source changes. Keep the checkout at the linked location. If the destination already exists, inspect it before replacing it.
+
+The launcher works from any working directory:
+
+```sh
+bun ~/.agents/skills/lexicon/scripts/lexicon.ts root
+bun ~/.agents/skills/lexicon/scripts/lexicon.ts check /path/to/project
+```
+
+Agents that discover `~/.agents/skills/` can load the shared skill. Discovery and already-loaded prompt refresh depend on the agent: after editing instructions, ask the agent to reread `~/.agents/skills/lexicon/SKILL.md`; start a fresh session if it still shows old metadata or does not discover the new skill. Checker source is read on every command. Rerun dependency installation only when dependencies change.
+
 Install this repository as a Claude Code plugin:
 
 ```text

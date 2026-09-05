@@ -19,11 +19,14 @@ Choose the workflow from the request:
 4. Link the inspected files or symbols and explain each link's role. A concept may span files; a file may implement several concepts. Relationships may carry code links too.
 5. After model changes, run the checker and review the result through the reader when available. Report broken or unchecked links and any review you could not perform.
 
-The format and a minimal example live in `${CLAUDE_SKILL_DIR}/../../MODEL.md`; the checker is `${CLAUDE_SKILL_DIR}/../../viewer/server/cli.ts`. Install dependencies once with `bun install --frozen-lockfile` in the bundle’s `viewer/` directory. Run the checker with Bun:
+Resolve `<skill-directory>` from the location of this SKILL.md supplied by your agent. The launcher follows symlinks back to the source checkout. Find the bundle root and run the checker with Bun:
 
 ```sh
-bun <bundle>/viewer/server/cli.ts check <artifact-root> --code-root <code-root>
+bun <skill-directory>/scripts/lexicon.ts root
+bun <skill-directory>/scripts/lexicon.ts check <artifact-root> --code-root <code-root>
 ```
+
+The format and a minimal example live in `<bundle>/MODEL.md`. Install dependencies once with `bun install --frozen-lockfile` in `<bundle>/viewer/`; repeat when its dependencies change. The launcher runs current source on every invocation, without a build or global CLI installation. When iterating on Lexicon, reread this SKILL.md from disk before using it again so earlier conversation instructions do not hide source changes.
 
 Use the caller's explicitly chosen artifact root when supplied. A project can keep its prose under `lexicon/docs/`; its organization is outside this workflow.
 
