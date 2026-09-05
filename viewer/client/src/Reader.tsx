@@ -3,11 +3,16 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 import type { Model, ModelItem, Project } from "../../shared/model";
 import { related } from "../../shared/model";
 import { request, Theme, ErrorNotice, Paragraph } from "./ui";
-import ModelMap from "./ModelMap";
 import CodePane from "./CodePane";
 export default function Reader() {
   const { projectId = "" } = useParams();
   const [params, setParams] = useSearchParams();
+  useEffect(() => {
+    if (!params.has("view")) return;
+    const next = new URLSearchParams(params);
+    next.delete("view");
+    setParams(next, { replace: true });
+  }, [params, setParams]);
   const [data, setData] = useState<{ model: Model; project: Project }>();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -76,6 +81,24 @@ export default function Reader() {
     setMenu(false);
     content.current?.scrollTo(0, 0);
   };
+  const itemLink = (id: string, label: string, relationship = false) => {
+    const p = new URLSearchParams(params);
+    p.set("item", id);
+    return (
+      <Link
+        to={`?${p}`}
+        className={relationship ? "relation-name" : "relation-entity"}
+        aria-label={relationship ? `Read relationship: ${label}` : `Open ${label}`}
+        onClick={(event) => {
+          if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+          setMenu(false);
+          content.current?.scrollTo(0, 0);
+        }}
+      >
+        {label}
+      </Link>
+    );
+  };
   const code = (id: string, index: number) => {
     const p = new URLSearchParams(params);
     p.set("code", id);
@@ -84,7 +107,6 @@ export default function Reader() {
   };
   const model = data?.model;
   const item = model?.items.find((i) => i.id === params.get("item"));
-  const map = params.get("view") === "map";
   const contexts = model?.items.filter((i) => i.type === "context") || [];
   const relationships =
     model?.items.filter((i) => i.type === "relationship") || [];
@@ -227,21 +249,6 @@ export default function Reader() {
               </>
             )}
           </nav>
-          <div className="view-switch" aria-label="View">
-            {["read", "map"].map((v) => (
-              <button
-                key={v}
-                aria-pressed={(map ? "map" : "read") === v}
-                onClick={() => {
-                  const p = new URLSearchParams(params);
-                  p.set("view", v);
-                  setParams(p);
-                }}
-              >
-                {v === "read" ? "Read" : "Map"}
-              </button>
-            ))}
-          </div>
         </div>
         {error && <ErrorNotice message={error} />}
         {!model && loading && (
@@ -307,88 +314,82 @@ export default function Reader() {
                   </div>
                 )}
                 <Paragraph text={item?.description || model.description} />
-                {map ? (
-                  <ModelMap model={model} item={item} onSelect={select} />
-                ) : (
+                {!item && (
                   <>
-                    {!item && (
-                      <>
-                        <div className="stats">
-                          <span>
-                            <b>{contexts.length}</b> contexts
+                    <div className="stats">
+                      <span>
+                        <b>{contexts.length}</b> contexts
+                      </span>
+                      <span>
+                        <b>
+                          {
+                            model.items.filter((i) => i.type === "concept")
+                              .length
+                          }
+                        </b>{" "}
+                        concepts
+                      </span>
+                      <span>
+                        <b>{relationships.length}</b> relationships
+                      </span>
+                    </div>
+                    <div className="section-heading">
+                      <h2>Understand it by context</h2>
+                    </div>
+                    <div className="context-grid">
+                      {contexts.map((ctx, index) => (
+                        <button
+                          className="context-card"
+                          onClick={() => select(ctx.id)}
+                          key={ctx.id}
+                        >
+                          <span className="eyebrow">
+                            0{index + 1} / CONTEXT
                           </span>
-                          <span>
-                            <b>
-                              {
-                                model.items.filter((i) => i.type === "concept")
-                                  .length
-                              }
-                            </b>{" "}
-                            concepts
+                          <h3>{ctx.name}</h3>
+                          <p>{ctx.description}</p>
+                          <span className="card-link">
+                            {
+                              model.items.filter(
+                                (i) =>
+                                  i.type === "concept" &&
+                                  i.context === ctx.id,
+                              ).length
+                            }{" "}
+                            concepts <span>→</span>
                           </span>
-                          <span>
-                            <b>{relationships.length}</b> relationships
-                          </span>
-                        </div>
-                        <div className="section-heading">
-                          <h2>Understand it by context</h2>
-                        </div>
-                        <div className="context-grid">
-                          {contexts.map((ctx, index) => (
-                            <button
-                              className="context-card"
-                              onClick={() => select(ctx.id)}
-                              key={ctx.id}
-                            >
-                              <span className="eyebrow">
-                                0{index + 1} / CONTEXT
-                              </span>
-                              <h3>{ctx.name}</h3>
-                              <p>{ctx.description}</p>
-                              <span className="card-link">
-                                {
-                                  model.items.filter(
-                                    (i) =>
-                                      i.type === "concept" &&
-                                      i.context === ctx.id,
-                                  ).length
-                                }{" "}
-                                concepts <span>→</span>
-                              </span>
-                            </button>
-                          ))}
-                        </div>
-                      </>
-                    )}
-                    {item?.type === "context" && (
-                      <section>
-                        <h2>Concepts in this context</h2>
-                        <div className="concept-list">
-                          {model.items
-                            .filter(
-                              (i) =>
-                                i.type === "concept" && i.context === item.id,
-                            )
-                            .map((i) => (
-                              <button key={i.id} onClick={() => select(i.id)}>
-                                <h3>
-                                  {i.name} <span>↗</span>
-                                </h3>
-                                <p>{i.description}</p>
-                              </button>
-                            ))}
-                        </div>
-                        {!model.items.some(
-                          (i) => i.type === "concept" && i.context === item.id,
-                        ) && (
-                          <p className="empty">
-                            This context has its explanation; concepts can be
-                            added as questions emerge.
-                          </p>
-                        )}
-                      </section>
-                    )}
+                        </button>
+                      ))}
+                    </div>
                   </>
+                )}
+                {item?.type === "context" && (
+                  <section>
+                    <h2>Concepts in this context</h2>
+                    <div className="concept-list">
+                      {model.items
+                        .filter(
+                          (i) =>
+                            i.type === "concept" && i.context === item.id,
+                        )
+                        .map((i) => (
+                          <button key={i.id} onClick={() => select(i.id)}>
+                            <h3>
+                              {i.name} <span>↗</span>
+                            </h3>
+                            <p>{i.description}</p>
+                          </button>
+                        ))}
+                    </div>
+                    {!model.items.some(
+                      (i) => i.type === "concept" && i.context === item.id,
+                    ) && (
+                      <p className="empty">
+                        This context has its explanation; concepts can be
+                        added as questions emerge.
+                      </p>
+                    )}
+                  </section>
                 )}
                 {item && (
                   <>
@@ -420,17 +421,22 @@ export default function Reader() {
                         </div>
                         <div className="relation-list">
                           {related(model, item.id).map((r) => (
-                            <button key={r.id} onClick={() => select(r.id)}>
+                            <div className="relation-row" key={r.id}>
                               <span className="relation-direction">
                                 {r.from === item.id ? "OUTGOING" : "INCOMING"}
                               </span>
                               <span className="relation-sentence">
-                                {model.items.find((i) => i.id === r.from)?.name}{" "}
-                                <em>{r.name}</em>{" "}
-                                {model.items.find((i) => i.id === r.to)?.name}
+                                {itemLink(
+                                  r.from,
+                                  model.items.find((i) => i.id === r.from)?.name || r.from,
+                                )}{" "}
+                                {itemLink(r.id, r.name, true)}{" "}
+                                {itemLink(
+                                  r.to,
+                                  model.items.find((i) => i.id === r.to)?.name || r.to,
+                                )}
                               </span>
-                              <span aria-hidden="true">↗</span>
-                            </button>
+                            </div>
                           ))}
                         </div>
                         {!related(model, item.id).length && (

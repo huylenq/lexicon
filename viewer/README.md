@@ -12,11 +12,11 @@ Open http://127.0.0.1:5374. Development uses `mise run viewer` from the reposito
 
 The library includes a DentalML example plus your registered projects. DentalML source links use a sibling `dentalml` checkout. Add a project by its absolute folder path. Removal affects its library registration only.
 
-- **Read:** context catalog, concept explanations, annotations, incoming/outgoing relationships, implementation links.
-- **Map:** focused rows of named relationships with clickable endpoints.
+- **Read:** context catalog, concept explanations, annotations, incoming/outgoing relationships, and implementation links.
+- **Relationships:** select either endpoint to open that context or concept, or select the relationship name to read its explanation. Each is a separate link that also supports opening in a new tab.
 - **Code:** declared source with line numbers, syntax coloring, symbol highlighting, and the explanation for the link.
 - **Find:** search names, descriptions, annotations, files, and symbols. `/` focuses search; Escape closes code or navigation.
-- **History:** item, view, and source selection live in the URL. Browser Back/Forward and Copy link preserve them.
+- **History:** item and source selection live in the URL. Browser Back/Forward and Copy link preserve them.
 - **Refresh:** reread the model from disk. Parsing is uncached.
 
 Earlier XML models open through a read-only import adapter. See [MIGRATION.md](../MIGRATION.md). The model format is in [MODEL.md](../MODEL.md).

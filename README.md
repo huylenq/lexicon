@@ -21,7 +21,7 @@ Open **http://127.0.0.1:5374**. The library includes a DentalML canal-measuremen
 
 For development, run `mise run viewer` from this repository, then open **http://127.0.0.1:5373**.
 
-The reader provides context browsing, search across meaning and code symbols, incoming and outgoing relationships, a focused map, and a source pane with declaration highlighting. Browser addresses preserve the selected item, view, and code link. Refresh reads the current files.
+The reader provides context browsing, search across meaning and code symbols, incoming and outgoing relationships with separate links for each endpoint and relationship, and a source pane with declaration highlighting. Browser addresses preserve the selected item and code link. Refresh reads the current files.
 
 ## Model a project
 

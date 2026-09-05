@@ -506,23 +506,6 @@ footer {
 .reader-toolbar nav button:hover {
   text-decoration: underline;
 }
-.view-switch {
-  display: flex;
-  padding: 3px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  flex-shrink: 0;
-}
-.view-switch button {
-  padding: 6px 12px;
-  font-size: 11px;
-  border-radius: 3px;
-  color: var(--muted);
-}
-.view-switch button[aria-pressed="true"] {
-  background: var(--accent-soft);
-  color: var(--accent);
-}
 article {
   padding: 44px 48px 20px;
   max-width: 1120px;
@@ -651,7 +634,7 @@ article section {
 .relation-list {
   border-top: 1px solid var(--line);
 }
-.relation-list button {
+.relation-row {
   display: flex;
   align-items: center;
   gap: 14px;
@@ -660,9 +643,6 @@ article section {
   width: 100%;
   text-align: left;
   font-size: 13px;
-}
-.relation-list button:hover {
-  color: var(--accent);
 }
 .relation-direction {
   font-size: 8px;
@@ -674,11 +654,18 @@ article section {
   flex: 1;
   line-height: 1.7;
 }
-.relation-sentence em {
-  font-style: normal;
-  color: var(--accent);
-  padding: 0 5px;
+.relation-sentence a {
+  text-decoration: none;
+  overflow-wrap: anywhere;
 }
+.relation-sentence a:hover,
+.relation-sentence a:focus-visible {
+  color: var(--accent);
+}
+.relation-name {
+  color: var(--accent);
+}
+
 .relationship-endpoints {
   display: flex;
   align-items: center;
@@ -892,69 +879,6 @@ article section {
   margin: 0;
   font-size: 10px;
 }
-.model-map {
-  border-top: 1px solid var(--line);
-  padding-top: 24px;
-}
-.model-map .section-heading {
-  align-items: flex-start;
-}
-.map-scroll {
-  overflow: auto;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--panel);
-}
-.map-scroll svg {
-  width: 100%;
-  min-width: 650px;
-  display: block;
-  padding: 16px;
-}
-.map-node rect {
-  fill: var(--paper);
-  stroke: var(--line);
-}
-.map-node {
-  cursor: pointer;
-}
-.map-node:hover rect,
-.map-node:focus rect {
-  stroke: var(--accent);
-  stroke-width: 2;
-}
-.map-node.focused rect {
-  fill: var(--accent-soft);
-  stroke: var(--accent);
-}
-.map-type {
-  font-size: 9px;
-  fill: var(--muted);
-  letter-spacing: 1px;
-}
-.map-name {
-  font-size: 14px;
-  fill: var(--ink);
-}
-.map-edge {
-  stroke: var(--muted);
-  stroke-width: 1;
-  fill: none;
-}
-.map-label rect {
-  fill: var(--soft);
-}
-.map-label text {
-  font-size: 11px;
-  fill: var(--accent);
-}
-.map-label.clickable {
-  cursor: pointer;
-}
-.map-label.clickable:hover rect,
-.map-label.clickable:focus rect {
-  stroke: var(--accent);
-}
 .mobile-menu {
   display: none;
 }
@@ -1056,9 +980,6 @@ article section {
     width: 100%;
     padding: 6px 0 0;
   }
-  .reader-toolbar .view-switch {
-    margin-left: auto;
-  }
   article {
     padding: 30px 22px;
   }
@@ -1075,7 +996,7 @@ article section {
   .stats b {
     font-size: 23px;
   }
-  .relation-list button {
+  .relation-row {
     flex-wrap: wrap;
     gap: 6px;
   }
