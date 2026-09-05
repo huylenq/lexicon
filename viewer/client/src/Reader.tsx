@@ -51,7 +51,6 @@ function ReaderProject({ projectId }: { projectId: string }) {
     return () => media.removeEventListener("change", update);
   }, []);
   const browseToggle = useRef<HTMLButtonElement>(null);
-  const graphToggle = useRef<HTMLButtonElement>(null);
   const [workspace, setWorkspace] = useWorkspace(projectId);
   const [mobileCode, setMobileCode] = useState(!!params.get("code"));
   const codeToggle = useRef<HTMLButtonElement>(null);
@@ -59,12 +58,8 @@ function ReaderProject({ projectId }: { projectId: string }) {
   const [mobileRead, setMobileRead] = useState(
     !!params.get("item") || !!params.get("selection"),
   );
-  const [graphMounted, setGraphMounted] = useState(workspace.open);
   const [graphCommand, setGraphCommand] = useState<GraphCommand>();
   const workArea = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (workspace.open) setGraphMounted(true);
-  }, [workspace.open]);
   const [data, setData] = useState<{ model: Model; project: Project }>();
   const model = data?.model;
   const graphIndex = useMemo(
@@ -92,19 +87,11 @@ function ReaderProject({ projectId }: { projectId: string }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
+  const browsePane = useRef<HTMLElement>(null);
+  const [searchHeight, setSearchHeight] = useState<number>();
   const [menu, setMenu] = useState(false);
   const [copied, setCopied] = useState(false);
   const browseVisible = compact ? menu : workspace.sidebar;
-  const closeBrowse = () => {
-    setMenu(false);
-    if (!compact) setWorkspace((w) => ({ ...w, sidebar: false }));
-    browseToggle.current?.focus();
-  };
-  const closeGraph = () => {
-    setWorkspace((w) => ({ ...w, open: false }));
-    setMobileRead(true);
-    graphToggle.current?.focus();
-  };
   const travel = (direction: number) => {
     navigate(direction);
     setMobileRead(true);
@@ -255,7 +242,6 @@ function ReaderProject({ projectId }: { projectId: string }) {
     action: "locate" | "expand",
     selection: GraphSelection,
   ) => {
-    setWorkspace((w) => ({ ...w, open: true }));
     setMobileRead(false);
     setMobileCode(false);
     setGraphCommand((c) => ({
@@ -299,7 +285,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
   );
   return (
     <div
-      className={`reader ${codeNavigation.open ? "with-code" : ""} ${workspace.open ? "with-graph" : ""} ${!workspace.sidebar ? "without-sidebar" : ""} ${mobileRead ? "mobile-reading" : "mobile-graph"} ${mobileCode ? "mobile-code" : ""}`}
+      className={`reader ${codeNavigation.open ? "with-code" : ""} with-graph ${!workspace.sidebar ? "without-sidebar" : ""} ${mobileRead ? "mobile-reading" : "mobile-graph"} ${mobileCode ? "mobile-code" : ""}`}
     >
       <a className="skip-link" href="#main-content">
         Skip to the model
@@ -319,21 +305,6 @@ function ReaderProject({ projectId }: { projectId: string }) {
         <span className="project-name">{model?.name || "Opening project"}</span>
         <div className="header-actions">
           <div className="pane-toggles" role="group" aria-label="Pane visibility">
-          <button
-            ref={graphToggle}
-            className="quiet icon-button pane-toggle graph-toggle"
-            title={workspace.open && (!compact || !mobileRead && !mobileCode) ? "Hide Graph" : "Show Graph"}
-            aria-controls="graph-pane"
-            aria-label="Graph"
-            aria-pressed={workspace.open && (!compact || !mobileRead && !mobileCode)}
-            onClick={() => {
-              setWorkspace((w) => ({ ...w, open: compact && (mobileRead || mobileCode) ? true : !w.open }));
-              setMobileRead(false);
-              setMobileCode(false);
-            }}
-          >
-            <Icon name="panel-graph" size={18} />
-          </button>
           <button
             ref={codeToggle}
             className="quiet icon-button pane-toggle code-toggle"
@@ -369,65 +340,63 @@ function ReaderProject({ projectId }: { projectId: string }) {
       <aside
         className={`sidebar ${menu ? "open" : ""}`}
         id="browse-pane"
+        ref={browsePane}
+        style={{ height: query.trim() ? searchHeight : undefined }}
         aria-label="Model navigation"
       >
-        <div className="browse-pane-heading">
-          <span className="pane-title">Browse</span>
-          <button className="quiet icon-button pane-close" aria-label="Close Browse pane" title="Hide Browse" onClick={closeBrowse}>
-            <Icon name="close" />
-          </button>
-        </div>
         <div className="search-wrap">
           <Icon name="search" size={14} />
           <input
             ref={search}
             aria-label="Search model"
-            placeholder="Find a concept or code symbol"
+            placeholder="Find..."
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              // Capture the unfiltered shelf before results change its contents.
+              if (!query.trim() && e.target.value.trim())
+                setSearchHeight(browsePane.current?.getBoundingClientRect().height);
+              setQuery(e.target.value);
+            }}
           />
           <kbd>/</kbd>
         </div>
-        {query.trim() ? (
-          <>
-            <div className="eyebrow nav-heading">
-              {matches.length} {matches.length === 1 ? "result" : "results"}{" "}
-              <button className="quiet" onClick={() => setQuery("")}>
-                Clear
-              </button>
-            </div>
-            {matches.map(itemButton)}
-            {!matches.length && (
-              <p className="hint">Try a domain name, code symbol, or phrase.</p>
-            )}
-          </>
-        ) : (
-          <>
-            <button
-              className={`nav-item overview-link ${!item && !params.get("item") ? "active" : ""}`}
-              onClick={() => select()}
-            >
-              <span className="nav-name"><Icon name="overview" size={14} />Overview</span>
-            </button>
-            <div className="eyebrow nav-heading">
-              Contexts <span>{contexts.length}</span>
-            </div>
-            {contexts.map((ctx) => (
-              <div className="nav-context" key={ctx.id}>
-                {itemButton(ctx)}
-                <div className="nav-concepts">
-                  {model?.items
-                    .filter((c) => c.type === "concept" && c.context === ctx.id)
-                    .map(itemButton)}
-                </div>
+        <div className="browse-items">
+          {query.trim() ? (
+            <>
+              <div className="eyebrow nav-heading">
+                {matches.length} {matches.length === 1 ? "result" : "results"}{" "}
+                <button className="quiet" onClick={() => setQuery("")}>
+                  Clear
+                </button>
               </div>
-            ))}
-          </>
-        )}
-        <div className="sidebar-footer">
-          {model?.items.filter((i) => i.type === "concept").length || 0}{" "}
-          concepts · {relationships.length} relationships
-          <p>Meaning, linked to implementation.</p>
+              {matches.map(itemButton)}
+              {!matches.length && (
+                <p className="hint">Try a domain name, code symbol, or phrase.</p>
+              )}
+            </>
+          ) : (
+            <>
+              <button
+                className={`nav-item overview-link ${!item && !params.get("item") ? "active" : ""}`}
+                onClick={() => select()}
+              >
+                <span className="nav-name"><Icon name="overview" size={14} />Overview</span>
+              </button>
+              <div className="eyebrow nav-heading">
+                Contexts <span>{contexts.length}</span>
+              </div>
+              {contexts.map((ctx) => (
+                <div className="nav-context" key={ctx.id}>
+                  {itemButton(ctx)}
+                  <div className="nav-concepts">
+                    {model?.items
+                      .filter((c) => c.type === "concept" && c.context === ctx.id)
+                      .map(itemButton)}
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
         </div>
       </aside>
       <div
@@ -440,9 +409,9 @@ function ReaderProject({ projectId }: { projectId: string }) {
           ref={workArea}
           style={{ "--graph-width": `${workspace.width}%` } as CSSProperties}
         >
-          {model && graphMounted && (
+          {model && (
             <div
-              className={`graph-slot ${workspace.open ? "" : "graph-closed"}`}
+              className="graph-slot"
             >
               <Suspense fallback={<p className="empty">Opening graph…</p>}>
                 <GraphPane
@@ -461,12 +430,11 @@ function ReaderProject({ projectId }: { projectId: string }) {
                   }}
                   command={graphCommand}
                   onReset={() => setMobileRead(false)}
-                  onClose={closeGraph}
                 />
               </Suspense>
             </div>
           )}
-          {workspace.open && (
+          {model && (
             <div
               className="graph-divider"
               role="separator"
@@ -510,6 +478,12 @@ function ReaderProject({ projectId }: { projectId: string }) {
             />
           )}
           <main className="reading-pane" ref={content} id="main-content">
+            {compact && (
+              <button className="quiet back-to-graph" onClick={() => {
+                setMobileRead(false);
+                setMobileCode(false);
+              }}><Icon name="arrow-left" /> Back to graph</button>
+            )}
             <div className="reader-toolbar">
               <div className="reader-history" role="group" aria-label="Navigation history">
                 <button className="quiet icon-button" aria-label="Go back" title="Back" disabled={historyIndex <= 0} onClick={() => travel(-1)}><Icon name="arrow-left" /></button>

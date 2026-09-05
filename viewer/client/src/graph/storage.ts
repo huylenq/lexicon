@@ -6,7 +6,6 @@ import type { GraphOptions } from "./model";
 export type Workspace = GraphOptions & {
   positions: Positions;
   viewport?: Viewport;
-  open: boolean;
   sidebar: boolean;
   width: number;
   codeWidth: number;
@@ -16,7 +15,6 @@ export const defaults = (): Workspace => ({
   expanded: [],
   allCode: false,
   positions: {},
-  open: false,
   sidebar: true,
   width: 52,
   codeWidth: 38,
@@ -33,7 +31,7 @@ export function readWorkspace(key: string): Workspace {
         result[name] = value[name].filter(
           (s: unknown) => typeof s === "string",
         );
-    for (const name of ["open", "sidebar", "allCode"] as const)
+    for (const name of ["sidebar", "allCode"] as const)
       if (typeof value[name] === "boolean") result[name] = value[name];
     if (Number.isFinite(value.width))
       result.width = Math.max(25, Math.min(75, value.width));

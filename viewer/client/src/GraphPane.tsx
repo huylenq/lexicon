@@ -2,6 +2,7 @@ import {
   createContext,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -196,7 +197,6 @@ type Props = {
   onClearSelection: () => void;
   command?: GraphCommand;
   onReset: () => void;
-  onClose: () => void;
 };
 export default function GraphPane(props: Props) {
   return (
@@ -243,8 +243,14 @@ function GraphCanvas({
   onClearSelection,
   command,
   onReset,
-  onClose,
 }: Props) {
+  // Keep fitted nodes clear of the shelf, while panning uses the whole canvas.
+  const fitPadding = () => {
+    if (!workspace.sidebar || window.matchMedia("(max-width: 1000px)").matches) return 0.18;
+    const reader = document.getElementById("browse-pane")?.parentElement;
+    const shelfSpace = reader ? parseFloat(getComputedStyle(reader).getPropertyValue("--browse-space")) : 252;
+    return { left: `${shelfSpace + 24}px` as const, right: "24px" as const, y: 0.18 };
+  };
   const index = useMemo(() => indexModel(model), [model]);
   const projection = useMemo(
     () => projectGraph(index, workspace),
@@ -259,6 +265,27 @@ function GraphCanvas({
   const [hoveredEdge, setHoveredEdge] = useState<string>();
   const [spacePanning, setSpacePanning] = useState(false);
   const canvas = useRef<HTMLDivElement>(null);
+  const viewControls = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const surface = canvas.current;
+    const controls = viewControls.current;
+    const reader = surface?.closest<HTMLElement>(".reader");
+    if (!surface || !controls || !reader) return;
+    const reserveControls = () => {
+      if (!controls.getClientRects().length) return;
+      const clearance = Math.ceil(reader.getBoundingClientRect().bottom - controls.getBoundingClientRect().top + 12);
+      reader.style.setProperty("--browse-control-clearance", `${clearance}px`);
+    };
+    reserveControls();
+    const observer = new ResizeObserver(reserveControls);
+    observer.observe(surface);
+    observer.observe(controls);
+    observer.observe(reader);
+    return () => {
+      observer.disconnect();
+      reader.style.removeProperty("--browse-control-clearance");
+    };
+  }, []);
   const pointerInCanvas = useRef(false);
   useEffect(() => {
     const keyDown = (event: KeyboardEvent) => {
@@ -593,7 +620,7 @@ function GraphCanvas({
       if (visible.length)
         void flow.fitView({
           nodes: visible,
-          padding: 0.18,
+          padding: fitPadding(),
           maxZoom: task.kind === "locate" ? 1 : 0.95,
           duration: 0,
         });
@@ -634,7 +661,6 @@ function GraphCanvas({
     initialCamera.current = undefined;
     setWorkspace((w) => ({
       ...d,
-      open: w.open,
       sidebar: w.sidebar,
       codeWidth: w.codeWidth,
     }));
@@ -705,7 +731,6 @@ function GraphCanvas({
               <button onClick={reset}>Reset graph view</button>
             </div>
           </details>
-          <button className="quiet icon-button pane-close" aria-label="Close Graph pane" title="Hide Graph" onClick={onClose}><Icon name="close" /></button>
         </div>
       </div>
       <div className="graph-selection-bar">
@@ -793,7 +818,7 @@ function GraphCanvas({
             }
             defaultViewport={initialCamera.current}
             fitView={!initialCamera.current}
-            fitViewOptions={{ padding: 0.18, maxZoom: 0.95 }}
+            fitViewOptions={{ padding: fitPadding(), maxZoom: 0.95 }}
             minZoom={0.05}
             maxZoom={2}
             nodesConnectable={false}
@@ -814,7 +839,7 @@ function GraphCanvas({
             autoPanOnNodeFocus={false}
           >
             <Background color="var(--line)" gap={24} size={1} />
-            <Panel position="bottom-left" className="graph-view-controls">
+            <Panel ref={viewControls} position="bottom-left" className="graph-view-controls">
               <Controls showInteractive={false} showFitView={false} />
               <button className="graph-fit quiet" onClick={fit}>
                 <Icon name="fit" size={14} /> Fit view

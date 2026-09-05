@@ -20,7 +20,6 @@ const positions = (page: Page) =>
   );
 async function openGraph(page: Page) {
   await page.goto("/p/dentalml");
-  await page.getByRole("button", { name: "Graph", exact: true }).click();
   await expect(page.locator(".graph-vertex.concept")).toHaveCount(8);
   await expect(page.getByText("Arranging the graph…")).toBeHidden();
   await expect.poll(() => viewport(page)).not.toContain("scale(1)");
@@ -135,7 +134,7 @@ test("domain selection, context collapse, code expansion, focus, and history", a
   expect(errors).toEqual([]);
 });
 
-test("shared code nodes, mapping readers, graph toggles, search, and resizing", async ({
+test("shared code nodes, mapping readers, Browse toggling, search, and resizing", async ({
   page,
 }) => {
   await openGraph(page);
@@ -202,8 +201,7 @@ test("shared code nodes, mapping readers, graph toggles, search, and resizing", 
   await expect(
     page.getByRole("button", { name: "concept: Reference point", exact: true }),
   ).toBeInViewport();
-  await page.getByRole("button", { name: "Graph", exact: true }).click();
-  await expect(page.getByRole("region", { name: "Domain graph" })).toBeHidden();
+  await expect(page.getByRole("region", { name: "Domain graph" })).toBeVisible();
   await expect(page.locator("main h1")).toHaveText("Reference point");
 });
 
@@ -255,7 +253,7 @@ test("narrow screens and dark theme retain graph state and show readable code er
   await expect(page.locator("main h1")).toHaveText("Selected tooth");
   await expect(page.locator(".graph-slot")).toBeHidden();
   await page
-    .getByRole("button", { name: "Graph", exact: true })
+    .getByRole("button", { name: "Back to graph", exact: true })
     .click();
   await expect(page.locator(".graph-slot")).toBeVisible();
   await page.getByRole("button", { name: "Use dark theme" }).click();
@@ -304,7 +302,6 @@ test("a registered model with parallel edges, self-links, stale links, and inval
     const response = await request.post("/api/projects", { data: { root } });
     id = (await response.json()).id;
     await page.goto(`/p/${id}`);
-    await page.getByRole("button", { name: "Graph", exact: true }).click();
     await expect(page.locator(".graph-vertex.concept")).toHaveCount(2);
     await expect(page.locator(".graph-notice")).toContainText(
       "1 connections have unavailable endpoints",
@@ -334,10 +331,12 @@ test("wheel zoom and Space panning over nodes preserve ordinary canvas and node 
 }) => {
   await openGraph(page);
   const pane = (await page.locator(".graph-canvas").boundingBox())!;
-  await page.mouse.move(pane.x + 15, pane.y + 15);
+  const shelf = (await page.locator("#browse-pane").boundingBox())!;
+  const canvasLeft = Math.max(pane.x, shelf.x + shelf.width);
+  await page.mouse.move(canvasLeft + 15, pane.y + 15);
   const original = await viewport(page);
   await page.mouse.down();
-  await page.mouse.move(pane.x + 65, pane.y + 40, { steps: 8 });
+  await page.mouse.move(canvasLeft + 65, pane.y + 40, { steps: 8 });
   await page.mouse.up();
   expect(await viewport(page)).not.toBe(original);
   const zoom = () =>

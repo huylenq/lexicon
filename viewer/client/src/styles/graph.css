@@ -32,9 +32,6 @@
   flex: 0 0 var(--graph-width);
   height: 100%;
 }
-.graph-slot.graph-closed {
-  display: none;
-}
 .graph-divider {
   width: 7px;
   flex: 0 0 7px;
@@ -71,7 +68,7 @@
   background: var(--paper);
 }
 .graph-toolbar {
-  padding: 8px 14px;
+  padding: 8px 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -139,7 +136,7 @@
   flex-wrap: nowrap;
   align-items: center;
   height: 42px;
-  padding: 5px 12px;
+  padding: 5px 16px;
   gap: 0;
   overflow-x: auto;
   overflow-y: hidden;
@@ -153,7 +150,7 @@
 .graph-selection-bar > span {
   font-size: 11px;
   color: var(--muted);
-  padding: 5px;
+  padding: 5px 0;
   flex: 1 1 0;
   min-width: 0;
   white-space: nowrap;
@@ -181,12 +178,13 @@
   --xy-controls-box-shadow: var(--shadow);
   --xy-node-boxshadow-hover: none;
 }
-.graph-canvas .graph-view-controls {
+.graph-canvas .react-flow__panel.graph-view-controls {
   display: flex;
   align-items: center;
   gap: 12px;
-  bottom: 7px;
-  left: 7px;
+  bottom: 12px;
+  left: 12px;
+  margin: 0;
 }
 .graph-canvas .react-flow__controls {
   position: static;
@@ -553,13 +551,8 @@
   }
   .reader > .sidebar.open {
     display: flex;
-    position: fixed;
-    top: var(--app-header-height);
-    bottom: 0;
-    left: 0;
-    width: 280px;
-    z-index: 8;
-    box-shadow: 20px 0 50px #0003;
+    width: min(280px, calc(100vw - 24px));
+    z-index: 9;
   }
   .reader .nav-close {
     display: block;
@@ -614,7 +607,7 @@
     padding: 6px 4px;
   }
   .graph-toolbar {
-    padding: 8px 14px;
+    padding: 8px 16px;
   }
   .graph-legend {
     font-size: 8px;
@@ -640,3 +633,13 @@
 .graph-toolbar > div:first-child { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .graph-toolbar .graph-scope { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .graph-toolbar-actions { flex-shrink: 0; }
+
+/* Canvas continues behind the shelf; reading keeps its own space. */
+@media (min-width: 1001px) {
+  .reader.with-graph:not(.without-sidebar) > .pane-area {
+    margin-left: calc(-1 * var(--browse-space));
+  }
+}
+@media (min-width: 1001px) and (max-width: 1200px) {
+  .reader.with-chat { --browse-space: 200px; }
+}

@@ -4,8 +4,6 @@ const codePane = (page: Page) =>
   page.getByRole("complementary", { name: "Code workspace" });
 const browse = (page: Page, name: string) =>
   page.locator(".sidebar .nav-item").filter({ hasText: name }).click();
-const graph = (page: Page) =>
-  page.getByRole("button", { name: "Graph", exact: true });
 const toggle = (page: Page) =>
   page.getByRole("button", { name: "Toggle code workspace", exact: true });
 
@@ -27,7 +25,6 @@ test("Browse and Graph share one persistent, independently resizable Code worksp
   await browse(page, "Reference point");
   await expect(page.locator("main h1")).toHaveText("Reference point");
   await expect(page.locator(".code-breadcrumb")).toHaveText(path);
-  await graph(page).click();
   await expect(
     page.getByRole("region", { name: "Domain graph" }),
   ).toBeVisible();
@@ -81,7 +78,6 @@ test("Browse and Graph share one persistent, independently resizable Code worksp
   expect(
     await page.locator(".code-scroll").evaluate((el) => el.scrollTop),
   ).toBe(200);
-  await graph(page).click();
   await expect(codePane(page)).toBeVisible();
   await expect(page.locator("main h1")).toHaveText("Selected tooth");
   await page.reload();
@@ -93,7 +89,6 @@ test("code nodes preserve the reader; mapping edges open explanation and the sam
   page,
 }) => {
   await page.goto("/p/dentalml?item=selected-tooth");
-  await graph(page).click();
   await expect(page.locator(".graph-vertex.concept")).toHaveCount(8);
   await page.getByRole("button", { name: "Expand code", exact: true }).click();
   await expect(page.locator(".graph-vertex.code")).toHaveCount(1);
@@ -108,7 +103,6 @@ test("code nodes preserve the reader; mapping edges open explanation and the sam
     .click();
   await expect(page.locator("main")).toContainText("Mapping explanation");
   await expect(codePane(page)).toContainText("Selected tooth");
-  await graph(page).click();
   await expect(page.locator("main")).toContainText("Mapping explanation");
   await expect(codePane(page)).toBeVisible();
   await page.locator(".code-explanation button").click();
