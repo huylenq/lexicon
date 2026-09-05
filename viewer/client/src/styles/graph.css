@@ -20,23 +20,11 @@
 .reader.without-sidebar > .sidebar:not(.open) {
   display: none;
 }
-.reader.with-code.without-sidebar {
-  grid-template-columns: minmax(0, 1fr) minmax(360px, 38vw);
-}
 .reader.with-graph {
   grid-template-columns: 225px minmax(0, 1fr);
 }
 .reader.with-graph.without-sidebar {
   grid-template-columns: minmax(0, 1fr);
-}
-.reader.with-graph > .code-pane {
-  position: fixed;
-  top: 64px;
-  right: 0;
-  bottom: 0;
-  width: min(560px, 75vw);
-  z-index: 5;
-  box-shadow: -15px 0 40px #0002;
 }
 .graph-slot {
   width: var(--graph-width);
@@ -513,10 +501,6 @@
 .graph-reading h1 {
   overflow-wrap: anywhere;
 }
-.graph-target-path {
-  overflow-wrap: anywhere;
-  color: var(--muted);
-}
 .mapping-card {
   border: 1px solid var(--line);
   border-radius: 7px;
@@ -546,29 +530,8 @@
   padding: 0;
   text-align: left;
 }
-.reader .graph-reading .embedded-code {
-  position: static;
-  width: 100%;
-  height: auto;
-  min-height: 200px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  box-shadow: none;
-  margin-top: 28px;
-  overflow: hidden;
-}
-.embedded-code .code-scroll {
-  max-height: 560px;
-  flex: none;
-}
-@media (max-width: 1100px) {
-  .reader.with-code.without-sidebar {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
 @media (max-width: 1000px) {
   .reader,
-  .reader.with-code,
   .reader.with-graph,
   .reader.without-sidebar,
   .reader.with-graph.without-sidebar {
@@ -648,9 +611,6 @@
   }
   .graph-count {
     margin-left: 0;
-  }
-  .reader.with-graph > .code-pane {
-    width: 100%;
   }
   .with-graph .reading-pane article {
     padding: 25px 22px;

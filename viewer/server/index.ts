@@ -8,6 +8,7 @@ import { projects } from "./db";
 import { loadModel } from "./model";
 import { readCode } from "./code";
 import type { Project } from "../shared/model";
+import { codeTargetId } from "../shared/model";
 
 const exec = promisify(execFile);
 const repository = resolve(import.meta.dir, "../..");
@@ -82,16 +83,14 @@ app.get("/api/health", (c) => c.json({ ok: true, model: "2.0" }));
 app.get("/api/projects", (c) =>
   c.json([
     ...examples.map(({ artifactRoot, ...p }) => p),
-    ...projects
-      .list()
-      .map(
-        (p) =>
-          ({
-            id: String(p.id),
-            name: p.name,
-            root: p.root_path,
-          }) satisfies Project,
-      ),
+    ...projects.list().map(
+      (p) =>
+        ({
+          id: String(p.id),
+          name: p.name,
+          root: p.root_path,
+        }) satisfies Project,
+    ),
   ]),
 );
 app.post("/api/projects", async (c) => {
@@ -133,12 +132,19 @@ app.get("/api/projects/:id/code", async (c) => {
   const model = await loadModel(artifacts);
   const item = model.items.find((i) => i.id === c.req.query("owner"));
   const index = Number(c.req.query("index"));
-  if (!Number.isInteger(index) || index < 0 || !item?.codeLinks[index])
-    return c.json({ error: "Code link not found." }, 404);
+  const target = c.req.query("target");
+  const link = target
+    ? model.items
+        .flatMap((i) => i.codeLinks)
+        .find((l) => codeTargetId(l) === target)
+    : Number.isInteger(index) && index >= 0
+      ? item?.codeLinks[index]
+      : undefined;
+  if (!link) return c.json({ error: "Code link not found." }, 404);
   return c.json(
     await readCode(
       p.example ? p.root : await codeRoot(p.root, artifacts),
-      item.codeLinks[index],
+      link,
     ),
   );
 });

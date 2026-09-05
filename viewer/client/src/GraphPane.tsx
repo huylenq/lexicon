@@ -625,7 +625,12 @@ function GraphCanvas({
     const d = defaults();
     setFocus(undefined);
     initialCamera.current = undefined;
-    setWorkspace((w) => ({ ...d, open: w.open, sidebar: w.sidebar }));
+    setWorkspace((w) => ({
+      ...d,
+      open: w.open,
+      sidebar: w.sidebar,
+      codeWidth: w.codeWidth,
+    }));
     pending.current = { kind: "fit" };
     setRevision((n) => n + 1);
     onReset();

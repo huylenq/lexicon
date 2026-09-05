@@ -1,4 +1,5 @@
 import type { CodeLink, Model, ModelItem } from "../../../shared/model";
+import { codeTargetId as targetId } from "../../../shared/model";
 
 export type GraphSelection =
   | { kind: "item"; id: string }
@@ -15,8 +16,7 @@ export type Mapping = {
 export type Target = { id: string; link: CodeLink; mappings: Mapping[] };
 export type GraphIndex = ReturnType<typeof indexModel>;
 export const domainId = (id: string) => `item:${id}`;
-export const targetId = (link: CodeLink) =>
-  `code:${JSON.stringify([link.file, link.symbol ? "symbol" : link.line ? "line" : "file", link.symbol || link.line || ""])}`;
+export { targetId };
 export const mappingId = (owner: string, index: number) =>
   JSON.stringify([owner, index]);
 export const fileId = (file: string) => `file:${file}`;

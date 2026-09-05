@@ -3,6 +3,9 @@ import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+// Network failure fixtures must reach Playwright routing; PWA behavior has its own suite.
+test.use({ serviceWorkers: "block" });
+
 const viewport = (page: Page) =>
   page
     .locator(".react-flow__viewport")
@@ -107,13 +110,18 @@ test("shared code nodes, mapping readers, graph toggles, search, and resizing", 
     .filter({ has: page.locator(".graph-vertex.code") })
     .first();
   await code.click();
-  await expect(page.locator("main")).toContainText("Domain mappings");
-  await expect(page.locator("main .embedded-code")).toBeVisible();
-  await expect(page.locator("main .code-scroll")).toBeVisible();
+  await expect(page.locator(".code-pane")).toContainText("Mapped from");
+  await expect(
+    page.getByRole("complementary", { name: "Code workspace" }),
+  ).toBeVisible();
+  await expect(page.locator(".code-pane .code-scroll")).toBeVisible();
   await expect(page.locator(".react-flow__edge.mapping")).toHaveCount(18);
-  await page.locator("main .mapping-target").first().click();
+  await page.locator(".code-mappings summary").click();
+  await page.locator(".code-mapping .quiet").first().click();
   await expect(page.locator("main")).toContainText("Mapping explanation");
-  await expect(page.locator("main .embedded-code")).toBeVisible();
+  await expect(
+    page.getByRole("complementary", { name: "Code workspace" }),
+  ).toBeVisible();
   const oldWidth = await page
     .locator(".graph-slot")
     .evaluate((el) => el.getBoundingClientRect().width);
@@ -225,7 +233,10 @@ test("narrow screens and dark theme retain graph state and show readable code er
     .locator(".react-flow__node-vertex")
     .filter({ has: page.locator(".graph-vertex.code") })
     .click();
-  await expect(page.locator("main")).toBeVisible();
+  await expect(
+    page.getByRole("complementary", { name: "Code workspace" }),
+  ).toBeVisible();
+  await expect(page.locator("main")).toBeHidden();
   await expect(page.getByRole("alert")).toHaveText(
     "Linked file is unavailable.",
   );

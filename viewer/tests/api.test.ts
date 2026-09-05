@@ -28,7 +28,11 @@ test("library serves the domain example and rejects unknown projects and links",
   expect(list.map((p: { id: string }) => p.id)).toEqual(["dentalml"]);
   const model = await (await req("/api/projects/dentalml/model")).json();
   expect(model.model.issues).toEqual([]);
-  expect(model.model.items.some((item: { id: string }) => item.id === "renders-path")).toBe(true);
+  expect(
+    model.model.items.some(
+      (item: { id: string }) => item.id === "renders-path",
+    ),
+  ).toBe(true);
   expect(
     (await req("/api/projects/dentalml/code?owner=absent&index=0")).status,
   ).toBe(404);
@@ -53,9 +57,27 @@ test("registration validates a project; removal preserves its model", async () =
   expect(response.status).toBe(200);
   const p = await response.json();
   expect((await req("/api/projects", body)).status).toBe(409);
-  const code = await (await req(`/api/projects/${p.id}/code?owner=thing&index=0`)).json();
+  const code = await (
+    await req(`/api/projects/${p.id}/code?owner=thing&index=0`)
+  ).json();
   expect(code.status).toBe("symbol");
   expect(code.text).toContain("export interface Thing");
+  const target = encodeURIComponent('code:["thing.ts","symbol","Thing"]');
+  const byTarget = await req(`/api/projects/${p.id}/code?target=${target}`);
+  expect(byTarget.status).toBe(200);
+  expect(await byTarget.json()).toEqual(code);
+  // Reordering domain links must not change an existing source location.
+  await writeFile(
+    join(root, "lexicon/model.xml"),
+    xml.replace(
+      '<code-link file="thing.ts"',
+      '<code-link file="other.ts" role="usage">Another link.</code-link><code-link file="thing.ts"',
+    ),
+  );
+  expect(
+    await (await req(`/api/projects/${p.id}/code?target=${target}`)).json(),
+  ).toEqual(code);
+  await writeFile(join(root, "lexicon/model.xml"), xml);
   expect(
     (await req(`/api/projects/${p.id}`, { method: "DELETE" })).status,
   ).toBe(200);
@@ -71,6 +93,13 @@ test("local API rejects foreign origins, arbitrary hosts, and undeclared source 
   );
   expect(
     (await req("/api/projects/dentalml/code?path=/etc/passwd")).status,
+  ).toBe(404);
+  expect(
+    (
+      await req(
+        `/api/projects/dentalml/code?target=${encodeURIComponent('code:["/etc/passwd","file",""]')}`,
+      )
+    ).status,
   ).toBe(404);
 });
 test("linked worktree reads shared artifacts but source from the selected implementation checkout", async () => {

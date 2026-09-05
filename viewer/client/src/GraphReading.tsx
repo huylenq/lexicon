@@ -1,20 +1,15 @@
 import type { GraphIndex, GraphSelection, Mapping } from "./graph/model";
-import CodePane from "./CodePane";
 import { Paragraph } from "./ui";
 
 export default function GraphReading({
   selection,
   index,
-  projectId,
   onSelect,
 }: {
-  selection: Exclude<GraphSelection, { kind: "item" }>;
+  selection: Extract<GraphSelection, { kind: "mapping" | "bundle" }>;
   index: GraphIndex;
-  projectId: string;
   onSelect: (s: GraphSelection) => void;
 }) {
-  const target =
-    selection.kind === "code" ? index.targets.get(selection.id) : undefined;
   const mapping =
     selection.kind === "mapping" ? index.mappings.get(selection.id) : undefined;
   const relationships =
@@ -24,16 +19,13 @@ export default function GraphReading({
           return item?.type === "relationship" ? [item] : [];
         })
       : [];
-  const mappings =
-    target?.mappings ||
-    (mapping
-      ? [mapping]
-      : selection.kind === "bundle"
-        ? selection.mappings.flatMap((id) => index.mappings.get(id) || [])
-        : []);
-  const source = target?.mappings[0] || mapping;
+  const mappings = mapping
+    ? [mapping]
+    : selection.kind === "bundle"
+      ? selection.mappings.flatMap((id) => index.mappings.get(id) || [])
+      : [];
   const available =
-    !!target || !!mapping || relationships.length > 0 || mappings.length > 0;
+    !!mapping || relationships.length > 0 || mappings.length > 0;
   const mappingCard = (m: Mapping) => (
     <div className="mapping-card" key={m.id}>
       <span className="eyebrow">
@@ -66,33 +58,21 @@ export default function GraphReading({
   return (
     <div className="graph-reading">
       <div className="eyebrow">
-        {selection.kind === "code"
-          ? "Code target"
-          : selection.kind === "mapping"
-            ? "Domain to implementation"
-            : "Connection summary"}
+        {selection.kind === "mapping"
+          ? "Domain to implementation"
+          : "Connection summary"}
       </div>
       <h1>
         {!available
           ? "That selection is unavailable."
-          : target
-            ? target.link.symbol ||
-              (target.link.line
-                ? `Line ${target.link.line}`
-                : target.link.file.split("/").pop())
-            : mapping
-              ? `${mapping.owner.name} · ${mapping.link.role}`
-              : `${relationships.length + mappings.length} connections`}
+          : mapping
+            ? `${mapping.owner.name} · ${mapping.link.role}`
+            : `${relationships.length + mappings.length} connections`}
       </h1>
       {!available && (
         <p>
           The model may have changed. Select another item from the graph or
           navigation.
-        </p>
-      )}
-      {target && (
-        <p className="graph-target-path">
-          <code>{target.link.file}</code>
         </p>
       )}
       {relationships.length > 0 && (
@@ -114,23 +94,9 @@ export default function GraphReading({
       )}
       {mappings.length > 0 && (
         <section>
-          <h2>
-            {target
-              ? `Domain mappings · ${mappings.length}`
-              : "Mapping explanation"}
-          </h2>
+          <h2>Mapping explanation</h2>
           {mappings.map(mappingCard)}
         </section>
-      )}
-      {source && (
-        <CodePane
-          key={`${projectId}:${source.id}`}
-          projectId={projectId}
-          owner={source.owner}
-          index={source.index}
-          embedded
-          onClose={() => {}}
-        />
       )}
     </div>
   );

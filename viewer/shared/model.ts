@@ -11,6 +11,11 @@ export interface CodeLink {
   role: string;
   description: string;
 }
+/** Source identity is independent of the domain objects that map to it. */
+export const codeTargetId = (
+  link: Pick<CodeLink, "file" | "symbol" | "line">,
+) =>
+  `code:${JSON.stringify([link.file, link.symbol ? "symbol" : link.line ? "line" : "file", link.symbol || link.line || ""])}`;
 export interface Item {
   id: string;
   name: string;
