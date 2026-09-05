@@ -11,6 +11,8 @@ A project supplies a stable ID, name, description, and four kinds of object. The
 
 Contexts, concepts, and relationships each require `<name>` and `<description>`. Their IDs are project-wide, unique, stable, and whitespace-free. Relationships use those IDs directly; display-name changes preserve links. Moving a concept changes its owning context while retaining its ID.
 
+Use spaced concept names with the first character of every word capitalized, such as `Order Line` and `Purchase Information`. Preserve proper nouns and acronyms. Relationship names use natural verb phrases, such as `supplies results to`. Context names remain natural phrases, such as `Order Management`. This is an authoring preference, not a validation requirement; explicit user terminology takes precedence. Preserve existing names unless renaming is requested. Casing applies to display names only: keep stable IDs, exact code-link files and symbols, descriptive labels, and prose unchanged. Project names retain their chosen spelling.
+
 A relationship's name is the relation: “contains,” “supplies results to,” or “translates.” Both endpoints must identify a context or concept. Repeated relationships can carry different meanings, rules, or code evidence.
 
 ## Annotations and DDD
@@ -46,7 +48,7 @@ The reader locates Python and TypeScript/TSX declarations. Qualify repeated name
       <code-link file="src/order.ts" symbol="Order" role="representation">Gathers the purchased items.</code-link>
     </concept>
     <concept id="order-line" classification="value">
-      <name>Order line</name>
+      <name>Order Line</name>
       <description>The quantity and agreed price of one purchased item.</description>
     </concept>
   </context>
