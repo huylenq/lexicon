@@ -12,6 +12,16 @@ Lexicon should be lean. Every feature must earn its place by making software eas
 
 `lexicon/docs/` remains a dumping ground to address later.
 
+## Progressive
+
+Lexicon is progressive. A team develops one shared model through use and conversation. Generation offers a starting point; human judgment shapes which concepts matter, where their boundaries belong, and how they connect. An agent can inspect the implementation, but it cannot supply the team's taste.
+
+Modeling starts from a human question, optionally supported by a small overview. Users should be able to ask for explanations and refine the model through conversation inside the viewer, using an authenticated local coding agent. Interactive refinement is essential to Lexicon.
+
+Each refinement builds on the current model. Its shape carries the team's judgment forward and guides subsequent changes. Concepts and relationships may be added, split, merged, renamed, or removed as understanding develops. The workflow is incremental, without full regeneration or a separate log of modeling decisions.
+
+Human judgment guides the abstractions. Implementation evidence grounds their explanations and code links. The agent should surface concrete conflicts between the two before applying a misleading change and must never invent supporting code links. A domain concept need not correspond to a class or file.
+
 ## The model
 
 The project supplies a name, a short explanation, and its contexts. Four objects describe the system:

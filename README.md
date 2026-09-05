@@ -36,6 +36,8 @@ project/
 
 Use [the minimal example](MODEL.md#minimal-example) to start with one useful question about your codebase. Keep domain names meaningful; explain their correspondence to implementation names in code links.
 
+You can also add an unmodeled project folder in the reader and open **Agent**. Ask about the implementation or request a model change. Select Codex, Grok, or Claude using your local login. The conversation refines one shared model, with validation and undo; the [viewer guide](viewer/README.md#chat) explains the workflow.
+
 Check the structure and linked source:
 
 ```sh

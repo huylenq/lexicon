@@ -107,8 +107,8 @@ export default function Library() {
               </button>
             </div>
             <p className="hint">
-              Reads <code>lexicon/model.xml</code>. Earlier XML projects can
-              also be opened.
+              Open an existing model or start with a question in Chat. Earlier
+              XML projects can also be opened.
             </p>
           </form>
           {error && <ErrorNotice message={error} />}

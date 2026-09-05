@@ -59,4 +59,7 @@ export const projects = {
       [id],
     );
   },
+  rename(id: number, name: string): void {
+    db.run("UPDATE projects SET name = ? WHERE id = ?", [name, id]);
+  },
 };

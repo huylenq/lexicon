@@ -640,9 +640,6 @@
     margin-left: calc(-1 * var(--browse-space));
   }
 }
-@media (min-width: 1001px) and (max-width: 1200px) {
-  .reader.with-chat { --browse-space: 200px; }
-}
 
 .graph-context-menu {
   position: fixed;

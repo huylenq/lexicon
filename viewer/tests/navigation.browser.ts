@@ -153,3 +153,37 @@ test("Browse search preserves shelf height and input position as results change"
     expect(await shelf.boundingBox()).toEqual(beforeShelf);
   }
 });
+
+
+test("one shared status bar follows graph counts and keeps Agent reachable across workspace views", async ({ page }) => {
+  await page.goto("/p/dentalml");
+  const bar = page.getByRole("region", { name: "Workspace status", exact: true });
+  const agent = bar.getByRole("button", { name: "Agent", exact: true });
+  await expect(bar.locator(".graph-count")).toHaveText("8 concepts · 0 code");
+  await expect(bar.getByText("Relationship", { exact: true })).toBeVisible();
+  await expect(page.locator(".graph-legend")).toHaveCount(1);
+  await expect(page.locator(".reader-header").getByRole("button", { name: "Agent", exact: true })).toHaveCount(0);
+  const viewport = page.viewportSize()!;
+  const bounds = (await bar.boundingBox())!;
+  expect(bounds.x).toBe(0);
+  expect(bounds.width).toBe(viewport.width);
+  expect(bounds.y + bounds.height).toBe(viewport.height);
+  await page.getByRole("button", { name: "Show all code", exact: true }).click();
+  await expect(bar.locator(".graph-count")).toHaveText("8 concepts · 6 code");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(bar.locator(".graph-count")).toBeVisible();
+  await expect(agent).toBeVisible();
+  await page.goto("/p/dentalml?item=selected-tooth");
+  await expect(page.locator("main h1")).toHaveText("Selected tooth");
+  await expect(bar).toBeVisible();
+  await page.getByRole("button", { name: "Toggle code workspace" }).click();
+  await expect(bar).toBeVisible();
+  await agent.click();
+  const chat = page.getByRole("complementary", { name: "Project conversation" });
+  await expect(chat).toBeVisible();
+  const dockBounds = (await chat.boundingBox())!;
+  expect(dockBounds.y + dockBounds.height).toBeLessThan((await bar.boundingBox())!.y);
+  await chat.getByRole("button", { name: "Minimize Chat" }).click();
+  await expect(chat).toBeHidden();
+  await expect(agent).toBeFocused();
+});

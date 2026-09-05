@@ -12,6 +12,7 @@
   background: var(--paper);
   font-synthesis: none;
   --app-header-height: 48px;
+  --app-status-height: 36px;
   --toolbar-height: 48px;
   --font-code: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   /* Neutral surfaces, a vivid pink interaction accent, and distinct object colors. */
@@ -394,7 +395,7 @@ footer {
   position: relative;
   display: grid;
   grid-template-columns: 252px minmax(0, 1fr);
-  grid-template-rows: var(--app-header-height) minmax(0, 1fr);
+  grid-template-rows: var(--app-header-height) minmax(0, 1fr) var(--app-status-height);
   height: 100dvh;
   overflow: hidden;
 }
@@ -434,12 +435,12 @@ footer {
 }
 .sidebar {
   position: absolute;
-  top: calc(50% + var(--app-header-height) / 2);
+  top: calc(50% + (var(--app-header-height) - var(--app-status-height)) / 2);
   transform: translateY(-50%);
   left: 12px;
   width: calc(var(--browse-space) - 24px);
   /* Symmetric clearance preserves centering and keeps canvas controls exposed. */
-  max-height: max(0px, calc(100dvh - var(--app-header-height) - 2 * var(--browse-control-clearance, 96px)));
+  max-height: max(0px, calc(100dvh - var(--app-header-height) - var(--app-status-height) - 2 * var(--browse-control-clearance, 96px)));
   padding: 10px 0;
   border: 1px solid var(--line);
   border-radius: 12px;
@@ -1079,11 +1080,7 @@ h1 .object-name { gap: 10px; }
 
 .reader > .pane-area { grid-column: 2; grid-row: 2; }
 .reader.without-sidebar > .pane-area { grid-column: 1; }
-.reader > .chat-pane { grid-column: 3; grid-row: 2; }
-.reader.without-sidebar > .chat-pane { grid-column: 2; }
 @media (max-width: 1000px) {
-  .reader > .pane-area,
-  .reader > .chat-pane,
-  .reader.without-sidebar > .chat-pane { grid-column: 1; }
+  .reader > .pane-area { grid-column: 1; }
   .reader > .sidebar.open { display: flex; width: min(280px, calc(100vw - 24px)); z-index: 9; }
 }

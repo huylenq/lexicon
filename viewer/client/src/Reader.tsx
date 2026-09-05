@@ -17,6 +17,7 @@ import { useCodeNavigation, type CodeLocation } from "./codeNavigation";
 import InstallApp from "./InstallApp";
 import Icon from "./Icon";
 import ObjectName from "./ObjectName";
+import ChatPane from "./ChatPane";
 import GraphReading from "./GraphReading";
 import {
   indexModel,
@@ -28,12 +29,25 @@ import { useWorkspace } from "./graph/storage";
 import type { GraphCommand } from "./GraphPane";
 import "./styles/graph.css";
 import "./styles/code.css";
+import "./styles/status.css";
 const GraphPane = lazy(() => import("./GraphPane"));
 export default function Reader() {
   const { projectId = "" } = useParams();
   return <ReaderProject key={projectId} projectId={projectId} />;
 }
 function ReaderProject({ projectId }: { projectId: string }) {
+  const [chatOpen, setChatOpen] = useState(false);
+  const [agentAttached, setAgentAttached] = useState(() => {
+    try { return localStorage.getItem(`lexicon.chat.attached.${projectId}`) === "true"; }
+    catch { return false; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem(`lexicon.chat.attached.${projectId}`, String(agentAttached)); }
+    catch {}
+  }, [agentAttached, projectId]);
+  const [agentRunning, setAgentRunning] = useState(false);
+  const [graphStatusHost, setGraphStatusHost] = useState<HTMLDivElement | null>(null);
+  const chatToggle = useRef<HTMLButtonElement>(null);
   const [params, setParams] = useSearchParams();
   const routeLocation = useLocation();
   const navigate = useNavigate();
@@ -60,7 +74,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
   );
   const [graphCommand, setGraphCommand] = useState<GraphCommand>();
   const workArea = useRef<HTMLDivElement>(null);
-  const [data, setData] = useState<{ model: Model; project: Project }>();
+  const [data, setData] = useState<{ model: Model; project: Project; modelRevision: string; artifactRoot: string }>();
   const model = data?.model;
   const graphIndex = useMemo(
     () => (model ? indexModel(model) : undefined),
@@ -104,7 +118,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
     setLoading(true);
     setError("");
     try {
-      const next = await request<{ model: Model; project: Project }>(
+      const next = await request<{ model: Model; project: Project; modelRevision: string; artifactRoot: string }>(
         `/api/projects/${projectId}/model`,
       );
       if (token === seq.current) setData(next);
@@ -285,7 +299,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
   );
   return (
     <div
-      className={`reader ${codeNavigation.open ? "with-code" : ""} with-graph ${!workspace.sidebar ? "without-sidebar" : ""} ${mobileRead ? "mobile-reading" : "mobile-graph"} ${mobileCode ? "mobile-code" : ""}`}
+      className={`reader ${chatOpen && agentAttached && !compact ? "agent-attached" : ""} ${codeNavigation.open ? "with-code" : ""} with-graph ${!workspace.sidebar ? "without-sidebar" : ""} ${mobileRead ? "mobile-reading" : "mobile-graph"} ${mobileCode ? "mobile-code" : ""}`}
     >
       <a className="skip-link" href="#main-content">
         Skip to the model
@@ -416,6 +430,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
               <Suspense fallback={<p className="empty">Opening graph…</p>}>
                 <GraphPane
                   model={model}
+                  statusHost={graphStatusHost}
                   workspace={workspace}
                   setWorkspace={setWorkspace}
                   selection={graphSelection}
@@ -547,6 +562,11 @@ function ReaderProject({ projectId }: { projectId: string }) {
             )}
             {model && (
               <article>
+                {model.items.length === 0 && <div className="empty-model-start">
+                  <h2>Start with a question.</h2>
+                  <p>This project has no modeled concepts yet. Ask about an area of the implementation, then shape the model together.</p>
+                  <button className="primary" onClick={() => setChatOpen(true)}>Open Chat</button>
+                </div>}
                 {model.issues.length > 0 && (
                   <details className="issues">
                     <summary>
@@ -882,6 +902,20 @@ function ReaderProject({ projectId }: { projectId: string }) {
           />
         )}
       </div>
+      <div className="workspace-status-bar" role="region" aria-label="Workspace status">
+        <div className="workspace-graph-status" ref={setGraphStatusHost} />
+        <button ref={chatToggle} className="quiet agent-toggle" aria-label="Agent" aria-controls="chat-pane" aria-pressed={chatOpen}
+          title={chatOpen ? "Minimize Agent" : agentRunning ? "Open Agent · Working" : "Open Agent"}
+          disabled={!data} onClick={() => setChatOpen(open => !open)}>
+          <Icon name="annotation" size={18} /><span>Agent</span>
+          {agentRunning && <span className="agent-working" role="status" aria-label="Agent is working" />}
+        </button>
+      </div>
+      {data && <ChatPane projectId={projectId} open={chatOpen} selected={item} modelRevision={data.modelRevision}
+        attached={agentAttached && !compact} onToggleAttachment={() => setAgentAttached(value => !value)}
+        onRunningChange={setAgentRunning}
+        empty={data.model.items.length === 0} example={data.project.example}
+        onClose={() => { setChatOpen(false); chatToggle.current?.focus(); }} onModelChanged={refresh} onSelect={select} />}
     </div>
   );
 }

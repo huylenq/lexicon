@@ -1,4 +1,8 @@
 import { defineConfig } from "@playwright/test";
+import { fileURLToPath } from "node:url";
+const agentFixture = fileURLToPath(
+  new URL("./tests/fixtures/agent.ts", import.meta.url),
+);
 export default defineConfig({
   testDir: "./tests",
   testMatch: "**/*.browser.ts",
@@ -13,7 +17,13 @@ export default defineConfig({
   },
   webServer: {
     command: "bun run build:client && bun run server/index.ts",
-    env: { LEXICON_VIEWER_API_PORT: "5384", LEXICON_VIEWER_DB: ":memory:" },
+    env: {
+      LEXICON_VIEWER_API_PORT: "5384",
+      LEXICON_VIEWER_DB: ":memory:",
+      LEXICON_CODEX_BIN: agentFixture,
+      LEXICON_GROK_BIN: agentFixture,
+      LEXICON_CLAUDE_BIN: agentFixture,
+    },
     url: "http://127.0.0.1:5384/api/health",
     reuseExistingServer: false,
   },

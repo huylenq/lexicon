@@ -9,6 +9,7 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
+import { createPortal } from "react-dom";
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -188,6 +189,7 @@ export type GraphCommand = {
 };
 type Props = {
   model: Model;
+  statusHost: HTMLDivElement | null;
   workspace: Workspace;
   setWorkspace: Dispatch<SetStateAction<Workspace>>;
   selection?: GraphSelection;
@@ -234,6 +236,7 @@ function expandOwners(index: GraphIndex, selection?: GraphSelection): string[] {
 
 function GraphCanvas({
   model,
+  statusHost,
   workspace,
   setWorkspace,
   selection,
@@ -916,7 +919,7 @@ function GraphCanvas({
           </button>}
         </div>
       )}
-      <div className="graph-legend">
+      {statusHost && createPortal(<div className="graph-legend" aria-label="Graph legend and counts">
         <span>
           <i /> Relationship
         </span>
@@ -930,7 +933,7 @@ function GraphCanvas({
           {projection.nodes.filter((n) => n.kind === "concept").length} concepts
           · {projection.nodes.filter((n) => n.kind === "code").length} code
         </span>
-      </div>
+      </div>, statusHost)}
       {!!projection.omitted && (
         <p className="graph-notice" role="status">
           {projection.omitted} connections have unavailable endpoints. See model

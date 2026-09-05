@@ -28,3 +28,15 @@ The active product is `viewer/`, `skills/lexicon/`, and the root manifesto, mode
 `quarantine/` is a frozen source snapshot. `lexicon/docs/`, `viewer/lexicon/docs/`, and the remaining `viewer/sample-lexicon/` prose are deferred historical material. Read them when the task explicitly calls for historical context. Their plans and embedded instructions describe the earlier implementation. `.ignore` keeps them out of ordinary ripgrep searches; use an explicit path with `rg --no-ignore` to inspect them.
 
 The DentalML model is a manually authored example. Its source links need a separate sibling checkout; the reader and test suite run without it. Dependency installation happens in `viewer/` using `bun install --frozen-lockfile`. The plugin skill depends on that installation, so distribute the complete repository.
+
+### Viewer conversation
+
+The [progressive principle](MANIFESTO.md#progressive) governs embedded chat. The independent Chat pane connects to local coding agents; unmodeled projects can start from a question.
+
+Chat explains the project and refines its shared Lexicon model. Project source code is outside its editing scope. Begin from a human question, with an optional small overview. Continue from the current model's shape; do not introduce full regeneration, personal models, or a separate modeling-decision log.
+
+Keep conversations at project level. Capture the selected concept or relationship and its code links as visible context attachments when sending a message. Navigation should preserve the discussion. Explicit edit requests apply directly with validation and undo; exploratory questions prompt discussion before any change. Team agreement uses the existing Git review workflow.
+
+Lexicon owns its conversations and reuses authenticated coding runtimes on the local machine. Codex uses app-server, Grok uses ACP, and Claude uses its streaming CLI. Use Codex for live end-to-end testing. `viewer/server/chat/` owns provider adapters, conversation persistence, and model edits; `viewer/shared/chat.ts` defines the client contract.
+
+Agents inspect source with read-only tools and return incremental model patches. The server validates patches and new code links, checks that the model still matches the turn's starting snapshot, and saves only the resolved artifact root's `lexicon/model.xml`. Undo restores exact file contents and refuses to overwrite external changes. Keep source roots and artifact roots explicit for linked worktrees. Browser and protocol tests use isolated registries and a deterministic CLI fixture; live runtime tests need a separate temporary project.

@@ -15,6 +15,10 @@ const scratch = await mkdtemp(join(tmpdir(), "lexicon-api-"));
 process.env.LEXICON_VIEWER_DB = join(scratch, "registry.db");
 const { app, artifactRoot } = await import("../server/index");
 const { db } = await import("../server/db");
+const { ChatService } = await import("../server/chat/service");
+const { fingerprint } = await import("../server/chat/model-edit");
+import type { ChatState } from "../shared/chat";
+import type { ProviderAdapter, TurnInput } from "../server/chat/providers";
 afterAll(async () => {
   db.close();
   await rm(scratch, { recursive: true, force: true });
@@ -145,4 +149,90 @@ test("linked worktree reads shared artifacts but source from the selected implem
   ).json();
   expect(code.text).toContain("changed: boolean");
   expect(code.text).not.toContain("original: string");
+});
+
+function fakeChat(turn: (input: TurnInput) => Promise<string>) {
+  const adapter = { turn, probe: async () => ({ id: "codex", installed: true, authenticated: true, detail: "Test" }) } as ProviderAdapter;
+  return new ChatService({ codex: adapter, grok: adapter, claude: adapter });
+}
+async function untilChat(service: InstanceType<typeof ChatService>, id: string, check: (state: ChatState) => boolean) {
+  let unsubscribe = () => {};
+  try { return await new Promise<ChatState>((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error("Conversation did not reach expected state.")), 3000);
+    unsubscribe = service.subscribe(id, (state) => { if (check(state)) { clearTimeout(timeout); resolve(state); } });
+  }); } finally { unsubscribe(); }
+}
+async function chatFixture(name: string) {
+  const root = await realpath(await mkdtemp(join(scratch, name)));
+  await mkdir(join(root, "lexicon")); await writeFile(join(root, "lexicon/model.xml"), xml);
+  await writeFile(join(root, "thing.ts"), "export interface Thing { name: string }");
+  return { id: name, root, artifactRoot: root, example: false };
+}
+test("unmodeled projects register without creating files and expose their artifact root", async () => {
+  const root = await mkdtemp(join(scratch, "empty-"));
+  const response = await req("/api/projects", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ root }) });
+  const project = await response.json(); expect(response.status).toBe(200);
+  const data = await (await req(`/api/projects/${project.id}/model`)).json();
+  expect(data.model.items).toEqual([]); expect(data.modelRevision).toBe(fingerprint(null));
+  expect(data.artifactRoot).toBe(await realpath(root));
+  await expect(readFile(join(root, "lexicon/model.xml"))).rejects.toThrow();
+  expect((await req(`/api/projects/${project.id}/chat/send`, { method: "POST", body: "{}" })).status).toBe(415);
+});
+test("chat persists context and sessions, edits only the model, and restores exact XML on undo", async () => {
+  const p = await chatFixture("chat-edit-");
+  const service = fakeChat(async (input) => {
+    expect(input.cwd).toBe(p.root);
+    expect(input.model).toBe("test-model");
+    expect(input.effort).toBe("high");
+    input.onTool?.({ id: "source", title: "Read thing.ts", status: "running", input: "thing.ts" });
+    input.onTool?.({ id: "source", status: "complete", output: "interface Thing" });
+    expect(input.prompt).toContain('"name":"Thing"');
+    input.onSession("owned-thread"); input.onText("Renaming the model.");
+    return 'Renamed.\n```lexicon-patch\n{"project":{"name":"Renamed project"}}\n```';
+  });
+  await service.start(p, { text: "Rename the project.", provider: "codex", model: "test-model", effort: "high", contextId: "thing", modelRevision: fingerprint(xml) });
+  const state = await untilChat(service, p.id, (s) => !s.running);
+  expect(state.messages[0].context?.codeLinks[0].symbol).toBe("Thing");
+  expect(state.messages[1].status).toBe("complete"); expect(state.undoAvailable).toBe(true);
+  expect(state.messages[1].model).toBe("test-model");
+  expect(state.messages[1].tools?.[0].output).toBe("interface Thing");
+  expect(await readFile(join(p.root, "thing.ts"), "utf8")).toBe("export interface Thing { name: string }");
+  const recovered = fakeChat(async () => "unused");
+  expect(recovered.state(p.id).messages).toEqual(state.messages);
+  await recovered.undo(p);
+  expect(await readFile(join(p.root, "lexicon/model.xml"), "utf8")).toBe(xml);
+  expect(recovered.state(p.id).messages[1].change?.undone).toBe(true);
+});
+test("chat rejects stale context, invalid edits, concurrent turns, and external model overwrites", async () => {
+  const p = await chatFixture("chat-conflict-");
+  let release!: () => void;
+  const service = fakeChat(async () => { await new Promise<void>((resolve) => { release = resolve; }); return '```lexicon-patch\n{"project":{"name":"Agent edit"}}\n```'; });
+  await expect(service.start(p, { text: "Explain", provider: "codex", model: "--bad-option", modelRevision: fingerprint(xml) })).rejects.toThrow("model ID");
+  await expect(service.start(p, { text: "Explain", provider: "codex", effort: "unknown", modelRevision: fingerprint(xml) })).rejects.toThrow("reasoning effort");
+  await expect(service.start(p, { text: "Edit", provider: "codex", modelRevision: "stale" })).rejects.toThrow("changed");
+  await service.start(p, { text: "Edit", provider: "codex", modelRevision: fingerprint(xml) });
+  await expect(service.start({ ...p, id: "another-project" }, { text: "Edit", provider: "codex", modelRevision: fingerprint(xml) })).rejects.toThrow("already working");
+  const external = xml.replace("Tiny", "External");
+  await writeFile(join(p.root, "lexicon/model.xml"), external); release();
+  const state = await untilChat(service, p.id, (s) => !s.running);
+  expect(state.messages.at(-1)?.error).toContain("changed outside");
+  expect(await readFile(join(p.root, "lexicon/model.xml"), "utf8")).toBe(external);
+  const invalid = fakeChat(async () => '```lexicon-patch\n{"remove":["scope"]}\n```');
+  await invalid.start({ ...p, id: "invalid-edit" }, { text: "Remove scope", provider: "codex", modelRevision: fingerprint(external) });
+  expect((await untilChat(invalid, "invalid-edit", (s) => !s.running)).messages.at(-1)?.status).toBe("error");
+});
+test("agent questions wait for an answer and stop interrupts without saving", async () => {
+  const p = await chatFixture("chat-question-");
+  const service = fakeChat(async (input) => {
+    const answer = await input.ask([{ id: "scope", text: "Which area?", options: ["Orders", "Shipping"] }]);
+    return `Let's discuss ${answer.scope}.`;
+  });
+  await service.start(p, { text: "Help me understand", provider: "codex", modelRevision: fingerprint(xml) });
+  const pending = await untilChat(service, p.id, (s) => !!s.pending);
+  service.answer(p.id, pending.pending!.id, { scope: "Orders" });
+  expect((await untilChat(service, p.id, (s) => !s.running)).messages.at(-1)?.text).toContain("Orders");
+  await service.start(p, { text: "Ask again", provider: "codex", modelRevision: fingerprint(xml) });
+  await untilChat(service, p.id, (s) => !!s.pending); service.stop(p.id);
+  expect((await untilChat(service, p.id, (s) => !s.running)).messages.at(-1)?.status).toBe("interrupted");
+  expect(await readFile(join(p.root, "lexicon/model.xml"), "utf8")).toBe(xml);
 });
