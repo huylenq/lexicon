@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" fill="#0d2a52"/>
-  <text x="256" y="332" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="280" font-weight="700" fill="#f0ead8">L</text>
-  <rect x="160" y="382" width="192" height="16" fill="#c8401e"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <title>Lexicon</title>
+  <rect width="64" height="64" fill="#243C36"/>
+  <path d="M24 12C33 12 39 17 43 25C46 31 58 31 58 22V17Q58 13 62 13H88Q92 13 92 17V47Q92 51 88 51H62Q58 51 58 47V42C58 33 46 33 43 39C39 47 33 52 24 52C12.95 52 4 43.05 4 32S12.95 12 24 12Z" transform="translate(8 16) scale(.5)" fill="#F6F5EF"/>
 </svg>

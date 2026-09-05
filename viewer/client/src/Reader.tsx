@@ -269,7 +269,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
       </a>
       <header className="reader-header app-header">
         <Link to="/" className="brand" aria-label="Lexicon library">
-          <span className="brand-mark">L</span>
+          <span className="brand-mark" aria-hidden="true" />
           <span className="brand-text">lexicon</span>
         </Link>
         <span className="header-divider" />

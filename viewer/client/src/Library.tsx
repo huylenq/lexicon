@@ -24,7 +24,7 @@ export default function Library() {
     <div className="library">
       <header className="library-header app-header">
         <Link to="/" className="brand">
-          <span className="brand-mark">L</span> lexicon
+          <span className="brand-mark" aria-hidden="true" /> lexicon
         </Link>
         <div className="header-actions">
           <InstallApp />
