@@ -135,24 +135,33 @@
 }
 .graph-selection-bar {
   display: flex;
-  flex-wrap: wrap;
+  flex: 0 0 42px;
+  flex-wrap: nowrap;
   align-items: center;
-  min-height: 36px;
+  height: 42px;
   padding: 5px 12px;
   gap: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
   border-bottom: 1px solid var(--line);
   background: var(--panel);
+}
+.graph-selection-bar::-webkit-scrollbar {
+  display: none;
 }
 .graph-selection-bar > span {
   font-size: 11px;
   color: var(--muted);
   padding: 5px;
-  flex: 1 1 80px;
+  flex: 1 1 0;
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .graph-selection-bar .quiet {
+  flex-shrink: 0;
   font-size: 11px;
   padding: 7px;
 }
@@ -335,11 +344,6 @@
 .graph-canvas .react-flow__node.selected > .graph-vertex {
   border: 2px solid var(--accent);
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 12%, transparent);
-}
-.graph-canvas
-  .graph-neighbor:not(.selected)
-  > .graph-vertex:not(.file):not(.context) {
-  border-color: var(--accent);
 }
 .graph-canvas .react-flow__node.search-dim {
   opacity: 0.25;

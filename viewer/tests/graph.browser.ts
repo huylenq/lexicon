@@ -386,7 +386,7 @@ test("wheel zoom and Space panning over nodes preserve ordinary canvas and node 
   await expect(page.locator(".space-panning")).toHaveCount(0);
 });
 
-test("an overlapping concept covers ordinary edges and labels, with selected neighbors raised above it", async ({
+test("an overlapping concept continues to cover edges when a neighboring node is selected", async ({
   page,
 }) => {
   await openGraph(page);
@@ -423,9 +423,42 @@ test("an overlapping concept covers ordinary edges and labels, with selected nei
   await page
     .getByRole("button", { name: "concept: Canal measurement", exact: true })
     .click();
-  await expect.poll(topItem).toBe("relation:owns-length");
+  await expect.poll(topItem).toBe("item:reference-point");
+});
+
+test("selection and focus controls do not move the graph canvas", async ({
+  page,
+}) => {
+  await openGraph(page);
+  const canvasTop = () =>
+    page.locator(".graph-canvas").evaluate((element) =>
+      element.getBoundingClientRect().top,
+    );
+  const initialTop = await canvasTop();
+
+  await page
+    .getByRole("button", { name: "concept: Canal measurement", exact: true })
+    .click();
+  expect(await canvasTop()).toBe(initialTop);
+  await page.getByRole("button", { name: "Focus", exact: true }).click();
+  expect(await canvasTop()).toBe(initialTop);
+  await page
+    .getByRole("button", { name: "Back to overview", exact: true })
+    .click();
+  expect(await canvasTop()).toBe(initialTop);
   await page
     .getByRole("button", { name: "Clear selection", exact: true })
     .click();
-  await expect.poll(topItem).toBe("item:reference-point");
+  expect(await canvasTop()).toBe(initialTop);
+
+  await page.locator(".reader-workspace").evaluate((element) =>
+    (element as HTMLElement).style.setProperty("--graph-width", "25%"),
+  );
+  const narrowTop = await canvasTop();
+  await page
+    .getByRole("button", { name: "concept: Canal measurement", exact: true })
+    .click();
+  expect(await canvasTop()).toBe(narrowTop);
+  await page.getByRole("button", { name: "Focus", exact: true }).click();
+  expect(await canvasTop()).toBe(narrowTop);
 });

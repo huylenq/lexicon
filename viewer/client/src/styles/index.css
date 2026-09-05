@@ -434,7 +434,8 @@ footer {
   border-right: 1px solid var(--line);
   padding: 12px 10px;
   background: var(--panel);
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
 }
@@ -480,7 +481,9 @@ footer {
 .nav-item.active {
   background: color-mix(in srgb, var(--object-color, var(--accent)) 14%, var(--panel));
   color: var(--accent);
-  font-weight: 600;
+  width: calc(100% + 10px);
+  border-radius: 5px 1px 1px 5px;
+  box-shadow: inset -1px 0 color-mix(in srgb, var(--object-color, var(--accent)) 22%, transparent);
 }
 .nav-item small {
   font-size: 11px;

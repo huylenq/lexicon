@@ -360,10 +360,6 @@ function GraphCanvas({
     };
   }, [projection, revision, setNodes, setWorkspace]);
 
-  const selectedArea = useMemo(
-    () => neighborhood(index, projection, selection),
-    [index, projection, selection],
-  );
   const focusArea = useMemo(
     () => (focus ? neighborhood(index, projection, focus) : undefined),
     [index, projection, focus],
@@ -426,7 +422,16 @@ function GraphCanvas({
         matchItems.has(index.mappings.get(id)?.owner.id || ""),
       ) ||
       c.label.toLowerCase().includes(activeSearch);
-    const emphasized = selectedArea.edges.has(c.id) || hoveredEdge === c.id;
+    const selectedConnection =
+      (selection?.kind === "item" &&
+        c.relationships.includes(selection.id)) ||
+      (selection?.kind === "mapping" && c.mappings.includes(selection.id)) ||
+      (selection?.kind === "bundle" &&
+        selection.relationships.length === c.relationships.length &&
+        selection.mappings.length === c.mappings.length &&
+        selection.relationships.every((id) => c.relationships.includes(id)) &&
+        selection.mappings.every((id) => c.mappings.includes(id)));
+    const emphasized = selectedConnection || hoveredEdge === c.id;
     if (c.kind === "relationship") {
       anchorBoxes.set(anchorId(c.id), {
         x: route.x,
@@ -474,7 +479,7 @@ function GraphCanvas({
       source: c.source,
       target: c.target,
       hidden,
-      zIndex: selectedArea.edges.has(c.id) ? 3 : 1,
+      zIndex: selectedConnection ? 3 : 1,
       data: {
         ...c,
         ...route,
@@ -504,7 +509,7 @@ function GraphCanvas({
       "id" in selection &&
       n.data.selection.id === selection.id,
     hidden: !!focusArea && !focusArea.nodes.has(n.id),
-    className: `${selectedArea.nodes.has(n.id) ? "graph-neighbor" : ""} ${activeSearch && !matchingNodes.has(n.id) ? "search-dim" : ""}`,
+    className: activeSearch && !matchingNodes.has(n.id) ? "search-dim" : "",
   }));
 
   const reveal = (s: GraphSelection) => {

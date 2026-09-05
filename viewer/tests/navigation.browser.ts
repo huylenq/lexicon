@@ -2,6 +2,36 @@ import { expect, test } from "@playwright/test";
 
 test.use({ serviceWorkers: "block" });
 
+test("Browse selection keeps text stable and extends its background to the sidebar edge", async ({
+  page,
+}) => {
+  await page.goto("/p/dentalml");
+  const item = page.getByRole("button", {
+    name: "Concept · entity Selected tooth",
+    exact: true,
+  });
+  const label = item.locator(".object-name-text");
+  const before = await label.evaluate((element) => ({
+    fontWeight: getComputedStyle(element).fontWeight,
+    width: element.getBoundingClientRect().width,
+  }));
+
+  await item.click();
+
+  const after = await label.evaluate((element) => ({
+    fontWeight: getComputedStyle(element).fontWeight,
+    width: element.getBoundingClientRect().width,
+  }));
+  expect(after).toEqual(before);
+  const itemRight = await item.evaluate(
+    (element) => element.getBoundingClientRect().right,
+  );
+  const sidebarRight = await page
+    .getByRole("complementary", { name: "Model navigation" })
+    .evaluate((element) => element.getBoundingClientRect().right);
+  expect(Math.abs(sidebarRight - itemRight)).toBeLessThanOrEqual(1);
+});
+
 test("reader history branches correctly and pane close buttons preserve navigation", async ({ page }) => {
   await page.goto("/p/dentalml");
   const back = page.getByRole("button", { name: "Go back", exact: true });
