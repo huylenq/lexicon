@@ -8,3 +8,7 @@ lexicon-viewer.db
 lexicon-viewer.db-journal
 lexicon-viewer.db-shm
 lexicon-viewer.db-wal
+
+# Browser verification artifacts
+test-results/
+playwright-report/

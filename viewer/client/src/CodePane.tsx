@@ -6,11 +6,13 @@ export default function CodePane({
   owner,
   index,
   onClose,
+  embedded = false,
 }: {
   projectId: string;
   owner: ModelItem;
   index: number;
   onClose: () => void;
+  embedded?: boolean;
 }) {
   const [result, setResult] = useState<CodeExcerpt>();
   const [error, setError] = useState("");
@@ -20,7 +22,9 @@ export default function CodePane({
   useEffect(() => {
     let active = true;
     const previousFocus = document.activeElement;
-    close.current?.focus();
+    if (!embedded) close.current?.focus();
+    setResult(undefined);
+    setError("");
     request<CodeExcerpt>(
       `/api/projects/${projectId}/code?owner=${encodeURIComponent(owner.id)}&index=${index}`,
     )
@@ -32,10 +36,14 @@ export default function CodePane({
       });
     return () => {
       active = false;
-      if (previousFocus instanceof HTMLElement && previousFocus.isConnected)
+      if (
+        !embedded &&
+        previousFocus instanceof HTMLElement &&
+        previousFocus.isConnected
+      )
         previousFocus.focus();
     };
-  }, [projectId, owner.id, index]);
+  }, [projectId, owner.id, index, embedded, link]);
   const lines = result?.text.split("\n") || [];
   const start =
     whole || !result?.startLine ? 0 : Math.max(0, result.startLine - 5);
@@ -44,17 +52,22 @@ export default function CodePane({
       ? lines.length
       : Math.min(lines.length, result.endLine + 4, start + 250);
   return (
-    <aside className="code-pane" aria-label="Linked implementation">
+    <aside
+      className={`code-pane ${embedded ? "embedded-code" : ""}`}
+      aria-label="Linked implementation"
+    >
       <div className="code-pane-heading">
         <span className="eyebrow">Linked implementation</span>
-        <button
-          ref={close}
-          className="quiet"
-          aria-label="Close code pane"
-          onClick={onClose}
-        >
-          ✕
-        </button>
+        {!embedded && (
+          <button
+            ref={close}
+            className="quiet"
+            aria-label="Close code pane"
+            onClick={onClose}
+          >
+            ✕
+          </button>
+        )}
       </div>
       <h2>{link.symbol || link.file.split("/").pop()}</h2>
       <code className="file-path">{link.file}</code>

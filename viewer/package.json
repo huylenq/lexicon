@@ -11,9 +11,12 @@
     "typecheck": "tsc --noEmit",
     "test": "bun test tests",
     "check": "bun server/cli.ts check",
-    "convert": "bun server/cli.ts convert"
+    "convert": "bun server/cli.ts convert",
+    "test:browser": "playwright test"
   },
   "dependencies": {
+    "@xyflow/react": "12.11.0",
+    "elkjs": "0.11.1",
     "hono": "^4.6.14",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -24,6 +27,7 @@
     "xast-util-from-xml": "^4.0.0"
   },
   "devDependencies": {
+    "@playwright/test": "1.63.0",
     "@types/bun": "latest",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
