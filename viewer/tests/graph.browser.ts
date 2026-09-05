@@ -18,6 +18,13 @@ const positions = (page: Page) =>
       ].map((el) => [el.dataset.id!, el.style.transform]),
     ),
   );
+async function graphAction(page: Page, name: string) {
+  const id = new URL(page.url()).searchParams.get("item");
+  const node = page.locator(`[data-id="item:${id}"]`);
+  if (await node.count()) await node.click({ button: "right" });
+  else await page.locator(`[data-id="relation:${id}"]`).click({ button: "right" });
+  await page.getByRole("menuitem", { name, exact: true }).click();
+}
 async function openGraph(page: Page) {
   await page.goto("/p/dentalml");
   await expect(page.locator(".graph-vertex.concept")).toHaveCount(8);
@@ -79,7 +86,7 @@ test("domain selection, context collapse, code expansion, focus, and history", a
   await expect(page.locator("main h1")).toHaveText("Selected tooth");
   expect(await viewport(page)).toBe(originalCamera);
   const before = await positions(page);
-  await page.getByRole("button", { name: "Expand code", exact: true }).click();
+  await graphAction(page, "Expand code");
   await expect(page.locator(".graph-vertex.code")).toHaveCount(1);
   const after = await positions(page);
   for (const [id, position] of Object.entries(before))
@@ -97,7 +104,7 @@ test("domain selection, context collapse, code expansion, focus, and history", a
   await expect(page.locator("main h1")).toHaveText(
     "Selected tooth selects Tooth input",
   );
-  await page.getByRole("button", { name: "Focus", exact: true }).click();
+  await graphAction(page, "Focus");
   await expect(
     page.getByText("Focused neighborhood", { exact: true }),
   ).toBeVisible();
@@ -258,7 +265,7 @@ test("narrow screens and dark theme retain graph state and show readable code er
   await expect(page.locator(".graph-slot")).toBeVisible();
   await page.getByRole("button", { name: "Use dark theme" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-  await page.getByRole("button", { name: "Expand code", exact: true }).click();
+  await graphAction(page, "Expand code");
   await expect(page.locator(".graph-vertex.code")).toHaveCount(1);
   await page.getByRole("button", { name: "Fit view", exact: true }).click();
   await page.route("**/api/projects/dentalml/code?**", (route) =>
@@ -439,7 +446,7 @@ test("selection and focus controls do not move the graph canvas", async ({
     .getByRole("button", { name: "concept: Canal measurement", exact: true })
     .click();
   expect(await canvasTop()).toBe(initialTop);
-  await page.getByRole("button", { name: "Focus", exact: true }).click();
+  await graphAction(page, "Focus");
   expect(await canvasTop()).toBe(initialTop);
   await page
     .getByRole("button", { name: "Back to overview", exact: true })
@@ -458,6 +465,31 @@ test("selection and focus controls do not move the graph canvas", async ({
     .getByRole("button", { name: "concept: Canal measurement", exact: true })
     .click();
   expect(await canvasTop()).toBe(narrowTop);
-  await page.getByRole("button", { name: "Focus", exact: true }).click();
+  await graphAction(page, "Focus");
   expect(await canvasTop()).toBe(narrowTop);
+});
+
+test("node context menu targets the clicked node and supports dismissal and keyboard", async ({ page }) => {
+  await openGraph(page);
+  const tooth = page.locator('[data-id="item:selected-tooth"]');
+  await tooth.click({ button: "right" });
+  await expect(tooth).toHaveClass(/selected/);
+  await expect(page.locator('.graph-selection-bar').getByRole('button', { name: 'Focus', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('menuitem', { name: 'Expand code', exact: true })).toBeVisible();
+  // Allow newly mounted external SVG icons to paint before visual capture.
+  await page.waitForTimeout(150);
+  await page.screenshot({ path: '../artifacts/graph-node-context-menu.png' });
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('menu')).toHaveCount(0);
+  await expect(tooth).not.toHaveClass(/selected/);
+  await tooth.focus();
+  await page.keyboard.press('Shift+F10');
+  await page.getByRole('menuitem', { name: 'Expand code', exact: true }).click();
+  await expect(page.locator('.graph-vertex.code')).toHaveCount(1);
+  await tooth.click({ button: 'right' });
+  await page.getByRole('menuitem', { name: 'Hide code', exact: true }).click();
+  await expect(page.locator('.graph-vertex.code')).toHaveCount(0);
+  await tooth.click({ button: 'right' });
+  await page.locator('.graph-scope').click();
+  await expect(page.getByRole('menu')).toHaveCount(0);
 });

@@ -262,6 +262,28 @@ function GraphCanvas({
   const [revision, setRevision] = useState(0);
   const [cameraCommand, setCameraCommand] = useState(0);
   const [focus, setFocus] = useState<GraphSelection>();
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; selection: GraphSelection }>();
+  const menuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!contextMenu) return;
+    menuRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
+    const dismiss = (event: PointerEvent) => {
+      if (!menuRef.current?.contains(event.target as HTMLElement)) setContextMenu(undefined);
+    };
+    const close = () => setContextMenu(undefined);
+    window.addEventListener("pointerdown", dismiss);
+    window.addEventListener("resize", close);
+    return () => {
+      window.removeEventListener("pointerdown", dismiss);
+      window.removeEventListener("resize", close);
+    };
+  }, [contextMenu]);
+  const openContextMenu = (event: { preventDefault(): void; stopPropagation(): void; clientX: number; clientY: number }, chosen?: GraphSelection) => {
+    if (!chosen) return;
+    event.preventDefault();
+    event.stopPropagation();
+    setContextMenu({ x: Math.max(8, Math.min(event.clientX + 4, window.innerWidth - 174)), y: Math.max(8, Math.min(event.clientY + 4, window.innerHeight - 78)), selection: chosen });
+  };
   const [hoveredEdge, setHoveredEdge] = useState<string>();
   const [spacePanning, setSpacePanning] = useState(false);
   const canvas = useRef<HTMLDivElement>(null);
@@ -424,6 +446,7 @@ function GraphCanvas({
   }
   for (const n of nodes)
     if (matchingNodes.has(n.id) && n.parentId) matchingNodes.add(n.parentId);
+  const visualSelection = contextMenu?.selection || selection;
   const edges: FlowEdge[] = [];
   for (const c of projection.connections) {
     const a = absolute(c.source) || anchorBoxes.get(c.source),
@@ -450,14 +473,14 @@ function GraphCanvas({
       ) ||
       c.label.toLowerCase().includes(activeSearch);
     const selectedConnection =
-      (selection?.kind === "item" &&
-        c.relationships.includes(selection.id)) ||
-      (selection?.kind === "mapping" && c.mappings.includes(selection.id)) ||
-      (selection?.kind === "bundle" &&
-        selection.relationships.length === c.relationships.length &&
-        selection.mappings.length === c.mappings.length &&
-        selection.relationships.every((id) => c.relationships.includes(id)) &&
-        selection.mappings.every((id) => c.mappings.includes(id)));
+      (visualSelection?.kind === "item" &&
+        c.relationships.includes(visualSelection.id)) ||
+      (visualSelection?.kind === "mapping" && c.mappings.includes(visualSelection.id)) ||
+      (visualSelection?.kind === "bundle" &&
+        visualSelection.relationships.length === c.relationships.length &&
+        visualSelection.mappings.length === c.mappings.length &&
+        visualSelection.relationships.every((id) => c.relationships.includes(id)) &&
+        visualSelection.mappings.every((id) => c.mappings.includes(id)));
     const emphasized = selectedConnection || hoveredEdge === c.id;
     if (c.kind === "relationship") {
       anchorBoxes.set(anchorId(c.id), {
@@ -529,12 +552,12 @@ function GraphCanvas({
   const visualNodes = nodes.map((n) => ({
     ...n,
     selected:
-      n.data.selection?.kind === selection?.kind &&
-      n.data.selection &&
-      "id" in n.data.selection &&
-      selection &&
-      "id" in selection &&
-      n.data.selection.id === selection.id,
+        n.data.selection?.kind === visualSelection?.kind &&
+        n.data.selection &&
+        "id" in n.data.selection &&
+        visualSelection &&
+        "id" in visualSelection &&
+        n.data.selection.id === visualSelection.id,
     hidden: !!focusArea && !focusArea.nodes.has(n.id),
     className: activeSearch && !matchingNodes.has(n.id) ? "search-dim" : "",
   }));
@@ -570,7 +593,7 @@ function GraphCanvas({
     pending.current = { kind: "locate", selection: s };
     setCameraCommand((n) => n + 1);
   };
-  const owners = expandOwners(index, selection);
+  const owners = expandOwners(index, contextMenu?.selection);
   const codeExpanded =
     owners.length > 0 && owners.every((id) => workspace.expanded.includes(id));
   const expand = (s?: GraphSelection) => {
@@ -644,8 +667,7 @@ function GraphCanvas({
         ? w.collapsed.filter((c) => c !== id)
         : [...w.collapsed, id],
     }));
-  const focusSelection = () => {
-    if (!selection) return;
+  const focusSelection = (selection: GraphSelection) => {
     if (!focus) restoreCamera.current = flow.getViewport();
     setFocus(selection);
     pending.current = { kind: "focus", selection };
@@ -689,6 +711,12 @@ function GraphCanvas({
       className="graph-pane"
       aria-label="Domain graph"
       onKeyDownCapture={(event) => {
+        if (event.key === "Escape" && contextMenu) {
+          event.preventDefault();
+          event.stopPropagation();
+          setContextMenu(undefined);
+          return;
+        }
         if (event.key === "Escape" && selection) {
           event.preventDefault();
           event.stopPropagation();
@@ -742,22 +770,10 @@ function GraphCanvas({
             <button className="quiet" onClick={() => reveal(selection)}>
               Locate
             </button>
-            <button className="quiet" onClick={focusSelection}>
-              Focus
-            </button>
             <button className="quiet" onClick={clearSelection}>
               Clear selection
             </button>
           </>
-        )}
-        {!!owners.length && (
-          <button
-            className="quiet"
-            disabled={workspace.allCode}
-            onClick={() => expand(selection)}
-          >
-            {codeExpanded ? "Hide code" : "Expand code"}
-          </button>
         )}
         {focus && (
           <button className="quiet" onClick={overview}>
@@ -775,6 +791,16 @@ function GraphCanvas({
           pointerInCanvas.current = false;
         }}
         onKeyDownCapture={(event) => {
+          if ((event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) && event.target instanceof Element) {
+            const target = event.target.closest(".react-flow__node, .react-flow__edge");
+            const id = target?.getAttribute("data-id");
+            const chosen = nodes.find((n) => n.id === id)?.data.selection || edges.find((e) => e.id === id)?.data?.selection;
+            if (target && chosen) {
+              const rect = target.getBoundingClientRect();
+              openContextMenu({ preventDefault: () => event.preventDefault(), stopPropagation: () => event.stopPropagation(), clientX: rect.left, clientY: rect.top }, chosen);
+              return;
+            }
+          }
           if (event.key !== "Enter" || !(event.target instanceof Element))
             return;
           if (
@@ -808,6 +834,9 @@ function GraphCanvas({
             onNodeClick={(_, n) =>
               n.data.selection && onSelect(n.data.selection)
             }
+            onNodeContextMenu={(event, node) => openContextMenu(event, node.data.selection)}
+            onEdgeContextMenu={(event, edge) => openContextMenu(event, edge.data?.selection)}
+            onMoveStart={() => setContextMenu(undefined)}
             onEdgeClick={(_, e) => e.data && onSelect(e.data.selection)}
             onPaneClick={clearSelection}
             onEdgeMouseEnter={(_, e) => setHoveredEdge(e.id)}
@@ -864,6 +893,29 @@ function GraphCanvas({
           </div>
         )}
       </div>
+      {contextMenu && (
+        <div ref={menuRef} className="graph-context-menu" role="menu" aria-label="Graph actions"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          onContextMenu={(event) => event.preventDefault()}
+          onKeyDown={(event) => {
+            if (["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) {
+              event.preventDefault();
+              const buttons = Array.from(menuRef.current?.querySelectorAll<HTMLButtonElement>("button:not(:disabled)") || []);
+              const current = buttons.indexOf(document.activeElement as HTMLButtonElement);
+              const next = event.key === "Home" ? 0 : event.key === "End" ? buttons.length - 1 : (current + (event.key === "ArrowUp" ? -1 : 1) + buttons.length) % buttons.length;
+              buttons[next]?.focus();
+            }
+            if (event.key === "Tab") setContextMenu(undefined);
+          }}>
+          <button role="menuitem" onClick={() => { focusSelection(contextMenu.selection); setContextMenu(undefined); }}><Icon name="locate" size={13} />Focus</button>
+          {!!owners.length && <button role="menuitem" disabled={workspace.allCode}
+            title={workspace.allCode ? "Turn off Show all code to change individual expansions" : undefined}
+            onClick={() => { expand(contextMenu.selection); setContextMenu(undefined); }}>
+            <Icon name="code" size={13} />
+            {codeExpanded ? "Hide code" : "Expand code"}
+          </button>}
+        </div>
+      )}
       <div className="graph-legend">
         <span>
           <i /> Relationship

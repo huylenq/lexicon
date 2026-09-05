@@ -90,7 +90,8 @@ test("code nodes preserve the reader; mapping edges open explanation and the sam
 }) => {
   await page.goto("/p/dentalml?item=selected-tooth");
   await expect(page.locator(".graph-vertex.concept")).toHaveCount(8);
-  await page.getByRole("button", { name: "Expand code", exact: true }).click();
+  await page.locator('[data-id="item:selected-tooth"]').click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Expand code", exact: true }).click();
   await expect(page.locator(".graph-vertex.code")).toHaveCount(1);
   await page.getByRole("button", { name: "Fit view", exact: true }).click();
   await page.locator(".graph-vertex.code").click();
