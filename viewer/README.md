@@ -1,5 +1,7 @@
 # Lexicon reader
 
+This worktree includes a [tldraw canvas prototype](CANVAS_PROTOTYPE.md). Run `bun run dev:canvas` to try the isolated checkout workshop.
+
 A local reader for the four-object domain model: contexts, concepts, relationships, and code links. Read the explanation, explore its connections, and inspect the implementation.
 
 ```sh

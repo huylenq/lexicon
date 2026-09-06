@@ -31,6 +31,7 @@ import "./styles/graph.css";
 import "./styles/code.css";
 import "./styles/status.css";
 const GraphPane = lazy(() => import("./GraphPane"));
+const CanvasPane = lazy(() => import("./canvas/CanvasPane"));
 export default function Reader() {
   const { projectId = "" } = useParams();
   return <ReaderProject key={projectId} projectId={projectId} />;
@@ -49,6 +50,8 @@ function ReaderProject({ projectId }: { projectId: string }) {
   const [graphStatusHost, setGraphStatusHost] = useState<HTMLDivElement | null>(null);
   const chatToggle = useRef<HTMLButtonElement>(null);
   const [params, setParams] = useSearchParams();
+  const canvasEnabled = params.get("canvas") === "tldraw";
+  const GraphSurface = canvasEnabled ? CanvasPane : GraphPane;
   const routeLocation = useLocation();
   const navigate = useNavigate();
   const navigationType = useNavigationType();
@@ -147,7 +150,8 @@ function ReaderProject({ projectId }: { projectId: string }) {
         e.key === "/" &&
         !(
           e.target instanceof HTMLInputElement ||
-          e.target instanceof HTMLTextAreaElement
+          e.target instanceof HTMLTextAreaElement ||
+          (e.target instanceof Element && !!e.target.closest("[contenteditable='true'], .tl-container"))
         )
       ) {
         e.preventDefault();
@@ -318,6 +322,16 @@ function ReaderProject({ projectId }: { projectId: string }) {
         <span className="header-divider" />
         <span className="project-name">{model?.name || "Opening project"}</span>
         <div className="header-actions">
+          <button className="quiet canvas-toggle" aria-label="Toggle freeform canvas" aria-pressed={canvasEnabled}
+            title={canvasEnabled ? "Switch to React Flow graph" : "Try the tldraw canvas prototype"}
+            onClick={() => {
+              const next = new URLSearchParams(params);
+              if (canvasEnabled) next.delete("canvas");
+              else next.set("canvas", "tldraw");
+              setParams(next);
+              setMobileRead(false);
+              setMobileCode(false);
+            }}>{canvasEnabled ? "Canvas" : "Try Canvas"}</button>
           <div className="pane-toggles" role="group" aria-label="Pane visibility">
           <button
             ref={codeToggle}
@@ -428,8 +442,10 @@ function ReaderProject({ projectId }: { projectId: string }) {
               className="graph-slot"
             >
               <Suspense fallback={<p className="empty">Opening graph…</p>}>
-                <GraphPane
+                <GraphSurface
+                  key={canvasEnabled ? `canvas:${projectId}` : `graph:${projectId}`}
                   model={model}
+                  projectKey={data?.project.root || projectId}
                   statusHost={graphStatusHost}
                   workspace={workspace}
                   setWorkspace={setWorkspace}

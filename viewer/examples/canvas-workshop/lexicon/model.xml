@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<lexicon schema="2.0" id="canvas-workshop">
+  <name>Checkout workshop</name>
+  <description>A small, illustrative checkout model for trying the canvas. Follow an Order through its lines and price calculation, then attach questions, sketches, or interface examples. The source is a local teaching fixture, not a production checkout.</description>
+  <context id="ordering">
+    <name>Ordering</name>
+    <description>Collect purchase quantities and calculate an order total.</description>
+    <concept id="order" classification="aggregate">
+      <name>Order</name>
+      <description>A purchase containing the lines whose prices contribute to its total.</description>
+      <annotation kind="rule" evidence="enforced">An order must contain at least one line before its total is calculated.</annotation>
+      <code-link file="checkout.ts" symbol="total" role="enforcement">The total function checks that the order has a line before summing prices.</code-link>
+    </concept>
+    <concept id="order-line" classification="value">
+      <name>Order Line</name>
+      <description>A product price and quantity purchased together.</description>
+      <code-link file="checkout.ts" symbol="OrderLine" role="representation">The type carries a unit price and quantity.</code-link>
+    </concept>
+    <concept id="order-total" classification="value">
+      <name>Order Total</name>
+      <description>The sum of every line's unit price multiplied by quantity. Taxes and discounts are outside this example.</description>
+      <code-link file="checkout.ts" symbol="total" role="implementation">The total function produces this number.</code-link>
+    </concept>
+  </context>
+  <relationship id="contains" from="order" to="order-line">
+    <name>contains</name>
+    <description>The Order carries its lines in the lines property.</description>
+    <code-link file="checkout.ts" symbol="Order" role="representation">The lines property connects the Order to OrderLine values.</code-link>
+  </relationship>
+  <relationship id="calculates" from="order-line" to="order-total">
+    <name>contributes to</name>
+    <description>The total calculation sums the extended price of each line.</description>
+    <code-link file="checkout.ts" symbol="total" role="implementation">The reduce callback adds each price multiplied by quantity.</code-link>
+  </relationship>
+</lexicon>

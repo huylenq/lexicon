@@ -19,6 +19,13 @@ import { stopOwnedAgents } from "./chat/process";
 const exec = promisify(execFile);
 const repository = resolve(import.meta.dir, "../..");
 const examples = [
+  ...(process.env.LEXICON_CANVAS_PROTOTYPE === "1" ? [{
+    id: "canvas-workshop",
+    name: "Checkout · Canvas workshop",
+    root: resolve(import.meta.dir, "../examples/canvas-workshop"),
+    artifactRoot: resolve(import.meta.dir, "../examples/canvas-workshop"),
+    example: true,
+  }] : []),
   {
     id: "dentalml",
     name: "DentalML · Canal measurement",

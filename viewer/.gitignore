@@ -8,6 +8,7 @@ lexicon-viewer.db
 lexicon-viewer.db-journal
 lexicon-viewer.db-shm
 lexicon-viewer.db-wal
+lexicon-canvas-prototype.db*
 
 # Browser verification artifacts
 test-results/

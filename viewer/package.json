@@ -13,7 +13,9 @@
     "test": "bun test tests",
     "check": "bun server/cli.ts check",
     "convert": "bun server/cli.ts convert",
-    "test:browser": "playwright test"
+    "test:browser": "playwright test",
+    "dev:canvas": "bun scripts/canvas-dev.ts",
+    "test:canvas": "playwright test --config playwright.canvas.config.ts"
   },
   "dependencies": {
     "@xyflow/react": "12.11.0",
@@ -24,6 +26,7 @@
     "react-markdown": "10.1.0",
     "react-router-dom": "^6.28.0",
     "remark-gfm": "4.0.1",
+    "tldraw": "5.4.0",
     "tree-sitter": "0.21.1",
     "tree-sitter-python": "0.21.0",
     "tree-sitter-typescript": "^0.23.2",

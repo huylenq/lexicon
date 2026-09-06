@@ -204,8 +204,9 @@ export type GraphCommand = {
   action: "locate" | "expand";
   selection: GraphSelection;
 };
-type Props = {
+export type GraphPaneProps = {
   model: Model;
+  projectKey?: string;
   statusHost: HTMLDivElement | null;
   workspace: Workspace;
   setWorkspace: Dispatch<SetStateAction<Workspace>>;
@@ -217,6 +218,7 @@ type Props = {
   command?: GraphCommand;
   onReset: () => void;
 };
+type Props = GraphPaneProps;
 
 function nodesTouchedByMarquee(
   canvas: HTMLElement,
