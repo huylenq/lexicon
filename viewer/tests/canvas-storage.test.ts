@@ -68,6 +68,9 @@ test("the shared schema migrates old custom props and rejects wrong models, inva
   (old.snapshot.store["shape:one" as any] as any).props.w = 0;
   expect((validateCanvas(old, "test").snapshot.store["shape:one" as any] as any).props.w).toBe(1);
   expect(() => validateCanvas(canvas(), "other")).toThrow("different model");
+  const session = canvas();
+  Object.assign(session.snapshot.store, { "camera:page:page": { id: "camera:page:page", typeName: "camera", x: 0, y: 0, z: 1, meta: {} } });
+  expect(() => validateCanvas(session, "test")).toThrow("Only canvas document records");
   const cycle = canvas(); (cycle.snapshot.store["shape:one" as any] as any).parentId = "shape:one";
   expect(() => validateCanvas(cycle, "test")).toThrow("cycle");
   const future = canvas(); (future.snapshot.schema as { sequences: Record<string, number> }).sequences["com.tldraw.shape.lexicon-object"] = 999;

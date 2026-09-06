@@ -1,5 +1,23 @@
 import type { TLEditorSnapshot } from "tldraw";
-import type { CanvasDocument } from "../../../shared/canvas";
+import type { CanvasDocument, CanvasState } from "../../../shared/canvas";
+
+/** Only cache scope metadata here. Full document recovery belongs in IndexedDB. */
+export function cacheCanvasScope(key: string, state: CanvasState) {
+  try {
+    localStorage.setItem(key, JSON.stringify({ ...state, document: null }));
+  } catch {
+    /* Metadata caching must not prevent project or recovery saves. */
+  }
+}
+
+export function readCanvasScope(key: string): CanvasState | undefined {
+  try {
+    const stored = localStorage.getItem(key);
+    return stored ? JSON.parse(stored) : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 export interface Recovery {
   key: string;

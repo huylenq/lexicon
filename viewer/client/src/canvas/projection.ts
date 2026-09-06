@@ -1,9 +1,4 @@
-import {
-  createShapeId,
-  type Editor,
-  type TLShape,
-  type TLShapeId,
-} from "tldraw";
+import { type Editor, type TLShape, type TLShapeId } from "tldraw";
 import {
   anchorId,
   type GraphConnection,
@@ -17,12 +12,11 @@ import {
   type Layout,
   type Positions,
 } from "../graph/layout";
-import { isModelShape, type ConnectionShape, type ObjectShape } from "./shapes";
-
-export const modelShapeId = (graphId: string) =>
-  createShapeId(`lexicon:${encodeURIComponent(graphId)}`);
-export const isPrimary = (shape: TLShape) =>
-  isModelShape(shape) && shape.id === modelShapeId(shape.props.graphId);
+import type {
+  ConnectionShape,
+  ObjectShape,
+} from "../../../shared/canvas-schema";
+import { isModelShape, isPrimary, modelShapeId } from "./references";
 
 // Keep a gutter around concepts and leave the context's 44px heading clear.
 function contextPosition(

@@ -1,4 +1,4 @@
-// A deliberately small teaching fixture for the canvas prototype.
+// A deliberately small teaching fixture for the canvas workshop.
 export type OrderLine = { unitPrice: number; quantity: number };
 export type Order = { lines: OrderLine[] };
 

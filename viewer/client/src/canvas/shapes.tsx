@@ -9,10 +9,8 @@ import {
   ShapeUtil,
   Vec,
   type BindingOnShapeChangeOptions,
-  type TLShape,
   type TLShapePartial,
   type SvgExportContext,
-  createShapeId,
 } from "tldraw";
 import ObjectName from "../ObjectName";
 import type {
@@ -29,14 +27,7 @@ import {
   type ConnectionShape,
   type NoteBinding,
 } from "../../../shared/canvas-schema";
-export type {
-  ObjectShape,
-  ConnectionShape,
-} from "../../../shared/canvas-schema";
-export const isModelShape = (
-  shape: TLShape,
-): shape is ObjectShape | ConnectionShape =>
-  shape.type === "lexicon-object" || shape.type === "lexicon-connection";
+import { isPrimary } from "./references";
 
 export const CanvasModel = createContext({
   vertices: new Map<string, GraphVertex>(),
@@ -50,9 +41,7 @@ function ObjectCard({ shape }: { shape: ObjectShape }) {
   const model = useContext(CanvasModel);
   const vertex = model.vertices.get(shape.props.graphId);
   const missing = !vertex;
-  const primary =
-    shape.id ===
-    createShapeId(`lexicon:${encodeURIComponent(shape.props.graphId)}`);
+  const primary = isPrimary(shape);
   return (
     <HTMLContainer
       className={`canvas-object ${shape.props.group ? "canvas-group" : "canvas-card"} ${!model.matches(shape.props.graphId) ? "canvas-dimmed" : ""}`}
@@ -290,10 +279,7 @@ export class LexiconConnectionUtil extends ShapeUtil<ConnectionShape> {
   override onTranslate(
     initial: ConnectionShape,
   ): TLShapePartial<ConnectionShape> | void {
-    if (
-      initial.id ===
-      createShapeId(`lexicon:${encodeURIComponent(initial.props.graphId)}`)
-    )
+    if (isPrimary(initial))
       return { id: initial.id, type: initial.type, x: initial.x, y: initial.y };
   }
   getGeometry(shape: ConnectionShape) {

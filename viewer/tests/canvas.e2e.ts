@@ -321,17 +321,58 @@ test("failed project saves recover after reload and retry without losing local n
   expect((await durableNotes()).join()).toContain("Recovered after");
 });
 
+test("an unsaved first canvas requires review when another browser creates the project file", async ({ page, browser }) => {
+  let hold = true;
+  await page.route(`**/api/projects/${projectId}/canvas`, (route) =>
+    route.request().method() === "PUT" && hold ? route.abort("failed") : route.continue());
+  await open(page);
+  await note(page, "Private draft before the first successful save.");
+  await expect(page.locator('[data-save-status="local"]')).toBeVisible();
+  await expect.poll(async () => JSON.stringify(await page.context().storageState({ indexedDB: true }))
+    .includes("Private draft before the first successful save.")).toBeTruthy();
+
+  const context = await browser.newContext(), other = await context.newPage();
+  try {
+    await other.goto(page.url());
+    await expect(other.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+    await note(other, "Project note created in the other browser.");
+    await saved(other);
+    const file = join(root, "lexicon/canvas.json"), before = await readFile(file, "utf8");
+    page.on("dialog", (dialog) => dialog.accept());
+    const staleSave = page.waitForResponse((response) => response.url().endsWith(`/api/projects/${projectId}/canvas`) &&
+      response.request().method() === "PUT" && response.status() === 409);
+    hold = false;
+    await page.reload();
+    await staleSave;
+    await expect(page.locator('[data-save-status="conflict"]')).toBeVisible();
+    await page.getByRole("button", { name: "Review versions" }).click();
+    await expect(page.getByRole("dialog", { name: "Review canvas versions" })).toBeVisible();
+    expect(await readFile(file, "utf8")).toBe(before);
+    expect(records((await exportDocument(page)).data).some((r) => r.type === "note" && JSON.stringify(r).includes("Private draft"))).toBe(true);
+    await page.getByRole("button", { name: "Use project version", exact: true }).click();
+    await saved(page);
+    expect((await durableNotes()).join()).toContain("Project note created in the other browser.");
+  } finally { await context.close(); }
+});
+
 test("two tabs merge independent notes and require review for overlapping edits", async ({ page, browser }) => {
   await open(page); await note(page, "Shared starting note."); await saved(page);
   const context = await browser.newContext(), other = await context.newPage();
   await other.goto(page.url()); await expect(other.locator('.canvas-stage[data-ready="true"]')).toBeVisible(); await saved(other);
   let holdA = true, holdB = true;
+  const resumeSaving = async (tab: Page, resume: () => void) => {
+    // Focus before restoring the server: a pending autosave can then remove Retry.
+    // Keyboard activation remains valid whether Retry submits or that save wins first.
+    await tab.getByRole("button", { name: "Retry save" }).focus();
+    resume();
+    await tab.keyboard.press("Enter");
+  };
   await page.route(`**/api/projects/${projectId}/canvas`, (route) => route.request().method() === "PUT" && holdA ? route.abort() : route.continue());
   await other.route(`**/api/projects/${projectId}/canvas`, (route) => route.request().method() === "PUT" && holdB ? route.abort() : route.continue());
   await note(page, "Independent edit from tab A."); await expect(page.locator('[data-save-status="local"]')).toBeVisible();
   await note(other, "Independent edit from tab B."); await expect(other.locator('[data-save-status="local"]')).toBeVisible();
-  holdA = false; await page.getByRole("button", { name: "Retry save" }).click(); await saved(page);
-  holdB = false; await other.getByRole("button", { name: "Retry save" }).click(); await saved(other);
+  await resumeSaving(page, () => { holdA = false; }); await saved(page);
+  await resumeSaving(other, () => { holdB = false; }); await saved(other);
   expect((await durableNotes()).join()).toContain("Independent edit from tab A"); expect((await durableNotes()).join()).toContain("Independent edit from tab B");
   // Both tabs start from the same file, then edit the same model placement.
   page.on("dialog", (dialog) => dialog.accept()); other.on("dialog", (dialog) => dialog.accept());
@@ -345,8 +386,8 @@ test("two tabs merge independent notes and require review for overlapping edits"
     await expect(tab.locator('[data-save-status="local"]')).toBeVisible();
   };
   await nudge(page, "ArrowRight"); await nudge(other, "ArrowDown");
-  holdA = false; await page.getByRole("button", { name: "Retry save" }).click(); await saved(page);
-  holdB = false; await other.getByRole("button", { name: "Retry save" }).click();
+  await resumeSaving(page, () => { holdA = false; }); await saved(page);
+  await resumeSaving(other, () => { holdB = false; });
   await expect(other.locator('[data-save-status="conflict"]')).toBeVisible();
   const version = await readFile(join(root, "lexicon/canvas.json"), "utf8");
   await other.getByRole("button", { name: "Review versions" }).click();

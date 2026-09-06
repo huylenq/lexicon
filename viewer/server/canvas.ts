@@ -12,6 +12,9 @@ import { isAbsolute, join, relative } from "node:path";
 import type { TLRecord, TLStoreSnapshot } from "@tldraw/tlschema";
 import { canvasSchema } from "../shared/canvas-schema";
 import {
+  CANVAS_FORMAT,
+  CANVAS_VERSION,
+  MAX_CANVAS_RECORDS,
   canvasAssetName,
   MAX_ASSET_BYTES,
   MAX_CANVAS_BYTES,
@@ -31,23 +34,15 @@ const hash = (value: string | Uint8Array) =>
   createHash("sha256").update(value).digest("hex");
 export const canvasRevision = (text: string | null) =>
   hash(text === null ? "missing" : `canvas:${text}`);
-const object = (value: unknown): value is Record<string, any> =>
+const object = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === "object" && !Array.isArray(value);
-const documentTypes = new Set([
-  "document",
-  "page",
-  "shape",
-  "binding",
-  "asset",
-  "user",
-]);
 
 /** Validate and migrate with the exact schema used by the editor, including custom shapes. */
 export function validateCanvas(raw: unknown, modelId: string): CanvasDocument {
   if (
     !object(raw) ||
-    raw.format !== "lexicon-canvas" ||
-    raw.version !== 2 ||
+    raw.format !== CANVAS_FORMAT ||
+    raw.version !== CANVAS_VERSION ||
     typeof raw.id !== "string" ||
     !/^[\w-]{8,100}$/.test(raw.id)
   )
@@ -63,7 +58,7 @@ export function validateCanvas(raw: unknown, modelId: string): CanvasDocument {
   )
     throw new CanvasError("The canvas document is incomplete.");
   if (
-    Object.keys(raw.snapshot.store).length > 20_000 ||
+    Object.keys(raw.snapshot.store).length > MAX_CANVAS_RECORDS ||
     Buffer.byteLength(JSON.stringify(raw)) > MAX_CANVAS_BYTES
   )
     throw new CanvasError(
@@ -73,7 +68,7 @@ export function validateCanvas(raw: unknown, modelId: string): CanvasDocument {
   let migrated;
   try {
     migrated = canvasSchema.migrateStoreSnapshot(
-      raw.snapshot as TLStoreSnapshot,
+      raw.snapshot as unknown as TLStoreSnapshot,
     );
   } catch {
     throw new CanvasError(
@@ -89,7 +84,7 @@ export function validateCanvas(raw: unknown, modelId: string): CanvasDocument {
     if (
       !object(rawRecord) ||
       rawRecord.id !== id ||
-      !documentTypes.has(rawRecord.typeName)
+      canvasSchema.types[rawRecord.typeName]?.scope !== "document"
     )
       throw new CanvasError("Only canvas document records may be saved.");
     try {
@@ -134,8 +129,8 @@ export function validateCanvas(raw: unknown, modelId: string): CanvasDocument {
   if (!Object.values(store).some((r) => r.typeName === "page"))
     throw new CanvasError("The canvas needs a page.");
   return {
-    format: "lexicon-canvas",
-    version: 2,
+    format: CANVAS_FORMAT,
+    version: CANVAS_VERSION,
     id: raw.id,
     modelId,
     snapshot: {

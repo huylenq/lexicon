@@ -260,6 +260,12 @@ test("canvas model commands share validated model edits, exact undo, and stale-w
   const json = (data: unknown) => ({ method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(data) });
   const project = await (await req("/api/projects", json({ root }))).json();
   const revision = fingerprint(xml), command = { type: "annotate", targetId: "thing", annotation: { kind: "rule", evidence: "intended", text: "A thing has a name." } };
+  for (const invalid of [null, { revision, command: [] }, { revision, command: { ...command, annotation: { ...command.annotation, evidence: "guessed" } } },
+    { revision, command: { ...command, annotation: { ...command.annotation, extra: true } } },
+    { revision, command: { type: "move-concept", targetId: "thing", contextId: 42 } }]) {
+    expect((await req(`/api/projects/${project.id}/canvas/model-command`, json(invalid))).status).toBe(400);
+    expect(await readFile(join(root, "lexicon/model.xml"), "utf8")).toBe(xml);
+  }
   const response = await req(`/api/projects/${project.id}/canvas/model-command`, json({ revision, command }));
   expect(response.status).toBe(200); const receipt = await response.json();
   const edited = await readFile(join(root, "lexicon/model.xml"), "utf8"); expect(edited).toContain('evidence="intended"');

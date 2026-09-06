@@ -1,7 +1,6 @@
 .canvas-toggle { padding: 5px 9px; border: 1px solid var(--line); border-radius: 5px; font-size: 12px; white-space: nowrap; }
 .canvas-toggle[aria-pressed="true"] { color: var(--accent); background: var(--accent-soft); border-color: var(--accent); }
 .canvas-toolbar { flex-wrap: wrap; padding: 8px 12px; gap: 8px; position: relative; z-index: 5; }
-.canvas-prototype { color: var(--muted); font-size: 9px; font-weight: 400; margin-left: 6px; }
 .canvas-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 3px; }
 .canvas-actions > button, .canvas-file-menu > summary { padding: 5px 7px; font-size: 11px; border-radius: 4px; white-space: nowrap; }
 .canvas-actions button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
@@ -42,7 +41,6 @@
 .canvas-save-state button, .canvas-review button { padding: 4px 8px; background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 4px; font: inherit; }
 .canvas-review { padding: 12px; border-bottom: 1px solid var(--line); max-height: 35vh; overflow: auto; font-size: 12px; }
 .canvas-review button { margin: 4px; }
-.canvas-review pre { white-space: pre-wrap; max-height: 130px; overflow: auto; }
 
 .canvas-inspector { position: relative; z-index: 4; font-size: 11px; background: var(--paper); }
 .canvas-context-tools { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 4px 12px; border-bottom: 1px solid var(--line); }

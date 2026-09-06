@@ -1,7 +1,7 @@
 import { defineConfig } from "@playwright/test";
 export default defineConfig({
   testDir: "./tests",
-  testMatch: "**/*.prototype.ts",
+  testMatch: "**/canvas.e2e.ts",
   workers: 1,
   outputDir: "test-results/canvas",
   timeout: 60_000,

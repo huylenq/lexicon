@@ -21,7 +21,7 @@ import { MAX_CANVAS_BYTES, MAX_ASSET_BYTES } from "../shared/canvas";
 const exec = promisify(execFile);
 const repository = resolve(import.meta.dir, "../..");
 const examples = [
-  ...(process.env.LEXICON_CANVAS_PROTOTYPE === "1" ? [{
+  ...((process.env.LEXICON_CANVAS_WORKSHOP || process.env.LEXICON_CANVAS_PROTOTYPE) === "1" ? [{
     id: "canvas-workshop",
     name: "Checkout · Canvas workshop",
     root: resolve(import.meta.dir, "../examples/canvas-workshop"),

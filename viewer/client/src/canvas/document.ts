@@ -1,48 +1,16 @@
 import {
   getSnapshot,
   type Editor,
-  type TLAsset,
-  type TLAssetStore,
-  type TLEditorSnapshot,
   type TLRecord,
   type TLStoreSnapshot,
 } from "tldraw";
 import {
-  canvasAssetName,
-  MAX_ASSET_BYTES,
+  CANVAS_FORMAT,
+  CANVAS_VERSION,
   type CanvasDocument,
 } from "../../../shared/canvas";
-import { canvasSchema } from "../../../shared/canvas-schema";
 import type { GraphIndex } from "../graph/model";
-import { isPrimary, modelShapeId } from "./projection";
-export { mergeCanvas } from "../../../shared/canvas-merge";
-
-export function projectAssets(projectId: string): TLAssetStore {
-  return {
-    async upload(_asset, file, signal) {
-      if (file.size > MAX_ASSET_BYTES)
-        throw new Error("Canvas media must be smaller than 25 MB.");
-      const response = await fetch(`/api/projects/${projectId}/canvas/assets`, {
-        method: "POST",
-        body: file,
-        headers: { "Content-Type": file.type },
-        signal,
-      });
-      const data = await response.json();
-      if (!response.ok)
-        throw new Error(data.error || "Could not save canvas media.");
-      return data;
-    },
-    resolve(asset) {
-      const name = canvasAssetName(asset.props.src);
-      return name
-        ? `/api/projects/${projectId}/canvas/assets/${name}`
-        : asset.props.src;
-    },
-    // Keep files for undo, recovery, and older Git revisions. Deleting a shape is not asset GC.
-  };
-}
-
+import { isPrimary, modelShapeId } from "./references";
 /** Strip view-only state and generated routes from Git diffs. Keep user placements and content. */
 export function captureCanvas(
   editor: Editor,
@@ -108,8 +76,8 @@ export function captureCanvas(
     store[key] = shape;
   }
   return {
-    format: "lexicon-canvas",
-    version: 2,
+    format: CANVAS_FORMAT,
+    version: CANVAS_VERSION,
     id,
     modelId,
     snapshot: { schema: snapshot.schema, store },
@@ -151,95 +119,4 @@ export function migrateModelReferences(
       }),
     ),
   };
-}
-
-export async function importMedia(
-  snapshot: TLStoreSnapshot,
-  assets: TLAssetStore,
-  getLegacyAsset?: (id: string) => Promise<File | undefined>,
-): Promise<TLStoreSnapshot> {
-  const store = { ...snapshot.store };
-  for (const record of Object.values(store)) {
-    if (
-      record.typeName !== "asset" ||
-      !["image", "video"].includes(record.type) ||
-      !record.props.src ||
-      canvasAssetName(record.props.src)
-    )
-      continue;
-    let file: File | undefined;
-    if (record.props.src.startsWith("data:")) {
-      const blob = await (await fetch(record.props.src)).blob();
-      file = new File([blob], "canvas-media", { type: blob.type });
-    } else if (getLegacyAsset && record.props.src.startsWith("asset:"))
-      file = await getLegacyAsset(record.id);
-    if (!file)
-      throw new Error(
-        "An imported image is unavailable. Export a portable canvas from the original browser first; its data has been preserved.",
-      );
-    const uploaded = await assets.upload(record as TLAsset, file);
-    store[record.id] = {
-      ...record,
-      props: { ...record.props, src: uploaded.src },
-    } as TLRecord;
-  }
-  return { ...snapshot, store };
-}
-
-/** Read the prototype's pinned v5.4 IndexedDB format without opening an upgrade transaction. */
-export async function readPrototype(
-  key: string,
-  assets: TLAssetStore,
-): Promise<TLEditorSnapshot | undefined> {
-  if (
-    !indexedDB.databases ||
-    !(await indexedDB.databases()).some(
-      (db) => db.name === `TLDRAW_DOCUMENT_v2${key}`,
-    )
-  )
-    return;
-  const db = await new Promise<IDBDatabase>((resolve, reject) => {
-    const request = indexedDB.open(`TLDRAW_DOCUMENT_v2${key}`);
-    request.onupgradeneeded = () => {
-      request.transaction?.abort();
-      reject(new Error("The original browser canvas is unavailable."));
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-  const read = <T>(table: string, key?: string) =>
-    new Promise<T>((resolve, reject) => {
-      const store = db.transaction(table, "readonly").objectStore(table);
-      const request = key ? store.get(key) : store.getAll();
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-    });
-  try {
-    const [records, schema, sessions] = await Promise.all([
-      read<TLRecord[]>("records"),
-      read<TLStoreSnapshot["schema"]>("schema", "schema"),
-      read<{ updatedAt: number; snapshot: TLEditorSnapshot["session"] }[]>(
-        "session_state",
-      ),
-    ]);
-    if (!schema || !records.length) return;
-    const migrated = canvasSchema.migrateStoreSnapshot({
-      schema,
-      store: Object.fromEntries(records.map((r) => [r.id, r])),
-    });
-    if (migrated.type !== "success")
-      throw new Error(
-        "The browser canvas could not be migrated. Its original database is unchanged.",
-      );
-    return {
-      document: await importMedia(
-        { schema: canvasSchema.serialize(), store: migrated.value },
-        assets,
-        (id) => read<File>("assets", id),
-      ),
-      session: sessions.sort((a, b) => b.updatedAt - a.updatedAt)[0]?.snapshot,
-    } as TLEditorSnapshot;
-  } finally {
-    db.close();
-  }
 }

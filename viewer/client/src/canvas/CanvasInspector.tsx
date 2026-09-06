@@ -8,8 +8,11 @@ import {
   type TLShapeId,
 } from "tldraw";
 import type { GraphPaneProps } from "../GraphPane";
-import { isModelShape } from "./shapes";
-import { modelShapeId } from "./projection";
+import type { Annotation } from "../../../shared/model";
+import type { CanvasModelCommand } from "../../../shared/canvas";
+import { canvasApi } from "./api";
+import { exportCanvasSelection } from "./files";
+import { isModelShape, modelShapeId } from "./references";
 import { indexModel, projectGraph } from "../graph/model";
 
 export const noteText = (editor: Editor, shape: TLShape) =>
@@ -25,13 +28,14 @@ export function CanvasInspector({
   props: GraphPaneProps;
 }) {
   const [params, setParams] = useSearchParams();
+  const api = canvasApi(props.projectId);
   const [open, setOpen] = useState(false),
     [query, setQuery] = useState("");
   const [error, setError] = useState(""),
     [notice, setNotice] = useState("");
   const [targetId, setTargetId] = useState("");
   const [kind, setKind] = useState("explanation"),
-    [evidence, setEvidence] = useState("");
+    [evidence, setEvidence] = useState<Annotation["evidence"] | "">("");
   const [promote, setPromote] = useState(false),
     [move, setMove] = useState(false),
     [contextId, setContextId] = useState("");
@@ -134,21 +138,11 @@ export function CanvasInspector({
       });
     });
   };
-  const command = async (command: unknown) => {
+  const command = async (command: CanvasModelCommand) => {
     setBusy(true);
     setError("");
     try {
-      const response = await fetch(
-        `/api/projects/${props.projectId}/canvas/model-command`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ revision: props.modelRevision, command }),
-        },
-      );
-      const result = await response.json();
-      if (!response.ok)
-        throw new Error(result.error || "The model change failed.");
+      const result = await api.command(props.modelRevision, command);
       setChangeId(result.changeId);
       setPromote(false);
       setMove(false);
@@ -164,16 +158,8 @@ export function CanvasInspector({
     setBusy(true);
     setError("");
     try {
-      const response = await fetch(
-        `/api/projects/${props.projectId}/chat/undo`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ changeId }),
-        },
-      );
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error);
+      if (!changeId) return;
+      await api.undo(changeId);
       setChangeId(undefined);
       setNotice("Model change undone.");
       props.onModelChanged();
@@ -243,34 +229,12 @@ export function CanvasInspector({
           <button
             onClick={async () => {
               try {
-                const ids = new Set(editor.getSelectedShapeIds());
-                for (const id of [...ids])
-                  editor.visitDescendants(id, (child) => {
-                    ids.add(child);
-                  });
-                // Semantic edges live on the page, outside their concepts' context container.
-                for (const edge of projectGraph(
-                  indexModel(props.model),
-                  props.workspace,
-                ).connections) {
-                  if (
-                    ids.has(modelShapeId(edge.source)) &&
-                    ids.has(modelShapeId(edge.target)) &&
-                    editor.getShape(modelShapeId(edge.id))
-                  )
-                    ids.add(modelShapeId(edge.id));
-                }
-                const result = await editor.toImage([...ids], {
-                  format: "png",
-                  background: true,
-                  padding: 24,
-                });
-                const url = URL.createObjectURL(result.blob),
-                  link = document.createElement("a");
-                link.href = url;
-                link.download = `${props.model.id}-selection.png`;
-                link.click();
-                setTimeout(() => URL.revokeObjectURL(url), 1000);
+                await exportCanvasSelection(
+                  editor,
+                  projectGraph(indexModel(props.model), props.workspace)
+                    .connections,
+                  props.model.id,
+                );
               } catch (e) {
                 setError((e as Error).message);
               }
@@ -344,7 +308,9 @@ export function CanvasInspector({
             Evidence{" "}
             <select
               value={evidence}
-              onChange={(e) => setEvidence(e.target.value)}
+              onChange={(e) =>
+                setEvidence(e.target.value as Annotation["evidence"] | "")
+              }
             >
               <option value="">Unqualified</option>
               <option value="observed">Observed behavior</option>

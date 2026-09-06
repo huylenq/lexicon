@@ -56,6 +56,22 @@ The original prototype's browser database is read once when the project has no c
 
 ## Validation and rollout
 
+The implementation has a few explicit boundaries:
+
+| Responsibility | Files |
+| --- | --- |
+| Canvas UI, selection, and model actions | `client/src/canvas/CanvasPane.tsx`, `CanvasInspector.tsx` |
+| Shape rendering, model projection, and stable reference IDs | `shapes.tsx`, `projection.ts`, `references.ts` |
+| React boot state and editor save lifecycle | `useProjectCanvas.ts`, `persistence.ts` |
+| Local API calls, portable files, and browser recovery | `api.ts`, `files.ts`, `recovery.ts` |
+| Shared document capture and reference migration | `document.ts` |
+| File format, limits, record schemas, and merge rules | `shared/canvas.ts`, `canvas-schema.ts`, `canvas-merge.ts` |
+| Project file storage and semantic command rules | `server/canvas.ts`, `server/canvas-command.ts` |
+
+Each editor owns one persistence controller and disposes it on unmount. A saved revision and its merge base must stay paired; a draft with no prior save has a null base and requires review if a project file appears elsewhere. Projection calls `ready()` after applying a snapshot so generated references are reconciled before autosave. Canvas model commands use Chat's existing revision checks, file writer, and undo history.
+
+Keep the `lexicon-canvas-prototype.db` development registry filename and original browser database keys compatible with existing local data. The workshop launcher now uses `LEXICON_CANVAS_WORKSHOP`; the server still accepts its earlier `LEXICON_CANVAS_PROTOTYPE` name.
+
 ```sh
 bun run test
 bun run typecheck
@@ -64,9 +80,9 @@ PLAYWRIGHT_CHANNEL=chrome bun run test:browser
 PLAYWRIGHT_CHANNEL=chrome bun run test:canvas
 ```
 
-Canvas browser checks run on isolated ports 5395/5396 and temporary projects. The original reader checks use port 5384 and an isolated registry. See `tests/canvas-storage.test.ts` for file, schema, concurrency, and media contracts, and `tests/canvas.prototype.ts` for browser interactions and recovery. API checks cover explicit canvas-to-model commands and exact undo.
+Canvas browser checks run on isolated ports 5395/5396 and temporary projects. The original reader checks use port 5384 and an isolated registry. See `tests/canvas-storage.test.ts` for file, schema, concurrency, and media contracts, and `tests/canvas.e2e.ts` for browser interactions and recovery. API checks cover explicit canvas-to-model commands and exact undo.
 
-Validation on 2026-09-06: 52 unit/API tests, 31 reader browser tests, and 16 canvas browser tests passed, as did typecheck and the client build. The 300-concept fixture (20 contexts, 280 relationships) loaded in about 1.4 seconds on the development machine. All 90 code links in the isolated Django Oscar fixture resolved, and live browser navigation opened its linked Python source. The final selection export was visually checked. A licensed production canvas runtime has not been validated.
+Validation on 2026-09-06: 52 unit/API tests, 31 reader browser tests, and 17 canvas browser tests passed, as did typecheck and the client build. The canvas checks include a regression for a never-saved draft encountering a project file created by another browser. The 300-concept fixture (20 contexts, 280 relationships) loaded in about 1.5 seconds on the development machine. All 90 code links in the isolated Django Oscar fixture resolved, and live browser navigation opened its linked Python source. The final selection export was visually checked. A licensed production canvas runtime has not been validated.
 
 The SDK and its schema, validators, and asset package are pinned to tldraw 5.4.0. Update them together, add schema migrations before changing custom props, and rerun storage and browser checks against existing files. Fonts, icons, and translations are served locally. The canvas and ELK remain separate lazy bundles; their size is a rollout cost to measure on target machines.
 

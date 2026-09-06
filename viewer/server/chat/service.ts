@@ -2,7 +2,9 @@ import { realpath } from "node:fs/promises";
 import { readFileSync } from "node:fs";
 import { db } from "../db";
 import { serializeModel } from "../model";
-import type { Model, Annotation } from "../../shared/model";
+import { readCanvasCommand, canvasModelEdit } from "../canvas-command";
+import type { CanvasModelChange } from "../../shared/canvas";
+import type { Model } from "../../shared/model";
 import {
   providers,
   type Provider,
@@ -391,19 +393,20 @@ export class ChatService {
   }
   async canvasCommand(
     project: ChatProject,
-    input: { revision?: unknown; command?: unknown },
-  ) {
+    input: unknown,
+  ): Promise<CanvasModelChange> {
     if (project.example)
       throw new Error(
         "The built-in example is read-only. Add your own project to refine its model.",
       );
+    const { revision, command } = readCanvasCommand(input);
     const root = await realpath(project.artifactRoot);
     if (this.active.has(project.id) || this.locks.has(root))
       throw new Error("Wait for the current model edit to finish.");
     this.locks.add(root);
     try {
       const before = await readXml(root);
-      if (fingerprint(before) !== input.revision)
+      if (fingerprint(before) !== revision)
         throw new Error(
           "The model changed. Refresh and review the command before applying it.",
         );
@@ -412,46 +415,7 @@ export class ChatService {
         throw new Error(
           "Convert the earlier model format before editing it from the canvas.",
         );
-      const command = input.command as {
-        type: string;
-        targetId: string;
-        contextId?: string;
-        annotation?: Annotation;
-      };
-      if (!command || typeof command !== "object")
-        throw new Error("Choose a model command.");
-      const item = model.items.find((item) => item.id === command.targetId);
-      if (!item) throw new Error("The selected model object is unavailable.");
-      let updated = item,
-        text: string;
-      if (command.type === "annotate") {
-        const a = command.annotation;
-        if (
-          !a ||
-          typeof a.text !== "string" ||
-          !a.text.trim() ||
-          a.text.length > 20_000 ||
-          typeof a.kind !== "string" ||
-          !a.kind.trim() ||
-          a.kind.length > 80
-        )
-          throw new Error(
-            "An annotation needs a kind and text (up to 20,000 characters).",
-          );
-        updated = { ...item, annotations: [...item.annotations, a] };
-        text = `Added a ${a.kind} annotation to ${item.name} from the canvas: ${a.text}`;
-      } else if (command.type === "move-concept") {
-        const context = model.items.find(
-          (item) => item.id === command.contextId && item.type === "context",
-        );
-        if (item.type !== "concept" || !context || context.id === item.context)
-          throw new Error(
-            "Choose a different owning context for this concept.",
-          );
-        updated = { ...item, context: context.id };
-        text = `Moved ${item.name} to ${context.name} from the canvas.`;
-      } else throw new Error("Unknown canvas model command.");
-      const next = applyPatch(model, { upsert: [updated] });
+      const { next, item, text } = canvasModelEdit(model, command);
       await validateChangedLinks(model, next, project.root);
       const after = serializeModel(next),
         id = crypto.randomUUID();

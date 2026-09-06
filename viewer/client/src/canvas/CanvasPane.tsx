@@ -8,9 +8,7 @@ import {
   createShapeId,
   getSnapshot,
   loadSnapshot,
-  parseTldrawJsonFile,
   react,
-  serializeTldrawJson,
   toRichText,
   useEditor,
   useValue,
@@ -21,7 +19,6 @@ import {
 } from "tldraw";
 import { getAssetUrlsByImport } from "@tldraw/assets/imports.vite";
 import type { CanvasState } from "../../../shared/canvas";
-import { canvasSchema } from "../../../shared/canvas-schema";
 import type { GraphPaneProps } from "../GraphPane";
 import {
   indexModel,
@@ -35,10 +32,11 @@ import {
   LexiconConnectionUtil,
   LexiconNoteBindingUtil,
   LexiconObjectUtil,
-  isModelShape,
 } from "./shapes";
-import { createProjection, modelShapeId } from "./projection";
-import { captureCanvas, importMedia, migrateModelReferences } from "./document";
+import { createProjection } from "./projection";
+import { isModelShape, modelShapeId } from "./references";
+import { canvasApi } from "./api";
+import { exportCanvasFile, readCanvasFile } from "./files";
 import { useProjectCanvas } from "./useProjectCanvas";
 import { CanvasInspector, noteText } from "./CanvasInspector";
 import "tldraw/tldraw.css";
@@ -95,6 +93,7 @@ export default function CanvasPane(props: GraphPaneProps) {
   const [focus, setFocus] = useState<GraphSelection>();
   const [restored, setRestored] = useState<TLEditorSnapshot>();
   const [review, setReview] = useState<CanvasState>();
+  const api = useMemo(() => canvasApi(props.projectId), [props.projectId]);
   const storage = useProjectCanvas(props.projectId, model, projectKey, () =>
     setRevision((n) => n + 1),
   );
@@ -419,34 +418,7 @@ export default function CanvasPane(props: GraphPaneProps) {
   const exportCanvas = async () => {
     if (!editor) return;
     try {
-      const portable = JSON.parse(await serializeTldrawJson(editor));
-      const data = captureCanvas(
-        editor,
-        storage.boot!.remote.documentId,
-        model.id,
-      );
-      // Portable exports retain visible route geometry and embed media for another machine.
-      data.snapshot.store = Object.fromEntries(
-        portable.records
-          .filter(
-            (record: TLRecord) =>
-              editor.store.schema.types[record.typeName].scope === "document",
-          )
-          .map((record: TLRecord) => [record.id, record]),
-      );
-      const blob = new Blob([JSON.stringify(data, null, 2)], {
-        type: "application/json",
-      });
-      if (blob.size > 50 * 1024 * 1024)
-        throw new Error(
-          "This portable canvas exceeds 50 MB. Copy canvas.json and lexicon/assets together to transfer the project.",
-        );
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `${model.id}.lexicon-canvas.json`;
-      link.click();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      await exportCanvasFile(editor, storage.boot!.remote.documentId, model.id);
     } catch (e) {
       setError((e as Error).message);
     }
@@ -455,62 +427,14 @@ export default function CanvasPane(props: GraphPaneProps) {
     if (!file || !editor) return;
     setImporting(true);
     try {
-      if (file.size > 50 * 1024 * 1024)
-        throw new Error("Canvas files must be smaller than 50 MB.");
-      const data = JSON.parse(await file.text());
-      if (
-        data.format !== "lexicon-canvas" ||
-        ![1, 2].includes(data.version) ||
-        data.modelId !== model.id
-      )
-        throw new Error("Choose a canvas exported from this project.");
-      let snapshot;
-      if (data.version === 1) {
-        const result = parseTldrawJsonFile({
-          schema: editor.store.schema,
-          json: JSON.stringify(data.canvas),
-        });
-        if (!result.ok)
-          throw new Error(
-            "This canvas could not be read. Your current canvas is unchanged.",
-          );
-        snapshot = result.value.getStoreSnapshot();
-      } else {
-        const result = canvasSchema.migrateStoreSnapshot(data.snapshot);
-        if (result.type !== "success")
-          throw new Error(
-            "This canvas needs a different Lexicon version. Your current canvas is unchanged.",
-          );
-        snapshot = { store: result.value, schema: canvasSchema.serialize() };
-      }
-      snapshot.store = Object.fromEntries(
-        Object.entries(snapshot.store).filter(
-          ([, record]) =>
-            canvasSchema.types[record.typeName].scope === "document",
-        ),
-      );
-      snapshot = migrateModelReferences(
-        await importMedia(snapshot, storage.assets),
+      const validated = await readCanvasFile(file, {
+        editor,
+        modelId: model.id,
+        documentId: storage.boot!.remote.documentId,
+        api,
+        assets: storage.assets,
         index,
-      );
-      // Reuse server validation before replacing the working editor.
-      const checked = await fetch(
-        `/api/projects/${props.projectId}/canvas/validate`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            format: "lexicon-canvas",
-            version: 2,
-            modelId: model.id,
-            id: storage.boot!.remote.documentId,
-            snapshot,
-          }),
-        },
-      );
-      const validated = await checked.json();
-      if (!checked.ok)
-        throw new Error(validated.error || "This canvas could not be read.");
+      });
       setRestored(getSnapshot(editor.store));
       projection.current?.write(() =>
         loadSnapshot(editor.store, { document: validated.snapshot }),
