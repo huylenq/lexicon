@@ -288,6 +288,16 @@ export class LexiconConnectionUtil extends ShapeUtil<ConnectionShape> {
   override canBeLaidOut() {
     return false;
   }
+  override hideSelectionBoundsBg() {
+    return true;
+  }
+  override hideSelectionBoundsFg() {
+    // The connection's indicator follows its route; a bounding box obscures the model.
+    return true;
+  }
+  override hideResizeHandles() {
+    return true;
+  }
   override hideRotateHandle() {
     return true;
   }
@@ -323,7 +333,7 @@ export class LexiconConnectionUtil extends ShapeUtil<ConnectionShape> {
       before = p.points.at(-2) || end;
     const angle =
       (Math.atan2(end.y - before.y, end.x - before.x) * 180) / Math.PI;
-    const ink = ctx.isDarkMode ? "#d9d7f6" : "#64568a",
+    const ink = ctx.isDarkMode ? "#566573" : "#7a8997",
       paper = ctx.isDarkMode ? "#252b39" : "#fafbff";
     return (
       <g>
@@ -348,7 +358,7 @@ export class LexiconConnectionUtil extends ShapeUtil<ConnectionShape> {
           x={p.labelX}
           y={p.labelY + 4}
           textAnchor="middle"
-          fill={ink}
+          fill={ctx.isDarkMode ? "#edeef4" : "#242b3d"}
           fontFamily="sans-serif"
           fontSize={11}
         >

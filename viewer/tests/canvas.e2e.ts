@@ -394,6 +394,14 @@ test("parallel and self relationships remain distinct, and canvas undo cannot re
   await open(page);
   const snapshot = (await exportDocument(page)).data;
   const routes = records(snapshot).filter((r) => r.type === "lexicon-connection");
+  for (const route of routes.filter((r) => r.props.graphId.startsWith("relation:"))) {
+    expect(route.props.path).not.toMatch(/[QC]/);
+    for (let i = 1; i < route.props.points.length; i++) {
+      const a = route.props.points[i - 1], b = route.props.points[i];
+      expect((a.x === b.x) !== (a.y === b.y)).toBe(true);
+    }
+  }
+  await expect(page.locator(".canvas-connection:not(.canvas-mapping)").first()).toHaveCSS("color", "rgb(122, 137, 151)");
   expect(routes.find((r) => r.props.graphId === "relation:contains").props.path)
     .not.toBe(routes.find((r) => r.props.graphId === "relation:validates").props.path);
   expect(routes.find((r) => r.props.graphId === "relation:rechecks").props.points.every((p: any) => Number.isFinite(p.x) && Number.isFinite(p.y))).toBeTruthy();

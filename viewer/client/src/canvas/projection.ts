@@ -17,6 +17,7 @@ import type {
   ObjectShape,
 } from "../../../shared/canvas-schema";
 import { isModelShape, isPrimary, modelShapeId } from "./references";
+import { relationshipRoute } from "./routes";
 
 // Keep a gutter around concepts and leave the context's 44px heading clear.
 function contextPosition(
@@ -30,14 +31,31 @@ function contextPosition(
   };
 }
 
-/** Reuse the graph's routes, with a sampled hit-test path for tldraw. */
+/** Use exact orthogonal hit geometry for relationships; code mappings retain curves. */
 export function connectionGeometry(
   source: Box,
   target: Box,
   lane: number,
   self: boolean,
   label: string,
+  orthogonal = true,
 ) {
+  if (orthogonal) {
+    const route = relationshipRoute(source, target, lane, self);
+    const x = Math.min(...route.points.map((p) => p.x));
+    const y = Math.min(...route.points.map((p) => p.y));
+    const points = route.points.map((p) => ({ x: p.x - x, y: p.y - y }));
+    return {
+      x, y,
+      props: {
+        path: points.map((p, i) => `${i ? "L" : "M"} ${p.x} ${p.y}`).join(" "),
+        points,
+        labelX: route.x - x,
+        labelY: route.y - y,
+        labelWidth: Math.min(320, Math.max(90, label.length * 7 + 24)),
+      },
+    };
+  }
   const route = connectionPath(source, target, lane, self);
   const numbers = route.path
     .match(/[-+]?\d*\.?\d+(?:e[-+]?\d+)?/gi)!
@@ -143,6 +161,7 @@ export function createProjection(
         edge.source < edge.target ? lane : -lane,
         edge.source === edge.target,
         edge.label,
+        edge.kind === "relationship",
       );
       const id = modelShapeId(edge.id);
       const shape = editor.getShape<ConnectionShape>(id);

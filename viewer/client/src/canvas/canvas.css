@@ -22,7 +22,10 @@
 .canvas-object small { position: absolute; bottom: 8px; left: 12px; right: 12px; font-size: 9px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
 .canvas-object .canvas-collapse { font-size: 12px; color: var(--muted); padding: 3px 6px; border-radius: 4px; background: var(--paper); }
 .canvas-object[data-missing] { border-style: dashed; color: var(--muted); }
-.canvas-connection { color: var(--type-relationship); overflow: visible; }
+:root { --canvas-relationship: #7a8997; }
+[data-theme="dark"] { --canvas-relationship: #566573; }
+.canvas-connection { color: var(--canvas-relationship); overflow: visible; }
+.graph-legend:has(.canvas-save-indicator) i:not(.code) { border-color: var(--canvas-relationship); }
 .canvas-connection.canvas-mapping { color: var(--type-code); }
 .canvas-connection-label { pointer-events: auto; display: block; width: 100%; height: 28px; border: 1px solid var(--line); border-radius: 5px; padding: 3px 6px; color: var(--ink); background: var(--paper); font: 11px system-ui, sans-serif; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
 .canvas-connection-label:hover { color: var(--accent); border-color: var(--accent); }
