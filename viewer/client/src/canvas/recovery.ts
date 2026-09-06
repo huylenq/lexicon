@@ -14,12 +14,16 @@ export interface Recovery {
 }
 let connection: Promise<IDBDatabase> | undefined;
 function database() {
-  return connection ||= new Promise<IDBDatabase>((resolve, reject) => {
+  return (connection ||= new Promise<IDBDatabase>((resolve, reject) => {
     const request = indexedDB.open("lexicon-canvas-recovery", 1);
-    request.onupgradeneeded = () => request.result.createObjectStore("drafts", { keyPath: "key" });
+    request.onupgradeneeded = () =>
+      request.result.createObjectStore("drafts", { keyPath: "key" });
     request.onsuccess = () => resolve(request.result);
-    request.onerror = () => { connection = undefined; reject(request.error); };
-  });
+    request.onerror = () => {
+      connection = undefined;
+      reject(request.error);
+    };
+  }));
 }
 let documentTabId: string | undefined;
 export function canvasTabId() {
@@ -27,10 +31,17 @@ export function canvasTabId() {
   const key = "lexicon.canvas.tab";
   try {
     const existing = sessionStorage.getItem(key);
-    const navigation = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
-    if (existing && navigation?.type === "reload") return documentTabId = existing;
-    const id = crypto.randomUUID(); sessionStorage.setItem(key, id); return documentTabId = id;
-  } catch { return documentTabId = crypto.randomUUID(); }
+    const navigation = performance.getEntriesByType("navigation")[0] as
+      | PerformanceNavigationTiming
+      | undefined;
+    if (existing && navigation?.type === "reload")
+      return (documentTabId = existing);
+    const id = crypto.randomUUID();
+    sessionStorage.setItem(key, id);
+    return (documentTabId = id);
+  } catch {
+    return (documentTabId = crypto.randomUUID());
+  }
 }
 export async function saveRecovery(record: Recovery) {
   const db = await database();
@@ -38,14 +49,25 @@ export async function saveRecovery(record: Recovery) {
     const transaction = db.transaction("drafts", "readwrite");
     transaction.objectStore("drafts").put(record);
     transaction.oncomplete = () => resolve();
-    transaction.onerror = transaction.onabort = () => reject(transaction.error || new Error("Local canvas recovery is unavailable."));
+    transaction.onerror = transaction.onabort = () =>
+      reject(
+        transaction.error || new Error("Local canvas recovery is unavailable."),
+      );
   });
 }
 export async function listRecovery(scope: string): Promise<Recovery[]> {
   const db = await database();
   return new Promise((resolve, reject) => {
-    const request = db.transaction("drafts", "readonly").objectStore("drafts").getAll();
-    request.onsuccess = () => resolve((request.result as Recovery[]).filter((record) => record.scope === scope).sort((a, b) => b.updatedAt - a.updatedAt));
+    const request = db
+      .transaction("drafts", "readonly")
+      .objectStore("drafts")
+      .getAll();
+    request.onsuccess = () =>
+      resolve(
+        (request.result as Recovery[])
+          .filter((record) => record.scope === scope)
+          .sort((a, b) => b.updatedAt - a.updatedAt),
+      );
     request.onerror = () => reject(request.error);
   });
 }

@@ -20,4 +20,5 @@ export interface CanvasState {
 export const CANVAS_VERSION = 2;
 export const MAX_CANVAS_BYTES = 20 * 1024 * 1024;
 export const MAX_ASSET_BYTES = 25 * 1024 * 1024;
-export const canvasAssetName = (src: string | null) => src?.match(/^asset:([a-f0-9]{64}\.(?:png|jpg|gif|webp|avif|mp4|webm))$/)?.[1];
+export const canvasAssetName = (src: string | null) =>
+  src?.match(/^asset:([a-f0-9]{64}\.(?:png|jpg|gif|webp|avif|mp4|webm))$/)?.[1];

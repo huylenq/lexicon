@@ -135,11 +135,26 @@ export class ChatService {
       throw new Error("Enter a question of at most 20,000 characters.");
     if (!providers.includes(input.provider as Provider))
       throw new Error("Choose Codex, Grok, or Claude.");
-    if (input.model !== undefined &&
-        (typeof input.model !== "string" || !/^[a-zA-Z0-9][a-zA-Z0-9._:/@+\[\]-]{0,199}$/.test(input.model)))
+    if (
+      input.model !== undefined &&
+      (typeof input.model !== "string" ||
+        !/^[a-zA-Z0-9][a-zA-Z0-9._:/@+\[\]-]{0,199}$/.test(input.model))
+    )
       throw new Error("Enter a valid model ID of at most 200 characters.");
-    if (input.effort !== undefined &&
-        (typeof input.effort !== "string" || !["none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"].includes(input.effort)))
+    if (
+      input.effort !== undefined &&
+      (typeof input.effort !== "string" ||
+        ![
+          "none",
+          "minimal",
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max",
+          "ultra",
+        ].includes(input.effort))
+    )
       throw new Error("Choose a supported reasoning effort.");
     if (input.fast !== undefined && typeof input.fast !== "boolean")
       throw new Error("Fast mode must be on or off.");
@@ -251,7 +266,10 @@ export class ChatService {
         model: message.model,
         effort: message.effort,
         fast: message.fast,
-        onTool: (tool) => { updateTool(reply, tool); update(); },
+        onTool: (tool) => {
+          updateTool(reply, tool);
+          update();
+        },
         signal: controller.signal,
         onSession: (id) => {
           state.sessions[message.provider] = id;
@@ -371,44 +389,95 @@ export class ChatService {
     state.pending = undefined;
     this.publish(id);
   }
-  async canvasCommand(project: ChatProject, input: { revision?: unknown; command?: unknown }) {
-    if (project.example) throw new Error("The built-in example is read-only. Add your own project to refine its model.");
+  async canvasCommand(
+    project: ChatProject,
+    input: { revision?: unknown; command?: unknown },
+  ) {
+    if (project.example)
+      throw new Error(
+        "The built-in example is read-only. Add your own project to refine its model.",
+      );
     const root = await realpath(project.artifactRoot);
-    if (this.active.has(project.id) || this.locks.has(root)) throw new Error("Wait for the current model edit to finish.");
+    if (this.active.has(project.id) || this.locks.has(root))
+      throw new Error("Wait for the current model edit to finish.");
     this.locks.add(root);
     try {
       const before = await readXml(root);
-      if (fingerprint(before) !== input.revision) throw new Error("The model changed. Refresh and review the command before applying it.");
+      if (fingerprint(before) !== input.revision)
+        throw new Error(
+          "The model changed. Refresh and review the command before applying it.",
+        );
       const model = await modelOrEmpty(root);
-      if (model.source !== "native") throw new Error("Convert the earlier model format before editing it from the canvas.");
-      const command = input.command as { type: string; targetId: string; contextId?: string; annotation?: Annotation };
-      if (!command || typeof command !== "object") throw new Error("Choose a model command.");
+      if (model.source !== "native")
+        throw new Error(
+          "Convert the earlier model format before editing it from the canvas.",
+        );
+      const command = input.command as {
+        type: string;
+        targetId: string;
+        contextId?: string;
+        annotation?: Annotation;
+      };
+      if (!command || typeof command !== "object")
+        throw new Error("Choose a model command.");
       const item = model.items.find((item) => item.id === command.targetId);
       if (!item) throw new Error("The selected model object is unavailable.");
-      let updated = item, text: string;
+      let updated = item,
+        text: string;
       if (command.type === "annotate") {
         const a = command.annotation;
-        if (!a || typeof a.text !== "string" || !a.text.trim() || a.text.length > 20_000 || typeof a.kind !== "string" || !a.kind.trim() || a.kind.length > 80)
-          throw new Error("An annotation needs a kind and text (up to 20,000 characters).");
+        if (
+          !a ||
+          typeof a.text !== "string" ||
+          !a.text.trim() ||
+          a.text.length > 20_000 ||
+          typeof a.kind !== "string" ||
+          !a.kind.trim() ||
+          a.kind.length > 80
+        )
+          throw new Error(
+            "An annotation needs a kind and text (up to 20,000 characters).",
+          );
         updated = { ...item, annotations: [...item.annotations, a] };
         text = `Added a ${a.kind} annotation to ${item.name} from the canvas: ${a.text}`;
       } else if (command.type === "move-concept") {
-        const context = model.items.find((item) => item.id === command.contextId && item.type === "context");
-        if (item.type !== "concept" || !context || context.id === item.context) throw new Error("Choose a different owning context for this concept.");
+        const context = model.items.find(
+          (item) => item.id === command.contextId && item.type === "context",
+        );
+        if (item.type !== "concept" || !context || context.id === item.context)
+          throw new Error(
+            "Choose a different owning context for this concept.",
+          );
         updated = { ...item, context: context.id };
         text = `Moved ${item.name} to ${context.name} from the canvas.`;
       } else throw new Error("Unknown canvas model command.");
       const next = applyPatch(model, { upsert: [updated] });
       await validateChangedLinks(model, next, project.root);
-      const after = serializeModel(next), id = crypto.randomUUID();
+      const after = serializeModel(next),
+        id = crypto.randomUUID();
       await saveXml(root, before, after);
       const state = this.stored(project.id);
-      state.messages.push({ id, role: "user", provider: "codex", text, status: "complete", createdAt: new Date().toISOString(),
-        context: { id: item.id, name: item.name, type: item.type, codeLinks: item.codeLinks }, change: changes(model, next) });
+      state.messages.push({
+        id,
+        role: "user",
+        provider: "codex",
+        text,
+        status: "complete",
+        createdAt: new Date().toISOString(),
+        context: {
+          id: item.id,
+          name: item.name,
+          type: item.type,
+          codeLinks: item.codeLinks,
+        },
+        change: changes(model, next),
+      });
       state.undo.push({ messageId: id, root, before, after });
       this.publish(project.id);
       return { changeId: id, revision: fingerprint(after) };
-    } finally { this.locks.delete(root); }
+    } finally {
+      this.locks.delete(root);
+    }
   }
   async undo(project: ChatProject, expectedChange?: string) {
     const root = await realpath(project.artifactRoot),
@@ -417,7 +486,10 @@ export class ChatService {
       throw new Error("Wait for the current reply before undoing.");
     const entry = state.undo.at(-1);
     if (!entry) throw new Error("There is no model change to undo.");
-    if (expectedChange && entry.messageId !== expectedChange) throw new Error("A newer model edit exists. Review it in Chat before undoing.");
+    if (expectedChange && entry.messageId !== expectedChange)
+      throw new Error(
+        "A newer model edit exists. Review it in Chat before undoing.",
+      );
     if (entry.root !== root || project.example)
       throw new Error(
         "The artifact root has changed. Review the model in Git.",
@@ -440,15 +512,13 @@ export function buildPrompt(
   model: Model,
   messages: ChatMessage[],
 ) {
-  const history = messages
-    .slice(-40)
-    .map((m) => ({
-      role: m.role,
-      text: m.text,
-      context: m.context,
-      change: m.change,
-      error: m.error,
-    }));
+  const history = messages.slice(-40).map((m) => ({
+    role: m.role,
+    text: m.text,
+    context: m.context,
+    change: m.change,
+    error: m.error,
+  }));
   return `You are the coding agent inside Lexicon, a progressive shared domain model of a software project.
 Explain the implementation and refine the MODEL ONLY. Human taste governs names, boundaries, and emphasis. Surface concrete conflicts with code evidence. Concepts need not match classes or files.
 Use spaced concept names with the first character of every word capitalized, such as Order Line and Purchase Information, preserving proper nouns and acronyms. Relationship names use natural verb phrases, such as supplies results to. Keep Context names as natural phrases, such as Order Management. Explicit user terminology takes precedence. Preserve existing names unless renaming is requested. This is an authoring preference, not a validation requirement; it applies only to display names. Keep stable IDs, project names, exact code-link files and symbols, descriptive labels, and prose unchanged.
