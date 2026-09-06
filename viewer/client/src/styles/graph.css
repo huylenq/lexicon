@@ -186,6 +186,19 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+.graph-vertex.concept {
+  display: flex;
+  align-items: center;
+}
+.graph-vertex.concept strong {
+  width: 100%;
+  min-width: 0;
+  margin-top: 0;
+}
+.graph-vertex.concept .object-name {
+  display: flex;
+  justify-content: center;
+}
 .graph-kind {
   display: block;
   color: var(--muted);
