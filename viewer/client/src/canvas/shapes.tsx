@@ -8,6 +8,8 @@ import {
   Rectangle2d,
   ShapeUtil,
   Vec,
+  useEditor,
+  useValue,
   type BindingOnShapeChangeOptions,
   type TLShapePartial,
   type SvgExportContext,
@@ -39,6 +41,12 @@ export const CanvasModel = createContext({
 
 function ObjectCard({ shape }: { shape: ObjectShape }) {
   const model = useContext(CanvasModel);
+  const editor = useEditor();
+  const selected = useValue(
+    "Selected model reference",
+    () => editor.getSelectedShapeIds().includes(shape.id),
+    [editor, shape.id],
+  );
   const vertex = model.vertices.get(shape.props.graphId);
   const missing = !vertex;
   const primary = isPrimary(shape);
@@ -47,6 +55,7 @@ function ObjectCard({ shape }: { shape: ObjectShape }) {
       className={`canvas-object ${shape.props.group ? "canvas-group" : "canvas-card"} ${!model.matches(shape.props.graphId) ? "canvas-dimmed" : ""}`}
       data-model-id={shape.props.graphId}
       data-missing={missing || undefined}
+      data-selected={selected || undefined}
     >
       <div className="canvas-object-heading">
         <button
@@ -118,6 +127,10 @@ export class LexiconObjectUtil extends BaseBoxShapeUtil<ObjectShape> {
     return false;
   }
   override hideRotateHandle() {
+    return true;
+  }
+  override hideSelectionBoundsFg() {
+    // The card paints its rounded border; context resize handles remain native.
     return true;
   }
   override canRemoveChildrenOfType() {
@@ -196,8 +209,10 @@ export class LexiconObjectUtil extends BaseBoxShapeUtil<ObjectShape> {
     return <ObjectCard shape={shape} />;
   }
   getIndicatorPath(shape: ObjectShape) {
+    // Keep hover feedback without drawing a second outline over selected cards.
+    if (this.editor.getSelectedShapeIds().includes(shape.id)) return;
     const path = new Path2D();
-    path.rect(0, 0, shape.props.w, shape.props.h);
+    path.roundRect(0, 0, shape.props.w, shape.props.h, 7);
     return path;
   }
 }

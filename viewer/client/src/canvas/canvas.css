@@ -8,7 +8,7 @@
 .canvas-file-menu > div { position: absolute; top: 100%; right: 0; min-width: 160px; padding: 5px; display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--line); box-shadow: var(--shadow); border-radius: 6px; }
 .canvas-file-menu button { text-align: left; padding: 8px; border: 0; background: transparent; color: var(--ink); }
 .canvas-stage { position: relative; flex: 1; min-height: 0; isolation: isolate; }
-.canvas-stage > .tl-container { position: absolute; inset: 0; }
+.canvas-stage > .tl-container { position: absolute; inset: 0; --tl-color-selected: var(--accent); --tl-color-selected-contrast: var(--paper); }
 .canvas-stage .tl-background { background: var(--paper); }
 .canvas-stage .tlui-layout { font-family: var(--tl-font-sans); }
 .canvas-loading { position: absolute; top: 60px; left: 50%; transform: translateX(-50%); padding: 9px 12px; background: var(--panel); box-shadow: var(--shadow); border-radius: 6px; z-index: 500; font-size: 12px; pointer-events: none; }
