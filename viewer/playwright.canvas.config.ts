@@ -15,8 +15,8 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   webServer: {
-    command: "bun run dev:canvas",
-    env: { LEXICON_VIEWER_API_PORT: "5396", LEXICON_CANVAS_PORT: "5395", LEXICON_VIEWER_DB: ":memory:" },
+    command: "bun run build:client && bun run start",
+    env: { LEXICON_VIEWER_API_PORT: "5395", LEXICON_VIEWER_DB: ":memory:" },
     url: "http://127.0.0.1:5395/api/health",
     reuseExistingServer: false,
     timeout: 60_000,

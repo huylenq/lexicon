@@ -1,12 +1,10 @@
-.canvas-toggle { padding: 5px 9px; border: 1px solid var(--line); border-radius: 5px; font-size: 12px; white-space: nowrap; }
-.canvas-toggle[aria-pressed="true"] { color: var(--accent); background: var(--accent-soft); border-color: var(--accent); }
-.canvas-toolbar { flex-wrap: wrap; padding: 8px 12px; gap: 8px; position: relative; z-index: 5; }
-.canvas-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 3px; }
-.canvas-actions > button, .canvas-file-menu > summary { padding: 5px 7px; font-size: 11px; border-radius: 4px; white-space: nowrap; }
-.canvas-actions button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
-.canvas-actions .canvas-add-note { border: 1px solid var(--line); background: var(--soft); }
+.canvas-toolbar { position: relative; z-index: 5; }
+.canvas-toolbar .graph-toolbar-actions { flex-shrink: 0; }
+.canvas-toolbar button[aria-pressed="true"], .canvas-toolbar button[aria-expanded="true"] { background: var(--accent-soft); color: var(--accent); }
+.canvas-inspector-toggles { display: contents; }
 .canvas-file-menu { position: relative; font-size: 12px; }
 .canvas-file-menu > summary { cursor: pointer; list-style: none; }
+.canvas-file-menu > summary::-webkit-details-marker { display: none; }
 .canvas-file-menu > div { position: absolute; top: 100%; right: 0; min-width: 160px; padding: 5px; display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--line); box-shadow: var(--shadow); border-radius: 6px; }
 .canvas-file-menu button { text-align: left; padding: 8px; border: 0; background: transparent; color: var(--ink); }
 .canvas-stage { position: relative; flex: 1; min-height: 0; isolation: isolate; }
@@ -31,18 +29,21 @@
 .canvas-dimmed { opacity: 0.18; }
 .canvas-error { color: var(--ink); background: var(--soft); border-bottom: 1px solid var(--line); padding: 10px 12px; font-size: 12px; }
 .canvas-error button { margin-left: 8px; }
-.canvas-status { display: flex; align-items: center; gap: 14px; font-size: 10px; color: var(--muted); }
-@media (max-width: 1000px) { .canvas-status > span:first-child { display: none; } .canvas-toolbar { padding: 6px 8px; } }
-@container (max-width: 500px) { .canvas-toolbar .graph-scope { display: none; } .canvas-actions { gap: 1px; } }
+.canvas-save-indicator { flex-shrink: 0; color: var(--muted); font-size: 10px; }
+.canvas-save-indicator[data-save-status="local"], .canvas-save-indicator[data-save-status="conflict"], .canvas-save-indicator[data-save-status="error"] { color: var(--accent); }
+@container (max-width: 420px) { .canvas-toolbar { padding-inline: 8px; gap: 4px; } .canvas-toolbar .graph-scope { display: none; } .canvas-toolbar .graph-toolbar-actions { gap: 1px; } }
+@container (max-width: 350px) { .canvas-toolbar .graph-toolbar-heading { display: none; } .canvas-toolbar .graph-toolbar-actions { width: 100%; justify-content: space-between; } }
+.workspace-status-bar .graph-legend > .canvas-save-indicator { display: inline; }
+
 
 .canvas-save-state { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 11px; padding: 5px 12px; border-bottom: 1px solid var(--line); color: var(--muted); }
 .canvas-save-state > span:first-child { color: var(--ink); white-space: nowrap; }
-.canvas-save-state[data-save-status="conflict"], .canvas-save-state[data-save-status="local"] { background: var(--soft); }
+.canvas-save-state[data-attention-status="conflict"], .canvas-save-state[data-attention-status="local"] { background: var(--soft); }
 .canvas-save-state button, .canvas-review button { padding: 4px 8px; background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 4px; font: inherit; }
 .canvas-review { padding: 12px; border-bottom: 1px solid var(--line); max-height: 35vh; overflow: auto; font-size: 12px; }
 .canvas-review button { margin: 4px; }
 
-.canvas-inspector { position: relative; z-index: 4; font-size: 11px; background: var(--paper); }
+.canvas-inspector { position: absolute; top: 8px; right: 8px; z-index: 500; width: min(420px, calc(100% - 16px)); max-height: calc(100% - 24px); overflow: auto; font-size: 11px; background: var(--panel); border: 1px solid var(--line); border-radius: 7px; box-shadow: var(--shadow); }
 .canvas-context-tools { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 4px 12px; border-bottom: 1px solid var(--line); }
 .canvas-inspector button, .canvas-inspector input, .canvas-inspector select { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 4px 7px; }
 .canvas-inspector label { display: inline-flex; align-items: center; gap: 5px; }
@@ -51,7 +52,7 @@
 .canvas-command { padding: 12px; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; border-bottom: 1px solid var(--line); background: var(--soft); }
 .canvas-command strong, .canvas-command p { width: 100%; margin: 0; }
 .canvas-command p { max-height: 80px; overflow: auto; white-space: pre-wrap; }
-.canvas-note-list { position: absolute; top: 100%; left: 8px; width: min(330px, calc(100% - 16px)); max-height: 50vh; overflow: auto; padding: 10px; background: var(--panel); border: 1px solid var(--line); box-shadow: var(--shadow); border-radius: 6px; }
+.canvas-note-list { padding: 10px; }
 .canvas-note-list label, .canvas-note-list input { width: 100%; }
 .canvas-note-list > button { display: flex; flex-direction: column; align-items: start; width: 100%; text-align: left; gap: 4px; padding: 8px; margin-top: 5px; }
 .canvas-note-list > button span { white-space: pre-wrap; max-height: 80px; overflow: hidden; }

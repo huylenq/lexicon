@@ -12,7 +12,7 @@ test("Browse and Graph share one persistent, independently resizable Code worksp
 }) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
-  await page.goto("/p/dentalml");
+  await page.goto("/p/dentalml?canvas=graph");
   await toggle(page).click();
   await expect(codePane(page)).toContainText("Explore the implementation");
   await browse(page, "Selected tooth");
@@ -87,7 +87,7 @@ test("Browse and Graph share one persistent, independently resizable Code worksp
 test("code nodes preserve the reader; mapping edges open explanation and the same Code pane", async ({
   page,
 }) => {
-  await page.goto("/p/dentalml?item=selected-tooth");
+  await page.goto("/p/dentalml?item=selected-tooth&canvas=graph");
   await expect(page.locator(".graph-vertex.concept")).toHaveCount(8);
   await page.locator('[data-id="item:selected-tooth"]').click({ button: "right" });
   await page.getByRole("menuitem", { name: "Expand code", exact: true }).click();
@@ -113,7 +113,7 @@ test("code nodes preserve the reader; mapping edges open explanation and the sam
 test("Code history changes source independently of domain navigation and survives hide/show", async ({
   page,
 }) => {
-  await page.goto("/p/dentalml?item=selected-tooth");
+  await page.goto("/p/dentalml?item=selected-tooth&canvas=graph");
   await page.locator("main .code-links button").first().click();
   const first = new URL(page.url()).searchParams.get("code");
   await browse(page, "Reference point");
@@ -136,7 +136,7 @@ test("Code history changes source independently of domain navigation and survive
 test("old Browse and Graph links resolve to Code; missing targets stay dismissible", async ({
   page,
 }) => {
-  await page.goto("/p/dentalml?item=selected-tooth&code=selected-tooth&link=0");
+  await page.goto("/p/dentalml?item=selected-tooth&code=selected-tooth&link=0&canvas=graph");
   await expect(page.locator(".code-scroll")).toBeVisible();
   const target = new URL(page.url()).searchParams.get("code");
   expect(target).toMatch(/^code:/);
@@ -155,7 +155,7 @@ test("old Browse and Graph links resolve to Code; missing targets stay dismissib
   );
   await expect(page.locator(".code-scroll")).toBeVisible();
   await expect(page.locator("main .code-pane")).toHaveCount(0);
-  await page.goto("/p/dentalml?code=code:missing");
+  await page.goto("/p/dentalml?code=code:missing&canvas=graph");
   await expect(codePane(page)).toContainText("Code target unavailable");
   await page.getByRole("button", { name: "Close code pane" }).click();
   await expect(codePane(page)).toBeHidden();
@@ -165,7 +165,7 @@ test("on narrow screens Code has its own full-screen surface and returns to the 
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/p/dentalml?item=selected-tooth");
+  await page.goto("/p/dentalml?item=selected-tooth&canvas=graph");
   await page.locator("main .code-links button").first().click();
   await expect(codePane(page)).toBeVisible();
   await expect(page.locator("main")).toBeHidden();

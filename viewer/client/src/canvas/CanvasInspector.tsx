@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useSearchParams } from "react-router-dom";
 import {
   renderPlaintextFromRichText,
@@ -14,6 +15,7 @@ import { canvasApi } from "./api";
 import { exportCanvasSelection } from "./files";
 import { isModelShape, modelShapeId } from "./references";
 import { indexModel, projectGraph } from "../graph/model";
+import { GraphButton } from "../GraphToolbar";
 
 export const noteText = (editor: Editor, shape: TLShape) =>
   shape.type === "note" || shape.type === "text"
@@ -23,14 +25,18 @@ export const noteText = (editor: Editor, shape: TLShape) =>
 export function CanvasInspector({
   editor,
   props,
+  toolbarHost,
 }: {
   editor: Editor;
   props: GraphPaneProps;
+  toolbarHost: HTMLSpanElement | null;
 }) {
   const [params, setParams] = useSearchParams();
   const api = canvasApi(props.projectId);
   const [open, setOpen] = useState(false),
     [query, setQuery] = useState("");
+  const [actionsOpen, setActionsOpen] = useState(false);
+  const panel = useRef<HTMLDivElement>(null);
   const [error, setError] = useState(""),
     [notice, setNotice] = useState("");
   const [targetId, setTargetId] = useState("");
@@ -60,6 +66,30 @@ export function CanvasInspector({
     [editor],
   );
   const only = selected.length === 1 ? selected[0] : undefined;
+  useEffect(() => {
+    setActionsOpen(false);
+  }, [selected.map((shape) => shape.id).join("|")]);
+  useEffect(() => {
+    if (!open && !actionsOpen) return;
+    const dismiss = (event: PointerEvent) => {
+      if (
+        event.target instanceof Node &&
+        !panel.current?.contains(event.target) &&
+        !toolbarHost?.contains(event.target)
+      ) {
+        setOpen(false);
+        setActionsOpen(false);
+      }
+    };
+    document.addEventListener("pointerdown", dismiss);
+    return () => document.removeEventListener("pointerdown", dismiss);
+  }, [open, actionsOpen, toolbarHost]);
+  useEffect(() => {
+    if (open || actionsOpen)
+      panel.current
+        ?.querySelector<HTMLElement>("input, button, select")
+        ?.focus();
+  }, [open, actionsOpen]);
   const note = only && annotations.find((entry) => entry.shape.id === only.id);
   const reference = only && isModelShape(only) ? only : undefined;
   const attached = note?.binding && editor.getShape(note.binding.toId);
@@ -175,224 +205,268 @@ export function CanvasInspector({
       .includes(query.toLowerCase()),
   );
   return (
-    <div className="canvas-inspector">
-      <div className="canvas-context-tools">
-        <button aria-expanded={open} onClick={() => setOpen(!open)}>
-          Notes ({annotations.length})
-        </button>
-        {reference && <span>{name(reference)}</span>}
-        {note && (
+    <>
+      {toolbarHost &&
+        createPortal(
           <>
-            <span>
-              {note.binding ? `Attached to ${name(attached)}` : "Free note"}
-            </span>
-            <button onClick={() => void linkNote(note.shape.id)}>
-              Copy note link
-            </button>
-            <button disabled={!note.text} onClick={() => setPromote(!promote)}>
-              Add to model…
-            </button>
-            {note.binding && (
+            <GraphButton
+              icon="annotation"
+              label={`Notes (${annotations.length})`}
+              title="Search canvas notes"
+              aria-expanded={open}
+              onClick={() => {
+                setOpen(!open);
+                setActionsOpen(false);
+              }}
+            />
+            <GraphButton
+              icon="more"
+              label="Selection actions"
+              aria-expanded={actionsOpen}
+              disabled={!selected.length && !changeId}
+              onClick={() => {
+                setActionsOpen(!actionsOpen);
+                setOpen(false);
+              }}
+            />
+          </>,
+          toolbarHost,
+        )}
+      <div
+        className="canvas-inspector"
+        ref={panel}
+        hidden={!open && !actionsOpen && !notice && !error}
+        onKeyDown={(event) => {
+          if (event.key !== "Escape") return;
+          event.stopPropagation();
+          event.preventDefault();
+          toolbarHost
+            ?.querySelector<HTMLButtonElement>(`button[aria-expanded="true"]`)
+            ?.focus();
+          setOpen(false);
+          setActionsOpen(false);
+        }}
+      >
+        {actionsOpen && (
+          <div className="canvas-context-tools">
+            {reference && <span>{name(reference)}</span>}
+            {note && (
+              <>
+                <span>
+                  {note.binding ? `Attached to ${name(attached)}` : "Free note"}
+                </span>
+                <button onClick={() => void linkNote(note.shape.id)}>
+                  Copy note link
+                </button>
+                <button
+                  disabled={!note.text}
+                  onClick={() => setPromote(!promote)}
+                >
+                  Add to model…
+                </button>
+                {note.binding && (
+                  <button
+                    onClick={() => {
+                      editor.markHistoryStoppingPoint("detach note");
+                      editor.deleteBinding(note.binding!.id);
+                    }}
+                  >
+                    Detach note
+                  </button>
+                )}
+                <label>
+                  Attach to{" "}
+                  <select
+                    aria-label="Note attachment"
+                    value={targetId}
+                    onChange={(e) => setTargetId(e.target.value)}
+                  >
+                    <option value="">Choose object</option>
+                    {props.model.items.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.name} ({item.type})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button disabled={!targetId} onClick={attach}>
+                  {note.binding ? "Reattach" : "Attach"}
+                </button>
+              </>
+            )}
+            {item?.type === "concept" && reference && (
+              <button onClick={() => setMove(!move)}>Move to context…</button>
+            )}
+            {!!selected.length && (
               <button
-                onClick={() => {
-                  editor.markHistoryStoppingPoint("detach note");
-                  editor.deleteBinding(note.binding!.id);
+                onClick={async () => {
+                  try {
+                    await exportCanvasSelection(
+                      editor,
+                      projectGraph(indexModel(props.model), props.workspace)
+                        .connections,
+                      props.model.id,
+                    );
+                  } catch (e) {
+                    setError((e as Error).message);
+                  }
                 }}
               >
-                Detach note
+                Export selection
               </button>
             )}
+            {changeId && (
+              <button disabled={busy} onClick={() => void undo()}>
+                Undo model edit
+              </button>
+            )}
+          </div>
+        )}
+        {notice && (
+          <p role="status">
+            {notice}
+            <button
+              aria-label="Dismiss canvas notice"
+              onClick={() => setNotice("")}
+            >
+              ×
+            </button>
+          </p>
+        )}
+        {error && <p role="alert">{error}</p>}
+        {actionsOpen && promote && note && (
+          <form
+            className="canvas-command"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void command({
+                type: "annotate",
+                targetId,
+                annotation: {
+                  kind,
+                  text: note.text,
+                  ...(evidence ? { evidence } : {}),
+                },
+              });
+            }}
+          >
+            <strong>Add this note to the shared model</strong>
+            <p>{note.text}</p>
             <label>
-              Attach to{" "}
+              Model object{" "}
               <select
-                aria-label="Note attachment"
+                required
+                aria-label="Annotation target"
                 value={targetId}
                 onChange={(e) => setTargetId(e.target.value)}
               >
                 <option value="">Choose object</option>
                 {props.model.items.map((item) => (
                   <option key={item.id} value={item.id}>
-                    {item.name} ({item.type})
+                    {item.name}
                   </option>
                 ))}
               </select>
             </label>
-            <button disabled={!targetId} onClick={attach}>
-              {note.binding ? "Reattach" : "Attach"}
+            <label>
+              Kind{" "}
+              <input
+                value={kind}
+                required
+                maxLength={80}
+                onChange={(e) => setKind(e.target.value)}
+              />
+            </label>
+            <label>
+              Evidence{" "}
+              <select
+                value={evidence}
+                onChange={(e) =>
+                  setEvidence(e.target.value as Annotation["evidence"] | "")
+                }
+              >
+                <option value="">Unqualified</option>
+                <option value="observed">Observed behavior</option>
+                <option value="intended">Intended rule</option>
+                <option value="enforced">Enforced by a check</option>
+              </select>
+            </label>
+            <button disabled={busy || !targetId} type="submit">
+              Add annotation
             </button>
-          </>
+            <button type="button" onClick={() => setPromote(false)}>
+              Cancel
+            </button>
+          </form>
         )}
-        {item?.type === "concept" && reference && (
-          <button onClick={() => setMove(!move)}>Move to context…</button>
-        )}
-        {!!selected.length && (
-          <button
-            onClick={async () => {
-              try {
-                await exportCanvasSelection(
-                  editor,
-                  projectGraph(indexModel(props.model), props.workspace)
-                    .connections,
-                  props.model.id,
-                );
-              } catch (e) {
-                setError((e as Error).message);
-              }
+        {actionsOpen && move && item?.type === "concept" && (
+          <form
+            className="canvas-command"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void command({
+                type: "move-concept",
+                targetId: item.id,
+                contextId,
+              });
             }}
           >
-            Export selection
-          </button>
+            <strong>Change the owning context of {item.name}</strong>
+            <label>
+              New context{" "}
+              <select
+                required
+                value={contextId}
+                onChange={(e) => setContextId(e.target.value)}
+              >
+                <option value="">Choose context</option>
+                {props.model.items
+                  .filter((i) => i.type === "context" && i.id !== item.context)
+                  .map((i) => (
+                    <option key={i.id} value={i.id}>
+                      {i.name}
+                    </option>
+                  ))}
+              </select>
+            </label>
+            <button disabled={busy || !contextId} type="submit">
+              Move concept
+            </button>
+            <button type="button" onClick={() => setMove(false)}>
+              Cancel
+            </button>
+          </form>
         )}
-        {changeId && (
-          <button disabled={busy} onClick={() => void undo()}>
-            Undo model edit
-          </button>
+        {open && (
+          <aside className="canvas-note-list" aria-label="Canvas notes">
+            <label>
+              Search notes{" "}
+              <input
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </label>
+            {!visibleNotes.length && <p>No matching notes.</p>}
+            {visibleNotes.map((entry) => (
+              <button
+                key={entry.shape.id}
+                onClick={() => {
+                  locate(entry.shape.id);
+                  const next = new URLSearchParams(params);
+                  next.set("shape", entry.shape.id);
+                  setParams(next);
+                }}
+              >
+                <span>{entry.text || "Empty note"}</span>
+                <small>
+                  {name(entry.binding && editor.getShape(entry.binding.toId))}
+                </small>
+              </button>
+            ))}
+          </aside>
         )}
       </div>
-      {notice && (
-        <p role="status">
-          {notice}
-          <button
-            aria-label="Dismiss canvas notice"
-            onClick={() => setNotice("")}
-          >
-            ×
-          </button>
-        </p>
-      )}
-      {error && <p role="alert">{error}</p>}
-      {promote && note && (
-        <form
-          className="canvas-command"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void command({
-              type: "annotate",
-              targetId,
-              annotation: {
-                kind,
-                text: note.text,
-                ...(evidence ? { evidence } : {}),
-              },
-            });
-          }}
-        >
-          <strong>Add this note to the shared model</strong>
-          <p>{note.text}</p>
-          <label>
-            Model object{" "}
-            <select
-              required
-              aria-label="Annotation target"
-              value={targetId}
-              onChange={(e) => setTargetId(e.target.value)}
-            >
-              <option value="">Choose object</option>
-              {props.model.items.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Kind{" "}
-            <input
-              value={kind}
-              required
-              maxLength={80}
-              onChange={(e) => setKind(e.target.value)}
-            />
-          </label>
-          <label>
-            Evidence{" "}
-            <select
-              value={evidence}
-              onChange={(e) =>
-                setEvidence(e.target.value as Annotation["evidence"] | "")
-              }
-            >
-              <option value="">Unqualified</option>
-              <option value="observed">Observed behavior</option>
-              <option value="intended">Intended rule</option>
-              <option value="enforced">Enforced by a check</option>
-            </select>
-          </label>
-          <button disabled={busy || !targetId} type="submit">
-            Add annotation
-          </button>
-          <button type="button" onClick={() => setPromote(false)}>
-            Cancel
-          </button>
-        </form>
-      )}
-      {move && item?.type === "concept" && (
-        <form
-          className="canvas-command"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void command({
-              type: "move-concept",
-              targetId: item.id,
-              contextId,
-            });
-          }}
-        >
-          <strong>Change the owning context of {item.name}</strong>
-          <label>
-            New context{" "}
-            <select
-              required
-              value={contextId}
-              onChange={(e) => setContextId(e.target.value)}
-            >
-              <option value="">Choose context</option>
-              {props.model.items
-                .filter((i) => i.type === "context" && i.id !== item.context)
-                .map((i) => (
-                  <option key={i.id} value={i.id}>
-                    {i.name}
-                  </option>
-                ))}
-            </select>
-          </label>
-          <button disabled={busy || !contextId} type="submit">
-            Move concept
-          </button>
-          <button type="button" onClick={() => setMove(false)}>
-            Cancel
-          </button>
-        </form>
-      )}
-      {open && (
-        <aside className="canvas-note-list" aria-label="Canvas notes">
-          <label>
-            Search notes{" "}
-            <input
-              type="search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-          </label>
-          {!visibleNotes.length && <p>No matching notes.</p>}
-          {visibleNotes.map((entry) => (
-            <button
-              key={entry.shape.id}
-              onClick={() => {
-                locate(entry.shape.id);
-                const next = new URLSearchParams(params);
-                next.set("shape", entry.shape.id);
-                setParams(next);
-              }}
-            >
-              <span>{entry.text || "Empty note"}</span>
-              <small>
-                {name(entry.binding && editor.getShape(entry.binding.toId))}
-              </small>
-            </button>
-          ))}
-        </aside>
-      )}
-    </div>
+    </>
   );
 }

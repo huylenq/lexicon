@@ -58,7 +58,7 @@ test("conversation refines a selected concept, survives navigation and reload, a
     expect(await readFile(join(root, "order.ts"), "utf8")).toBe(
       "export interface Order { id: string }",
     );
-    await expect(page.getByRole("region", { name: "Domain graph" })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Model canvas" })).toBeVisible();
     await expect(chat).toBeVisible();
     await expect(page.locator("#browse-pane")).toBeVisible();
     await page.getByRole("button", { name: "Toggle code workspace" }).click();
@@ -118,7 +118,7 @@ test("chat switches between floating and attached layouts while preserving draft
     const project = await (await request.post("/api/projects", { data: { root } })).json();
     await page.setViewportSize({ width: 1280, height: 850 });
     await page.goto(`/p/${project.id}?item=thing`);
-    const graph = page.getByRole("region", { name: "Domain graph" });
+    const graph = page.getByRole("region", { name: "Model canvas" });
     await expect(graph).toBeVisible();
     const graphBounds = await graph.boundingBox();
     await page.getByRole("button", { name: "Agent", exact: true }).click();

@@ -2,13 +2,15 @@
 
 ## Unreleased — Project canvas
 
-- Add a tldraw canvas with custom model references and relationships, attached notes, sketches, media, and selection export. Keep the graph available during rollout.
+- Make Canvas the default, with custom model references and relationships, attached notes, sketches, media, and selection export. Keep an explicit Graph fallback and existing Canvas links.
+- Share the icon toolbar and semantic legend, move routine save status to the footer, and expose selection actions in a popover. Restore context code toggling and the previous camera after Focus.
+- Migrate compatible Graph placements and camera on first open; existing canvases and recovery drafts take precedence.
 - Save a versioned `lexicon/canvas.json` and content-addressed assets with revision checks, atomic writes, a previous version, browser recovery, and conflict review.
 - Preserve a never-saved draft's missing merge base when another browser creates the project canvas; require review before replacing that file.
 - Preserve concept containment; add context resizing, reference copies, searchable note links, and explicit model annotation and ownership commands with validated undo.
 - Normalize freeform typography to the model labels, including text editing and exported images.
 - Add optional stable IDs to code links and migrate earlier canvas references without rewriting model XML.
-- Pin tldraw 5.4.0 and serve its assets locally. Built-canvas validation still requires the appropriate SDK license; local development checks run without a key.
+- Pin tldraw 5.4.0 and serve its assets locally. Run canvas browser checks against the built client through the normal loopback launcher, which the SDK classifies as development without a key.
 
 See [Project canvas](viewer/CANVAS.md) for storage, recovery, and validation details.
 

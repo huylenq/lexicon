@@ -39,7 +39,6 @@ import {
   projectGraph,
   selectionRecords,
   type GraphConnection,
-  type GraphIndex,
   type GraphSelection,
   type GraphVertex,
 } from "./graph/model";
@@ -57,6 +56,9 @@ import { defaults, type Workspace } from "./graph/storage";
 import type { Model } from "../../shared/model";
 import ObjectName from "./ObjectName";
 import Icon from "./Icon";
+import GraphLegend from "./GraphLegend";
+import { GraphToolbar, GraphButton } from "./GraphToolbar";
+import { codeOwners, selectionName } from "./graph/actions";
 import "./styles/graph.css";
 
 type NodeData = GraphVertex & { [key: string]: unknown };
@@ -71,15 +73,6 @@ type EdgeData = GraphConnection & {
   [key: string]: unknown;
 };
 type FlowEdge = Edge<EdgeData>;
-const objectLegend = [
-  ["context", "context", "Context"],
-  ["concept", "concept", "Concept"],
-  ["entity", "entity", "Entity"],
-  ["value", "value", "Value"],
-  ["aggregate", "aggregate", "Aggregate"],
-  ["service", "service", "Service"],
-  ["event", "event", "Event"],
-] as const;
 const Actions = createContext({
   select: (_s: GraphSelection) => {},
   toggle: (_s: GraphSelection) => {},
@@ -256,32 +249,6 @@ export default function GraphPane(props: Props) {
       <GraphCanvas {...props} />
     </ReactFlowProvider>
   );
-}
-
-function expandOwners(index: GraphIndex, selection?: GraphSelection): string[] {
-  const records = selectionRecords(index, selection);
-  const result = new Set(records.items);
-  for (const id of records.mappings) {
-    const m = index.mappings.get(id);
-    if (m) result.add(m.owner.id);
-  }
-  for (const id of [...result])
-    if (index.items.get(id)?.type === "context") {
-      const members = new Set([id]);
-      for (const item of index.items.values())
-        if (item.type === "concept" && item.context === id) {
-          result.add(item.id);
-          members.add(item.id);
-        }
-      for (const item of index.items.values())
-        if (
-          item.type === "relationship" &&
-          members.has(item.from) &&
-          members.has(item.to)
-        )
-          result.add(item.id);
-    }
-  return [...result].filter((id) => index.items.get(id)?.codeLinks.length);
 }
 
 function GraphCanvas({
@@ -656,11 +623,11 @@ function GraphCanvas({
     pending.current = { kind: "locate", selection: s };
     setCameraCommand((n) => n + 1);
   };
-  const owners = expandOwners(index, contextMenu?.selection);
+  const owners = codeOwners(index, contextMenu?.selection);
   const codeExpanded =
     owners.length > 0 && owners.every((id) => workspace.expanded.includes(id));
   const expand = (s?: GraphSelection) => {
-    const ids = expandOwners(index, s);
+    const ids = codeOwners(index, s);
     setWorkspace((w) => {
       const remove = ids.every((id) => w.expanded.includes(id));
       return {
@@ -753,16 +720,7 @@ function GraphCanvas({
     setRevision((n) => n + 1);
     onReset();
   };
-  const selectedName =
-    selection?.kind === "item"
-      ? index.items.get(selection.id)?.name
-      : selection?.kind === "code"
-        ? index.targets.get(selection.id)?.link.symbol || "Code target"
-        : selection?.kind === "mapping"
-          ? "Code mapping"
-          : selection
-            ? "Connection summary"
-            : undefined;
+  const selectedName = selectionName(index, selection);
 
   const clearSelection = () => {
     setHoveredEdge(undefined);
@@ -787,54 +745,20 @@ function GraphCanvas({
         }
       }}
     >
-      <div className="graph-toolbar">
-        <div>
-          <span className="pane-title">Graph</span>
-          <span className="graph-scope" title={selectedName || (focus ? "Focused neighborhood" : "Overall domain")}>
-            {selectedName || (focus ? "Focused neighborhood" : "Overall domain")}
-          </span>
-        </div>
-        <div className="graph-toolbar-actions">
-          {focus && (
-            <button className="quiet icon-button" aria-label="Back to overview" title="Back to overview" onClick={overview}>
-              <Icon name="arrow-left" />
-            </button>
-          )}
-          {selection && (
-            <button className="quiet icon-button" aria-label="Locate" title="Locate selection in graph" onClick={() => reveal(selection)}>
-              <Icon name="locate" />
-            </button>
-          )}
-          <button
-            className={`quiet icon-button ${workspace.allCode ? "active" : ""}`}
-            aria-pressed={workspace.allCode}
-            aria-label={workspace.allCode ? "All code shown" : "Show all code"}
-            title={
-              workspace.allCode
-                ? "Hide all code (return to individual expansions)"
-                : "Show all code"
-            }
-            onClick={() => setWorkspace((w) => ({ ...w, allCode: !w.allCode }))}
-          >
-            <Icon name="code" />
-          </button>
-          <button
-            className="quiet icon-button"
-            aria-label="Rearrange"
-            title="Rearrange graph"
-            onClick={() => {
-              setWorkspace((w) => ({ ...w, positions: {} }));
-              pending.current = { kind: "fit" };
-              setRevision((n) => n + 1);
-            }}
-          >
-            <Icon name="graph" />
-          </button>
-          <button className="quiet icon-button" aria-label="Reset graph view" title="Reset graph view" onClick={reset}>
-            <Icon name="refresh" />
-          </button>
-        </div>
-      </div>
+      <GraphToolbar title="Graph" scope={selectedName || (focus ? "Focused neighborhood" : "Overall domain")}>
+        {focus && <GraphButton icon="arrow-left" label="Back to overview" onClick={overview} />}
+        {selection && <GraphButton icon="locate" label="Locate" title="Locate selection in graph" onClick={() => reveal(selection)} />}
+        <GraphButton icon="code" label={workspace.allCode ? "All code shown" : "Show all code"}
+          title={workspace.allCode ? "Hide all code (return to individual expansions)" : "Show all code"}
+          aria-pressed={workspace.allCode} className={workspace.allCode ? "active" : ""}
+          onClick={() => setWorkspace((w) => ({ ...w, allCode: !w.allCode }))} />
+        <GraphButton icon="graph" label="Rearrange" title="Rearrange graph" onClick={() => {
+          setWorkspace((w) => ({ ...w, positions: {} }));
+          pending.current = { kind: "fit" };
+          setRevision((n) => n + 1);
+        }} />
+        <GraphButton icon="refresh" label="Reset graph view" onClick={reset} />
+      </GraphToolbar>
       <div
         className={`graph-canvas ${spacePanning ? "space-panning" : ""}`}
         ref={canvas}
@@ -1039,31 +963,7 @@ function GraphCanvas({
           </button>}
         </div>
       )}
-      {statusHost && createPortal(<div className="graph-legend" aria-label="Graph legend and counts">
-        <span className="graph-object-legend" aria-label="Object icon legend">
-          {objectLegend.map(([tone, icon, label]) => (
-            <span className="graph-object-key object-name" data-tone={tone} key={tone}>
-              <Icon name={icon} size={13} className="type-icon" />
-              {label}
-            </span>
-          ))}
-        </span>
-        <span className="graph-edge-legend" aria-label="Connection legend">
-          <span>
-            <i /> Relationship
-          </span>
-          <span>
-            <i className="code" /> Code mapping
-          </span>
-          <span>
-            <i className="summary" /> Summary
-          </span>
-        </span>
-        <span className="graph-count">
-          {projection.nodes.filter((n) => n.kind === "concept").length} concepts
-          · {projection.nodes.filter((n) => n.kind === "code").length} code
-        </span>
-      </div>, statusHost)}
+      {statusHost && createPortal(<GraphLegend projection={projection} />, statusHost)}
       {!!projection.omitted && (
         <p className="graph-notice" role="status">
           {projection.omitted} connections have unavailable endpoints. See model

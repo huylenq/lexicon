@@ -51,7 +51,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
   const [graphStatusHost, setGraphStatusHost] = useState<HTMLDivElement | null>(null);
   const chatToggle = useRef<HTMLButtonElement>(null);
   const [params, setParams] = useSearchParams();
-  const canvasEnabled = params.get("canvas") === "tldraw";
+  const canvasEnabled = params.get("canvas") !== "graph";
   const GraphSurface = canvasEnabled ? CanvasPane : GraphPane;
   const routeLocation = useLocation();
   const navigate = useNavigate();
@@ -326,16 +326,16 @@ function ReaderProject({ projectId }: { projectId: string }) {
         <span className="header-divider" />
         <span className="project-name">{model?.name || "Opening project"}</span>
         <div className="header-actions">
-          <button className="quiet canvas-toggle" aria-label="Toggle freeform canvas" aria-pressed={canvasEnabled}
+          <button className="quiet canvas-toggle" aria-label={canvasEnabled ? "Switch to Graph" : "Switch to Canvas"} aria-pressed={canvasEnabled}
             title={canvasEnabled ? "Switch to graph" : "Open the canvas"}
             onClick={() => {
               const next = new URLSearchParams(params);
-              if (canvasEnabled) next.delete("canvas");
-              else next.set("canvas", "tldraw");
+              if (canvasEnabled) next.set("canvas", "graph");
+              else next.delete("canvas");
               setParams(next);
               setMobileRead(false);
               setMobileCode(false);
-            }}>{canvasEnabled ? "Canvas" : "Open Canvas"}</button>
+            }}><Icon name="panel-graph" size={14} />{canvasEnabled ? "Canvas" : "Graph"}</button>
           <div className="pane-toggles" role="group" aria-label="Pane visibility">
           <button
             ref={codeToggle}
@@ -445,7 +445,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
             <div
               className="graph-slot"
             >
-              <CanvasBoundary key={canvasEnabled ? "canvas" : "graph"}><Suspense fallback={<p className="empty">Opening graph…</p>}>
+              <CanvasBoundary key={canvasEnabled ? "canvas" : "graph"}><Suspense fallback={<p className="empty">Opening {canvasEnabled ? "canvas" : "graph"}…</p>}>
                 <GraphSurface
                   key={canvasEnabled ? `canvas:${projectId}` : `graph:${projectId}`}
                   model={model}
@@ -476,7 +476,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
             <div
               className="graph-divider"
               role="separator"
-              aria-label="Resize graph and reader"
+              aria-label={`Resize ${canvasEnabled ? "canvas" : "graph"} and reader`}
               aria-orientation="vertical"
               aria-valuemin={25}
               aria-valuemax={75}
@@ -520,7 +520,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
               <button className="quiet back-to-graph" onClick={() => {
                 setMobileRead(false);
                 setMobileCode(false);
-              }}><Icon name="arrow-left" /> Back to graph</button>
+              }}><Icon name="arrow-left" /> Back to {canvasEnabled ? "canvas" : "graph"}</button>
             )}
             <div className="reader-toolbar">
               <div className="reader-history" role="group" aria-label="Navigation history">
@@ -563,16 +563,18 @@ function ReaderProject({ projectId }: { projectId: string }) {
                   className="quiet"
                   onClick={() => graphAction("locate", readerSelection)}
                 >
-                  Locate in graph
+                  Locate in {canvasEnabled ? "canvas" : "graph"}
                 </button>
                 {item && (
                   <button
                     className="quiet"
+                    disabled={workspace.allCode}
+                    title={workspace.allCode ? "Turn off Show all code to change individual expansions" : undefined}
                     onClick={() =>
                       graphAction("expand", { kind: "item", id: item.id })
                     }
                   >
-                    Toggle code in graph
+                    Toggle code in {canvasEnabled ? "canvas" : "graph"}
                   </button>
                 )}
               </div>

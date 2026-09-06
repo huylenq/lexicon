@@ -76,7 +76,10 @@ export function connectionGeometry(
   };
 }
 
-export function createProjection(editor: Editor) {
+export function createProjection(
+  editor: Editor,
+  legacyPositions: Positions = {},
+) {
   let writing = false;
   let generation = 0;
   let connections: GraphConnection[] = [];
@@ -288,14 +291,12 @@ export function createProjection(editor: Editor) {
         const shape = editor.getShape(id);
         if (!shape) return;
         for (const binding of editor.getBindingsToShape(id, "lexicon-note"))
-          editor
-            .getBindingUtil(binding)
-            .onAfterChangeToShape?.({
-              binding,
-              shapeBefore: shape,
-              shapeAfter: shape,
-              reason: "ancestry",
-            });
+          editor.getBindingUtil(binding).onAfterChangeToShape?.({
+            binding,
+            shapeBefore: shape,
+            shapeAfter: shape,
+            reason: "ancestry",
+          });
       });
     }),
     editor.sideEffects.registerOperationCompleteHandler(() => {
@@ -321,6 +322,7 @@ export function createProjection(editor: Editor) {
         if (
           node.kind === "concept" ||
           node.kind === "context" ||
+          legacyPositions[node.id] ||
           editor.getShape(modelShapeId(node.id))
         ) {
           needed.add(node.id);
@@ -336,7 +338,17 @@ export function createProjection(editor: Editor) {
             !!editor.getShape(modelShapeId(e.id)),
         ),
       };
-      const saved: Positions = {};
+      // React Flow and our model shapes use the same parent-relative layout coordinates.
+      // Seed only the first canvas projection; subsequent positions belong to the document.
+      const saved: Positions = rearrange ? {} : { ...legacyPositions };
+      for (const node of full.nodes) {
+        if (node.kind === "concept" && saved[node.id]) {
+          saved[node.id] = {
+            x: Math.max(16, saved[node.id].x),
+            y: Math.max(60, saved[node.id].y),
+          };
+        }
+      }
       if (!rearrange)
         for (const node of full.nodes) {
           const existing = editor.getShape<ObjectShape>(modelShapeId(node.id));
@@ -420,6 +432,7 @@ export function createProjection(editor: Editor) {
         ...projected.connections.map((e) => e.id),
       ]);
       focus = focused;
+      legacyPositions = {};
       write(() => {
         const newGroups: TLShapeId[] = [],
           newEdges = connections

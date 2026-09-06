@@ -26,14 +26,14 @@ async function graphAction(page: Page, name: string) {
   await page.getByRole("menuitem", { name, exact: true }).click();
 }
 async function openGraph(page: Page) {
-  await page.goto("/p/dentalml");
+  await page.goto("/p/dentalml?canvas=graph");
   await expect(page.locator(".graph-vertex.concept")).toHaveCount(8);
   await expect(page.getByText("Arranging the graph…")).toBeHidden();
   await expect.poll(() => viewport(page)).not.toContain("scale(1)");
 }
 
 test("object type tooltips work with hover, keyboard, and a zoomed graph", async ({ page }) => {
-  await page.goto("/p/dentalml?item=selected-tooth");
+  await page.goto("/p/dentalml?item=selected-tooth&canvas=graph");
   const tooth = page.getByRole("button", { name: "Concept · entity Selected tooth", exact: true });
   const icon = tooth.getByRole("img", { name: "Concept · entity", exact: true });
   await expect(tooth).toHaveText("Selected tooth");
@@ -316,7 +316,7 @@ test("a registered model with parallel edges, self-links, stale links, and inval
     );
     const response = await request.post("/api/projects", { data: { root } });
     id = (await response.json()).id;
-    await page.goto(`/p/${id}`);
+    await page.goto(`/p/${id}?canvas=graph`);
     await expect(page.locator(".graph-vertex.concept")).toHaveCount(2);
     await expect(page.locator(".graph-notice")).toContainText(
       "1 connections have unavailable endpoints",
@@ -429,7 +429,7 @@ test("left drag selects while right drag, wheel, and Space navigate the canvas",
     "cursor",
     "default",
   );
-  expect(new URL(page.url()).search).toBe("");
+  expect(new URL(page.url()).search).toBe("?canvas=graph");
   await page.getByRole("textbox", { name: "Search model" }).fill("selected");
   await page.keyboard.press("Space");
   await expect(page.getByRole("textbox", { name: "Search model" })).toHaveValue(

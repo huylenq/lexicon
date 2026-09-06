@@ -612,7 +612,7 @@
   white-space: nowrap;
 }
 
-.graph-toolbar > div:first-child { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.graph-toolbar-heading { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .graph-toolbar .graph-scope { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .graph-toolbar-actions { flex-shrink: 0; }
 
@@ -663,3 +663,5 @@
 @container (max-width: 520px) {
   .graph-toolbar { padding-inline: 12px; }
 }
+
+.canvas-toggle { display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px; border: 1px solid var(--line); border-radius: 5px; font-size: 12px; white-space: nowrap; }

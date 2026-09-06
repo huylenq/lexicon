@@ -21,6 +21,11 @@ import {
 import { getAssetUrlsByImport } from "@tldraw/assets/imports.vite";
 import type { CanvasState } from "../../../shared/canvas";
 import type { GraphPaneProps } from "../GraphPane";
+import Icon from "../Icon";
+import GraphLegend from "../GraphLegend";
+import { GraphToolbar, GraphButton } from "../GraphToolbar";
+import { codeOwners, selectionName } from "../graph/actions";
+import { CanvasActions, CanvasContextMenu } from "./CanvasContextMenu";
 import {
   indexModel,
   neighborhood,
@@ -54,6 +59,9 @@ const overrides = {
     en: {
       "tool.lexicon-object": "Model reference",
       "tool.lexicon-connection": "Model relationship",
+      "lexicon.focus": "Focus",
+      "lexicon.expand-code": "Expand code",
+      "lexicon.hide-code": "Hide code",
     },
   },
 };
@@ -72,6 +80,7 @@ const components = {
   PageMenu: null,
   SharePanel: null,
   StylePanel: CanvasStylePanel,
+  ContextMenu: CanvasContextMenu,
 };
 const visibility = (shape: TLShape) =>
   shape.meta.lexiconHidden ? ("hidden" as const) : ("inherit" as const);
@@ -90,6 +99,9 @@ export default function CanvasPane(props: GraphPaneProps) {
     statusHost,
   } = props;
   const [editor, setEditor] = useState<Editor>();
+  const [inspectorHost, setInspectorHost] = useState<HTMLSpanElement | null>(
+    null,
+  );
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
   const [error, setError] = useState("");
@@ -113,6 +125,8 @@ export default function CanvasPane(props: GraphPaneProps) {
   const initialFit = useRef(false);
   const rearrangeNext = useRef(false);
   const pendingLocate = useRef<GraphSelection>();
+  const restoreCamera = useRef<{ x: number; y: number; z: number }>();
+  const pendingCamera = useRef<{ x: number; y: number; z: number }>();
   const index = useMemo(() => indexModel(model), [model]);
   const full = useMemo(
     () => projectGraph(index, { collapsed: [], expanded: [], allCode: true }),
@@ -248,23 +262,43 @@ export default function CanvasPane(props: GraphPaneProps) {
     setRevision((n) => n + 1);
   };
   const expandCode = (chosen?: GraphSelection) => {
-    const records = selectionRecords(index, chosen);
-    const owners = [
-      ...records.items,
-      ...records.mappings.flatMap(
-        (id) => index.mappings.get(id)?.owner.id || [],
-      ),
-    ];
+    if (workspace.allCode) return;
+    const owners = codeOwners(index, chosen);
     setWorkspace((current) => ({
       ...current,
-      expanded: [...new Set([...current.expanded, ...owners])],
+      expanded: owners.every((id) => current.expanded.includes(id))
+        ? current.expanded.filter((id) => !owners.includes(id))
+        : [...new Set([...current.expanded, ...owners])],
     }));
+  };
+  const focusSelection = (chosen: GraphSelection) => {
+    if (!editor) return;
+    editor.stopCameraAnimation();
+    if (!focus) restoreCamera.current = { ...editor.getCamera() };
+    setFocus(chosen);
+    initialFit.current = true;
+  };
+  const overview = () => {
+    setFocus(undefined);
+    initialFit.current = false;
+    pendingCamera.current = restoreCamera.current;
   };
 
   const mount = useCallback(
     (instance: Editor) => {
       editorRef.current = instance;
-      initialFit.current = !instance.getCurrentPageShapes().some(isModelShape);
+      const boot = storageRef.current.boot!;
+      const legacy =
+        !boot.snapshot?.document && !boot.remote.issue
+          ? latest.current.workspace
+          : undefined;
+      initialFit.current =
+        !legacy?.viewport &&
+        !instance.getCurrentPageShapes().some(isModelShape);
+      if (legacy?.viewport) {
+        const { x, y, zoom } = legacy.viewport;
+        pendingCamera.current = { x: x / zoom, y: y / zoom, z: zoom };
+      }
       instance.user.updateUserPreferences({
         colorScheme:
           document.documentElement.dataset.theme === "dark" ? "dark" : "light",
@@ -281,7 +315,7 @@ export default function CanvasPane(props: GraphPaneProps) {
         attributes: true,
         attributeFilter: ["data-theme"],
       });
-      projection.current = createProjection(instance);
+      projection.current = createProjection(instance, legacy?.positions);
       const stopStorage = storageRef.current.mount(
         instance,
         projection.current.write,
@@ -337,6 +371,10 @@ export default function CanvasPane(props: GraphPaneProps) {
         if (initialFit.current || arrange) {
           fit();
           initialFit.current = false;
+        }
+        if (pendingCamera.current) {
+          editor.setCamera(pendingCamera.current);
+          pendingCamera.current = undefined;
         }
         const chosen = pendingLocate.current;
         if (chosen) {
@@ -479,78 +517,112 @@ export default function CanvasPane(props: GraphPaneProps) {
     );
   };
 
+  const saveLabel = {
+    loading: "Opening canvas…",
+    saved:
+      storage.remote?.document || model.items.length
+        ? "Saved to project"
+        : "Ready",
+    saving: "Saving…",
+    local: "Unsaved changes",
+    conflict: "Conflicting changes",
+    error: "Canvas needs attention",
+  }[storage.status];
+  const needsAttention =
+    storage.message ||
+    storage.status === "error" ||
+    storage.status === "conflict" ||
+    storage.remote?.issue ||
+    storage.remote?.missingAssets.length ||
+    storage.drafts.length;
+
   return (
-    <section
-      className="graph-pane canvas-pane"
-      aria-label="Freeform model canvas"
+    <CanvasActions.Provider
+      value={{
+        selectionForShape: shapeSelection,
+        focus: focusSelection,
+        toggleCode: expandCode,
+        codeState: (chosen) => {
+          const owners = codeOwners(index, chosen);
+          return !owners.length
+            ? "none"
+            : workspace.allCode
+              ? "all"
+              : owners.every((id) => workspace.expanded.includes(id))
+                ? "expanded"
+                : "collapsed";
+        },
+      }}
     >
-      <div className="graph-toolbar canvas-toolbar">
-        <div>
-          <span className="eyebrow">Canvas</span>
-          <span className="graph-scope">
-            Model references · notes · sketches
-          </span>
-        </div>
-        <div className="canvas-actions">
-          <button className="quiet" onClick={fit} disabled={!editor || loading}>
-            Fit model
-          </button>
-          <button
-            className="quiet"
+      <section className="graph-pane canvas-pane" aria-label="Model canvas">
+        <GraphToolbar
+          title="Canvas"
+          className="canvas-toolbar"
+          scope={
+            selectionName(index, selection) ||
+            (focus ? "Focused neighborhood" : "Overall domain")
+          }
+        >
+          {focus && (
+            <GraphButton
+              icon="arrow-left"
+              label="Back to overview"
+              onClick={overview}
+            />
+          )}
+          <GraphButton
+            icon="fit"
+            label="Fit model"
+            disabled={!editor || loading}
+            onClick={fit}
+          />
+          <GraphButton
+            icon="locate"
+            label="Locate"
+            title="Locate selection in canvas"
+            disabled={!selection || !editor || loading}
+            onClick={() => selection && reveal(selection)}
+          />
+          <GraphButton
+            icon="code"
+            label={workspace.allCode ? "All code shown" : "Show all code"}
+            title={
+              workspace.allCode
+                ? "Hide all code (return to individual expansions)"
+                : "Show all code"
+            }
+            aria-pressed={workspace.allCode}
+            disabled={!editor || loading}
+            onClick={() => setWorkspace((w) => ({ ...w, allCode: !w.allCode }))}
+          />
+          <GraphButton
+            icon="graph"
+            label="Arrange"
             title="Rearrange model objects; keep freeform content"
             disabled={!editor || loading}
             onClick={() => {
               rearrangeNext.current = true;
               setRevision((n) => n + 1);
             }}
-          >
-            Arrange
-          </button>
-          <button
-            className="quiet"
-            aria-pressed={workspace.allCode}
-            onClick={() => setWorkspace((w) => ({ ...w, allCode: !w.allCode }))}
-          >
-            All code
-          </button>
-          <button
-            className="quiet"
-            disabled={!selection}
-            onClick={() => expandCode(selection)}
-          >
-            Expand code
-          </button>
-          {focus ? (
-            <button
-              className="quiet"
-              onClick={() => {
-                setFocus(undefined);
-                initialFit.current = true;
-              }}
-            >
-              Overview
-            </button>
-          ) : (
-            <button
-              className="quiet"
-              disabled={!selection}
-              onClick={() => {
-                setFocus(selection);
-                initialFit.current = true;
-              }}
-            >
-              Focus
-            </button>
-          )}
-          <button
-            className="quiet canvas-add-note"
+          />
+          <GraphButton
+            icon="plus"
+            label="Add note"
+            title={
+              selection ? "Add a note attached to the selection" : "Add a note"
+            }
             disabled={!editor || loading}
             onClick={addNote}
-          >
-            + Note
-          </button>
+          />
+          <span className="canvas-inspector-toggles" ref={setInspectorHost} />
           <details className="canvas-file-menu">
-            <summary aria-label="Canvas file">File</summary>
+            <summary
+              className="quiet icon-button"
+              aria-label="Canvas file"
+              title="Canvas file"
+            >
+              <Icon name="open" />
+            </summary>
             <div>
               <button onClick={exportCanvas}>Export canvas</button>
               <button onClick={() => fileInput.current?.click()}>
@@ -580,211 +652,209 @@ export default function CanvasPane(props: GraphPaneProps) {
             hidden
             onChange={(e) => importCanvas(e.target.files?.[0])}
           />
-        </div>
-      </div>
-      <div
-        className="canvas-save-state"
-        role="status"
-        data-save-status={storage.status}
-      >
-        <span>
-          {
-            {
-              loading: "Opening canvas…",
-              saved: "Saved to project",
-              saving: "Saving…",
-              local: "Unsaved changes",
-              conflict: "Conflicting changes",
-              error: "Canvas needs attention",
-            }[storage.status]
-          }
-        </span>
-        {storage.message && <span>{storage.message}</span>}
-        {["local", "error"].includes(storage.status) && (
-          <button onClick={() => void storage.retry()}>Retry save</button>
-        )}
-        {storage.status === "conflict" && (
-          <button
-            onClick={async () => {
-              try {
-                setReview(await storage.reviewProject());
-              } catch (e) {
-                setError((e as Error).message);
-              }
-            }}
+        </GraphToolbar>
+        {!!needsAttention && (
+          <div
+            className="canvas-save-state"
+            role="status"
+            data-attention-status={storage.status}
           >
-            Review versions
-          </button>
-        )}
-        {storage.remote?.backupAvailable && storage.remote.issue && (
-          <button
-            onClick={() =>
-              void storage.recoverPrevious()?.catch((e) => setError(e.message))
-            }
-          >
-            Recover previous canvas
-          </button>
-        )}
-        {!!storage.remote?.missingAssets.length && (
-          <span>
-            {storage.remote.missingAssets.length} media files are missing from
-            lexicon/assets.
-          </span>
-        )}
-        {!!storage.drafts.length && (
-          <details>
-            <summary>Recover another tab ({storage.drafts.length})</summary>
-            {storage.drafts.map((draft) => (
+            {storage.message && <span>{storage.message}</span>}
+            {["local", "error"].includes(storage.status) && (
+              <button onClick={() => void storage.retry()}>Retry save</button>
+            )}
+            {storage.status === "conflict" && (
               <button
-                key={draft.key}
+                onClick={async () => {
+                  try {
+                    setReview(await storage.reviewProject());
+                  } catch (e) {
+                    setError((e as Error).message);
+                  }
+                }}
+              >
+                Review versions
+              </button>
+            )}
+            {storage.remote?.backupAvailable && storage.remote.issue && (
+              <button
                 onClick={() =>
                   void storage
-                    .restoreDraft(draft)
+                    .recoverPrevious()
                     ?.catch((e) => setError(e.message))
                 }
               >
-                Restore edits from {new Date(draft.updatedAt).toLocaleString()}
+                Recover previous canvas
               </button>
-            ))}
-          </details>
-        )}
-      </div>
-      {review && (
-        <div
-          className="canvas-review"
-          role="dialog"
-          aria-modal="false"
-          aria-label="Review canvas versions"
-        >
-          <strong>Review canvas versions</strong>
-          <p>
-            {storage.conflicts.length} overlapping records. Your current canvas
-            is visible below. Export it to keep a portable copy.
-          </p>
-          <p>
-            Project version:{" "}
-            {
-              Object.values(review.document?.snapshot.store || {}).filter(
-                (r) => r.typeName === "shape",
-              ).length
-            }{" "}
-            shapes.
-          </p>
-          <div className="canvas-version-comparison">
-            {storage.conflicts.slice(0, 30).map((id) => (
-              <div key={id}>
-                <p>
-                  <strong>Project:</strong>{" "}
-                  {describeRecord(
-                    review.document?.snapshot.store[
-                      id as keyof typeof review.document.snapshot.store
-                    ],
-                  )}
-                </p>
-                <p>
-                  <strong>This tab:</strong>{" "}
-                  {editor
-                    ? describeRecord(editor.store.get(id as TLRecord["id"]))
-                    : "Unavailable"}
-                </p>
-              </div>
-            ))}
+            )}
+            {!!storage.remote?.missingAssets.length && (
+              <span>
+                {storage.remote.missingAssets.length} media files are missing
+                from lexicon/assets.
+              </span>
+            )}
+            {!!storage.drafts.length && (
+              <details>
+                <summary>Recover another tab ({storage.drafts.length})</summary>
+                {storage.drafts.map((draft) => (
+                  <button
+                    key={draft.key}
+                    onClick={() =>
+                      void storage
+                        .restoreDraft(draft)
+                        ?.catch((e) => setError(e.message))
+                    }
+                  >
+                    Restore edits from{" "}
+                    {new Date(draft.updatedAt).toLocaleString()}
+                  </button>
+                ))}
+              </details>
+            )}
           </div>
-          <button onClick={exportCanvas}>Export my canvas</button>
-          <button
-            onClick={() =>
-              void storage
-                .useProject()
-                ?.then(() => setReview(undefined))
-                .catch((e) => setError(e.message))
-            }
+        )}
+        {review && (
+          <div
+            className="canvas-review"
+            role="dialog"
+            aria-modal="false"
+            aria-label="Review canvas versions"
           >
-            Use project version
-          </button>
-          <button
-            disabled={!!review.issue || !review.document}
-            onClick={() =>
-              void storage
-                .replaceProject(review)
-                ?.then(() => setReview(undefined))
-                .catch((e) => setError(e.message))
-            }
-          >
-            Replace reviewed project version with mine
-          </button>
-          <button onClick={() => setReview(undefined)}>Keep reviewing</button>
-        </div>
-      )}
-      {editor && <CanvasInspector editor={editor} props={props} />}
-      {error && (
-        <div className="canvas-error" role="alert">
-          {error}
-          <button
-            className="quiet"
-            onClick={() => {
-              setError("");
-              setRevision((n) => n + 1);
-            }}
-          >
-            Retry
-          </button>
-        </div>
-      )}
-      <div className="canvas-stage" data-ready={!loading && !importing}>
-        <CanvasModel.Provider
-          value={{
-            vertices,
-            connections,
-            select,
-            matches,
-            collapse: (id) =>
-              setWorkspace((w) => ({
-                ...w,
-                collapsed: w.collapsed.includes(id)
-                  ? w.collapsed.filter((value) => value !== id)
-                  : [...w.collapsed, id],
-              })),
-          }}
-        >
-          {storage.boot && (
-            <Tldraw
-              snapshot={storage.boot.snapshot}
-              assets={storage.assets}
-              assetUrls={assetUrls}
-              themes={themes}
-              shapeUtils={shapeUtils}
-              bindingUtils={bindingUtils}
-              overrides={overrides}
-              components={components}
-              getShapeVisibility={visibility}
-              onMount={mount}
-              licenseKey={
-                (import.meta as ImportMeta & { env: Record<string, string> })
-                  .env.VITE_TLDRAW_LICENSE_KEY
+            <strong>Review canvas versions</strong>
+            <p>
+              {storage.conflicts.length} overlapping records. Your current
+              canvas is visible below. Export it to keep a portable copy.
+            </p>
+            <p>
+              Project version:{" "}
+              {
+                Object.values(review.document?.snapshot.store || {}).filter(
+                  (r) => r.typeName === "shape",
+                ).length
+              }{" "}
+              shapes.
+            </p>
+            <div className="canvas-version-comparison">
+              {storage.conflicts.slice(0, 30).map((id) => (
+                <div key={id}>
+                  <p>
+                    <strong>Project:</strong>{" "}
+                    {describeRecord(
+                      review.document?.snapshot.store[
+                        id as keyof typeof review.document.snapshot.store
+                      ],
+                    )}
+                  </p>
+                  <p>
+                    <strong>This tab:</strong>{" "}
+                    {editor
+                      ? describeRecord(editor.store.get(id as TLRecord["id"]))
+                      : "Unavailable"}
+                  </p>
+                </div>
+              ))}
+            </div>
+            <button onClick={exportCanvas}>Export my canvas</button>
+            <button
+              onClick={() =>
+                void storage
+                  .useProject()
+                  ?.then(() => setReview(undefined))
+                  .catch((e) => setError(e.message))
               }
+            >
+              Use project version
+            </button>
+            <button
+              disabled={!!review.issue || !review.document}
+              onClick={() =>
+                void storage
+                  .replaceProject(review)
+                  ?.then(() => setReview(undefined))
+                  .catch((e) => setError(e.message))
+              }
+            >
+              Replace reviewed project version with mine
+            </button>
+            <button onClick={() => setReview(undefined)}>Keep reviewing</button>
+          </div>
+        )}
+        {error && (
+          <div className="canvas-error" role="alert">
+            {error}
+            <button
+              className="quiet"
+              onClick={() => {
+                setError("");
+                setRevision((n) => n + 1);
+              }}
+            >
+              Retry
+            </button>
+          </div>
+        )}
+        <div className="canvas-stage" data-ready={!loading && !importing}>
+          {editor && (
+            <CanvasInspector
+              editor={editor}
+              props={props}
+              toolbarHost={inspectorHost}
             />
           )}
-        </CanvasModel.Provider>
-        {loading && (
-          <div className="canvas-loading" role="status">
-            Arranging the canvas…
-          </div>
-        )}
-      </div>
-      {statusHost &&
-        createPortal(
-          <div className="canvas-status">
-            <span>Project canvas</span>
-            <span>
-              {projected.nodes.filter((n) => n.kind === "concept").length}{" "}
-              concepts
-            </span>
-            {projected.omitted > 0 && (
-              <span>{projected.omitted} unavailable connections</span>
+          <CanvasModel.Provider
+            value={{
+              vertices,
+              connections,
+              select,
+              matches,
+              collapse: (id) =>
+                setWorkspace((w) => ({
+                  ...w,
+                  collapsed: w.collapsed.includes(id)
+                    ? w.collapsed.filter((value) => value !== id)
+                    : [...w.collapsed, id],
+                })),
+            }}
+          >
+            {storage.boot && (
+              <Tldraw
+                snapshot={storage.boot.snapshot}
+                assets={storage.assets}
+                assetUrls={assetUrls}
+                themes={themes}
+                shapeUtils={shapeUtils}
+                bindingUtils={bindingUtils}
+                overrides={overrides}
+                components={components}
+                getShapeVisibility={visibility}
+                onMount={mount}
+                licenseKey={
+                  (import.meta as ImportMeta & { env: Record<string, string> })
+                    .env.VITE_TLDRAW_LICENSE_KEY
+                }
+              />
             )}
-          </div>,
-          statusHost,
-        )}
-    </section>
+          </CanvasModel.Provider>
+          {loading && (
+            <div className="canvas-loading" role="status">
+              Arranging the canvas…
+            </div>
+          )}
+        </div>
+        {statusHost &&
+          createPortal(
+            <GraphLegend projection={projected}>
+              <span
+                className="canvas-save-indicator"
+                role="status"
+                data-save-status={storage.status}
+              >
+                {saveLabel}
+              </span>
+            </GraphLegend>,
+            statusHost,
+          )}
+      </section>
+    </CanvasActions.Provider>
   );
 }

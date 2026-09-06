@@ -267,6 +267,16 @@ export function createCanvasPersistence({
   window.addEventListener("focus", checkRemote);
   return {
     ready() {
+      // Opening an unmodeled project must not create an empty canvas file.
+      // The first drawing or model projection will differ from this clean baseline.
+      if (
+        !ready &&
+        !initial.snapshot?.document &&
+        !initial.remote.document &&
+        !editor.getCurrentPageShapes().length
+      ) {
+        lastSaved = canonicalJson(capture());
+      }
       ready = true;
       changed();
     },

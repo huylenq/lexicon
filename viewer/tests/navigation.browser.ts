@@ -5,7 +5,7 @@ test.use({ serviceWorkers: "block" });
 test("Browse selection keeps text stable and extends its background to the sidebar edge", async ({
   page,
 }) => {
-  await page.goto("/p/dentalml");
+  await page.goto("/p/dentalml?canvas=graph");
   const item = page.getByRole("button", {
     name: "Concept · entity Selected tooth",
     exact: true,
@@ -33,7 +33,7 @@ test("Browse selection keeps text stable and extends its background to the sideb
 });
 
 test("reader history branches correctly and pane close buttons preserve navigation", async ({ page }) => {
-  await page.goto("/p/dentalml");
+  await page.goto("/p/dentalml?canvas=graph");
   const back = page.getByRole("button", { name: "Go back", exact: true });
   const forward = page.getByRole("button", { name: "Go forward", exact: true });
   const browse = page.getByRole("button", { name: "Toggle navigation", exact: true });
@@ -75,7 +75,7 @@ test("reader history branches correctly and pane close buttons preserve navigati
 
 test("compact reader returns to the permanent graph without a toggle", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/p/dentalml");
+  await page.goto("/p/dentalml?canvas=graph");
   const browse = page.getByRole("button", { name: "Toggle navigation", exact: true });
   const graph = page.getByRole("region", { name: "Domain graph" });
   await expect(graph).toBeVisible();
@@ -96,7 +96,7 @@ test("compact reader returns to the permanent graph without a toggle", async ({ 
 
 test("Graph stays present despite an older saved hidden state and its title and selection share one toolbar", async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem("lexicon:graph:v1:dentalml", JSON.stringify({ open: false })));
-  await page.goto("/p/dentalml");
+  await page.goto("/p/dentalml?canvas=graph");
   await expect(page.getByRole("region", { name: "Domain graph" })).toBeVisible();
   await expect(page.locator(".graph-vertex.concept")).toHaveCount(8);
   await expect(page.getByRole("button", { name: "Graph", exact: true })).toHaveCount(0);
@@ -114,7 +114,7 @@ test("Graph stays present despite an older saved hidden state and its title and 
 });
 
 test("bottom-left canvas controls stay clear of Browse on short and narrow screens", async ({ page }) => {
-  await page.goto("/p/dentalml");
+  await page.goto("/p/dentalml?canvas=graph");
   await expect(page.locator(".graph-vertex.concept")).toHaveCount(8);
   for (const size of [{ width: 1600, height: 1000 }, { width: 1600, height: 420 }, { width: 390, height: 480 }]) {
     await page.setViewportSize(size);
@@ -137,7 +137,7 @@ test("bottom-left canvas controls stay clear of Browse on short and narrow scree
 });
 
 test("Browse search preserves shelf height and input position as results change", async ({ page }) => {
-  await page.goto("/p/dentalml");
+  await page.goto("/p/dentalml?canvas=graph");
   await expect(page.locator(".graph-vertex.concept")).toHaveCount(8);
   for (const size of [{ width: 1600, height: 1000 }, { width: 390, height: 480 }]) {
     await page.setViewportSize(size);
@@ -160,7 +160,7 @@ test("Browse search preserves shelf height and input position as results change"
 
 
 test("one shared status bar follows graph counts and keeps Agent reachable across workspace views", async ({ page }) => {
-  await page.goto("/p/dentalml");
+  await page.goto("/p/dentalml?canvas=graph");
   const bar = page.getByRole("region", { name: "Workspace status", exact: true });
   const agent = bar.getByRole("button", { name: "Agent", exact: true });
   await expect(bar.locator(".graph-count")).toHaveText("8 concepts · 0 code");
@@ -185,7 +185,7 @@ test("one shared status bar follows graph counts and keeps Agent reachable acros
   await expect(objectLegend).toBeHidden();
   await expect(bar.locator(".graph-count")).toBeVisible();
   await expect(agent).toBeVisible();
-  await page.goto("/p/dentalml?item=selected-tooth");
+  await page.goto("/p/dentalml?item=selected-tooth&canvas=graph");
   await expect(page.locator("main h1")).toHaveText("Selected tooth");
   await expect(bar).toBeVisible();
   await page.getByRole("button", { name: "Toggle code workspace" }).click();
