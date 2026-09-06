@@ -34,6 +34,8 @@ Two tabs combine independent record changes using a three-way merge. Edits to th
 
 Select a model object and click **+ Note** to attach a note. It follows the object and its context. The native **Note**, **Text**, **Draw**, **Arrow**, **Media**, and other tldraw tools create freeform content. Semantic relationships and code mappings use custom relationship shapes; native arrows do not create model relationships.
 
+Freeform text uses a compact scale alongside the model: Small is 13.5 px beside 14 px model labels, with larger sizes available for emphasis. The shared tldraw theme keeps text measurement, editing, and exports consistent.
+
 **Notes** lists and searches canvas notes and text, including the names of their attached objects. Select a result to locate it; its URL includes the shape ID. **Copy note link** copies that location. With a note selected, attach it to a model object, detach it, or reattach it without changing its text.
 
 Main model references cannot be renamed, deleted, rewired, or reparented by canvas gestures. Concepts stay inside their owning context during dragging and keyboard movement. Resizing a context keeps its children in place and prevents the boundary from shrinking through them. Duplicating or pasting a model card creates a labeled reference copy with an independent position. Missing model objects and relationships retain their references and attached notes for review; those missing references can be deleted.

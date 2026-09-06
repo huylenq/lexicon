@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { createPortal } from "react-dom";
 import {
   Box,
+  DEFAULT_THEME,
   DefaultStylePanel,
   Tldraw,
   createShapeId,
@@ -45,6 +46,9 @@ import "./canvas.css";
 const shapeUtils = [LexiconObjectUtil, LexiconConnectionUtil];
 const bindingUtils = [LexiconNoteBindingUtil];
 const assetUrls = getAssetUrlsByImport();
+// Native Small text is 1.125 times this base: 13.5px beside our 14px model labels.
+// Use the SDK theme so measurement, editing, and SVG/PNG export share the scale.
+const themes = { default: { ...DEFAULT_THEME, fontSize: 12 } };
 const overrides = {
   translations: {
     en: {
@@ -747,6 +751,7 @@ export default function CanvasPane(props: GraphPaneProps) {
               snapshot={storage.boot.snapshot}
               assets={storage.assets}
               assetUrls={assetUrls}
+              themes={themes}
               shapeUtils={shapeUtils}
               bindingUtils={bindingUtils}
               overrides={overrides}

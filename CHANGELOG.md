@@ -6,6 +6,7 @@
 - Save a versioned `lexicon/canvas.json` and content-addressed assets with revision checks, atomic writes, a previous version, browser recovery, and conflict review.
 - Preserve a never-saved draft's missing merge base when another browser creates the project canvas; require review before replacing that file.
 - Preserve concept containment; add context resizing, reference copies, searchable note links, and explicit model annotation and ownership commands with validated undo.
+- Normalize freeform typography to the model labels, including text editing and exported images.
 - Add optional stable IDs to code links and migrate earlier canvas references without rewriting model XML.
 - Pin tldraw 5.4.0 and serve its assets locally. Built-canvas validation still requires the appropriate SDK license; local development checks run without a key.
 
