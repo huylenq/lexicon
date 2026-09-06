@@ -20,6 +20,7 @@ import {
   Position,
   BaseEdge,
   MarkerType,
+  SelectionMode,
   useNodesState,
   useNodesInitialized,
   useReactFlow,
@@ -48,6 +49,10 @@ import {
   type Box,
   type Positions,
 } from "./graph/layout";
+import {
+  useGraphSelection,
+  type ModifierSelectionGesture,
+} from "./graph/useGraphSelection";
 import { defaults, type Workspace } from "./graph/storage";
 import type { Model } from "../../shared/model";
 import ObjectName from "./ObjectName";
@@ -77,6 +82,7 @@ const objectLegend = [
 ] as const;
 const Actions = createContext({
   select: (_s: GraphSelection) => {},
+  toggle: (_s: GraphSelection) => {},
   collapse: (_id: string) => {},
 });
 
@@ -93,12 +99,14 @@ function Vertex({ data }: NodeProps<FlowNode>) {
         <div className="graph-group-heading">
           <div>
             <button
-              className="nodrag graph-node-title"
+              className="nodrag nokey graph-node-title"
               title={data.subtitle}
               disabled={!data.selection}
               onClick={(e) => {
                 e.stopPropagation();
-                if (data.selection) actions.select(data.selection);
+                if (!data.selection) return;
+                if (e.metaKey) actions.toggle(data.selection);
+                else actions.select(data.selection);
               }}
             >
               <ObjectName type={data.kind === "file" ? "code" : "context"} name={data.title} />
@@ -111,7 +119,7 @@ function Vertex({ data }: NodeProps<FlowNode>) {
           </div>
           {data.kind === "context" && (
             <button
-              className="nodrag graph-collapse"
+              className="nodrag nokey graph-collapse"
               aria-label={`${data.collapsed ? "Expand" : "Collapse"} context ${data.title}`}
               onClick={(e) => {
                 e.stopPropagation();
@@ -209,6 +217,34 @@ type Props = {
   command?: GraphCommand;
   onReset: () => void;
 };
+
+function nodesTouchedByMarquee(
+  canvas: HTMLElement,
+  gesture: ModifierSelectionGesture,
+  end: { x: number; y: number },
+) {
+  const left = Math.min(gesture.x, end.x);
+  const right = Math.max(gesture.x, end.x);
+  const top = Math.min(gesture.y, end.y);
+  const bottom = Math.max(gesture.y, end.y);
+  return new Set(
+    [...canvas.querySelectorAll<HTMLElement>(
+      ".react-flow__node-vertex.selectable",
+    )]
+      .filter((element) => {
+        if (element.dataset.id === gesture.ignoredContext) return false;
+        const box = element.getBoundingClientRect();
+        return (
+          box.left <= right &&
+          box.right >= left &&
+          box.top <= bottom &&
+          box.bottom >= top
+        );
+      })
+      .map((element) => element.dataset.id!),
+  );
+}
+
 export default function GraphPane(props: Props) {
   return (
     <ReactFlowProvider>
@@ -356,6 +392,13 @@ function GraphCanvas({
   }, []);
   const flow = useReactFlow<FlowNode, FlowEdge>();
   const ready = useNodesInitialized();
+  const graphSelection = useGraphSelection({
+    nodes,
+    setNodes,
+    readerSelection: selection,
+    onSelect,
+    onClearSelection,
+  });
   const saved = useRef(workspace);
   saved.current = workspace;
   const restoreCamera = useRef<Viewport>();
@@ -564,14 +607,17 @@ function GraphCanvas({
   const visualNodes = nodes.map((n) => ({
     ...n,
     selected:
+      n.selected ||
+      !!graphSelection.modifierSelectionBase?.has(n.id) ||
+      (!graphSelection.multiSelecting &&
         n.data.selection?.kind === visualSelection?.kind &&
         n.data.selection &&
         "id" in n.data.selection &&
         visualSelection &&
         "id" in visualSelection &&
-        n.data.selection.id === visualSelection.id,
+        n.data.selection.id === visualSelection.id),
     hidden: !!focusArea && !focusArea.nodes.has(n.id),
-    className: activeSearch && !matchingNodes.has(n.id) ? "search-dim" : "",
+    className: `${activeSearch && !matchingNodes.has(n.id) ? "search-dim" : ""} ${n.data.kind === "context" ? "" : "nokey"}`,
   }));
 
   const reveal = (s: GraphSelection) => {
@@ -715,7 +761,7 @@ function GraphCanvas({
 
   const clearSelection = () => {
     setHoveredEdge(undefined);
-    onClearSelection();
+    graphSelection.clear();
   };
   return (
     <section
@@ -796,6 +842,38 @@ function GraphCanvas({
       <div
         className={`graph-canvas ${spacePanning ? "space-panning" : ""}`}
         ref={canvas}
+        onPointerDownCapture={(event) => {
+          const target =
+            event.target instanceof Element ? event.target : undefined;
+          const targetNode = target?.closest<HTMLElement>(
+            ".react-flow__node-vertex",
+          );
+          const startsOnContext = !!(
+            targetNode &&
+            !target?.closest(".nokey") &&
+            nodes.find((node) => node.id === targetNode.dataset.id)?.data.kind ===
+              "context"
+          );
+          const modifierStart =
+            event.button === 0 &&
+            event.metaKey &&
+            (target?.matches(".react-flow__pane") || startsOnContext)
+              ? {
+                  x: event.clientX,
+                  y: event.clientY,
+                  ignoredContext: startsOnContext
+                    ? targetNode?.dataset.id
+                    : undefined,
+                }
+              : undefined;
+          graphSelection.beginModifierGesture(modifierStart);
+        }}
+        onClickCapture={(event) => {
+          if (!graphSelection.completeModifierClick(event.clientX, event.clientY))
+            return;
+          event.preventDefault();
+          event.stopPropagation();
+        }}
         onPointerEnter={() => {
           pointerInCanvas.current = true;
         }}
@@ -825,32 +903,66 @@ function GraphCanvas({
             if (chosen) {
               event.preventDefault();
               event.stopPropagation();
-              onSelect(chosen);
+              graphSelection.select(chosen);
             }
           }
         }}
       >
-        <Actions.Provider value={{ select: onSelect, collapse }}>
+        <Actions.Provider
+          value={{
+            select: graphSelection.select,
+            toggle: graphSelection.toggle,
+            collapse,
+          }}
+        >
           <ReactFlow<FlowNode, FlowEdge>
             nodes={[...visualNodes, ...anchors]}
             edges={edges}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
-            onNodesChange={(changes) =>
+            onNodesChange={(changes) => {
               onNodesChange(
-                changes.filter(
-                  (c) => c.type !== "select" && c.type !== "remove",
-                ),
-              )
-            }
-            onNodeClick={(_, n) =>
-              n.data.selection && onSelect(n.data.selection)
-            }
+                changes
+                  .filter((change) => change.type !== "remove")
+                  .map((change) =>
+                    change.type === "select"
+                      ? {
+                          ...change,
+                          selected: graphSelection.preserveIgnoredContext(
+                            change.id,
+                            change.selected,
+                          ),
+                        }
+                      : change,
+                  ),
+              );
+            }}
+            onNodeClick={(event, n) => {
+              if (event.metaKey) {
+                graphSelection.activateMultiSelection();
+                return;
+              }
+              if (n.data.selection) graphSelection.select(n.data.selection);
+            }}
             onNodeContextMenu={(event, node) => openContextMenu(event, node.data.selection)}
             onEdgeContextMenu={(event, edge) => openContextMenu(event, edge.data?.selection)}
             onMoveStart={() => setContextMenu(undefined)}
-            onEdgeClick={(_, e) => e.data && onSelect(e.data.selection)}
+            onEdgeClick={(_, e) => {
+              if (e.data) graphSelection.select(e.data.selection);
+            }}
             onPaneClick={clearSelection}
+            onSelectionStart={graphSelection.activateMultiSelection}
+            onSelectionEnd={(event) => {
+              const modifier = graphSelection.currentModifierGesture();
+              const touched =
+                modifier && canvas.current
+                  ? nodesTouchedByMarquee(canvas.current, modifier, {
+                      x: event.clientX,
+                      y: event.clientY,
+                    })
+                  : undefined;
+              graphSelection.completeMarquee(touched);
+            }}
             onEdgeMouseEnter={(_, e) => setHoveredEdge(e.id)}
             onEdgeMouseLeave={() => setHoveredEdge(undefined)}
             onNodeDragStop={persistPositions}
@@ -866,9 +978,12 @@ function GraphCanvas({
             nodesDraggable={!spacePanning}
             edgesReconnectable={false}
             deleteKeyCode={null}
-            multiSelectionKeyCode={null}
-            selectionKeyCode={null}
-            panOnDrag
+            multiSelectionKeyCode="Meta"
+            selectionKeyCode="Meta"
+            selectionOnDrag={!spacePanning}
+            selectionMode={SelectionMode.Partial}
+            autoPanOnSelection={false}
+            panOnDrag={spacePanning ? [0, 2] : [2]}
             panActivationKeyCode={null}
             panOnScroll={false}
             zoomOnScroll

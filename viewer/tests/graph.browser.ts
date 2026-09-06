@@ -80,10 +80,19 @@ test("domain selection, context collapse, code expansion, focus, and history", a
   page.on("pageerror", (e) => errors.push(e.message));
   await openGraph(page);
   const originalCamera = await viewport(page);
-  await page
-    .getByRole("button", { name: "concept: Selected tooth", exact: true })
-    .click();
+  const selectedTooth = page.getByRole("button", {
+    name: "concept: Selected tooth",
+    exact: true,
+  });
+  const labelBeforeSelection = await selectedTooth
+    .locator(".object-name-text")
+    .boundingBox();
+  await selectedTooth.click();
   await expect(page.locator("main h1")).toHaveText("Selected tooth");
+  const labelAfterSelection = await selectedTooth
+    .locator(".object-name-text")
+    .boundingBox();
+  expect(labelAfterSelection).toEqual(labelBeforeSelection);
   expect(await viewport(page)).toBe(originalCamera);
   const before = await positions(page);
   await graphAction(page, "Expand code");
@@ -333,7 +342,7 @@ test("a registered model with parallel edges, self-links, stale links, and inval
   }
 });
 
-test("wheel zoom and Space panning over nodes preserve ordinary canvas and node dragging", async ({
+test("left drag selects while right drag, wheel, and Space navigate the canvas", async ({
   page,
 }) => {
   await openGraph(page);
@@ -342,9 +351,47 @@ test("wheel zoom and Space panning over nodes preserve ordinary canvas and node 
   const canvasLeft = Math.max(pane.x, shelf.x + shelf.width);
   await page.mouse.move(canvasLeft + 15, pane.y + 15);
   const original = await viewport(page);
+  await expect(page.locator(".react-flow__pane")).toHaveCSS("cursor", "default");
   await page.mouse.down();
-  await page.mouse.move(canvasLeft + 65, pane.y + 40, { steps: 8 });
+  await page.mouse.move(pane.x + pane.width - 20, pane.y + pane.height - 20, {
+    steps: 8,
+  });
+  await expect(page.locator(".react-flow__selection")).toBeVisible();
   await page.mouse.up();
+  expect(await viewport(page)).toBe(original);
+  expect(await page.locator(".react-flow__node.selected").count()).toBeGreaterThan(1);
+  await expect(page.locator(".react-flow__nodesselection-rect")).toHaveCSS(
+    "border-top-width",
+    "0px",
+  );
+  await expect(page.locator(".react-flow__nodesselection-rect")).toHaveCSS(
+    "background-color",
+    "rgba(0, 0, 0, 0)",
+  );
+  await expect(page.locator(".react-flow__nodesselection-rect")).toHaveCSS(
+    "pointer-events",
+    "none",
+  );
+  const marqueeSelectedTooth = page.getByRole("button", {
+    name: "concept: Selected tooth",
+    exact: true,
+  });
+  const selectedBeforeToggle = await page.locator(".react-flow__node.selected").count();
+  await marqueeSelectedTooth.click({ modifiers: ["Meta"] });
+  await expect(marqueeSelectedTooth).not.toHaveClass(/selected/);
+  await expect(page.locator(".react-flow__node.selected")).toHaveCount(
+    selectedBeforeToggle - 1,
+  );
+  await marqueeSelectedTooth.click({ modifiers: ["Meta"] });
+  await expect(marqueeSelectedTooth).toHaveClass(/selected/);
+  await expect(page.locator(".react-flow__node.selected")).toHaveCount(
+    selectedBeforeToggle,
+  );
+
+  await page.mouse.move(canvasLeft + 15, pane.y + 15);
+  await page.mouse.down({ button: "right" });
+  await page.mouse.move(canvasLeft + 65, pane.y + 40, { steps: 8 });
+  await page.mouse.up({ button: "right" });
   expect(await viewport(page)).not.toBe(original);
   const zoom = () =>
     page
@@ -390,6 +437,125 @@ test("wheel zoom and Space panning over nodes preserve ordinary canvas and node 
     "selected ",
   );
   await expect(page.locator(".space-panning")).toHaveCount(0);
+
+  await page.getByRole("textbox", { name: "Search model" }).fill("");
+  await page.mouse.click(canvasLeft + 15, pane.y + 15);
+  await expect(page.locator(".react-flow__node.selected")).toHaveCount(0);
+  const selectedTooth = page.getByRole("button", {
+    name: "concept: Selected tooth",
+    exact: true,
+  });
+  const toothInput = page.getByRole("button", {
+    name: "concept: Tooth input",
+    exact: true,
+  });
+  await selectedTooth.click();
+  await expect(page.locator("main h1")).toHaveText("Selected tooth");
+  await toothInput.click({ modifiers: ["Meta"] });
+  await expect(selectedTooth).toHaveClass(/selected/);
+  await expect(toothInput).toHaveClass(/selected/);
+  await expect(page.locator(".react-flow__node.selected")).toHaveCount(2);
+  await selectedTooth.click({ modifiers: ["Meta"] });
+  await expect(selectedTooth).not.toHaveClass(/selected/);
+  await expect(toothInput).toHaveClass(/selected/);
+  await expect(page.locator(".react-flow__node.selected")).toHaveCount(1);
+});
+
+test("marquee selection includes a node when the rectangle only touches it", async ({
+  page,
+}) => {
+  await openGraph(page);
+  const group = page.locator('[data-id="item:selection"]');
+  const box = (await group.boundingBox())!;
+  const startX = box.x - 10;
+  const startY = box.y + 10;
+  const camera = await viewport(page);
+
+  await page.mouse.move(startX, startY);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 2, startY + 10, { steps: 6 });
+  await expect(page.locator(".react-flow__selection")).toBeVisible();
+  await page.mouse.up();
+
+  expect(await viewport(page)).toBe(camera);
+  await expect(group).toHaveClass(/selected/);
+  await expect(
+    page.getByRole("button", { name: "concept: Selected tooth", exact: true }),
+  ).not.toHaveClass(/selected/);
+});
+
+test("Command-drag inside a context toggles children without selecting the context", async ({
+  page,
+}) => {
+  await openGraph(page);
+  const groupNode = page.locator('[data-id="item:selection"]');
+  const group = (await groupNode.boundingBox())!;
+  const selectedTooth = page.getByRole("button", {
+    name: "concept: Selected tooth",
+    exact: true,
+  });
+  const toothInput = page.getByRole("button", {
+    name: "concept: Tooth input",
+    exact: true,
+  });
+  const selectedBox = (await selectedTooth.boundingBox())!;
+  const commandClickContext = async () => {
+    await page.keyboard.down("Meta");
+    await page.mouse.click(
+      group.x + group.width - 5,
+      selectedBox.y + selectedBox.height / 2,
+    );
+    await page.keyboard.up("Meta");
+  };
+  const commandMarquee = async (node: typeof selectedTooth) => {
+    const box = (await node.boundingBox())!;
+    await page.keyboard.down("Meta");
+    await page.mouse.move(group.x + group.width - 5, box.y - 2);
+    await page.mouse.down();
+    await page.mouse.move(box.x - 2, box.y + box.height + 2, { steps: 8 });
+    await page.mouse.up();
+    await page.keyboard.up("Meta");
+  };
+
+  await selectedTooth.click();
+  await expect(selectedTooth).toHaveClass(/selected/);
+  await expect(toothInput).not.toHaveClass(/selected/);
+  await commandClickContext();
+  await expect(groupNode).toHaveClass(/selected/);
+  await expect(selectedTooth).toHaveClass(/selected/);
+  await commandClickContext();
+  await expect(groupNode).not.toHaveClass(/selected/);
+  await expect(selectedTooth).toHaveClass(/selected/);
+
+  await commandMarquee(toothInput);
+  await expect(selectedTooth).toHaveClass(/selected/);
+  await expect(toothInput).toHaveClass(/selected/);
+  await expect(groupNode).not.toHaveClass(/selected/);
+
+  await commandMarquee(selectedTooth);
+  await expect(selectedTooth).not.toHaveClass(/selected/);
+  await expect(toothInput).toHaveClass(/selected/);
+  await expect(groupNode).not.toHaveClass(/selected/);
+
+  await page.keyboard.down("Meta");
+  await page.mouse.move(group.x - 10, group.y + 5);
+  await page.mouse.down();
+  await page.mouse.move(group.x + 2, group.y + 15, { steps: 6 });
+  await page.mouse.up();
+  await page.keyboard.up("Meta");
+  await expect(groupNode).toHaveClass(/selected/);
+  await expect(toothInput).toHaveClass(/selected/);
+
+  const groupTitle = groupNode.locator(".graph-node-title");
+  await groupTitle.click({ modifiers: ["Meta"] });
+  await expect(groupNode).not.toHaveClass(/selected/);
+  await expect(toothInput).toHaveClass(/selected/);
+  await groupTitle.click({ modifiers: ["Meta"] });
+  await expect(groupNode).toHaveClass(/selected/);
+
+  await commandClickContext();
+  await expect(groupNode).not.toHaveClass(/selected/);
+  await expect(toothInput).toHaveClass(/selected/);
 });
 
 test("an overlapping concept continues to cover edges when a neighboring node is selected", async ({

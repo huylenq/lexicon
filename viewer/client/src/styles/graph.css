@@ -177,6 +177,8 @@
   --xy-controls-button-border-color: var(--line);
   --xy-controls-box-shadow: var(--shadow);
   --xy-node-boxshadow-hover: none;
+  --xy-selection-background-color: color-mix(in srgb, var(--accent) 8%, transparent);
+  --xy-selection-border: 1px solid color-mix(in srgb, var(--accent) 70%, transparent);
 }
 .graph-canvas .react-flow__panel.graph-view-controls {
   display: flex;
@@ -340,8 +342,10 @@
   pointer-events: none;
 }
 .graph-canvas .react-flow__node.selected > .graph-vertex {
-  border: 2px solid var(--accent);
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 12%, transparent);
+  border-color: var(--accent);
+  box-shadow:
+    inset 0 0 0 1px var(--accent),
+    0 0 0 4px color-mix(in srgb, var(--accent) 12%, transparent);
 }
 .graph-canvas .react-flow__node.search-dim {
   opacity: 0.25;
@@ -394,8 +398,24 @@
   height: 100%;
 }
 .graph-canvas.space-panning .react-flow__nodes *,
-.graph-canvas.space-panning .react-flow__edges * {
+.graph-canvas.space-panning .react-flow__edges *,
+.graph-canvas.space-panning .react-flow__nodesselection,
+.graph-canvas.space-panning .react-flow__nodesselection * {
   pointer-events: none !important;
+}
+.graph-canvas .react-flow__pane.selection {
+  cursor: default;
+}
+.graph-canvas .react-flow__pane.dragging {
+  cursor: grabbing;
+}
+.graph-canvas .react-flow__nodesselection,
+.graph-canvas .react-flow__nodesselection-rect {
+  pointer-events: none;
+}
+.graph-canvas .react-flow__nodesselection-rect {
+  border: 0;
+  background: transparent;
 }
 .graph-canvas.space-panning .react-flow__pane {
   cursor: grab;
