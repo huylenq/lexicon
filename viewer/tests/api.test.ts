@@ -15,8 +15,9 @@ const scratch = await mkdtemp(join(tmpdir(), "lexicon-api-"));
 process.env.LEXICON_VIEWER_DB = join(scratch, "registry.db");
 const { app, artifactRoot } = await import("../server/index");
 const { db } = await import("../server/db");
-const { ChatService } = await import("../server/chat/service");
+const { ChatService, buildPrompt } = await import("../server/chat/service");
 const { fingerprint } = await import("../server/chat/model-edit");
+const { parseModel } = await import("../server/model");
 import type { ChatState } from "../shared/chat";
 import type { ProviderAdapter, TurnInput } from "../server/chat/providers";
 afterAll(async () => {
@@ -26,6 +27,22 @@ afterAll(async () => {
 const req = (path: string, init?: RequestInit) =>
   app.request(`http://localhost${path}`, init);
 const xml = `<lexicon schema="2.0" id="tiny"><name>Tiny</name><description>A test model.</description><context id="scope"><name>Scope</name><description>A meaning.</description><concept id="thing"><name>Thing</name><description>The modeled thing.</description><code-link file="thing.ts" role="definition" symbol="Thing">Its representation.</code-link></concept></context></lexicon>`;
+
+test("chat uses the installed workflow texts and keeps initialization out of existing-model refinement", async () => {
+  const project = { id: "prompt", root: scratch, artifactRoot: scratch, example: false };
+  const model = parseModel(xml);
+  const initialization = await readFile(new URL("../../skills/lexicon/initialize.md", import.meta.url), "utf8");
+  const review = await readFile(new URL("../../skills/lexicon/review.md", import.meta.url), "utf8");
+  const initial = buildPrompt(project, { ...model, items: [] }, []);
+  const refinement = buildPrompt(project, model, []);
+  expect(initial).toContain(initialization);
+  expect(initial).toContain(review);
+  expect(refinement).not.toContain(initialization);
+  expect(refinement).toContain(review);
+  expect(refinement).toContain(JSON.stringify(model.items));
+  expect(initial).toContain("Never modify files");
+  expect(initial).toContain("No patch means no edit");
+});
 
 test("library serves the domain example and rejects unknown projects and links", async () => {
   const list = await (await req("/api/projects")).json();

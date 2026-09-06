@@ -46,6 +46,9 @@ try {
     console.log(
       `${model.items.length} objects; ${checked} code links checked; ${unchecked} unchecked; ${broken} broken; ${errors.length} model errors.`,
     );
+    console.log(
+      "These checks establish structure and target resolution. Review relationship claims and rule evidence against source.",
+    );
     if (broken || errors.length || unchecked) process.exitCode = 1;
   } else {
     if (errors.length)

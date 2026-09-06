@@ -69,6 +69,15 @@ bun ~/.agents/skills/lexicon/scripts/lexicon.ts check /path/to/project
 
 Agents that discover `~/.agents/skills/` can load the shared skill. Discovery and already-loaded prompt refresh depend on the agent: after editing instructions, ask the agent to reread `~/.agents/skills/lexicon/SKILL.md`; start a fresh session if it still shows old metadata or does not discover the new skill. Checker source is read on every command. Rerun dependency installation only when dependencies change.
 
+For a local Claude Code installation, point its skill directory at the same source (inspect any existing destination first):
+
+```sh
+mkdir -p ~/.claude/skills
+ln -s ~/.agents/skills/lexicon ~/.claude/skills/lexicon
+```
+
+This exposes `/lexicon` without a separate plugin copy. Older `laxicon` adapters that point to the removed `skills/laxicon/` should be archived outside the discovery directory.
+
 Install this repository as a Claude Code plugin:
 
 ```text
@@ -77,7 +86,7 @@ Install this repository as a Claude Code plugin:
 
 Keep the full repository installed and run `bun install --frozen-lockfile` in its `viewer/` directory so the skill’s checker has its dependencies.
 
-Use `/lexicon:lexicon` to read, create, or update a model. The single [skill](skills/lexicon/SKILL.md) starts from a human question, inspects code, and records useful meaning and links under the current task.
+Use `/lexicon:lexicon` to read, create, or update a model. The single [skill](skills/lexicon/SKILL.md) separates explanation, initialization, and incremental refinement. [Initialization](skills/lexicon/initialize.md) discovers the system's essential concepts before tracing their collaborations. [Review](skills/lexicon/review.md) checks coverage separately from source accuracy. Embedded chat reads these same workflow files on each turn; existing models receive refinement guidance without repeating initialization.
 
 ## Development
 
