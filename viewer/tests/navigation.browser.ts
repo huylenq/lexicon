@@ -94,7 +94,7 @@ test("compact reader returns to the permanent graph without a toggle", async ({ 
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
-test("Graph stays present despite an older saved hidden state and its heading bars align", async ({ page }) => {
+test("Graph stays present despite an older saved hidden state and its title and selection share one toolbar", async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem("lexicon:graph:v1:dentalml", JSON.stringify({ open: false })));
   await page.goto("/p/dentalml");
   await expect(page.getByRole("region", { name: "Domain graph" })).toBeVisible();
@@ -102,9 +102,13 @@ test("Graph stays present despite an older saved hidden state and its heading ba
   await expect(page.getByRole("button", { name: "Graph", exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Close Graph pane" })).toHaveCount(0);
   const titleLeft = await page.locator(".graph-toolbar .pane-title").evaluate(el => el.getBoundingClientRect().left);
-  const selectionLeft = await page.locator(".graph-selection-bar > span").evaluate(el => el.getBoundingClientRect().left);
+  const selectionLeft = await page.locator(".graph-toolbar .graph-scope").evaluate(el => el.getBoundingClientRect().left);
   expect(titleLeft).toBe(16);
-  expect(selectionLeft).toBe(titleLeft);
+  expect(selectionLeft).toBeGreaterThan(titleLeft);
+  const toolbar = page.locator(".graph-toolbar");
+  expect(await toolbar.evaluate(el => el.getBoundingClientRect().height)).toBe(48);
+  expect(await page.locator(".graph-canvas").evaluate(el => el.getBoundingClientRect().top))
+    .toBe(await toolbar.evaluate(el => el.getBoundingClientRect().bottom));
   await page.getByRole("button", { name: "Toggle navigation", exact: true }).click();
   expect(await page.locator(".graph-toolbar .pane-title").evaluate(el => el.getBoundingClientRect().left)).toBe(titleLeft);
 });

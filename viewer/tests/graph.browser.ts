@@ -115,7 +115,7 @@ test("domain selection, context collapse, code expansion, focus, and history", a
   );
   await graphAction(page, "Focus");
   await expect(
-    page.getByText("Focused neighborhood", { exact: true }),
+    page.getByRole("button", { name: "Back to overview", exact: true }),
   ).toBeVisible();
   await expect.poll(() => viewport(page)).not.toBe(originalCamera);
   expect(
@@ -248,7 +248,6 @@ test("manual group placement and keyboard selection survive reload; reset restor
   expect((await positions(page))["item:selection"]).toBe(
     moved["item:selection"],
   );
-  await page.getByLabel("Graph options", { exact: true }).click();
   await page
     .getByRole("button", { name: "Reset graph view", exact: true })
     .click();
@@ -618,9 +617,9 @@ test("selection and focus controls do not move the graph canvas", async ({
     .getByRole("button", { name: "Back to overview", exact: true })
     .click();
   expect(await canvasTop()).toBe(initialTop);
-  await page
-    .getByRole("button", { name: "Clear selection", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Locate", exact: true }).focus();
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".graph-scope")).toHaveText("Overall domain");
   expect(await canvasTop()).toBe(initialTop);
 
   await page.locator(".reader-workspace").evaluate((element) =>
@@ -640,7 +639,7 @@ test("node context menu targets the clicked node and supports dismissal and keyb
   const tooth = page.locator('[data-id="item:selected-tooth"]');
   await tooth.click({ button: "right" });
   await expect(tooth).toHaveClass(/selected/);
-  await expect(page.locator('.graph-selection-bar').getByRole('button', { name: 'Focus', exact: true })).toHaveCount(0);
+  await expect(page.locator('.graph-toolbar').getByRole('button', { name: 'Focus', exact: true })).toHaveCount(0);
   await expect(page.getByRole('menuitem', { name: 'Expand code', exact: true })).toBeVisible();
   // Allow newly mounted external SVG icons to paint before visual capture.
   await page.waitForTimeout(150);

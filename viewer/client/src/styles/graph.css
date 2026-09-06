@@ -61,6 +61,7 @@
   color: var(--accent);
 }
 .graph-pane {
+  container-type: inline-size;
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -76,6 +77,7 @@
   border-bottom: 1px solid var(--line);
   background: var(--panel);
   min-height: var(--toolbar-height);
+  flex-shrink: 0;
 }
 .graph-scope {
   display: block;
@@ -93,74 +95,6 @@
 .graph-toolbar .active {
   color: var(--graph-code);
   background: var(--soft);
-}
-.graph-menu {
-  position: relative;
-}
-.graph-menu > summary {
-  list-style: none;
-  cursor: pointer;
-  padding: 6px;
-  line-height: 18px;
-  color: var(--muted);
-}
-.graph-menu > summary::-webkit-details-marker {
-  display: none;
-}
-.graph-menu > div {
-  position: absolute;
-  right: 0;
-  top: 100%;
-  z-index: 10;
-  border: 1px solid var(--line);
-  background: var(--panel);
-  box-shadow: var(--shadow);
-  border-radius: 7px;
-  padding: 6px;
-  width: 165px;
-}
-.graph-menu button {
-  display: block;
-  width: 100%;
-  text-align: left;
-  font-size: 12px;
-  padding: 11px;
-  border-radius: 4px;
-}
-.graph-menu button:hover {
-  background: var(--soft);
-}
-.graph-selection-bar {
-  display: flex;
-  flex: 0 0 42px;
-  flex-wrap: nowrap;
-  align-items: center;
-  height: 42px;
-  padding: 5px 16px;
-  gap: 0;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: none;
-  border-bottom: 1px solid var(--line);
-  background: var(--panel);
-}
-.graph-selection-bar::-webkit-scrollbar {
-  display: none;
-}
-.graph-selection-bar > span {
-  font-size: 11px;
-  color: var(--muted);
-  padding: 5px 0;
-  flex: 1 1 0;
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.graph-selection-bar .quiet {
-  flex-shrink: 0;
-  font-size: 11px;
-  padding: 7px;
 }
 .graph-canvas {
   position: relative;
@@ -710,3 +644,9 @@
 
 .graph-canvas .react-flow__node.selected.search-dim,
 .graph-canvas .react-flow__edge.emphasized.search-dim { opacity: 1; }
+
+.graph-toolbar .pane-title { flex-shrink: 0; }
+.graph-toolbar .graph-scope::before { content: "/"; margin-right: 8px; }
+@container (max-width: 520px) {
+  .graph-toolbar { padding-inline: 12px; }
+}

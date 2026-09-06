@@ -46,7 +46,6 @@ test("Browse and Graph share one persistent, independently resizable Code worksp
     codeBox.width,
   );
   const resizedWidth = (await codePane(page).boundingBox())!.width;
-  await page.getByLabel("Graph options", { exact: true }).click();
   await page.getByRole("button", { name: "Reset graph view", exact: true }).click();
   expect((await codePane(page).boundingBox())!.width).toBe(resizedWidth);
   expect(new URL(page.url()).searchParams.get("code")).toBe(target);

@@ -785,59 +785,50 @@ function GraphCanvas({
       <div className="graph-toolbar">
         <div>
           <span className="pane-title">Graph</span>
-          <span className="graph-scope">
-            {focus ? "Focused neighborhood" : "Overall domain"}
+          <span className="graph-scope" title={selectedName || (focus ? "Focused neighborhood" : "Overall domain")}>
+            {selectedName || (focus ? "Focused neighborhood" : "Overall domain")}
           </span>
         </div>
         <div className="graph-toolbar-actions">
+          {focus && (
+            <button className="quiet icon-button" aria-label="Back to overview" title="Back to overview" onClick={overview}>
+              <Icon name="arrow-left" />
+            </button>
+          )}
+          {selection && (
+            <button className="quiet icon-button" aria-label="Locate" title="Locate selection in graph" onClick={() => reveal(selection)}>
+              <Icon name="locate" />
+            </button>
+          )}
           <button
-            className={`quiet ${workspace.allCode ? "active" : ""}`}
+            className={`quiet icon-button ${workspace.allCode ? "active" : ""}`}
             aria-pressed={workspace.allCode}
+            aria-label={workspace.allCode ? "All code shown" : "Show all code"}
             title={
               workspace.allCode
-                ? "Return to individually expanded code"
-                : "Show every declared code target"
+                ? "Hide all code (return to individual expansions)"
+                : "Show all code"
             }
             onClick={() => setWorkspace((w) => ({ ...w, allCode: !w.allCode }))}
           >
-            {workspace.allCode ? "All code shown" : "Show all code"}
+            <Icon name="code" />
           </button>
-          <details className="graph-menu">
-            <summary aria-label="Graph options"><Icon name="more" /></summary>
-            <div>
-              <button
-                onClick={() => {
-                  setWorkspace((w) => ({ ...w, positions: {} }));
-                  pending.current = { kind: "fit" };
-                  setRevision((n) => n + 1);
-                }}
-              >
-                Rearrange
-              </button>
-              <button onClick={reset}>Reset graph view</button>
-            </div>
-          </details>
+          <button
+            className="quiet icon-button"
+            aria-label="Rearrange"
+            title="Rearrange graph"
+            onClick={() => {
+              setWorkspace((w) => ({ ...w, positions: {} }));
+              pending.current = { kind: "fit" };
+              setRevision((n) => n + 1);
+            }}
+          >
+            <Icon name="graph" />
+          </button>
+          <button className="quiet icon-button" aria-label="Reset graph view" title="Reset graph view" onClick={reset}>
+            <Icon name="refresh" />
+          </button>
         </div>
-      </div>
-      <div className="graph-selection-bar">
-        <span title={selectedName}>
-          {selectedName || "Select a node or relationship to read"}
-        </span>
-        {selection && (
-          <>
-            <button className="quiet" onClick={() => reveal(selection)}>
-              Locate
-            </button>
-            <button className="quiet" onClick={clearSelection}>
-              Clear selection
-            </button>
-          </>
-        )}
-        {focus && (
-          <button className="quiet" onClick={overview}>
-            Back to overview
-          </button>
-        )}
       </div>
       <div
         className={`graph-canvas ${spacePanning ? "space-panning" : ""}`}
