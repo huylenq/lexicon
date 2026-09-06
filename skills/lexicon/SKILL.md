@@ -6,28 +6,33 @@ user-invocable: true
 
 # Lexicon
 
-Reduce the understanding someone must reconstruct from code. Use DDD through annotation and linkage: contexts establish meaning, concepts name ideas, relationships explain connections, and code links show the implementation.
+Reduce the understanding someone must reconstruct from code. Contexts establish meaning, concepts name ideas, relationships explain connections, and code links show their implementation. Human judgment governs names, boundaries, and emphasis.
 
-Choose the workflow from the request:
+## Choose the workflow
 
-- **Explain:** inspect the relevant model and code, then answer the human question with source evidence. File changes are needed only when requested. A missing model is a reason to read the code directly.
-- **Model:** create or update `lexicon/model.xml` for the requested scope, then check its structure and code links. Review domain meaning separately from the checker's results.
+- **Explain:** answer the person's question from the existing model and relevant source. Explain directly when no model exists. Exploratory questions do not authorize model changes.
+- **Initialize:** when asked to create a first model, read [initialize.md](initialize.md), then apply [review.md](review.md). A general initialization asks “What is this system, and how should I think about it?” Establish its essential ideas before selecting detailed traces. Respect an explicitly narrower scope.
+- **Refine:** read the current model and relevant source, then make the requested incremental changes. Preserve stable IDs and established judgment. Add, split, move, merge, or remove objects as needed; keep dependent relationships consistent. Apply [review.md](review.md) to the changed scope and its connections. Do not broaden a focused request into a fresh system survey or regenerate the model.
 
-1. Start with the question the person needs to answer. Inspect the existing model and relevant source. For a linked Git worktree, check its primary worktree for project artifacts while inspecting implementation in the current checkout.
-2. Explain the smallest useful set of concepts and relationships. Choose context boundaries by meaning and responsibility. Use DDD classifications when they help. Keep code-name and domain-name correspondence explicit. Use spaced concept names with the first character of every word capitalized, such as `Order Line` and `Purchase Information`, preserving proper nouns and acronyms. Relationship names use natural verb phrases, such as `supplies results to`; Context names remain natural phrases, such as `Order Management`. Explicit user terminology takes precedence. Preserve existing names unless renaming is requested. This display-name preference does not change stable IDs, project names, exact code-link files or symbols, descriptive labels, or prose, and is not a validation requirement.
-3. When model editing is within the task, update `lexicon/model.xml` directly. Preserve stable IDs. Attach explanations, rules, and rationale to the objects they describe. Qualify rules as intended, observed, or enforced according to the evidence.
-4. Link the inspected files or symbols and explain each link's role. A concept may span files; a file may implement several concepts. Relationships may carry code links too.
-5. After model changes, run the checker and review the result through the reader when available. Report broken or unchecked links and any review you could not perform.
+## Roots and editing
 
-Resolve `<skill-directory>` from the location of this SKILL.md supplied by your agent. The launcher follows symlinks back to the source checkout. Find the bundle root and run the checker with Bun:
+Inspect project instructions and existing artifacts before editing. For a linked Git worktree, inspect implementation in the selected checkout and check the primary worktree for model artifacts. Use the caller's explicit artifact root when supplied. Preserve unrelated work and project registrations.
+
+Read the bundle's `MODEL.md` before authoring; it defines XML, naming, annotations, and code-link conventions. Contexts group consistent meaning and responsibility. A domain concept may span several files, and a file may implement several concepts. Explain discrepancies between domain names and code symbols. Use DDD classifications when they clarify identity, consistency, or responsibility.
+
+For standalone skill use, write scoped edits to `<artifact-root>/lexicon/model.xml`. Embedded Lexicon chat uses the server's patch protocol instead; its read-only source and server-owned save rules govern delivery. Project prose stays where it is. Do not introduce personal models or a separate modeling-decision log.
+
+## Check and hand back
+
+Resolve `<skill-directory>` from this skill's supplied location. The launcher follows symlinks to the bundle checkout:
 
 ```sh
 bun <skill-directory>/scripts/lexicon.ts root
 bun <skill-directory>/scripts/lexicon.ts check <artifact-root> --code-root <code-root>
 ```
 
-The format and a minimal example live in `<bundle>/MODEL.md`. Install dependencies once with `bun install --frozen-lockfile` in `<bundle>/viewer/`; repeat when its dependencies change. The launcher runs current source on every invocation, without a build or global CLI installation. When iterating on Lexicon, reread this SKILL.md from disk before using it again so earlier conversation instructions do not hide source changes.
+Install dependencies with `bun install --frozen-lockfile` in `<bundle>/viewer/` when needed. The launcher runs source without a build or global CLI installation. When iterating on Lexicon, reread this skill and its referenced workflow files from disk.
 
-Use the caller's explicitly chosen artifact root when supplied. A project can keep its prose under `lexicon/docs/`; its organization is outside this workflow.
+Run the checker after edits and inspect the result through the reader when available. Report coverage and correctness separately, including important unresolved questions, broken or unchecked links, and reviews not performed. Check whether Git ignores the artifact and report that without changing ignore rules. Counts and resolving links do not establish semantic quality.
 
-For earlier XML projects, read `<bundle>/MIGRATION.md`. Preview conversion, review its domain meaning, and preserve the source files. Keep edits scoped to the current request.
+For earlier XML, read `<bundle>/MIGRATION.md`; preview conversion and preserve the originals. Initialization creates a starting point that the team refines through use and existing Git review.

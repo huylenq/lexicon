@@ -68,3 +68,7 @@ Use two-space indentation and normal XML escaping. Descriptions and annotations 
 Keep a project model in its chosen artifact root. The viewer first reads the registered folder; when it lacks a model, it checks the primary Git worktree. CLI callers specify roots explicitly. Source inspection stays rooted in the selected code checkout.
 
 The shared TypeScript contract and executable validation are maintained together in `viewer/shared/model.ts` and `viewer/server/model.ts`. The [DentalML example](viewer/examples/dentalml/lexicon/model.xml) shows the format applied to canal measurement.
+
+Structural and code-link checks establish that the model is well formed and its declared targets resolve. Semantic review asks whether those targets support the explanations. For an integration relationship, inspect the mechanism connecting both endpoints; finding each endpoint is insufficient. For an enforced rule, inspect the check and retain its conditions and failure outcome.
+
+Annotations can explain lifecycle transitions, authority limits, uncertainty, and consistency rules without introducing new object types. Add structure when a worked example exposes meaning these objects cannot express clearly. The [initialization workflow](skills/lexicon/initialize.md) covers concept selection; [semantic review](skills/lexicon/review.md) assesses coverage separately from correctness.
