@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased — Project canvas
+
+- Add a tldraw canvas with custom model references and relationships, attached notes, sketches, media, and selection export. Keep the graph available during rollout.
+- Save a versioned `lexicon/canvas.json` and content-addressed assets with revision checks, atomic writes, a previous version, browser recovery, and conflict review.
+- Preserve concept containment; add context resizing, reference copies, searchable note links, and explicit model annotation and ownership commands with validated undo.
+- Add optional stable IDs to code links and migrate earlier canvas references without rewriting model XML.
+- Pin tldraw 5.4.0 and serve its assets locally. Built-canvas validation still requires the appropriate SDK license; local development checks run without a key.
+
+See [Project canvas](viewer/CANVAS.md) for storage, recovery, and validation details.
+
 ## 2.0.0 — Human model of code
 
 - Consolidate around Context, Concept, Relationship, and Code Link in `lexicon/model.xml`.

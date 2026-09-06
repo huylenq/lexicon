@@ -6,7 +6,9 @@ import { join, resolve } from "node:path";
 let root: string, projectId: string, original: string;
 test.beforeEach(async ({ request }) => {
   root = await mkdtemp(join(tmpdir(), "lexicon-canvas-test-"));
-  await cp(resolve(import.meta.dirname, "../examples/canvas-workshop"), root, { recursive: true });
+  await cp(resolve(import.meta.dirname, "../examples/canvas-workshop"), root, { recursive: true,
+    filter: (source) => !/\/lexicon\/(canvas\.json|\.canvas[^/]*|assets)(\/|$)/.test(source),
+  });
   original = await readFile(join(root, "lexicon/model.xml"), "utf8");
   const response = await request.post("/api/projects", { data: { root } });
   expect(response.ok()).toBeTruthy();
@@ -40,7 +42,7 @@ async function note(page: Page, text: string) {
   await input.press("Escape");
   await page.getByRole("button", { name: "Fit model", exact: true }).click();
 }
-const records = (data: any) => data.canvas.records as any[];
+const records = (data: any) => (data.snapshot ? Object.values(data.snapshot.store) : data.canvas.records) as any[];
 const object = (data: any, id: string) => records(data).find((r) => r.type === "lexicon-object" && r.props.graphId === `item:${id}`);
 
 test("concept dragging and keyboard moves stay inside the owning context", async ({ page }) => {
@@ -198,15 +200,9 @@ test("attached notes survive dragging, collapse, model refresh, rearrangement, a
   await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
   const arranged = (await exportDocument(page)).data;
   expect(records(arranged).find((r) => r.type === "note").props.richText).toEqual(beforeNote.props.richText);
-  // The SDK batches IndexedDB writes. Wait for the durable record, not an arbitrary delay.
-  const arrangedNote = records(arranged).find((r) => r.type === "note");
-  await expect.poll(async () => {
-    const storage = await page.context().storageState({ indexedDB: true });
-    // Playwright 1.63 emits IndexedDB data but its StorageState return type omits it.
-    const origins = storage.origins as { indexedDB?: { stores: { records: { value: any }[] }[] }[] }[];
-    const values = origins.flatMap((origin) => origin.indexedDB || []).flatMap((db) => db.stores).flatMap((store) => store.records);
-    return values.find((record) => record.value?.id === arrangedNote.id)?.value;
-  }).toEqual(arrangedNote);
+  await expect(page.locator('[data-save-status="saved"]')).toBeVisible();
+  const durable = JSON.parse(await readFile(join(root, "lexicon/canvas.json"), "utf8"));
+  expect(records(durable).find((r) => r.type === "note").props.richText).toEqual(beforeNote.props.richText);
   await page.reload();
   await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
   const reloaded = (await exportDocument(page)).data;
@@ -284,4 +280,190 @@ test("parallel and self relationships remain distinct, and canvas undo cannot re
   await page.getByRole("button", { name: /^Undo —/ }).click();
   await expect(page.getByRole("button", { name: "concept: Purchase", exact: true })).toBeVisible();
   expect(await readFile(join(root, "lexicon/model.xml"), "utf8")).toBe(changed);
+});
+
+async function saved(page: Page) { await expect(page.locator('[data-save-status="saved"]')).toBeVisible({ timeout: 15_000 }); }
+async function durableNotes() {
+  const data = JSON.parse(await readFile(join(root, "lexicon/canvas.json"), "utf8"));
+  return records(data).filter((r) => r.type === "note").map((r) => JSON.stringify(r.props.richText));
+}
+
+test("project autosave survives a fresh browser and collapse or camera changes do not dirty the file", async ({ page, browser }) => {
+  await open(page); await page.getByRole("button", { name: "concept: Order", exact: true }).click();
+  await note(page, "Shared note saved with the project."); await saved(page);
+  const file = join(root, "lexicon/canvas.json"), before = await readFile(file, "utf8");
+  await page.getByRole("button", { name: "Collapse context Ordering" }).click();
+  await page.getByRole("button", { name: "Fit model", exact: true }).click(); await saved(page);
+  expect(await readFile(file, "utf8")).toBe(before);
+  const context = await browser.newContext(), other = await context.newPage();
+  await other.goto(page.url()); await expect(other.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  expect(records((await exportDocument(other)).data).filter((r) => r.type === "note")).toHaveLength(1);
+  await expect(other.getByRole("button", { name: "concept: Order", exact: true })).toBeVisible();
+  await context.close();
+});
+
+test("failed project saves recover after reload and retry without losing local notes", async ({ page }) => {
+  await open(page); await saved(page);
+  let unavailable = true;
+  await page.route(`**/api/projects/${projectId}/canvas`, (route) => route.request().method() === "PUT" && unavailable ? route.abort("failed") : route.continue());
+  await note(page, "Recovered after the local server stopped.");
+  await expect(page.locator('[data-save-status="local"]')).toBeVisible();
+  // Wait for the IndexedDB recovery write before simulating closing the tab.
+  await expect.poll(async () => {
+    const state = await page.context().storageState({ indexedDB: true });
+    return JSON.stringify(state).includes("Recovered after the local server stopped.");
+  }).toBeTruthy();
+  page.on("dialog", (dialog) => dialog.accept());
+  await page.reload(); await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  expect(records((await exportDocument(page)).data).some((r) => r.type === "note" && JSON.stringify(r).includes("Recovered after"))).toBe(true);
+  await expect(page.locator('[data-save-status="local"]')).toBeVisible();
+  unavailable = false; await page.getByRole("button", { name: "Retry save" }).click(); await saved(page);
+  expect((await durableNotes()).join()).toContain("Recovered after");
+});
+
+test("two tabs merge independent notes and require review for overlapping edits", async ({ page, browser }) => {
+  await open(page); await note(page, "Shared starting note."); await saved(page);
+  const context = await browser.newContext(), other = await context.newPage();
+  await other.goto(page.url()); await expect(other.locator('.canvas-stage[data-ready="true"]')).toBeVisible(); await saved(other);
+  let holdA = true, holdB = true;
+  await page.route(`**/api/projects/${projectId}/canvas`, (route) => route.request().method() === "PUT" && holdA ? route.abort() : route.continue());
+  await other.route(`**/api/projects/${projectId}/canvas`, (route) => route.request().method() === "PUT" && holdB ? route.abort() : route.continue());
+  await note(page, "Independent edit from tab A."); await expect(page.locator('[data-save-status="local"]')).toBeVisible();
+  await note(other, "Independent edit from tab B."); await expect(other.locator('[data-save-status="local"]')).toBeVisible();
+  holdA = false; await page.getByRole("button", { name: "Retry save" }).click(); await saved(page);
+  holdB = false; await other.getByRole("button", { name: "Retry save" }).click(); await saved(other);
+  expect((await durableNotes()).join()).toContain("Independent edit from tab A"); expect((await durableNotes()).join()).toContain("Independent edit from tab B");
+  // Both tabs start from the same file, then edit the same model placement.
+  page.on("dialog", (dialog) => dialog.accept()); other.on("dialog", (dialog) => dialog.accept());
+  await page.reload(); await other.reload();
+  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible(); await expect(other.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  await saved(page); await saved(other); holdA = true; holdB = true;
+  const nudge = async (tab: Page, key: string) => {
+    await tab.getByRole("button", { name: "Fit model", exact: true }).click();
+    const box = (await tab.locator('[data-model-id="item:order"]').boundingBox())!;
+    await tab.mouse.click(box.x + 8, box.y + box.height - 5); await tab.keyboard.press(key);
+    await expect(tab.locator('[data-save-status="local"]')).toBeVisible();
+  };
+  await nudge(page, "ArrowRight"); await nudge(other, "ArrowDown");
+  holdA = false; await page.getByRole("button", { name: "Retry save" }).click(); await saved(page);
+  holdB = false; await other.getByRole("button", { name: "Retry save" }).click();
+  await expect(other.locator('[data-save-status="conflict"]')).toBeVisible();
+  const version = await readFile(join(root, "lexicon/canvas.json"), "utf8");
+  await other.getByRole("button", { name: "Review versions" }).click();
+  await expect(other.getByRole("dialog", { name: "Review canvas versions" })).toBeVisible();
+  await other.getByRole("button", { name: "Use project version", exact: true }).click(); await saved(other);
+  expect(await readFile(join(root, "lexicon/canvas.json"), "utf8")).toBe(version);
+  await context.close();
+});
+
+test("notes can be found, linked, detached, and promoted with exact model undo", async ({ page }) => {
+  await open(page); await page.getByRole("button", { name: "concept: Order", exact: true }).click();
+  await note(page, "An order is ready when checkout validation succeeds."); await saved(page);
+  await page.getByRole("button", { name: "Notes (1)", exact: true }).click();
+  await page.getByRole("searchbox", { name: "Search notes" }).fill("checkout");
+  await page.getByRole("button", { name: /An order is ready when checkout/ }).click();
+  await expect(page).toHaveURL(/shape=/);
+  await page.getByRole("button", { name: "Notes (1)", exact: true }).click();
+  await expect(page.getByText("Attached to Order", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Add to model…", exact: true }).click();
+  await page.getByRole("combobox", { name: "Evidence", exact: true }).selectOption("intended");
+  await page.getByRole("button", { name: "Add annotation", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Undo model edit", exact: true })).toBeVisible();
+  expect(await readFile(join(root, "lexicon/model.xml"), "utf8")).toContain('evidence="intended"');
+  await page.getByRole("button", { name: "Undo model edit", exact: true }).click();
+  await expect.poll(() => readFile(join(root, "lexicon/model.xml"), "utf8")).toBe(original);
+  // Follow the deep link again after the model refresh.
+  await page.reload(); await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  await expect(page.getByRole("button", { name: "Detach note", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Detach note", exact: true }).click(); await saved(page);
+  expect(records((await exportDocument(page)).data).filter((r) => r.type === "lexicon-note")).toHaveLength(0);
+  await page.getByRole("button", { name: /^Undo —/ }).click();
+  expect(records((await exportDocument(page)).data).filter((r) => r.type === "lexicon-note")).toHaveLength(1);
+});
+
+test("context resizing preserves its children, and reference copies can be moved and deleted independently", async ({ page }) => {
+  await open(page); await page.getByRole("button", { name: "context: Ordering", exact: true }).click();
+  const before = (await exportDocument(page)).data;
+  const group = page.locator('[data-model-id="item:ordering"]'), box = (await group.boundingBox())!;
+  // Resize the context with the SDK selection handle.
+  await page.mouse.move(box.x + box.width, box.y + box.height); await page.mouse.down();
+  await page.mouse.move(box.x + box.width + 70, box.y + box.height + 40, { steps: 10 }); await page.mouse.up();
+  const resized = (await exportDocument(page)).data;
+  expect(object(resized, "ordering").props.w).toBeGreaterThan(object(before, "ordering").props.w);
+  expect(object(resized, "order").x).toBe(object(before, "order").x);
+  const card = (await page.locator('[data-model-id="item:order"]').boundingBox())!;
+  await page.mouse.click(card.x + 8, card.y + card.height - 5); await page.keyboard.press("Meta+d");
+  await expect(page.locator('[data-model-id="item:order"]')).toHaveCount(2);
+  const copies = records((await exportDocument(page)).data).filter((r) => r.props?.graphId === "item:order");
+  expect(copies[0].id).not.toBe(copies[1].id);
+  await page.keyboard.press("ArrowRight"); await page.getByRole("button", { name: /^Delete —/ }).click();
+  await expect(page.locator('[data-model-id="item:order"]')).toHaveCount(1);
+  expect(await readFile(join(root, "lexicon/model.xml"), "utf8")).toBe(original);
+});
+
+test("selection export includes model cards and relationships", async ({ page }, info) => {
+  await open(page); await page.getByRole("button", { name: "context: Ordering", exact: true }).click();
+  const pending = page.waitForEvent("download"); await page.getByRole("button", { name: "Export selection", exact: true }).click();
+  const data = await readFile((await (await pending).path())!);
+  expect(data.subarray(1, 4).toString()).toBe("PNG"); expect(data.length).toBeGreaterThan(2000);
+  await writeFile(info.outputPath("canvas-selection.png"), data);
+});
+
+test("a 300-concept model opens, saves, and keeps the complete document while culling offscreen shapes", async ({ page }, info) => {
+  const contexts = Array.from({ length: 20 }, (_, c) => `<context id="c${c}"><name>Context ${c}</name><description>Benchmark scope.</description>${Array.from({ length: 15 }, (_, n) =>
+    `<concept id="c${c}n${n}"><name>Concept ${c} ${n}</name><description>Benchmark concept.</description></concept>`).join("")}</context>`).join("");
+  const relations = Array.from({ length: 20 }, (_, c) => Array.from({ length: 14 }, (_, n) =>
+    `<relationship id="r${c}n${n}" from="c${c}n${n}" to="c${c}n${n+1}"><name>feeds</name><description>Benchmark connection.</description></relationship>`).join("")).join("");
+  await writeFile(join(root, "lexicon/model.xml"), `<lexicon schema="2.0" id="benchmark"><name>Canvas benchmark</name><description>300 concepts, 20 contexts, 280 relationships.</description>${contexts}${relations}</lexicon>`);
+  const started = Date.now();
+  await page.goto(`/p/${projectId}?canvas=tldraw`);
+  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible({ timeout: 15_000 });
+  const opened = Date.now() - started; await saved(page);
+  const document = JSON.parse(await readFile(join(root, "lexicon/canvas.json"), "utf8"));
+  expect(records(document).filter((r) => r.type === "lexicon-object")).toHaveLength(320);
+  expect(records(document).filter((r) => r.type === "lexicon-connection")).toHaveLength(280);
+  info.annotations.push({ type: "performance", description: `300 concepts and 280 relationships opened in ${opened} ms.` });
+  console.log(`Canvas benchmark: 300 concepts, 280 relationships, ${opened} ms to ready.`);
+});
+
+test("explicit context moves update the model and attached notes, and model undo restores exact XML", async ({ page }) => {
+  original = original.replace('</lexicon>', '<context id="fulfilment"><name>Fulfilment</name><description>Prepare agreed orders.</description></context></lexicon>');
+  await writeFile(join(root, "lexicon/model.xml"), original);
+  await open(page); await page.getByRole("button", { name: "concept: Order", exact: true }).click();
+  await note(page, "Keep the order question when ownership changes."); await saved(page);
+  await page.getByRole("button", { name: "concept: Order", exact: true }).click();
+  await page.getByRole("button", { name: "Move to context…", exact: true }).click();
+  await page.getByRole("combobox", { name: "New context", exact: true }).selectOption("fulfilment");
+  await page.getByRole("button", { name: "Move concept", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Undo model edit", exact: true })).toBeVisible();
+  const moved = (await exportDocument(page)).data;
+  expect(object(moved, "order").parentId).toBe(object(moved, "fulfilment").id);
+  expect(records(moved).filter((r) => r.type === "lexicon-note")).toHaveLength(1);
+  await page.getByRole("button", { name: "Undo model edit", exact: true }).click();
+  await expect.poll(() => readFile(join(root, "lexicon/model.xml"), "utf8")).toBe(original);
+});
+
+test("copy/paste and mixed deletion preserve the model, and removed relationships retain attached notes", async ({ page }) => {
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await open(page); await page.getByRole("button", { name: "concept: Order", exact: true }).click();
+  const box = (await page.locator('[data-model-id="item:order"]').boundingBox())!;
+  await page.mouse.click(box.x + 8, box.y + box.height - 5); await page.keyboard.press("Meta+c");
+  await expect.poll(() => page.evaluate(async () => (await navigator.clipboard.read()).some((item) => item.types.includes("text/html")))).toBeTruthy();
+  await page.keyboard.press("Meta+v");
+  await expect(page.locator('[data-model-id="item:order"]')).toHaveCount(2);
+  await note(page, "Temporary sketch note.");
+  const blank = await page.locator(".canvas-stage").boundingBox();
+  await page.mouse.click(blank!.x + 100, blank!.y + 200); await page.keyboard.press("Meta+a"); await page.keyboard.press("Backspace");
+  await expect(page.locator('[data-model-id="item:order"]')).toHaveCount(1);
+  expect(records((await exportDocument(page)).data).filter((r) => r.type === "note")).toHaveLength(0);
+  expect(await readFile(join(root, "lexicon/model.xml"), "utf8")).toBe(original);
+  await page.getByRole("button", { name: "Read relationship: contains", exact: true }).click();
+  await note(page, "Keep the evidence question for the removed relationship."); await saved(page);
+  await writeFile(join(root, "lexicon/model.xml"), original.replace(/<relationship id="contains"[\s\S]*?<\/relationship>/, ""));
+  await page.getByRole("button", { name: "Refresh", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Read relationship: Removed relationship", exact: true })).toBeVisible();
+  const document = (await exportDocument(page)).data;
+  const missing = records(document).find((r) => r.props?.graphId === "relation:contains");
+  expect(missing.meta.lexiconMissing).toBe(true); expect(missing.meta.lexiconLabel).toBe("contains");
+  expect(records(document).find((r) => r.type === "lexicon-note").toId).toBe(missing.id);
 });

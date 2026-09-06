@@ -10,10 +10,12 @@ export function normalizeNavigation(
   index: GraphIndex,
 ) {
   const p = new URLSearchParams(params);
+  const stableMapping = (id: string) => index.legacyMappings.get(id) || id;
+  if (p.has("codeMapping")) p.set("codeMapping", stableMapping(p.get("codeMapping")!));
   const code = p.get("code");
   if (code && !code.startsWith("code:")) {
     const mapping = index.mappings.get(
-      mappingId(code, Number(p.get("link") || 0)),
+      stableMapping(mappingId(code, Number(p.get("link") || 0))),
     );
     if (mapping) {
       p.set("code", mapping.target);
@@ -23,6 +25,13 @@ export function normalizeNavigation(
     }
   }
   const selection = readSelection(p.get("selection"));
+  if (selection?.kind === "mapping") {
+    selection.id = stableMapping(selection.id);
+    p.set("selection", JSON.stringify(selection));
+  } else if (selection?.kind === "bundle") {
+    selection.mappings = selection.mappings.map(stableMapping);
+    p.set("selection", JSON.stringify(selection));
+  }
   if (selection?.kind === "code") {
     p.set("code", selection.id);
     p.delete("codeMapping");

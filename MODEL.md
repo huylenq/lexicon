@@ -25,6 +25,8 @@ An aggregate is represented by a concept classified `aggregate`, relationships t
 
 ## Code links
 
+A code link may have an `id`, unique within its owning object. Give new links stable IDs and preserve them when changing a file, symbol, role, or explanation. Canvas annotations and shared links use this identity. Older links without IDs remain readable and get a deterministic reference from their target and role; changing either can require reattaching their canvas annotations. Opening a model never writes IDs into XML.
+
 A link requires a repository-relative file, a role, and explanation text. Add a `symbol` for a declaration, or a positive, one-based `line` for a location. With both present, the symbol is authoritative. Without either, the reader opens the file.
 
 Roles are descriptive labels: definition, representation, implementation, enforcement, usage. Explain discrepancies between a domain name and its code name. A concept may link to several files; a file may implement several concepts. Relationships also carry links.

@@ -7,6 +7,8 @@ import { readFile, readdir, writeFile } from "node:fs/promises";
 const dist = resolve(import.meta.dirname, "dist");
 export default defineConfig({
   root: resolve(import.meta.dirname, "."),
+  // Preserve ?url imports for the SDK's self-hosted JSON translations and fonts.
+  optimizeDeps: { exclude: ["@tldraw/assets/imports.vite"] },
   plugins: [react(), {
     name: "lexicon-offline-shell",
     apply: "build",

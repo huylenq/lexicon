@@ -5,6 +5,8 @@ export interface Annotation {
   evidence?: "observed" | "intended" | "enforced";
 }
 export interface CodeLink {
+  /** Stable within its owning object. Older models may omit it. */
+  id?: string;
   file: string;
   symbol?: string;
   line?: number;
@@ -16,6 +18,14 @@ export const codeTargetId = (
   link: Pick<CodeLink, "file" | "symbol" | "line">,
 ) =>
   `code:${JSON.stringify([link.file, link.symbol ? "symbol" : link.line ? "line" : "file", link.symbol || link.line || ""])}`;
+/** Legacy links remain stable across reordering; explicit IDs also survive target edits. */
+export function codeLinkKey(link: CodeLink): string {
+  if (link.id) return link.id;
+  let hash = 0xcbf29ce484222325n;
+  for (const byte of new TextEncoder().encode(JSON.stringify([codeTargetId(link), link.role])))
+    hash = BigInt.asUintN(64, (hash ^ BigInt(byte)) * 0x100000001b3n);
+  return `link-${hash.toString(36)}`;
+}
 export interface Item {
   id: string;
   name: string;

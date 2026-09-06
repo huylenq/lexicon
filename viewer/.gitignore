@@ -13,3 +13,13 @@ lexicon-canvas-prototype.db*
 # Browser verification artifacts
 test-results/
 playwright-report/
+
+# Local companion-file recovery (commit canvas.json and assets, not these files).
+**/lexicon/.canvas.lock
+**/lexicon/.canvas.previous.json
+**/lexicon/.canvas-recovered-*.json
+**/lexicon/*.tmp
+.env*.local
+# Personal canvases on the bundled demonstration projects.
+examples/*/lexicon/canvas.json
+examples/*/lexicon/assets/

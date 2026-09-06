@@ -155,10 +155,11 @@ export function applyPatch(model: Model, raw: unknown): Model {
         [link.file, link.role, link.description].some(
           (s) => typeof s !== "string",
         ) ||
-        (link.symbol !== undefined && typeof link.symbol !== "string")
+        (link.symbol !== undefined && typeof link.symbol !== "string") ||
+        (link.id !== undefined && typeof link.id !== "string")
       )
         throw new Error("Invalid code link.");
-      keys(link, ["file", "role", "description", "symbol", "line"]);
+      keys(link, ["id", "file", "role", "description", "symbol", "line"]);
     }
     if (ids.has(item.id) || removes.includes(item.id))
       throw new Error(`Conflicting operations for ${item.id}.`);

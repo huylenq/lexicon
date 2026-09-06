@@ -3,8 +3,10 @@ export default defineConfig({
   testDir: "./tests",
   testMatch: "**/*.prototype.ts",
   workers: 1,
+  outputDir: "test-results/canvas",
   timeout: 60_000,
   use: {
+    actionTimeout: 10_000,
     baseURL: "http://127.0.0.1:5395",
     viewport: { width: 1600, height: 1000 },
     channel: process.env.PLAYWRIGHT_CHANNEL || "chromium",

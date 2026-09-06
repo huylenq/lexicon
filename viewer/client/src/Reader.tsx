@@ -30,6 +30,7 @@ import type { GraphCommand } from "./GraphPane";
 import "./styles/graph.css";
 import "./styles/code.css";
 import "./styles/status.css";
+import CanvasBoundary from "./CanvasBoundary";
 const GraphPane = lazy(() => import("./GraphPane"));
 const CanvasPane = lazy(() => import("./canvas/CanvasPane"));
 export default function Reader() {
@@ -177,6 +178,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
     id ? p.set("item", id) : p.delete("item");
     p.delete("selection");
     p.delete("focus");
+    p.delete("shape");
     setMobileCode(false);
     setMobileRead(true);
     setParams(p);
@@ -203,6 +205,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
     p.set("selection", JSON.stringify(selection));
     p.delete("item");
     p.delete("focus");
+    p.delete("shape");
     setParams(p);
     setMobileRead(true);
     setMobileCode(false);
@@ -215,6 +218,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
     p.set("item", id);
     p.delete("selection");
     p.delete("focus");
+    p.delete("shape");
     return (
       <Link
         to={`?${p}`}
@@ -237,7 +241,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
     );
   };
   const code = (id: string, index: number) => {
-    const mapping = graphIndex?.mappings.get(mappingId(id, index));
+    const mapping = graphIndex?.mappings.get(graphIndex.legacyMappings.get(mappingId(id, index)) || "");
     if (mapping) openCode({ target: mapping.target, mapping: mapping.id });
   };
   const specialSelection = useMemo(
@@ -323,7 +327,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
         <span className="project-name">{model?.name || "Opening project"}</span>
         <div className="header-actions">
           <button className="quiet canvas-toggle" aria-label="Toggle freeform canvas" aria-pressed={canvasEnabled}
-            title={canvasEnabled ? "Switch to React Flow graph" : "Try the tldraw canvas prototype"}
+            title={canvasEnabled ? "Switch to graph" : "Open the canvas"}
             onClick={() => {
               const next = new URLSearchParams(params);
               if (canvasEnabled) next.delete("canvas");
@@ -331,7 +335,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
               setParams(next);
               setMobileRead(false);
               setMobileCode(false);
-            }}>{canvasEnabled ? "Canvas" : "Try Canvas"}</button>
+            }}>{canvasEnabled ? "Canvas" : "Open Canvas"}</button>
           <div className="pane-toggles" role="group" aria-label="Pane visibility">
           <button
             ref={codeToggle}
@@ -441,10 +445,13 @@ function ReaderProject({ projectId }: { projectId: string }) {
             <div
               className="graph-slot"
             >
-              <Suspense fallback={<p className="empty">Opening graph…</p>}>
+              <CanvasBoundary key={canvasEnabled ? "canvas" : "graph"}><Suspense fallback={<p className="empty">Opening graph…</p>}>
                 <GraphSurface
                   key={canvasEnabled ? `canvas:${projectId}` : `graph:${projectId}`}
                   model={model}
+                  projectId={projectId}
+                  modelRevision={data?.modelRevision || ""}
+                  onModelChanged={refresh}
                   projectKey={data?.project.root || projectId}
                   statusHost={graphStatusHost}
                   workspace={workspace}
@@ -462,7 +469,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
                   command={graphCommand}
                   onReset={() => setMobileRead(false)}
                 />
-              </Suspense>
+              </Suspense></CanvasBoundary>
             </div>
           )}
           {model && (

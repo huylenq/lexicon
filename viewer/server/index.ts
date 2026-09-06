@@ -15,6 +15,8 @@ import { modelOrEmpty, readXml, fingerprint } from "./chat/model-edit";
 import { probeProviders, listModels } from "./chat/providers";
 import { providers, type Provider } from "../shared/chat";
 import { stopOwnedAgents } from "./chat/process";
+import { CanvasError, validateCanvas, readCanvas, saveCanvas, recoverCanvas, saveCanvasAsset, readCanvasAsset } from "./canvas";
+import { MAX_CANVAS_BYTES, MAX_ASSET_BYTES } from "../shared/canvas";
 
 const exec = promisify(execFile);
 const repository = resolve(import.meta.dir, "../..");
@@ -91,7 +93,7 @@ app.use("/api/*", async (c, next) => {
     return c.json({ error: "Local requests only." }, 403);
   await next();
 });
-app.onError((error, c) => c.json({ error: error.message }, 400));
+app.onError((error, c) => c.json({ error: error.message }, error instanceof CanvasError ? error.status : 400));
 app.get("/api/health", (c) => c.json({ ok: true, model: "2.0" }));
 app.get("/api/projects", (c) =>
   c.json([
@@ -150,6 +152,50 @@ app.get("/api/projects/:id/model", async (c) => {
   });
 });
 app.get("/api/providers", async (c) => c.json(await probeProviders()));
+async function canvasProject(id: string) {
+  const p = project(id);
+  if (!p) throw new CanvasError("Project not found.");
+  const root = p.artifactRoot || await artifactRoot(p.root);
+  return { root, modelId: (await modelOrEmpty(root)).id };
+}
+app.get("/api/projects/:id/canvas", async (c) => {
+  const { root, modelId } = await canvasProject(c.req.param("id"));
+  c.header("Cache-Control", "no-store");
+  return c.json(await readCanvas(root, modelId));
+});
+app.put("/api/projects/:id/canvas", async (c) => {
+  if (!c.req.header("content-type")?.startsWith("application/json")) return c.json({ error: "JSON request required." }, 415);
+  const text = await c.req.text();
+  if (Buffer.byteLength(text) > MAX_CANVAS_BYTES) throw new CanvasError("Canvas is larger than 20 MB.", 413);
+  const { root, modelId } = await canvasProject(c.req.param("id")), body = JSON.parse(text);
+  return c.json(await saveCanvas(root, modelId, body.revision, body.document));
+});
+app.post("/api/projects/:id/canvas/validate", async (c) => {
+  if (!c.req.header("Content-Type")?.includes("application/json")) return c.json({ error: "JSON is required." }, 400);
+  const text = await c.req.text();
+  if (Buffer.byteLength(text) > MAX_CANVAS_BYTES) throw new CanvasError("Canvas files must be smaller than 20 MB.", 413);
+  const { modelId } = await canvasProject(c.req.param("id"));
+  return c.json(validateCanvas(JSON.parse(text), modelId));
+});
+app.post("/api/projects/:id/canvas/recover", async (c) => {
+  if (!c.req.header("content-type")?.startsWith("application/json")) return c.json({ error: "JSON request required." }, 415);
+  const { root, modelId } = await canvasProject(c.req.param("id"));
+  return c.json(await recoverCanvas(root, modelId, (await c.req.json()).revision));
+});
+app.post("/api/projects/:id/canvas/assets", async (c) => {
+  const { root } = await canvasProject(c.req.param("id"));
+  const bytes = new Uint8Array(await c.req.arrayBuffer());
+  if (bytes.length > MAX_ASSET_BYTES) throw new CanvasError("Canvas media is larger than 25 MB.", 413);
+  return c.json(await saveCanvasAsset(root, c.req.header("content-type")?.split(";")[0] || "", bytes));
+});
+app.get("/api/projects/:id/canvas/assets/:name", async (c) => {
+  const { root } = await canvasProject(c.req.param("id"));
+  try {
+    const asset = await readCanvasAsset(root, c.req.param("name"));
+    return new Response(asset.bytes, { headers: { "Content-Type": asset.type, "X-Content-Type-Options": "nosniff",
+      "Content-Security-Policy": "sandbox; default-src 'none'", "Cache-Control": "private, max-age=31536000, immutable" } });
+  } catch (e) { return c.json({ error: `Canvas media unavailable: ${(e as Error).message}` }, 404); }
+});
 app.get("/api/providers/:id/models", async (c) => {
   const id = c.req.param("id") as Provider;
   if (!providers.includes(id)) return c.json({ error: "Unknown coding agent." }, 404);
@@ -171,6 +217,10 @@ app.get("/api/projects/:id/chat", (c) => {
   if (!project(c.req.param("id")))
     return c.json({ error: "Project not found." }, 404);
   return c.json(chat.state(c.req.param("id")));
+});
+app.post("/api/projects/:id/canvas/model-command", async (c) => {
+  if (!c.req.header("content-type")?.startsWith("application/json")) return c.json({ error: "JSON request required." }, 415);
+  return c.json(await chat.canvasCommand(await chatProject(c.req.param("id")), await c.req.json()));
 });
 app.get("/api/projects/:id/chat/events", (c) => {
   const id = c.req.param("id");
@@ -208,7 +258,7 @@ app.post("/api/projects/:id/chat/:action", async (c) => {
   const body = await c.req.json();
   if (action === "send") return c.json(await chat.start(p, body));
   if (action === "stop") chat.stop(p.id);
-  else if (action === "undo") await chat.undo(p);
+  else if (action === "undo") await chat.undo(p, typeof body.changeId === "string" ? body.changeId : undefined);
   else if (action === "reset") chat.reset(p.id);
   else if (action === "answer") chat.answer(p.id, body.requestId, body.answers);
   else return c.json({ error: "Unknown conversation action." }, 404);
@@ -264,5 +314,6 @@ export default {
   hostname: "127.0.0.1",
   port,
   idleTimeout: 60,
+  maxRequestBodySize: 30 * 1024 * 1024,
   fetch: app.fetch,
 };

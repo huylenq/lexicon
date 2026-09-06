@@ -232,3 +232,13 @@ test("conversion creates a new model and refuses to overwrite it", async () =>
       original,
     );
   }));
+
+test("optional code-link IDs round-trip and must be unique within their owner", () => {
+  const xml = `<lexicon schema="2.0" id="test"><name>Test</name><description>Test.</description><context id="ctx"><name>Context</name><description>Scope.</description><code-link id="definition" file="a.ts" role="definition">Definition.</code-link></context></lexicon>`;
+  const model = parseModel(xml);
+  expect(model.items[0].codeLinks[0].id).toBe("definition");
+  expect(parseModel(serializeModel(model)).items[0].codeLinks[0].id).toBe("definition");
+  const duplicate = xml.replace('</context>', '<code-link id="definition" file="b.ts" role="usage">Usage.</code-link></context>');
+  expect(parseModel(duplicate).issues.some((i) => i.severity === "error")).toBe(true);
+  expect(parseModel(xml.replace('id="definition"', 'id=""')).issues.some((i) => i.severity === "error")).toBe(true);
+});

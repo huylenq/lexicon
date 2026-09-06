@@ -2,7 +2,7 @@ import { realpath } from "node:fs/promises";
 import { readFileSync } from "node:fs";
 import { db } from "../db";
 import { serializeModel } from "../model";
-import type { Model } from "../../shared/model";
+import type { Model, Annotation } from "../../shared/model";
 import {
   providers,
   type Provider,
@@ -371,13 +371,53 @@ export class ChatService {
     state.pending = undefined;
     this.publish(id);
   }
-  async undo(project: ChatProject) {
+  async canvasCommand(project: ChatProject, input: { revision?: unknown; command?: unknown }) {
+    if (project.example) throw new Error("The built-in example is read-only. Add your own project to refine its model.");
+    const root = await realpath(project.artifactRoot);
+    if (this.active.has(project.id) || this.locks.has(root)) throw new Error("Wait for the current model edit to finish.");
+    this.locks.add(root);
+    try {
+      const before = await readXml(root);
+      if (fingerprint(before) !== input.revision) throw new Error("The model changed. Refresh and review the command before applying it.");
+      const model = await modelOrEmpty(root);
+      if (model.source !== "native") throw new Error("Convert the earlier model format before editing it from the canvas.");
+      const command = input.command as { type: string; targetId: string; contextId?: string; annotation?: Annotation };
+      if (!command || typeof command !== "object") throw new Error("Choose a model command.");
+      const item = model.items.find((item) => item.id === command.targetId);
+      if (!item) throw new Error("The selected model object is unavailable.");
+      let updated = item, text: string;
+      if (command.type === "annotate") {
+        const a = command.annotation;
+        if (!a || typeof a.text !== "string" || !a.text.trim() || a.text.length > 20_000 || typeof a.kind !== "string" || !a.kind.trim() || a.kind.length > 80)
+          throw new Error("An annotation needs a kind and text (up to 20,000 characters).");
+        updated = { ...item, annotations: [...item.annotations, a] };
+        text = `Added a ${a.kind} annotation to ${item.name} from the canvas: ${a.text}`;
+      } else if (command.type === "move-concept") {
+        const context = model.items.find((item) => item.id === command.contextId && item.type === "context");
+        if (item.type !== "concept" || !context || context.id === item.context) throw new Error("Choose a different owning context for this concept.");
+        updated = { ...item, context: context.id };
+        text = `Moved ${item.name} to ${context.name} from the canvas.`;
+      } else throw new Error("Unknown canvas model command.");
+      const next = applyPatch(model, { upsert: [updated] });
+      await validateChangedLinks(model, next, project.root);
+      const after = serializeModel(next), id = crypto.randomUUID();
+      await saveXml(root, before, after);
+      const state = this.stored(project.id);
+      state.messages.push({ id, role: "user", provider: "codex", text, status: "complete", createdAt: new Date().toISOString(),
+        context: { id: item.id, name: item.name, type: item.type, codeLinks: item.codeLinks }, change: changes(model, next) });
+      state.undo.push({ messageId: id, root, before, after });
+      this.publish(project.id);
+      return { changeId: id, revision: fingerprint(after) };
+    } finally { this.locks.delete(root); }
+  }
+  async undo(project: ChatProject, expectedChange?: string) {
     const root = await realpath(project.artifactRoot),
       state = this.stored(project.id);
     if (this.active.has(project.id) || this.locks.has(root))
       throw new Error("Wait for the current reply before undoing.");
     const entry = state.undo.at(-1);
     if (!entry) throw new Error("There is no model change to undo.");
+    if (expectedChange && entry.messageId !== expectedChange) throw new Error("A newer model edit exists. Review it in Chat before undoing.");
     if (entry.root !== root || project.example)
       throw new Error(
         "The artifact root has changed. Review the model in Git.",
@@ -422,7 +462,7 @@ The workflow's references to writing and checking are carried out by the Lexicon
 Do not invent code links. Inspect new linked files/symbols. Qualify rule annotations as intended, observed, or enforced. Unsupported symbol languages may use file or line links.
 For an explicit model edit, explain it briefly then append EXACTLY ONE fenced block with language lexicon-patch containing JSON:
 {"project":{"name":"optional project name","description":"optional explanation"},"upsert":[{"type":"context","id":"stable-id","name":"Name","description":"Meaning","annotations":[],"codeLinks":[]}],"remove":["explicitly-removed-id"]}
-Omit unchanged project fields and omit unchanged objects. upsert objects are complete replacements by ID, so retain existing annotations/codeLinks unless changing them. Each has type,id,name,description,annotations,codeLinks. concept also has context and optional classification; relationship also has from,to (context or concept IDs). Code links: file (relative to CODE ROOT), optional symbol or line, role,description. Annotations: kind,text, optional evidence (observed|intended|enforced). Include all dependent relationship changes when splitting/merging/removing. Never output an XML replacement. No patch means no edit. Do not claim a save occurred; the server reports the result after validating.
+Omit unchanged project fields and omit unchanged objects. upsert objects are complete replacements by ID, so retain existing annotations/codeLinks unless changing them. Each has type,id,name,description,annotations,codeLinks. concept also has context and optional classification; relationship also has from,to (context or concept IDs). Code links: stable id unique within the owner, file (relative to CODE ROOT), optional symbol or line, role,description. Preserve existing link IDs when their target or explanation changes; give new links IDs. Older links may omit IDs. Annotations: kind,text, optional evidence (observed|intended|enforced). Include all dependent relationship changes when splitting/merging/removing. Never output an XML replacement. No patch means no edit. Do not claim a save occurred; the server reports the result after validating.
 ${project.example ? "This built-in example is read-only. Explain it but do not emit a patch." : ""}
 CODE ROOT: ${project.root}
 MODEL ARTIFACT ROOT: ${project.artifactRoot}

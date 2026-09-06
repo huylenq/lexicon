@@ -207,6 +207,9 @@ export type GraphCommand = {
 export type GraphPaneProps = {
   model: Model;
   projectKey?: string;
+  projectId: string;
+  modelRevision: string;
+  onModelChanged: () => void;
   statusHost: HTMLDivElement | null;
   workspace: Workspace;
   setWorkspace: Dispatch<SetStateAction<Workspace>>;

@@ -1,27 +1,13 @@
 import { createContext, useContext } from "react";
 import {
   BaseBoxShapeUtil, BindingUtil, Group2d, HTMLContainer, Polyline2d, Rectangle2d,
-  ShapeUtil, T, Vec, type BindingOnShapeChangeOptions, type TLBinding,
-  type TLShape, type TLShapePartial,
+  ShapeUtil, Vec, type BindingOnShapeChangeOptions,
+  type TLShape, type TLShapePartial, type SvgExportContext, createShapeId,
 } from "tldraw";
 import ObjectName from "../ObjectName";
 import type { GraphConnection, GraphSelection, GraphVertex } from "../graph/model";
-
-declare module "tldraw" {
-  interface TLGlobalShapePropsMap {
-    "lexicon-object": { graphId: string; w: number; h: number; group: boolean };
-    "lexicon-connection": {
-      graphId: string; path: string; points: { x: number; y: number }[];
-      labelX: number; labelY: number; labelWidth: number;
-    };
-  }
-  interface TLGlobalBindingPropsMap {
-    "lexicon-note": { x: number; y: number };
-  }
-}
-export type ObjectShape = TLShape<"lexicon-object">;
-export type ConnectionShape = TLShape<"lexicon-connection">;
-type NoteBinding = TLBinding<"lexicon-note">;
+import { objectProps, objectMigrations, connectionProps, noteBindingProps, type ObjectShape, type ConnectionShape, type NoteBinding } from "../../../shared/canvas-schema";
+export type { ObjectShape, ConnectionShape } from "../../../shared/canvas-schema";
 export const isModelShape = (shape: TLShape): shape is ObjectShape | ConnectionShape =>
   shape.type === "lexicon-object" || shape.type === "lexicon-connection";
 
@@ -37,6 +23,7 @@ function ObjectCard({ shape }: { shape: ObjectShape }) {
   const model = useContext(CanvasModel);
   const vertex = model.vertices.get(shape.props.graphId);
   const missing = !vertex;
+  const primary = shape.id === createShapeId(`lexicon:${encodeURIComponent(shape.props.graphId)}`);
   return <HTMLContainer className={`canvas-object ${shape.props.group ? "canvas-group" : "canvas-card"} ${!model.matches(shape.props.graphId) ? "canvas-dimmed" : ""}`}
     data-model-id={shape.props.graphId} data-missing={missing || undefined}>
     <div className="canvas-object-heading">
@@ -54,15 +41,18 @@ function ObjectCard({ shape }: { shape: ObjectShape }) {
       </button>}
     </div>
     {vertex?.kind === "code" && <small>{vertex.subtitle}</small>}
-    {missing && <small>The visual reference is retained.</small>}
+    {missing && <small>{String(shape.meta.lexiconLabel || "The visual reference is retained.")}</small>}
+    {!missing && !primary && <small>Reference copy</small>}
   </HTMLContainer>;
 }
 
 export class LexiconObjectUtil extends BaseBoxShapeUtil<ObjectShape> {
   static override type = "lexicon-object" as const;
-  static override props = { graphId: T.string, w: T.number, h: T.number, group: T.boolean };
+  static override props = objectProps;
+  static override migrations = objectMigrations;
   getDefaultProps() { return { graphId: "", w: 190, h: 70, group: false }; }
-  override canResize() { return false; }
+  override canResize(shape: ObjectShape) { return shape.props.group && !shape.meta.lexiconCollapsed; }
+  override canResizeChildren() { return false; }
   override canEdit() { return false; }
   override hideRotateHandle() { return true; }
   override canRemoveChildrenOfType() { return false; }
@@ -71,6 +61,16 @@ export class LexiconObjectUtil extends BaseBoxShapeUtil<ObjectShape> {
     return shape.props.group ? new Group2d({ children: [outline,
       new Rectangle2d({ width: shape.props.w, height: 44, isFilled: true }),
     ] }) : outline;
+  }
+  override getText(shape: ObjectShape) { return String(shape.meta.lexiconLabel || "Model reference"); }
+  override toSvg(shape: ObjectShape, ctx: SvgExportContext) {
+    const ink = ctx.isDarkMode ? "#edeef4" : "#242b3d", paper = ctx.isDarkMode ? "#252b39" : "#fafbff";
+    const label = this.getText(shape), max = Math.max(8, Math.floor((shape.props.w - 24) / 7));
+    const words = label.split(" "), lines = [""];
+    for (const word of words) { if ((lines.at(-1)!.length + word.length) > max) lines.push(word); else lines[lines.length - 1] += `${lines.at(-1) ? " " : ""}${word}`; }
+    return <g><rect width={shape.props.w} height={shape.props.h} rx={7} fill={paper} fillOpacity={shape.props.group ? 0.5 : 1} stroke={ink} strokeOpacity={0.4} />
+      <text fill={ink} fontFamily="sans-serif" fontSize={14} x={shape.props.group ? 14 : shape.props.w / 2} y={shape.props.group ? 27 : Math.max(20, shape.props.h / 2 - (lines.length - 1) * 8)} textAnchor={shape.props.group ? "start" : "middle"}>
+        {lines.map((line, i) => <tspan key={i} x={shape.props.group ? 14 : shape.props.w / 2} dy={i ? 17 : 0}>{line}</tspan>)}</text></g>;
   }
   component(shape: ObjectShape) { return <ObjectCard shape={shape} />; }
   getIndicatorPath(shape: ObjectShape) {
@@ -102,21 +102,30 @@ function ConnectionCard({ shape }: { shape: ConnectionShape }) {
 
 export class LexiconConnectionUtil extends ShapeUtil<ConnectionShape> {
   static override type = "lexicon-connection" as const;
-  static override props = {
-    graphId: T.string, path: T.string, points: T.arrayOf(T.object({ x: T.number, y: T.number })),
-    labelX: T.number, labelY: T.number, labelWidth: T.number,
-  };
+  static override props = connectionProps;
   getDefaultProps() { return { graphId: "", path: "M 0 0 L 1 1", points: [{ x: 0, y: 0 }, { x: 1, y: 1 }], labelX: 0, labelY: 0, labelWidth: 80 }; }
   override canResize() { return false; }
   override canBeLaidOut() { return false; }
   override hideRotateHandle() { return true; }
-  override onTranslate(initial: ConnectionShape): TLShapePartial<ConnectionShape> { return { id: initial.id, type: initial.type, x: initial.x, y: initial.y }; }
+  override onTranslate(initial: ConnectionShape): TLShapePartial<ConnectionShape> | void {
+    if (initial.id === createShapeId(`lexicon:${encodeURIComponent(initial.props.graphId)}`)) return { id: initial.id, type: initial.type, x: initial.x, y: initial.y };
+  }
   getGeometry(shape: ConnectionShape) {
     const p = shape.props;
     return new Group2d({ children: [
       new Polyline2d({ points: p.points.map((point) => new Vec(point.x, point.y)) }),
       new Rectangle2d({ x: p.labelX - p.labelWidth / 2, y: p.labelY - 15, width: p.labelWidth, height: 30, isFilled: true }),
     ] });
+  }
+  override getText(shape: ConnectionShape) { return String(shape.meta.lexiconLabel || "Model relationship"); }
+  override toSvg(shape: ConnectionShape, ctx: SvgExportContext) {
+    const p = shape.props, end = p.points.at(-1)!, before = p.points.at(-2) || end;
+    const angle = Math.atan2(end.y - before.y, end.x - before.x) * 180 / Math.PI;
+    const ink = ctx.isDarkMode ? "#d9d7f6" : "#64568a", paper = ctx.isDarkMode ? "#252b39" : "#fafbff";
+    return <g><path d={p.path} fill="none" stroke={ink} strokeWidth={1.8} />
+      <path d="M -9 -4 L 0 0 L -9 4" fill="none" stroke={ink} strokeWidth={1.8} transform={`translate(${end.x}, ${end.y}) rotate(${angle})`} />
+      <rect x={p.labelX - p.labelWidth / 2} y={p.labelY - 14} width={p.labelWidth} height={28} rx={5} fill={paper} stroke={ink} />
+      <text x={p.labelX} y={p.labelY + 4} textAnchor="middle" fill={ink} fontFamily="sans-serif" fontSize={11}>{this.getText(shape)}</text></g>;
   }
   component(shape: ConnectionShape) { return <ConnectionCard shape={shape} />; }
   getIndicatorPath(shape: ConnectionShape) { return new Path2D(shape.props.path); }
@@ -125,7 +134,7 @@ export class LexiconConnectionUtil extends ShapeUtil<ConnectionShape> {
 /** Notes follow the attachment's page transform, including moves of its context. */
 export class LexiconNoteBindingUtil extends BindingUtil<NoteBinding> {
   static override type = "lexicon-note" as const;
-  static override props = { x: T.number, y: T.number };
+  static override props = noteBindingProps;
   getDefaultProps() { return { x: 0, y: 0 }; }
   override onAfterChangeToShape({ binding }: BindingOnShapeChangeOptions<NoteBinding>) {
     const note = this.editor.getShape(binding.fromId);

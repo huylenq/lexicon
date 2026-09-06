@@ -1,5 +1,5 @@
 import type { CodeLink, Model, ModelItem } from "../../../shared/model";
-import { codeTargetId as targetId } from "../../../shared/model";
+import { codeTargetId as targetId, codeLinkKey } from "../../../shared/model";
 
 export type GraphSelection =
   | { kind: "item"; id: string }
@@ -17,8 +17,8 @@ export type Target = { id: string; link: CodeLink; mappings: Mapping[] };
 export type GraphIndex = ReturnType<typeof indexModel>;
 export const domainId = (id: string) => `item:${id}`;
 export { targetId };
-export const mappingId = (owner: string, index: number) =>
-  JSON.stringify([owner, index]);
+export const mappingId = (owner: string, key: number | string) =>
+  JSON.stringify([owner, key]);
 export const fileId = (file: string) => `file:${file}`;
 export const anchorId = (id: string) => `anchor:${id}`;
 
@@ -29,21 +29,27 @@ export function indexModel(model: Model) {
     if (!items.has(item.id)) items.set(item.id, item);
   const targets = new Map<string, Target>();
   const mappings = new Map<string, Mapping>();
-  for (const owner of items.values())
+  const legacyMappings = new Map<string, string>();
+  for (const owner of items.values()) {
+    const occurrences = new Map<string, number>();
     owner.codeLinks.forEach((link, index) => {
       const id = targetId(link);
+      const key = codeLinkKey(link), count = occurrences.get(key) || 0;
+      occurrences.set(key, count + 1);
       const mapping = {
-        id: mappingId(owner.id, index),
+        id: mappingId(owner.id, count ? `${key}:${count + 1}` : key),
         owner,
         index,
         link,
         target: id,
       };
       mappings.set(mapping.id, mapping);
+      legacyMappings.set(mappingId(owner.id, index), mapping.id);
       if (!targets.has(id)) targets.set(id, { id, link, mappings: [] });
       targets.get(id)!.mappings.push(mapping);
     });
-  return { items, targets, mappings };
+  }
+  return { items, targets, mappings, legacyMappings };
 }
 
 export type GraphVertex = {

@@ -253,3 +253,21 @@ test("agent questions wait for an answer and stop interrupts without saving", as
   expect((await untilChat(service, p.id, (s) => !s.running)).messages.at(-1)?.status).toBe("interrupted");
   expect(await readFile(join(p.root, "lexicon/model.xml"), "utf8")).toBe(xml);
 });
+
+test("canvas model commands share validated model edits, exact undo, and stale-write protection", async () => {
+  const root = join(scratch, "canvas-commands"); await mkdir(join(root, "lexicon"), { recursive: true });
+  await writeFile(join(root, "lexicon/model.xml"), xml); await writeFile(join(root, "thing.ts"), "export interface Thing { name: string }");
+  const json = (data: unknown) => ({ method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(data) });
+  const project = await (await req("/api/projects", json({ root }))).json();
+  const revision = fingerprint(xml), command = { type: "annotate", targetId: "thing", annotation: { kind: "rule", evidence: "intended", text: "A thing has a name." } };
+  const response = await req(`/api/projects/${project.id}/canvas/model-command`, json({ revision, command }));
+  expect(response.status).toBe(200); const receipt = await response.json();
+  const edited = await readFile(join(root, "lexicon/model.xml"), "utf8"); expect(edited).toContain('evidence="intended"');
+  expect((await req(`/api/projects/${project.id}/canvas/model-command`, json({ revision, command }))).status).toBe(400);
+  expect(await readFile(join(root, "lexicon/model.xml"), "utf8")).toBe(edited);
+  expect((await req(`/api/projects/${project.id}/chat/undo`, json({ changeId: "wrong" }))).status).toBe(400);
+  expect((await req(`/api/projects/${project.id}/chat/undo`, json({ changeId: receipt.changeId }))).status).toBe(200);
+  expect(await readFile(join(root, "lexicon/model.xml"), "utf8")).toBe(xml);
+  expect(await readFile(join(root, "thing.ts"), "utf8")).toBe("export interface Thing { name: string }");
+  expect((await req("/api/projects/dentalml/canvas/model-command", json({ revision, command }))).status).toBe(400);
+});

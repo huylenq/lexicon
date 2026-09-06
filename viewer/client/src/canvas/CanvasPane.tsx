@@ -1,18 +1,27 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { createPortal } from "react-dom";
 import {
   Box, DefaultStylePanel, Tldraw, createShapeId, getSnapshot, loadSnapshot, parseTldrawJsonFile, react,
-  serializeTldrawJson, toRichText, useEditor, useValue, type Editor, type TLEditorSnapshot, type TLShape,
+  serializeTldrawJson, toRichText, useEditor, useValue, type Editor, type TLEditorSnapshot, type TLShape, type TLRecord,
 } from "tldraw";
+import { getAssetUrlsByImport } from "@tldraw/assets/imports.vite";
+import type { CanvasState } from "../../../shared/canvas";
+import { canvasSchema } from "../../../shared/canvas-schema";
 import type { GraphPaneProps } from "../GraphPane";
 import { indexModel, neighborhood, projectGraph, selectionRecords, type GraphSelection } from "../graph/model";
 import { CanvasModel, LexiconConnectionUtil, LexiconNoteBindingUtil, LexiconObjectUtil, isModelShape } from "./shapes";
 import { createProjection, modelShapeId } from "./projection";
+import { captureCanvas, importMedia, migrateModelReferences } from "./document";
+import { useProjectCanvas } from "./useProjectCanvas";
+import { CanvasInspector, noteText } from "./CanvasInspector";
 import "tldraw/tldraw.css";
 import "./canvas.css";
 
 const shapeUtils = [LexiconObjectUtil, LexiconConnectionUtil];
 const bindingUtils = [LexiconNoteBindingUtil];
+const assetUrls = getAssetUrlsByImport();
+const overrides = { translations: { en: { "tool.lexicon-object": "Model reference", "tool.lexicon-connection": "Model relationship" } } };
 function CanvasStylePanel() {
   const editor = useEditor();
   const shown = useValue("Freeform styles", () => editor.getCurrentToolId() !== "select" || editor.getSelectedShapes().some((shape) => !isModelShape(shape)), [editor]);
@@ -23,13 +32,18 @@ const visibility = (shape: TLShape) => shape.meta.lexiconHidden ? "hidden" as co
 const selectionKey = (selection?: GraphSelection) => JSON.stringify(selection || null);
 
 export default function CanvasPane(props: GraphPaneProps) {
+  const [searchParams] = useSearchParams();
   const { model, projectKey = model.id, workspace, setWorkspace, selection, command, statusHost } = props;
   const [editor, setEditor] = useState<Editor>();
   const [loading, setLoading] = useState(true);
+  const [importing, setImporting] = useState(false);
   const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
   const [focus, setFocus] = useState<GraphSelection>();
   const [restored, setRestored] = useState<TLEditorSnapshot>();
+  const [review, setReview] = useState<CanvasState>();
+  const storage = useProjectCanvas(props.projectId, model, projectKey, () => setRevision((n) => n + 1));
+  const storageRef = useRef(storage); storageRef.current = storage;
   const fileInput = useRef<HTMLInputElement>(null);
   const projection = useRef<ReturnType<typeof createProjection>>();
   const editorRef = useRef<Editor>();
@@ -56,7 +70,7 @@ export default function CanvasPane(props: GraphPaneProps) {
     const reference = [...graph.current.vertices.values(), ...graph.current.connections.values()].find((item) => selectionKey(item.selection) === selectionKey(chosen));
     if (instance && reference) {
       syncing.current = true;
-      try { instance.select(modelShapeId(reference.id)); } finally { syncing.current = false; }
+      try { instance.select(modelShapeId(reference.id)).focus(); } finally { syncing.current = false; }
     }
     if (selectionKey(latest.current.selection) === selectionKey(chosen)) return;
     echo.current = selectionKey(chosen);
@@ -110,6 +124,7 @@ export default function CanvasPane(props: GraphPaneProps) {
     }));
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
     projection.current = createProjection(instance);
+    const stopStorage = storageRef.current.mount(instance, projection.current.write);
     setEditor(instance);
     let lastSelected = "";
     const stop = react("Lexicon canvas selection", () => {
@@ -119,9 +134,11 @@ export default function CanvasPane(props: GraphPaneProps) {
       lastSelected = key;
       if (syncing.current || ids.length !== 1) return;
       const chosen = shapeSelection(instance.getShape(ids[0]));
-      if (chosen) select(chosen);
+      if (chosen && selectionKey(latest.current.selection) !== selectionKey(chosen)) {
+        echo.current = selectionKey(chosen); latest.current.onSelect(chosen);
+      }
     });
-    return () => { stop(); observer.disconnect(); projection.current?.dispose(); projection.current = undefined; editorRef.current = undefined; };
+    return () => { stopStorage(); stop(); observer.disconnect(); projection.current?.dispose(); projection.current = undefined; editorRef.current = undefined; };
   }, [select]);
 
   useEffect(() => {
@@ -132,6 +149,12 @@ export default function CanvasPane(props: GraphPaneProps) {
     projection.current.update(full, projected, arrange, focused).then((applied) => {
       if (!active || !applied) return;
       setLoading(false);
+      storageRef.current.ready();
+      if (!editor.getSelectedShapeIds().length) {
+        const linked = searchParams.get("shape");
+        const id = linked ? createShapeId(linked.replace(/^shape:/, "")) : selection && findSelection(selection);
+        if (id && editor.getShape(id)) editor.select(id);
+      }
       if (initialFit.current || arrange) { fit(); initialFit.current = false; }
       const chosen = pendingLocate.current;
       if (chosen) {
@@ -144,7 +167,7 @@ export default function CanvasPane(props: GraphPaneProps) {
   }, [editor, full, projected, focused, revision]);
 
   useEffect(() => {
-    if (!editor) return;
+    if (!editor || searchParams.get("shape")) return;
     if (echo.current === selectionKey(selection)) { echo.current = undefined; return; }
     syncing.current = true;
     try {
@@ -152,7 +175,7 @@ export default function CanvasPane(props: GraphPaneProps) {
       if (id && editor.getShape(id)) editor.select(id);
       else if (!selection) editor.selectNone();
     } finally { syncing.current = false; }
-  }, [editor, selectionKey(selection), loading]);
+  }, [editor, selectionKey(selection), searchParams.get("shape")]);
   useEffect(() => {
     if (!command) return;
     if (command.action === "expand") expandCode(command.selection);
@@ -183,27 +206,57 @@ export default function CanvasPane(props: GraphPaneProps) {
   const exportCanvas = async () => {
     if (!editor) return;
     try {
-      const data = { format: "lexicon-canvas", version: 1, projectKey, modelId: model.id, canvas: JSON.parse(await serializeTldrawJson(editor)) };
-      const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
+      const portable = JSON.parse(await serializeTldrawJson(editor));
+      const data = captureCanvas(editor, storage.boot!.remote.documentId, model.id);
+      // Portable exports retain visible route geometry and embed media for another machine.
+      data.snapshot.store = Object.fromEntries(portable.records.filter((record: TLRecord) => editor.store.schema.types[record.typeName].scope === "document").map((record: TLRecord) => [record.id, record]));
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      if (blob.size > 50 * 1024 * 1024) throw new Error("This portable canvas exceeds 50 MB. Copy canvas.json and lexicon/assets together to transfer the project.");
+      const url = URL.createObjectURL(blob);
       const link = document.createElement("a"); link.href = url; link.download = `${model.id}.lexicon-canvas.json`; link.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (e) { setError((e as Error).message); }
   };
   const importCanvas = async (file?: File) => {
     if (!file || !editor) return;
+    setImporting(true);
     try {
       if (file.size > 50 * 1024 * 1024) throw new Error("Canvas files must be smaller than 50 MB.");
       const data = JSON.parse(await file.text());
-      if (data.format !== "lexicon-canvas" || data.version !== 1 || data.modelId !== model.id || data.projectKey !== projectKey)
+      if (data.format !== "lexicon-canvas" || ![1, 2].includes(data.version) || data.modelId !== model.id)
         throw new Error("Choose a canvas exported from this project.");
-      const result = parseTldrawJsonFile({ schema: editor.store.schema, json: JSON.stringify(data.canvas) });
-      if (!result.ok) throw new Error("This canvas could not be read. Your current canvas is unchanged.");
+      let snapshot;
+      if (data.version === 1) {
+        const result = parseTldrawJsonFile({ schema: editor.store.schema, json: JSON.stringify(data.canvas) });
+        if (!result.ok) throw new Error("This canvas could not be read. Your current canvas is unchanged.");
+        snapshot = result.value.getStoreSnapshot();
+      } else {
+        const result = canvasSchema.migrateStoreSnapshot(data.snapshot);
+        if (result.type !== "success") throw new Error("This canvas needs a different Lexicon version. Your current canvas is unchanged.");
+        snapshot = { store: result.value, schema: canvasSchema.serialize() };
+      }
+      snapshot.store = Object.fromEntries(Object.entries(snapshot.store).filter(([, record]) => canvasSchema.types[record.typeName].scope === "document"));
+      snapshot = migrateModelReferences(await importMedia(snapshot, storage.assets), index);
+      // Reuse server validation before replacing the working editor.
+      const checked = await fetch(`/api/projects/${props.projectId}/canvas/validate`, { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ format: "lexicon-canvas", version: 2, modelId: model.id, id: storage.boot!.remote.documentId, snapshot }) });
+      const validated = await checked.json();
+      if (!checked.ok) throw new Error(validated.error || "This canvas could not be read.");
       setRestored(getSnapshot(editor.store));
-      projection.current?.write(() => loadSnapshot(editor.store, { document: result.value.getStoreSnapshot() }));
+      projection.current?.write(() => loadSnapshot(editor.store, { document: validated.snapshot }));
       setRevision((n) => n + 1);
       setError("");
     } catch (e) { setError((e as Error).message); }
+    setImporting(false);
     if (fileInput.current) fileInput.current.value = "";
+  };
+  const describeRecord = (record?: TLRecord) => {
+    if (!record) return "Removed";
+    if (record.typeName === "shape") {
+      if (editor && (record.type === "note" || record.type === "text")) return noteText(editor, record).slice(0, 400) || "Empty note";
+      return `${record.meta.lexiconLabel || record.type} at (${Math.round(record.x)}, ${Math.round(record.y)})`;
+    }
+    return record.typeName === "binding" ? "Note or arrow attachment" : record.typeName;
   };
   const matchSet = new Set(props.matches);
   const matches = (id: string) => {
@@ -216,7 +269,7 @@ export default function CanvasPane(props: GraphPaneProps) {
 
   return <section className="graph-pane canvas-pane" aria-label="Freeform model canvas">
     <div className="graph-toolbar canvas-toolbar">
-      <div><span className="eyebrow">Canvas <span className="canvas-prototype">prototype</span></span>
+      <div><span className="eyebrow">Canvas</span>
         <span className="graph-scope">Model references · notes · sketches</span></div>
       <div className="canvas-actions">
         <button className="quiet" onClick={fit} disabled={!editor || loading}>Fit model</button>
@@ -238,18 +291,42 @@ export default function CanvasPane(props: GraphPaneProps) {
         <input ref={fileInput} type="file" accept=".json" aria-label="Restore canvas file" hidden onChange={(e) => importCanvas(e.target.files?.[0])} />
       </div>
     </div>
+    <div className="canvas-save-state" role="status" data-save-status={storage.status}>
+      <span>{({ loading: "Opening canvas…", saved: "Saved to project", saving: "Saving…", local: "Unsaved changes", conflict: "Conflicting changes", error: "Canvas needs attention" })[storage.status]}</span>
+      {storage.message && <span>{storage.message}</span>}
+      {["local", "error"].includes(storage.status) && <button onClick={() => void storage.retry()}>Retry save</button>}
+      {storage.status === "conflict" && <button onClick={async () => { try { setReview(await storage.reviewProject()); } catch (e) { setError((e as Error).message); } }}>Review versions</button>}
+      {storage.remote?.backupAvailable && storage.remote.issue && <button onClick={() => void storage.recoverPrevious()?.catch((e) => setError(e.message))}>Recover previous canvas</button>}
+      {!!storage.remote?.missingAssets.length && <span>{storage.remote.missingAssets.length} media files are missing from lexicon/assets.</span>}
+      {!!storage.drafts.length && <details><summary>Recover another tab ({storage.drafts.length})</summary>{storage.drafts.map((draft) =>
+        <button key={draft.key} onClick={() => void storage.restoreDraft(draft)?.catch((e) => setError(e.message))}>Restore edits from {new Date(draft.updatedAt).toLocaleString()}</button>)}</details>}
+    </div>
+    {review && <div className="canvas-review" role="dialog" aria-modal="false" aria-label="Review canvas versions">
+      <strong>Review canvas versions</strong><p>{storage.conflicts.length} overlapping records. Your current canvas is visible below. Export it to keep a portable copy.</p>
+      <p>Project version: {Object.values(review.document?.snapshot.store || {}).filter((r) => r.typeName === "shape").length} shapes.</p>
+      <div className="canvas-version-comparison">{storage.conflicts.slice(0, 30).map((id) => <div key={id}>
+        <p><strong>Project:</strong> {describeRecord(review.document?.snapshot.store[id as keyof typeof review.document.snapshot.store])}</p>
+        <p><strong>This tab:</strong> {editor ? describeRecord(editor.store.get(id as TLRecord["id"])) : "Unavailable"}</p>
+      </div>)}</div>
+      <button onClick={exportCanvas}>Export my canvas</button>
+      <button onClick={() => void storage.useProject()?.then(() => setReview(undefined)).catch((e) => setError(e.message))}>Use project version</button>
+      <button disabled={!!review.issue || !review.document} onClick={() => void storage.replaceProject(review)?.then(() => setReview(undefined)).catch((e) => setError(e.message))}>Replace reviewed project version with mine</button>
+      <button onClick={() => setReview(undefined)}>Keep reviewing</button>
+    </div>}
+    {editor && <CanvasInspector editor={editor} props={props} />}
     {error && <div className="canvas-error" role="alert">{error}<button className="quiet" onClick={() => { setError(""); setRevision((n) => n + 1); }}>Retry</button></div>}
-    <div className="canvas-stage" data-ready={!loading}>
+    <div className="canvas-stage" data-ready={!loading && !importing}>
       <CanvasModel.Provider value={{ vertices, connections, select, matches,
         collapse: (id) => setWorkspace((w) => ({ ...w, collapsed: w.collapsed.includes(id) ? w.collapsed.filter((value) => value !== id) : [...w.collapsed, id] })),
       }}>
-        <Tldraw persistenceKey={`lexicon:canvas:v1:${projectKey}:${model.id}`} shapeUtils={shapeUtils} bindingUtils={bindingUtils}
+        {storage.boot && <Tldraw snapshot={storage.boot.snapshot} assets={storage.assets} assetUrls={assetUrls}
+          shapeUtils={shapeUtils} bindingUtils={bindingUtils} overrides={overrides}
           components={components} getShapeVisibility={visibility} onMount={mount}
-          licenseKey={(import.meta as ImportMeta & { env: Record<string, string> }).env.VITE_TLDRAW_LICENSE_KEY} />
+          licenseKey={(import.meta as ImportMeta & { env: Record<string, string> }).env.VITE_TLDRAW_LICENSE_KEY} />}
       </CanvasModel.Provider>
       {loading && <div className="canvas-loading" role="status">Arranging the canvas…</div>}
     </div>
-    {statusHost && createPortal(<div className="canvas-status"><span>Local canvas · export to keep a copy</span><span>{projected.nodes.filter((n) => n.kind === "concept").length} concepts</span>
+    {statusHost && createPortal(<div className="canvas-status"><span>Project canvas</span><span>{projected.nodes.filter((n) => n.kind === "concept").length} concepts</span>
       {projected.omitted > 0 && <span>{projected.omitted} unavailable connections</span>}</div>, statusHost)}
   </section>;
 }

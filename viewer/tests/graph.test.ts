@@ -56,7 +56,7 @@ describe("domain graph projection", () => {
     )!;
     expect(
       graph.connections.find((e) =>
-        e.mappings.includes(mappingId("contains", 0)),
+        e.mappings.includes(index.legacyMappings.get(mappingId("contains", 0))!),
       )?.source,
     ).toBe(anchorId(relation.id));
     expect(
@@ -116,7 +116,7 @@ describe("domain graph projection", () => {
     });
     const code = graph.connections.find((e) => e.kind === "mapping")!;
     expect(code.source).toBe(domainId("sales"));
-    expect(code.mappings).toEqual([mappingId("contains", 0)]);
+    expect(code.mappings).toEqual([index.legacyMappings.get(mappingId("contains", 0))!]);
     expect(code.summary).toBe(true);
     expect(graph.nodes.filter((n) => n.kind === "code")).toHaveLength(1);
   });
@@ -181,4 +181,17 @@ describe("layout and worked example", () => {
       18,
     );
   });
+});
+
+test("code-link references survive reorder, description edits, and explicit-ID target changes", () => {
+  const original = parseModel(xml), first = indexModel(original);
+  const altered = structuredClone(original), owner = altered.items.find((i) => i.id === "order")!;
+  owner.codeLinks.reverse(); owner.codeLinks[0].description = "Clarified explanation.";
+  expect([...indexModel(altered).mappings.keys()].sort()).toEqual([...first.mappings.keys()].sort());
+  owner.codeLinks[0].id = "order-validation";
+  const identified = indexModel(altered), id = mappingId("order", "order-validation");
+  expect(identified.mappings.has(id)).toBe(true);
+  owner.codeLinks[0].file = "renamed.ts"; owner.codeLinks[0].symbol = "Purchase";
+  expect(indexModel(altered).mappings.has(id)).toBe(true);
+  expect(first.legacyMappings.get(mappingId("order", 0))).toBe([...first.mappings.keys()][0]);
 });

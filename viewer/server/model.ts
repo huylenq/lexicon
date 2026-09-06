@@ -63,7 +63,13 @@ export function validateModel(model: Model): Model {
         item: item.id,
         message: "Every item needs a name and description.",
       });
+    const linkIds = new Set<string>();
     for (const link of item.codeLinks) {
+      if (link.id !== undefined) {
+        if (!link.id || /\s/.test(link.id) || linkIds.has(link.id))
+          model.issues.push({ severity: "error", item: item.id, message: "Code-link IDs must be nonempty, have no whitespace, and be unique within their owner." });
+        linkIds.add(link.id);
+      }
       if (!link.file || !link.role || !link.description)
         model.issues.push({
           severity: "error",
@@ -122,7 +128,7 @@ export function parseModel(xml: string): Model {
     concept: ["id", "classification"],
     relationship: ["id", "from", "to"],
     annotation: ["kind", "evidence"],
-    "code-link": ["file", "symbol", "line", "role"],
+    "code-link": ["id", "file", "symbol", "line", "role"],
     name: [],
     description: [],
   };
@@ -187,6 +193,7 @@ export function parseModel(xml: string): Model {
       };
     });
     const codeLinks: CodeLink[] = children(e, "code-link").map((c) => ({
+      ...(c.attributes.id !== undefined ? { id: c.attributes.id || "" } : {}),
       file: c.attributes.file || "",
       role: c.attributes.role || "",
       description: prose(c),
@@ -286,7 +293,7 @@ export function serializeModel(model: Model): string {
       );
     for (const l of item.codeLinks)
       lines.push(
-        `${pad}  <code-link file="${esc(l.file)}" role="${esc(l.role)}"${l.symbol ? ` symbol="${esc(l.symbol)}"` : ""}${l.line ? ` line="${l.line}"` : ""}>${esc(l.description)}</code-link>`,
+        `${pad}  <code-link${l.id ? ` id="${esc(l.id)}"` : ""} file="${esc(l.file)}" role="${esc(l.role)}"${l.symbol ? ` symbol="${esc(l.symbol)}"` : ""}${l.line ? ` line="${l.line}"` : ""}>${esc(l.description)}</code-link>`,
       );
     if (item.type === "context")
       for (const c of model.items)
