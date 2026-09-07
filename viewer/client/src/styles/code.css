@@ -200,15 +200,25 @@
 .code-divider {
   width: 7px;
   flex: 0 0 7px;
-  border-inline: 1px solid var(--line);
-  background: var(--paper);
+  background: transparent;
   cursor: col-resize;
   touch-action: none;
+  position: relative;
+}
+.code-divider::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 50%;
+  width: 1px;
+  background: var(--line);
+  transform: translateX(-50%);
 }
 .code-divider:hover,
 .code-divider:focus-visible {
   background: var(--accent-soft);
 }
+.code-divider:hover::after,
+.code-divider:focus-visible::after { background: var(--accent); }
 .with-code .graph-slot {
   min-width: 200px;
 }

@@ -35,9 +35,7 @@
 .graph-divider {
   width: 7px;
   flex: 0 0 7px;
-  background: var(--paper);
-  border-left: 1px solid var(--line);
-  border-right: 1px solid var(--line);
+  background: transparent;
   cursor: col-resize;
   touch-action: none;
   position: relative;
@@ -49,13 +47,16 @@
 }
 .graph-divider::after {
   content: "";
-  height: 28px;
-  border-left: 2px solid var(--muted);
+  width: 1px;
+  height: 100%;
+  background: var(--line);
   position: absolute;
-  top: 50%;
-  left: 2px;
-  opacity: 0.4;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
 }
+.graph-divider:hover::after,
+.graph-divider:focus-visible::after { background: var(--accent); }
 .graph-toggle.active {
   background: var(--accent-soft);
   color: var(--accent);

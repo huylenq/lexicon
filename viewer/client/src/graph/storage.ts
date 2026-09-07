@@ -9,6 +9,7 @@ export type Workspace = GraphOptions & {
   sidebar: boolean;
   width: number;
   codeWidth: number;
+  chatWidth: number;
 };
 export const defaults = (): Workspace => ({
   collapsed: [],
@@ -18,6 +19,7 @@ export const defaults = (): Workspace => ({
   sidebar: true,
   width: 52,
   codeWidth: 38,
+  chatWidth: 400,
 });
 export const storageKey = (projectId: string) =>
   `lexicon:graph:v1:${projectId}`;
@@ -37,6 +39,8 @@ export function readWorkspace(key: string): Workspace {
       result.width = Math.max(25, Math.min(75, value.width));
     if (Number.isFinite(value.codeWidth))
       result.codeWidth = Math.max(25, Math.min(60, value.codeWidth));
+    if (Number.isFinite(value.chatWidth))
+      result.chatWidth = Math.max(280, Math.min(720, value.chatWidth));
     if (value.positions && typeof value.positions === "object")
       for (const [id, p] of Object.entries(value.positions)) {
         const point = p as { x: number; y: number } | null;

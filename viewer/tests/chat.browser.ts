@@ -138,6 +138,17 @@ test("chat switches between floating and attached layouts while preserving draft
     expect(attachedBounds.y + attachedBounds.height).toBe(814);
     expect((await graph.boundingBox())!.width).toBeLessThan(graphBounds!.width);
     expect(await page.locator(".pane-area").evaluate(el => el.getBoundingClientRect().right)).toBeLessThanOrEqual(attachedBounds.x);
+    const chatDivider = page.getByRole("separator", { name: "Resize Agent and reader", exact: true });
+    await expect(chatDivider).toBeVisible();
+    const originalChatWidth = attachedBounds.width;
+    await chatDivider.focus();
+    await page.keyboard.press("ArrowLeft");
+    const resizedBounds = (await chat.boundingBox())!;
+    expect(resizedBounds.width).toBeGreaterThan(originalChatWidth);
+    expect(await chatDivider.evaluate((el) => {
+      const style = getComputedStyle(el, "::after");
+      return [getComputedStyle(el).borderLeftWidth, getComputedStyle(el).borderRightWidth, style.width];
+    })).toEqual(["0px", "0px", "1px"]);
     await expect(input).toHaveValue("A draft to refine Order");
     await chat.getByRole("button", { name: "Minimize Chat", exact: true }).click();
     await expect(input).toBeHidden();
@@ -145,11 +156,11 @@ test("chat switches between floating and attached layouts while preserving draft
     await expect(chat).toBeHidden();
     expect(await graph.boundingBox()).toEqual(graphBounds);
     await page.getByRole("button", { name: "Agent", exact: true }).click();
-    expect(await chat.boundingBox()).toEqual(attachedBounds);
+    expect(await chat.boundingBox()).toEqual(resizedBounds);
     await expect(input).toHaveValue("A draft to refine Order");
     await expect(input).toBeFocused();
     await page.getByRole("button", { name: "Toggle navigation", exact: true }).click();
-    expect((await chat.boundingBox())!.x).toBe(attachedBounds.x);
+    expect((await chat.boundingBox())!.x).toBe(resizedBounds.x);
     await page.getByRole("button", { name: "Toggle navigation", exact: true }).click();
     await chat.getByRole("button", { name: "Float Agent window", exact: true }).click();
     expect(await chat.boundingBox()).toEqual(dockBounds);

@@ -73,6 +73,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
   const [mobileCode, setMobileCode] = useState(!!params.get("code"));
   const codeToggle = useRef<HTMLButtonElement>(null);
   const paneArea = useRef<HTMLDivElement>(null);
+  const readerSurface = useRef<HTMLDivElement>(null);
   const [mobileRead, setMobileRead] = useState(
     !!params.get("item") || !!params.get("selection"),
   );
@@ -110,6 +111,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
   const [menu, setMenu] = useState(false);
   const [copied, setCopied] = useState(false);
   const browseVisible = compact ? menu : workspace.sidebar;
+  const dockedChat = chatOpen && agentAttached && !compact;
   const travel = (direction: number) => {
     navigate(direction);
     setMobileRead(true);
@@ -307,7 +309,9 @@ function ReaderProject({ projectId }: { projectId: string }) {
   );
   return (
     <div
+      ref={readerSurface}
       className={`reader ${chatOpen && agentAttached && !compact ? "agent-attached" : ""} ${codeNavigation.open ? "with-code" : ""} with-graph ${!workspace.sidebar ? "without-sidebar" : ""} ${mobileRead ? "mobile-reading" : "mobile-graph"} ${mobileCode ? "mobile-code" : ""}`}
+      style={{ "--chat-width": `${workspace.chatWidth}px` } as CSSProperties}
     >
       <a className="skip-link" href="#main-content">
         Skip to the model
@@ -927,6 +931,46 @@ function ReaderProject({ projectId }: { projectId: string }) {
           />
         )}
       </div>
+      {dockedChat && (
+        <div
+          className="chat-divider"
+          role="separator"
+          aria-label="Resize Agent and reader"
+          aria-orientation="vertical"
+          aria-valuemin={280}
+          aria-valuemax={720}
+          aria-valuenow={Math.round(workspace.chatWidth)}
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+              e.preventDefault();
+              setWorkspace((w) => ({
+                ...w,
+                chatWidth: Math.max(
+                  280,
+                  Math.min(720, w.chatWidth + (e.key === "ArrowLeft" ? 16 : -16)),
+                ),
+              }));
+            }
+          }}
+          onPointerDown={(e) => {
+            e.currentTarget.setPointerCapture(e.pointerId);
+          }}
+          onPointerMove={(e) => {
+            if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
+            const box = readerSurface.current?.getBoundingClientRect();
+            if (box)
+              setWorkspace((w) => ({
+                ...w,
+                chatWidth: Math.max(280, Math.min(720, box.right - e.clientX)),
+              }));
+          }}
+          onPointerUp={(e) => {
+            if (e.currentTarget.hasPointerCapture(e.pointerId))
+              e.currentTarget.releasePointerCapture(e.pointerId);
+          }}
+        />
+      )}
       <div className="workspace-status-bar" role="region" aria-label="Workspace status">
         <div className="workspace-graph-status" ref={setGraphStatusHost} />
         <button ref={chatToggle} className="quiet agent-toggle" aria-label="Agent" aria-controls="chat-pane" aria-pressed={chatOpen}

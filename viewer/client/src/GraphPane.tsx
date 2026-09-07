@@ -715,6 +715,7 @@ function GraphCanvas({
       ...d,
       sidebar: w.sidebar,
       codeWidth: w.codeWidth,
+      chatWidth: w.chatWidth,
     }));
     pending.current = { kind: "fit" };
     setRevision((n) => n + 1);
