@@ -17,7 +17,6 @@ import {
 import ObjectName from "../ObjectName";
 import type {
   GraphConnection,
-  GraphSelection,
   GraphVertex,
 } from "../graph/model";
 import {
@@ -34,7 +33,6 @@ import { isPrimary } from "./references";
 export const CanvasModel = createContext({
   vertices: new Map<string, GraphVertex>(),
   connections: new Map<string, GraphConnection>(),
-  select: (_selection: GraphSelection) => {},
   collapse: (_id: string) => {},
   matches: (_id: string): boolean => true,
 });
@@ -61,8 +59,11 @@ function ObjectCard({ shape }: { shape: ObjectShape }) {
         <button
           className="canvas-object-title"
           aria-label={`${vertex?.kind || "Missing object"}: ${vertex?.title || shape.props.graphId}`}
-          onPointerDown={(event) => event.stopPropagation()}
-          onClick={() => vertex?.selection && model.select(vertex.selection)}
+          onClick={(event) => {
+            // Pointer gestures belong to tldraw; retain keyboard activation.
+            if (event.detail === 0)
+              editor.setCurrentTool("select").select(shape.id).focus();
+          }}
         >
           {vertex ? (
             <ObjectName
@@ -123,6 +124,9 @@ export class LexiconObjectUtil extends BaseBoxShapeUtil<ObjectShape> {
   override canResizeChildren() {
     return false;
   }
+  override isFrameLike(shape: ObjectShape) {
+    return shape.props.group;
+  }
   override canEdit() {
     return false;
   }
@@ -150,6 +154,7 @@ export class LexiconObjectUtil extends BaseBoxShapeUtil<ObjectShape> {
               width: shape.props.w,
               height: 44,
               isFilled: true,
+              isLabel: true,
             }),
           ],
         })
@@ -219,6 +224,7 @@ export class LexiconObjectUtil extends BaseBoxShapeUtil<ObjectShape> {
 
 function ConnectionCard({ shape }: { shape: ConnectionShape }) {
   const model = useContext(CanvasModel);
+  const editor = useEditor();
   const connection = model.connections.get(shape.props.graphId);
   const p = shape.props;
   const marker = `arrow-${encodeURIComponent(shape.id)}`;
@@ -256,8 +262,10 @@ function ConnectionCard({ shape }: { shape: ConnectionShape }) {
           className="canvas-connection-label"
           data-connection-id={p.graphId}
           aria-label={`${connection?.summary ? "Read summary" : connection?.kind === "mapping" ? "Read code mapping" : "Read relationship"}: ${connection?.label || "Removed relationship"}`}
-          onPointerDown={(event) => event.stopPropagation()}
-          onClick={() => connection && model.select(connection.selection)}
+          onClick={(event) => {
+            if (event.detail === 0)
+              editor.setCurrentTool("select").select(shape.id).focus();
+          }}
         >
           {connection?.label || "Removed relationship"}
         </button>

@@ -114,10 +114,10 @@ export default function CanvasPane(props: GraphPaneProps) {
   storageRef.current = storage;
   const fileInput = useRef<HTMLInputElement>(null);
   const projection = useRef<ReturnType<typeof createProjection>>();
-  const editorRef = useRef<Editor>();
   const latest = useRef(props);
   latest.current = props;
   const echo = useRef<string>();
+  const appliedNavigation = useRef<string>();
   const syncing = useRef(false);
   const initialFit = useRef(false);
   const rearrangeNext = useRef(false);
@@ -158,24 +158,6 @@ export default function CanvasPane(props: GraphPaneProps) {
     return new Set([...area.nodes, ...area.edges]);
   }, [index, projected, focus]);
 
-  const select = useCallback((chosen: GraphSelection) => {
-    const instance = editorRef.current;
-    const reference = [
-      ...graph.current.vertices.values(),
-      ...graph.current.connections.values(),
-    ].find((item) => selectionKey(item.selection) === selectionKey(chosen));
-    if (instance && reference) {
-      syncing.current = true;
-      try {
-        instance.select(modelShapeId(reference.id)).focus();
-      } finally {
-        syncing.current = false;
-      }
-    }
-    if (selectionKey(latest.current.selection) === selectionKey(chosen)) return;
-    echo.current = selectionKey(chosen);
-    latest.current.onSelect(chosen);
-  }, []);
   const shapeSelection = (shape?: TLShape) =>
     shape && isModelShape(shape)
       ? graph.current.vertices.get(shape.props.graphId)?.selection ||
@@ -196,6 +178,15 @@ export default function CanvasPane(props: GraphPaneProps) {
         ? modelShapeId(edge.id)
         : undefined;
   };
+  const selectedShapes = useValue(
+    "Canvas selection",
+    () => editor?.getSelectedShapes() || [],
+    [editor],
+  );
+  const noteTarget =
+    selectedShapes.length === 1 && isModelShape(selectedShapes[0])
+      ? selectedShapes[0]
+      : undefined;
   const fit = () => {
     if (!editor || !projection.current) return;
     const bounds = projection.current
@@ -283,7 +274,6 @@ export default function CanvasPane(props: GraphPaneProps) {
 
   const mount = useCallback(
     (instance: Editor) => {
-      editorRef.current = instance;
       const boot = storageRef.current.boot!;
       const legacy =
         !boot.snapshot?.document && !boot.remote.issue
@@ -311,10 +301,25 @@ export default function CanvasPane(props: GraphPaneProps) {
       let lastSelected = "";
       const stop = react("Lexicon canvas selection", () => {
         const ids = instance.getSelectedShapeIds();
+        // Brushing and pointing can pass through a single selection. Only
+        // completed gestures navigate, so URL echoes cannot interrupt a drag.
+        if (!instance.isIn("select.idle")) return;
         const key = ids.join("|");
+        if (syncing.current || appliedNavigation.current === undefined) {
+          lastSelected = key;
+          return;
+        }
         if (key === lastSelected) return;
         lastSelected = key;
-        if (syncing.current || ids.length !== 1) return;
+        if (!ids.length) {
+          if (latest.current.selection) {
+            echo.current = selectionKey();
+            latest.current.onClearSelection();
+          }
+          return;
+        }
+        // Multiple shapes and freeform content leave the current explanation open.
+        if (ids.length !== 1) return;
         const chosen = shapeSelection(instance.getShape(ids[0]));
         if (
           chosen &&
@@ -330,10 +335,9 @@ export default function CanvasPane(props: GraphPaneProps) {
         observer.disconnect();
         projection.current?.dispose();
         projection.current = undefined;
-        editorRef.current = undefined;
       };
     },
-    [select],
+    [],
   );
 
   useEffect(() => {
@@ -348,13 +352,6 @@ export default function CanvasPane(props: GraphPaneProps) {
         if (!active || !applied) return;
         setLoading(false);
         storageRef.current.ready();
-        if (!editor.getSelectedShapeIds().length) {
-          const linked = searchParams.get("shape");
-          const id = linked
-            ? createShapeId(linked.replace(/^shape:/, ""))
-            : selection && findSelection(selection);
-          if (id && editor.getShape(id)) editor.select(id);
-        }
         if (initialFit.current || arrange) {
           fit();
           initialFit.current = false;
@@ -383,21 +380,27 @@ export default function CanvasPane(props: GraphPaneProps) {
     };
   }, [editor, full, projected, focused, revision]);
 
+  const linkedShape = searchParams.get("shape");
+  const navigationKey = JSON.stringify([selection || null, linkedShape]);
   useEffect(() => {
-    if (!editor || searchParams.get("shape")) return;
+    if (!editor || loading || appliedNavigation.current === navigationKey) return;
+    appliedNavigation.current = navigationKey;
     if (echo.current === selectionKey(selection)) {
       echo.current = undefined;
       return;
     }
+    echo.current = undefined;
     syncing.current = true;
     try {
-      const id = selection && findSelection(selection);
+      const id = linkedShape
+        ? createShapeId(linkedShape.replace(/^shape:/, ""))
+        : selection && findSelection(selection);
       if (id && editor.getShape(id)) editor.select(id);
-      else if (!selection) editor.selectNone();
+      else editor.selectNone();
     } finally {
       syncing.current = false;
     }
-  }, [editor, selectionKey(selection), searchParams.get("shape")]);
+  }, [editor, loading, navigationKey]);
   useEffect(() => {
     if (!command) return;
     if (command.action === "expand") expandCode(command.selection);
@@ -406,11 +409,7 @@ export default function CanvasPane(props: GraphPaneProps) {
 
   const addNote = () => {
     if (!editor) return;
-    const selected = editor.getSelectedShapes();
-    const targetId =
-      selected.length === 1 && isModelShape(selected[0])
-        ? selected[0].id
-        : selection && findSelection(selection);
+    const targetId = noteTarget?.id;
     const bounds = targetId && editor.getShapePageBounds(targetId);
     const center = editor.getViewportPageBounds().center;
     const position = bounds
@@ -546,7 +545,9 @@ export default function CanvasPane(props: GraphPaneProps) {
           title="Canvas"
           className="canvas-toolbar"
           scope={
-            selectionName(index, selection) ||
+            (selectedShapes.length > 1
+              ? `${selectedShapes.length} selected`
+              : selectionName(index, shapeSelection(selectedShapes[0]))) ||
             (focus ? "Focused neighborhood" : "Overall domain")
           }
         >
@@ -596,7 +597,7 @@ export default function CanvasPane(props: GraphPaneProps) {
             icon="plus"
             label="Add note"
             title={
-              selection ? "Add a note attached to the selection" : "Add a note"
+              noteTarget ? "Add a note attached to the selection" : "Add a note"
             }
             disabled={!editor || loading}
             onClick={addNote}
@@ -792,7 +793,6 @@ export default function CanvasPane(props: GraphPaneProps) {
             value={{
               vertices,
               connections,
-              select,
               matches,
               collapse: (id) =>
                 setWorkspace((w) => ({

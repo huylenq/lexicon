@@ -36,6 +36,8 @@ Two tabs combine independent record changes using a three-way merge. Edits to th
 
 Select a model object and click **Add note** to attach a note. It follows the object and its context. The native **Note**, **Text**, **Draw**, **Arrow**, **Media**, and other tldraw tools create freeform content. Semantic relationships and code mappings use custom relationship shapes; native arrows do not create model relationships.
 
+Labels and card bodies use the same native selection and dragging gestures. Shift-click or Command/Ctrl-click toggles a shape; Shift-drag adds a marquee selection. A marquee must enclose an entire context to select its container. Drag its heading to move the context and its contents. Selected concepts stop together at their context boundaries, preserving their spacing. Empty-canvas clicks and Escape clear selection; showing code or refreshing the model does not restore a cleared selection. **Add note** attaches only when exactly one model reference is selected.
+
 Freeform text uses a compact scale alongside the model: Small is 13.5 px beside 14 px model labels, with larger sizes available for emphasis. The shared tldraw theme keeps text measurement, editing, and exports consistent.
 
 The toolbar uses Lexicon's shared icons and selection title; the footer shares its semantic legend. Routine save status appears in the footer. Right-click a model object for **Focus** or **Expand code / Hide code**. Expanding a context includes its concepts and internal relationships. **Back to overview** restores the preceding camera.
@@ -70,6 +72,7 @@ The implementation has a few explicit boundaries:
 | --- | --- |
 | Canvas UI, selection, and model actions | `client/src/canvas/CanvasPane.tsx`, `CanvasInspector.tsx` |
 | Shape rendering, model projection, and stable reference IDs | `shapes.tsx`, `projection.ts`, `references.ts` |
+| Selection movement within owning contexts | `containment.ts`, applied within native tldraw transactions |
 | React boot state and editor save lifecycle | `useProjectCanvas.ts`, `persistence.ts` |
 | Local API calls, portable files, and browser recovery | `api.ts`, `files.ts`, `recovery.ts` |
 | Shared document capture and reference migration | `document.ts` |

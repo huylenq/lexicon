@@ -18,18 +18,7 @@ import type {
 } from "../../../shared/canvas-schema";
 import { isModelShape, isPrimary, modelShapeId } from "./references";
 import { relationshipRoute } from "./routes";
-
-// Keep a gutter around concepts and leave the context's 44px heading clear.
-function contextPosition(
-  position: { x: number; y: number },
-  size: { w: number; h: number },
-  bounds: { width: number; height: number },
-) {
-  return {
-    x: Math.max(16, Math.min(position.x, bounds.width - size.w - 16)),
-    y: Math.max(60, Math.min(position.y, bounds.height - size.h - 16)),
-  };
-}
+import { containMovement, contextPosition } from "./containment";
 
 /** Use exact orthogonal hit geometry for relationships; code mappings retain curves. */
 export function connectionGeometry(
@@ -204,6 +193,21 @@ export function createProjection(
         });
     }
   };
+  const moved = new Map<TLShapeId, TLShape>();
+  const contextBounds = (shape: TLShape) => {
+    if (!isModelShape(shape) || !isPrimary(shape)) return;
+    const node = vertices.get(shape.props.graphId);
+    const parent =
+      node?.kind === "concept" && node.parentId
+        ? editor.getShape<ObjectShape>(modelShapeId(node.parentId))
+        : undefined;
+    if (!parent) return;
+    const expanded = parent.meta.lexiconExpanded as number[] | undefined;
+    return {
+      width: Number(expanded?.[0] || parent.props.w),
+      height: Number(expanded?.[1] || parent.props.h),
+    };
+  };
   const disposes = [
     editor.sideEffects.registerBeforeDeleteHandler("shape", (shape) => {
       if (
@@ -247,7 +251,7 @@ export function createProjection(
           props = { ...previous.props, w, h };
           meta = { ...meta, lexiconExpanded: [w, h] };
         }
-        const protectedShape = {
+        return {
           ...next,
           props,
           meta,
@@ -257,36 +261,15 @@ export function createProjection(
             ? { x: previous.x, y: previous.y }
             : {}),
         } as TLShape;
-        const node = vertices.get(previous.props.graphId);
-        const parent =
-          node?.kind === "concept" && node.parentId
-            ? editor.getShape<ObjectShape>(modelShapeId(node.parentId))
-            : undefined;
-        const bounds = parent
-          ? {
-              width: Number(
-                (parent.meta.lexiconExpanded as number[] | undefined)?.[0] ||
-                  parent.props.w,
-              ),
-              height: Number(
-                (parent.meta.lexiconExpanded as number[] | undefined)?.[1] ||
-                  parent.props.h,
-              ),
-            }
-          : undefined;
-        if (
-          protectedShape.type === "lexicon-object" &&
-          isPrimary(previous) &&
-          bounds
-        )
-          return {
-            ...protectedShape,
-            ...contextPosition(protectedShape, protectedShape.props, bounds),
-          };
-        return protectedShape;
       },
     ),
     editor.sideEffects.registerAfterChangeHandler("shape", (previous, next) => {
+      if (
+        !writing &&
+        (previous.x !== next.x || previous.y !== next.y) &&
+        !moved.has(next.id)
+      )
+        moved.set(next.id, previous);
       if (next.type !== "lexicon-object" || !isPrimary(next)) return;
       if (
         !writing &&
@@ -319,6 +302,12 @@ export function createProjection(
       });
     }),
     editor.sideEffects.registerOperationCompleteHandler(() => {
+      if (!writing && moved.size) {
+        const before = new Map(moved);
+        moved.clear();
+        // Corrections stay inside the SDK transaction, before rendering or saving.
+        containMovement(editor, before, contextBounds);
+      }
       if (!writing && dirty.size) {
         const changed = new Set(dirty);
         dirty.clear();

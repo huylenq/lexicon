@@ -1,0 +1,443 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<lexicon schema="2.0" id="dana-os">
+  <name>DanaOS</name>
+  <description>DanaOS is an industrial operating substrate for bounded agent execution: it preserves operational objects and evidence, routes governed missions through reusable execution graphs, and exposes operator-facing tools for authoring, inspection, and retrieval. This first model covers the active monorepo source rooted at the DanaOS checkout; archived prior art and proposed surfaces are named only where they affect an active boundary.</description>
+
+  <context id="operational-substrate">
+    <name>Operational Substrate</name>
+    <description>Persists industrial ontology, evidence, procedures, tasks, missions, loop records, and audit information, and serves bounded query and service surfaces to runtimes and agents.</description>
+    <annotation kind="rule" evidence="observed">The Rust ODB core is the durable implementation boundary. The repository documentation describes broader future contents, while the executable objects and APIs establish the current task, mission, loop, graph, vector, and audit surfaces.</annotation>
+    <code-link file="dana-odb/crates/odb-core/src/objects.rs" role="definition">Defines the persisted ontology, observation, procedure, task, mission, artifact, loop, and governance record shapes.</code-link>
+    <code-link file="dana-odb/crates/odb-service/src/loop_api.rs" role="implementation">Exposes service routes for loop records, checkpoints, heartbeats, and audit operations.</code-link>
+
+    <concept id="durable-operational-object" classification="entity">
+      <name>Durable Operational Object</name>
+      <description>An identified object that carries operational meaning across requests, such as an ontology entity, observation, procedure, policy, mission, artifact, or task.</description>
+      <annotation kind="explanation">The object family is broader than a conventional row: its variants preserve evidence, provenance, governance state, or executable context that later agent work can consume.</annotation>
+      <code-link file="dana-odb/crates/odb-core/src/objects.rs" role="representation">Rust records in this file represent durable domain entities, observations, procedures, policies, missions, artifacts, and provenance blocks.</code-link>
+    </concept>
+    <concept id="mission-task-record" classification="aggregate">
+      <name>Mission Task Record</name>
+      <description>The durable operational record of a bounded mission or task, including its steps, runtime state, outcomes, and references to artifacts and evidence.</description>
+      <annotation kind="rule" evidence="enforced">Task runtime fields and STAR stage records are bounded by explicit service limits; terminal and stale states are exposed through the loop and task APIs.</annotation>
+      <code-link file="dana-odb/crates/odb-core/src/objects.rs" role="representation">Defines the durable task and mission identities and their operational fields.</code-link>
+      <code-link file="dana-odb/crates/odb-service/src/task_runtime_state.rs" role="enforcement">Applies bounded runtime-state storage for task steps, outcomes, and STAR stage records.</code-link>
+    </concept>
+    <concept id="operational-query" classification="service">
+      <name>Operational Query</name>
+      <description>A structured request for durable, graph, vector, time-series, or industrial DQL information used to retrieve context for diagnosis and bounded execution.</description>
+      <annotation kind="explanation">Query surfaces are separate from the agents that interpret their results; retrieval can be exact, indexed, graph-based, or industrial-function backed.</annotation>
+      <code-link file="dana-odb/crates/odb-core/src/storage.rs" role="representation">Defines storage filtering inputs for querying persisted records.</code-link>
+      <code-link file="dana-odb/crates/odb-service/src/graph_api.rs" role="representation">Defines graph query input at the service boundary.</code-link>
+      <code-link file="dana-odb/crates/dql-industrial/src/lib.rs" role="implementation">Registers industrial DQL functions used by the query executor.</code-link>
+    </concept>
+    <concept id="access-authority" classification="value">
+      <name>Access Authority</name>
+      <description>The principal, role, scope, and policy context under which a caller may read, invoke, or mutate a substrate capability.</description>
+      <annotation kind="rule" evidence="enforced">The service derives authorization context and rejects unauthorized or forbidden requests at the service boundary; agent authority bands separately constrain leaf execution.</annotation>
+      <code-link file="dana-odb/crates/odb-service/src/authz.rs" role="enforcement">Carries the request principal and authorization context and defines the service role vocabulary used in authorization decisions.</code-link>
+    </concept>
+    <concept id="odb-client-contract" classification="service">
+      <name>ODB Client Contract</name>
+      <description>The client-side HTTP contract through which runtimes and front doors read canonical mission definitions, retrieve context, and persist or resume operational records.</description>
+      <annotation kind="explanation">Clients adapt their caller needs to ODB service routes; they do not own the durable record model or silently replace the substrate with local state.</annotation>
+      <code-link file="dana-agent/src/dana_agent/odb/client.py" symbol="OdbMissionClient" role="implementation">Reads and writes mission, task, artifact, and resume state for the agent runtime.</code-link>
+      <code-link file="dana-apps/dana-cli/src/dana_cli/odb_client.py" symbol="OdbClient" role="implementation">Provides the CLI's ODB request adapter.</code-link>
+    </concept>
+  </context>
+
+  <context id="governed-agent-runtime">
+    <name>Governed Agent Runtime</name>
+    <description>Accepts an external mission, resolves its governed control surface and workflow binding, then dispatches a bounded STAR leaf or a resolved workflow and returns one traced outcome.</description>
+    <annotation kind="rule" evidence="enforced">External requests enter through the gateway; the bare leaf escape hatch is explicitly reserved for unit and gym tests and is not wired to user-facing commands.</annotation>
+    <code-link file="dana-agent/src/dana_agent/gateway/invoke.py" symbol="invoke_agent" role="implementation">Single external invocation boundary that binds, dispatches, traces, and returns the governed result.</code-link>
+    <code-link file="dana-agent/src/dana_agent/gateway/leaf.py" symbol="run_leaf" role="implementation">Post-gate STAR leaf runner with authority bands, routing, tools, and optional memory.</code-link>
+
+    <concept id="mission-binding" classification="service">
+      <name>Mission Binding</name>
+      <description>The decision that maps mission text and caller context to an admitted agent, mission class, workflow or leaf target, authority bands, and post-bind action.</description>
+      <annotation kind="rule" evidence="enforced">Binding can curate a pin, defer with evidence, or refuse. A live bound mission is admitted only for the runtime's accepted decision forms and carries the resolved target metadata into dispatch.</annotation>
+      <code-link file="dana-agent/src/dana_agent/bind/models.py" symbol="BindResult" role="representation">Carries the binding decision, target, and routing metadata.</code-link>
+      <code-link file="dana-agent/src/dana_agent/bind/intent.py" symbol="bind_intent_to_workflow" role="implementation">Maps classified intent and extracted slots to a workflow binding.</code-link>
+      <code-link file="dana-agent/src/dana_agent/bind/router.py" symbol="BindRouter" role="implementation">Routes mission text through the binding decision path and post-bind policy.</code-link>
+    </concept>
+    <concept id="star-leaf" classification="service">
+      <name>STAR Leaf</name>
+      <description>A bounded See, Think, Act, Reflect execution unit that consumes an authority envelope and context packet, may use allowlisted tools, and emits an outcome with evidence and trace fields.</description>
+      <annotation kind="rule" evidence="enforced">Tool and token budgets come from the authority envelope; memory recall can block or force recomputation, and the runner records phase and outcome information.</annotation>
+      <code-link file="dana-agent/src/dana_agent/star/runner.py" symbol="run_star_leaf" role="implementation">Executes the STAR phases and produces the normalized leaf outcome.</code-link>
+      <code-link file="dana-agent/src/dana_agent/gateway/leaf.py" symbol="LeafRun" role="representation">Normalizes post-gate leaf execution into an outcome and channel-facing payload.</code-link>
+    </concept>
+    <concept id="agent-workflow" classification="aggregate">
+      <name>Agent Workflow</name>
+      <description>A resolved graph of agent nodes and edges that performs a multi-step mission after binding, with graph steps, recommendations, answer, and durable artifact references in its result.</description>
+      <annotation kind="explanation">Workflow definitions can be read from an ODB-canonical deployment or from disk as an authoring fallback; the resolved graph remains the runtime's executable shape.</annotation>
+      <code-link file="dana-agent/src/dana_agent/workflows/agent_run.py" symbol="resolve_agent_graph" role="implementation">Resolves the workflow graph and its nodes for an agent invocation.</code-link>
+      <code-link file="dana-agent/src/dana_agent/workflows/agent_run.py" symbol="AgentRunResult" role="representation">Captures workflow steps, bind result, answer, recommendations, trace, and ODB artifact id.</code-link>
+      <code-link file="dana-agent/src/dana_agent/workflows/agent_run.py" symbol="run_agent_workflow" role="implementation">Binds, dispatches, executes, and returns the workflow result.</code-link>
+    </concept>
+    <concept id="control-surface" classification="value">
+      <name>Control Surface</name>
+      <description>The resolved authority and policy configuration that determines which execution layers, tools, pins, and authority bands a mission may use.</description>
+      <annotation kind="rule" evidence="enforced">Production control surfaces validate pin maps and authority before the gateway dispatches; the leaf receives authority from the caller rather than hardcoding it.</annotation>
+      <code-link file="dana-agent/src/dana_agent/control_surface/models.py" symbol="ResolvedControlSurface" role="representation">Represents resolved control-surface state and its trace fields.</code-link>
+      <code-link file="dana-agent/src/dana_agent/control_surface/resolution.py" symbol="resolve_control_surface" role="implementation">Resolves control-surface configuration used by the gateway.</code-link>
+    </concept>
+    <concept id="advisory-outcome" classification="value">
+      <name>Advisory Outcome</name>
+      <description>A governed answer, recommendation, refusal, decline, or blocked result returned to a caller after the runtime applies its authority and safety boundaries.</description>
+      <annotation kind="rule" evidence="enforced">Current DanaOS agent posture is advisory: the gateway returns recommendations or a governed refusal/decline and does not execute a refused mission. External actuation remains behind separate ODB policy guards.</annotation>
+      <code-link file="dana-agent/src/dana_agent/gateway/invoke.py" symbol="AgentResult" role="representation">Carries decision, execution flag, status, answer, recommendations, and trace for one governed invocation.</code-link>
+      <code-link file="dana-agent/src/dana_agent/gateway/invoke.py" symbol="_refused_result" role="enforcement">Constructs a refusal result without execution.</code-link>
+      <code-link file="dana-odb/crates/odb-service/src/proxy_pep.rs" role="enforcement">Implements fail-closed policy guards for actuation-class proxy requests.</code-link>
+    </concept>
+  </context>
+
+  <context id="loop-orchestration">
+    <name>Loop Orchestration</name>
+    <description>Runs a configured goal through a bounded plan graph, alternating planning, action, observation, evaluation, compression, completion, and fail-safe or human-interrupt routes.</description>
+    <annotation kind="explanation">The loop can drive ZCode or an agent runner. It owns iteration state and convergence decisions while delegating leaf execution to the selected runner.</annotation>
+    <code-link file="dana-loop/src/dana_loop/execution/engine.py" symbol="build_graph" role="implementation">Builds the plan graph and its conditional routes.</code-link>
+    <code-link file="dana-loop/src/dana_loop/execution/engine.py" symbol="run_loop" role="implementation">Runs the compiled loop against a plan definition and target repository.</code-link>
+
+    <concept id="loop-definition" classification="value">
+      <name>Loop Definition</name>
+      <description>The validated plan describing the goal, action target, phase bounds, evaluation regime, and optional agent or ZCode execution settings.</description>
+      <annotation kind="rule" evidence="observed">The definition is authored as plan configuration and is consumed by graph construction; the wizard supplies an interactive creation path but does not itself execute the loop.</annotation>
+      <code-link file="dana-loop/src/dana_loop/creation/wizard.py" symbol="run_wizard" role="implementation">Interactive creation path for loop definitions.</code-link>
+      <code-link file="dana-loop/src/dana_loop/execution/engine.py" symbol="build_graph" role="usage">Consumes the validated definition to choose the runner and graph routes.</code-link>
+    </concept>
+    <concept id="loop-state" classification="aggregate">
+      <name>Loop State</name>
+      <description>The evolving state of one loop run: iteration, pending prompt or mission, runner result, observation, evaluation, context budget, status, and human-interrupt information.</description>
+      <annotation kind="rule" evidence="enforced">Bounds are checked before planning and evaluation routes distinguish done, failed, interrupted, bounds-exceeded, compression, and next-iteration outcomes.</annotation>
+      <code-link file="dana-loop/src/dana_loop/execution/state.py" symbol="LoopState" role="representation">Defines the state fields shared by plan, act, observe, eval, and routing nodes.</code-link>
+      <code-link file="dana-loop/src/dana_loop/execution/engine.py" symbol="route_after_eval" role="enforcement">Chooses continuation, compression, completion, interruption, or fail-safe based on evaluation and bounds.</code-link>
+    </concept>
+    <concept id="loop-record" classification="entity">
+      <name>Loop Record</name>
+      <description>The durable registry identity and status projection for a loop, used to report liveness, stale runs, terminal records, and program progression across process boundaries.</description>
+      <code-link file="dana-loop/src/dana_loop/registry/models.py" symbol="LoopRecord" role="representation">Defines the loop registry record projected to ODB.</code-link>
+      <code-link file="dana-loop/src/dana_loop/program/driver.py" symbol="advance_program" role="implementation">Advances program phases using loop records and their terminal state.</code-link>
+    </concept>
+    <concept id="loop-bounds-and-verdict" classification="value">
+      <name>Loop Bounds And Verdict</name>
+      <description>The explicit limit and evaluation result that determines whether a loop may continue, compress context, complete, interrupt for a human, or enter a fail-safe state.</description>
+      <annotation kind="rule" evidence="enforced">Maximum iterations, wall-clock or cost limits, and evaluation outcomes are checked in the graph; an exceeded bound becomes a terminal bounded outcome.</annotation>
+      <code-link file="dana-loop/src/dana_loop/execution/bounds.py" role="enforcement">Contains loop-specific bounds checks and exceeded-reason calculation.</code-link>
+      <code-link file="dana-loop/src/dana_loop/execution/engine.py" symbol="bounds_check_node" role="enforcement">Applies bounds before a cycle enters planning.</code-link>
+    </concept>
+  </context>
+
+  <context id="execution-kernel">
+    <name>Execution Kernel</name>
+    <description>Provides generic LangGraph-backed graph compilation, invocation, tracing, resumption, bounds, and leaf-executor contracts shared by the agent and loop consumers.</description>
+    <annotation kind="rule" evidence="observed">The kernel supplies graph mechanics and normalized leaf contracts; consumer packages supply their state schemas, node wiring, domain outcomes, and leaf implementations.</annotation>
+    <code-link file="dana-lib/dana-exec/src/dana_exec/engine.py" symbol="GraphEngine" role="implementation">Shared compile, invoke, trace, describe, and resume wrapper.</code-link>
+    <code-link file="dana-lib/dana-exec/src/dana_exec/contracts.py" symbol="LeafExecutor" role="definition">Defines the consumer-independent leaf executor seam.</code-link>
+    <concept id="graph-engine" classification="service">
+      <name>Graph Engine</name>
+      <description>The mechanics service that compiles consumer-supplied nodes and edges and invokes or resumes the resulting graph with a recursion limit and optional checkpointer.</description>
+      <code-link file="dana-lib/dana-exec/src/dana_exec/engine.py" symbol="GraphEngine" role="implementation">Implements the shared graph lifecycle and trace-bearing invocation.</code-link>
+    </concept>
+    <concept id="leaf-outcome" classification="value">
+      <name>Leaf Outcome</name>
+      <description>The normalized result exchanged between an outer plan graph and a bounded leaf, carrying status, evidence, cost, trace reference, and summary.</description>
+      <code-link file="dana-lib/dana-exec/src/dana_exec/contracts.py" symbol="LeafOutcome" role="representation">Defines the common outcome shape used by loop and agent leaves.</code-link>
+    </concept>
+  </context>
+
+  <context id="memory-and-capabilities">
+    <name>Memory And Capability Libraries</name>
+    <description>Supplies reusable cross-cutting capabilities for memory retrieval and content, authentication and principals, external resolver contracts, and structural vocabulary loading.</description>
+    <annotation kind="explanation">These libraries are imported by runtime and product surfaces and do not themselves define a process boundary; their contracts keep callers from duplicating storage, identity, or provider policy.</annotation>
+    <code-link file="dana-lib/dana-memory/src/dana_memory/retrieval.py" role="implementation">Implements hybrid lexical and vector retrieval over memory evidence.</code-link>
+    <code-link file="dana-lib/dana-auth/src/dana_auth/acquirer.py" role="implementation">Implements OAuth token acquisition and refresh for runtime and operator flows.</code-link>
+    <concept id="memory-evidence" classification="aggregate">
+      <name>Memory Evidence</name>
+      <description>Retrievable or resolvable content with an identity, provenance, validity, and optional write-back policy that can inform a later agent turn.</description>
+      <annotation kind="rule" evidence="observed">Hybrid retrieval filters invalid results and content stores resolve or atomically write content; the STAR runner decides whether recalled evidence is accepted or recomputed.</annotation>
+      <code-link file="dana-lib/dana-memory/src/dana_memory/retrieval.py" symbol="HybridRetriever" role="implementation">Combines lexical and vector evidence into recall results.</code-link>
+      <code-link file="dana-lib/dana-memory/src/dana_memory/content.py" symbol="TieredContentStore" role="implementation">Resolves and atomically writes content across configured storage tiers.</code-link>
+    </concept>
+    <concept id="principal-and-token" classification="value">
+      <name>Principal And Token</name>
+      <description>The authenticated caller identity and bearer credential used to authorize runtime, operator, and on-behalf-of requests.</description>
+      <annotation kind="rule" evidence="enforced">Token claims are decoded for client-side principal extraction, while resource services are responsible for signature validation; cached tokens refresh before expiry.</annotation>
+      <code-link file="dana-lib/dana-auth/src/dana_auth/acquirer.py" symbol="TokenAcquirer" role="implementation">Acquires and refreshes client-credential, exchange, authorization-code, and device-code tokens.</code-link>
+      <code-link file="dana-lib/dana-auth/src/dana_auth/principal.py" symbol="Principal" role="representation">Represents the persisted principal extracted from claims.</code-link>
+    </concept>
+    <concept id="resolver-contract" classification="service">
+      <name>Resolver Contract</name>
+      <description>A fetch-only contract for resolving one class of external facts into a result with provider identity, provenance URI, TTL, and write-back fields.</description>
+      <annotation kind="rule" evidence="intended">Resolvers do not perform cache lookup, authorization, or substrate mutation; those responsibilities stay with the registry, policy layer, or caller.</annotation>
+      <code-link file="dana-lib/dana-resolvers/src/dana_resolvers/models.py" symbol="Resolver" role="definition">Defines the provider-facing fetch-only resolver protocol.</code-link>
+      <code-link file="dana-lib/dana-resolvers/src/dana_resolvers/models.py" symbol="ResolverResult" role="representation">Defines the resolved fact and provenance/write-back shape.</code-link>
+      <code-link file="dana-lib/dana-resolvers/src/dana_resolvers/registry.py" symbol="ResolverRegistry" role="implementation">Registers resolvers and dispatches requests by supported prefix.</code-link>
+    </concept>
+    <concept id="structural-pack-contract" classification="value">
+      <name>Structural Pack Contract</name>
+      <description>A domain-blind declarative vocabulary of kinds, relations, and containment that maps vertical terms to the core Place, Asset, and Signal spine.</description>
+      <annotation kind="rule" evidence="enforced">Pack loading fails closed on unknown keys, duplicate kinds, invalid core supertypes, and dangling relation or containment endpoints.</annotation>
+      <code-link file="dana-lib/dana-metamodel/src/dana_metamodel/models.py" symbol="Pack" role="representation">Represents a validated structural vocabulary pack.</code-link>
+      <code-link file="dana-lib/dana-metamodel/src/dana_metamodel/loader.py" symbol="load_pack" role="enforcement">Validates and rejects malformed pack documents as a whole.</code-link>
+    </concept>
+  </context>
+
+  <context id="world-models-and-packs">
+    <name>World Models And Operational Packs</name>
+    <description>Provides mechanistic simulators and learned model families that act as WorldModel backends, together with domain-specific operational packs and replay/evaluation artifacts.</description>
+    <annotation kind="explanation">The model-family tree contains active simulator and Kairos learned-family implementations. Their role is to supply world-state or predictive capability to runtime consumers; this first model does not treat individual experiments as separate domain concepts.</annotation>
+    <code-link file="dana-models/AGENTS.md" role="definition">Defines the package boundary and model-family ownership guidance for active model sources.</code-link>
+    <concept id="world-model" classification="service">
+      <name>World Model</name>
+      <description>A model-family backend that represents, simulates, predicts, or evaluates a domain world for an agent or loop.</description>
+      <annotation kind="explanation">The repository contains both mechanistic simulator manifests and learned time-series models; they share a consumer role without sharing one implementation class.</annotation>
+      <code-link file="dana-models/simulators/ahu-3-bms/eval/hon_building_run_simulator.py" role="implementation">Mechanistic building simulator evaluation path.</code-link>
+      <code-link file="dana-models/kairos/jepa_ts/model.py" symbol="JEPATSModel" role="implementation">Learned time-series model family used by Kairos experiments.</code-link>
+    </concept>
+    <concept id="operational-pack" classification="value">
+      <name>Operational Pack</name>
+      <description>A domain-specific bundle of vocabulary, rules, procedures, or fixtures that makes a runtime useful in an industrial vertical.</description>
+      <annotation kind="explanation">Operational packs under model families are distinct from the proposed domain-blind structural packs in the capability library; the two surfaces have different ownership and contracts.</annotation>
+      <code-link file="dana-models/simulators/ahu-3-bms/simulator.toml" role="representation">Declares an executable simulator package and its domain configuration.</code-link>
+      <code-link file="dana-models/simulators/ahu-3-bms/eval/hon_building_kpi_score.py" symbol="score_hon_building_kpi" role="implementation">Scores the domain-specific simulator outcome.</code-link>
+    </concept>
+  </context>
+
+  <context id="governance-and-data-agents">
+    <name>Governance And Data Agents</name>
+    <description>Provides peer agents that govern ontology and adaptation decisions, retrieve data with provenance, and coach humans through agent or loop authoring.</description>
+    <annotation kind="rule" evidence="observed">The ontologist is a separate peer governance package over ODB; the Librarian returns data and provenance and carries an NG5 boundary against diagnosis; Dana is an authoring coach with policy-aware tools.</annotation>
+    <code-link file="dana-agents/dana-ontologist/src/dana_ontologist/review.py" symbol="run" role="implementation">Executes the implemented promote review path and writes a review artifact through ODB contracts.</code-link>
+    <code-link file="dana-agents/dana-librarian/src/dana_librarian/agent.py" symbol="run_librarian" role="implementation">Runs the data-only retrieval agent.</code-link>
+    <code-link file="dana-agents/dana-wizard/src/dana_wizard/agent.py" symbol="run_wizard" role="implementation">Runs the wizard authoring-coach path.</code-link>
+    <concept id="ontology-review" classification="service">
+      <name>Ontology Review</name>
+      <description>A governed review of a candidate ontology, catalog, adaptation, or memory artifact that may produce a promotion decision and durable review evidence.</description>
+      <annotation kind="rule" evidence="enforced">The implemented promote path reads a candidate, runs binding checks, and writes an artifact only when the review passes; defer and rollback are accepted contract values but are not implemented in this path.</annotation>
+      <code-link file="dana-agents/dana-ontologist/src/dana_ontologist/review.py" symbol="ReviewResult" role="representation">Carries review pass/failure and phase result information.</code-link>
+      <code-link file="dana-agents/dana-ontologist/src/dana_ontologist/governance/review_adaptation.py" symbol="review_adaptation_candidate" role="enforcement">Applies adaptation candidate review checks before promotion.</code-link>
+    </concept>
+    <concept id="librarian-answer" classification="service">
+      <name>Librarian Answer</name>
+      <description>A data-only response assembled from allowlisted ODB and external sources, with source provenance and status suitable for a caller to interpret.</description>
+      <annotation kind="rule" evidence="enforced">The Librarian envelope validators reject task or diagnosis claims in source and skill fields; its purpose is retrieval and provenance, not diagnosis.</annotation>
+      <code-link file="dana-agents/dana-librarian/src/dana_librarian/envelope.py" symbol="LibrarianEnvelope" role="representation">Defines the constrained answer envelope and NG5 validation.</code-link>
+      <code-link file="dana-agents/dana-librarian/src/dana_librarian/fusion.py" symbol="fuse" role="implementation">Fuses source outcomes into a provenance-bearing result.</code-link>
+      <code-link file="dana-agents/dana-librarian/src/dana_librarian/agent.py" symbol="run_librarian" role="implementation">Builds the retrieval agent's tool-enabled execution.</code-link>
+    </concept>
+    <concept id="authoring-coach" classification="service">
+      <name>Authoring Coach</name>
+      <description>Dana's guided authoring surface for discovering capabilities, validating loop definitions, writing loop artifacts, and promoting agent or pack work under policy.</description>
+      <annotation kind="rule" evidence="enforced">Wizard tools validate target paths and loop definitions and refuse unsafe or malformed writes; the coach is an authoring surface, not the loop executor.</annotation>
+      <code-link file="dana-agents/dana-wizard/src/dana_wizard/tools.py" symbol="WizardToolPort" role="implementation">Implements the wizard's guarded tool surface, validation, and authoring writes.</code-link>
+      <code-link file="dana-agents/dana-wizard/src/dana_wizard/agent.py" symbol="WizardResult" role="representation">Represents the wizard's structured result.</code-link>
+    </concept>
+    <concept id="runtime-ontology-adapter" classification="service">
+      <name>Runtime Ontology Adapter</name>
+      <description>A public adapter that loads visible ODB skills and packages draft-only ontology review evidence for Console and Enterprise consumers.</description>
+      <annotation kind="rationale">This adapter is separate from the canonical ontologist governance agent. The distinction prevents a draft review integration from being mistaken for the authoritative governance process.</annotation>
+      <code-link file="dana-agents/dana-runtime-ontologist/src/dana_runtime_ontologist/odb_skill_resource.py" symbol="OdbSkillClient" role="implementation">Loads visibility-filtered skills from ODB for the runtime adapter.</code-link>
+      <code-link file="dana-agents/dana-runtime-ontologist/src/dana_runtime_ontologist/review_evidence.py" symbol="OntologyEvidenceManifest" role="representation">Defines the evidence manifest passed through the adapter boundary.</code-link>
+    </concept>
+  </context>
+
+  <context id="external-data-adapters">
+    <name>External Data Adapters</name>
+    <description>Implements provider-specific resolver leaves that fetch external facts through declared prefixes while leaving caching, authorization, and substrate mutation to their callers.</description>
+    <annotation kind="rule" evidence="intended">The resolver contract assigns providers a fetch-only responsibility; provider packages live under dana-adapters and are consumed through the resolver registry or Librarian broker.</annotation>
+    <code-link file="dana-adapters/AGENTS.md" role="definition">Defines the adapter tier and its provider boundary.</code-link>
+    <concept id="resolver-adapter" classification="service">
+      <name>Resolver Adapter</name>
+      <description>A provider implementation of the resolver contract for one or more external data prefixes.</description>
+      <code-link file="dana-adapters/honeywell/resolvers/src/dana_adapters_honeywell/resolvers.py" role="implementation">Provider resolver implementations for Honeywell external data.</code-link>
+      <code-link file="dana-agents/dana-librarian/src/dana_librarian/driver_plane.py" symbol="OdbBrokerFederationBroker" role="usage">Bridges Librarian requests to ODB-brokered resolver instances.</code-link>
+    </concept>
+  </context>
+
+  <context id="operator-front-doors">
+    <name>Front Doors And Product Surfaces</name>
+    <description>Exposes DanaOS capabilities through the unified CLI, interactive Console, and end-user product surfaces, including agent invocation, ODB inspection, loop control, authentication, authoring, and ontology review.</description>
+    <annotation kind="explanation">Front doors coordinate existing runtime contracts and persist their own session or activity projections where needed; they do not replace the ODB or agent gateway.</annotation>
+    <code-link file="dana-apps/dana-cli/src/dana_cli/main.py" symbol="main" role="implementation">Dispatches the unified dana command surface.</code-link>
+    <code-link file="dana-console/src/dana_console/main.py" symbol="create_app" role="implementation">Creates the FastAPI Console application and mounts its routes and web shell.</code-link>
+    <concept id="dana-cli" classification="service">
+      <name>Dana CLI</name>
+      <description>The unified command-line front door that dispatches agent, ODB, loop, memory, model, librarian, wizard, and governance operations.</description>
+      <code-link file="dana-apps/dana-cli/src/dana_cli/main.py" symbol="main" role="implementation">Builds and dispatches the CLI command tree.</code-link>
+      <code-link file="dana-apps/dana-cli/src/dana_cli/loop_agent_run.py" symbol="run_from_namespace" role="usage">Connects a loop-agent command to the agent gateway and loop runner.</code-link>
+    </concept>
+    <concept id="dana-console" classification="service">
+      <name>Dana Console</name>
+      <description>An interactive debug and operator surface for invocations, traces, loop state, ODB exploration, graph authoring, and ontology review.</description>
+      <code-link file="dana-console/src/dana_console/main.py" symbol="create_app" role="implementation">Creates the Console server and mounts the product APIs.</code-link>
+      <code-link file="dana-console/src/dana_console/state.py" symbol="IdeStateStore" role="representation">Persists Console activities, invocations, chat sessions, and ontology review state.</code-link>
+      <code-link file="dana-console/src/dana_console/api/ontology_review.py" symbol="satisfy_and_freeze" role="implementation">Coordinates the review evidence completion and freeze operation at the Console boundary.</code-link>
+    </concept>
+    <concept id="enterprise-workspace" classification="service">
+      <name>Enterprise Workspace</name>
+      <description>An end-user DanaOS application surface that hosts authenticated agent sessions, document-backed retrieval, and governed draft publication over the shared runtime and ODB contracts.</description>
+      <annotation kind="explanation">This surface is a consumer of the substrate and runtime; its workspace and publish flows preserve product-level review and evidence rather than redefining agent execution.</annotation>
+      <code-link file="dana-apps/dana-enterprise/src/dana_enterprise/workspace.py" symbol="Workspace" role="implementation">Coordinates authenticated enterprise sessions, draft inspection, evidence, and publishing steps.</code-link>
+      <code-link file="dana-apps/dana-enterprise/src/dana_enterprise/turn.py" symbol="run_turn" role="usage">Runs one enterprise conversation turn through the runtime boundary.</code-link>
+    </concept>
+  </context>
+
+  <relationship id="gateway-persists-operational-records" from="mission-binding" to="mission-task-record">
+    <name>records governed execution in</name>
+    <description>The agent gateway binds and executes a mission, while the ODB mission and task records preserve runtime artifacts, outcomes, and trace references for later inspection or resume.</description>
+    <annotation kind="explanation" evidence="observed">The gateway constructs a result with trace and artifact fields and uses the ODB mission client for canonical definitions and resume state; the record API is the durable counterpart.</annotation>
+    <code-link file="dana-agent/src/dana_agent/gateway/invoke.py" symbol="invoke_agent" role="implementation">Gateway path that resolves ODB-backed definitions and returns traced execution metadata.</code-link>
+    <code-link file="dana-odb/crates/odb-service/src/loop_api.rs" role="implementation">Service routes that persist and query loop/task runtime records.</code-link>
+  </relationship>
+  <relationship id="runtime-uses-odb-client" from="agent-workflow" to="odb-client-contract">
+    <name>reads and persists through</name>
+    <description>The runtime uses the ODB client contract for canonical mission definitions, artifact references, and resume state while the ODB remains the owning durable substrate.</description>
+    <code-link file="dana-agent/src/dana_agent/gateway/invoke.py" symbol="invoke_agent" role="usage">Constructs the ODB mission client when an ODB-backed invocation is configured.</code-link>
+    <code-link file="dana-agent/src/dana_agent/odb/client.py" symbol="OdbMissionClient" role="implementation">Implements the runtime-facing ODB client.</code-link>
+  </relationship>
+  <relationship id="binding-selects-leaf-or-workflow" from="mission-binding" to="star-leaf">
+    <name>selects a leaf for</name>
+    <description>A successful binding determines whether the gateway dispatches the post-gate STAR leaf or a workflow path, carrying authority and mission metadata into execution.</description>
+    <annotation kind="rule" evidence="enforced">The gateway performs the bind first and only then dispatches; the leaf documents the one-way gateway to runner layering.</annotation>
+    <code-link file="dana-agent/src/dana_agent/gateway/invoke.py" symbol="_invoke_agent" role="implementation">Dispatches the resolved bind to the selected execution path.</code-link>
+    <code-link file="dana-agent/src/dana_agent/gateway/leaf.py" symbol="run_leaf" role="usage">Receives the post-gate authority and mission inputs.</code-link>
+  </relationship>
+  <relationship id="binding-selects-workflow" from="mission-binding" to="agent-workflow">
+    <name>selects a workflow for</name>
+    <description>Workflow-axis bindings carry a pinned workflow identity and version into graph resolution and execution.</description>
+    <code-link file="dana-agent/src/dana_agent/workflows/agent_run.py" symbol="run_agent_workflow" role="usage">Consumes the bound mission and workflow key to execute a graph.</code-link>
+  </relationship>
+  <relationship id="workflow-uses-kernel" from="agent-workflow" to="graph-engine">
+    <name>uses graph mechanics from</name>
+    <description>The agent workflow supplies domain graph wiring while the shared kernel supplies compilation, invocation, tracing, and resume mechanics.</description>
+    <annotation kind="explanation" evidence="observed">The consumer owns graph resolution and state; the dependency direction keeps LangGraph mechanics in dana-exec.</annotation>
+    <code-link file="dana-agent/src/dana_agent/workflows/agent_run.py" role="usage">Workflow execution imports and uses the shared graph engine seam.</code-link>
+    <code-link file="dana-lib/dana-exec/src/dana_exec/engine.py" symbol="GraphEngine" role="implementation">Provides the mechanics used by consumers.</code-link>
+  </relationship>
+  <relationship id="loop-uses-kernel" from="loop-state" to="graph-engine">
+    <name>runs through</name>
+    <description>Loop orchestration supplies its own LoopState and node routes, then compiles and runs them through the shared GraphEngine contract.</description>
+    <code-link file="dana-loop/src/dana_loop/execution/engine.py" symbol="build_graph" role="usage">Builds the loop graph using shared execution mechanics.</code-link>
+  </relationship>
+  <relationship id="loop-record-preserves-loop-state" from="loop-state" to="loop-record">
+    <name>projects runtime state into</name>
+    <description>The in-process LoopState changes each iteration; the registry LoopRecord and ODB loop APIs preserve a cross-process status and heartbeat projection.</description>
+    <annotation kind="explanation" evidence="observed">The exact serialization boundary varies by execution mode, so this model treats the record as a durable projection rather than claiming every state field is stored identically.</annotation>
+    <code-link file="dana-loop/src/dana_loop/registry/models.py" symbol="LoopRecord" role="representation">Defines the durable registry projection.</code-link>
+    <code-link file="dana-odb/crates/odb-core/src/objects.rs" role="representation">Defines the ODB-side durable loop record.</code-link>
+  </relationship>
+  <relationship id="loop-delegates-agent" from="loop-definition" to="agent-workflow">
+    <name>can delegate iterations to</name>
+    <description>When a plan targets an agent, its plan node builds a mission and its agent runner invokes the bounded agent runtime for the act step.</description>
+    <annotation kind="explanation" evidence="observed">The CLI supplies the gateway as the injected agent invocation seam; loop code does not need to import the agent package directly.</annotation>
+    <code-link file="dana-loop/src/dana_loop/execution/engine.py" symbol="_AgentRunner" role="implementation">Adapts agent invocation into the loop runner port.</code-link>
+    <code-link file="dana-apps/dana-cli/src/dana_cli/loop_agent_run.py" symbol="run_from_namespace" role="implementation">Wires the CLI loop-agent path to `invoke_agent`.</code-link>
+  </relationship>
+  <relationship id="leaf-emits-normalized-outcome" from="star-leaf" to="leaf-outcome">
+    <name>emits</name>
+    <description>The STAR runner's native result is normalized into the shared leaf outcome vocabulary for outer graph routing and reporting.</description>
+    <code-link file="dana-agent/src/dana_agent/star/runner.py" symbol="run_star_leaf" role="implementation">Produces the bounded STAR result.</code-link>
+    <code-link file="dana-lib/dana-exec/src/dana_exec/contracts.py" symbol="LeafOutcome" role="representation">Defines the normalized outcome vocabulary.</code-link>
+  </relationship>
+  <relationship id="runtime-returns-advisory-outcome" from="mission-binding" to="advisory-outcome">
+    <name>returns a governed</name>
+    <description>The bind decision and post-bind execution determine whether a caller receives an answer or recommendation, a refusal, a decline, or a blocked result.</description>
+    <code-link file="dana-agent/src/dana_agent/gateway/invoke.py" symbol="AgentResult" role="implementation">Returns the governed decision and outcome envelope to external callers.</code-link>
+  </relationship>
+  <relationship id="memory-supports-leaf" from="memory-evidence" to="star-leaf">
+    <name>informs</name>
+    <description>The leaf can resolve keyed memory through the ODB-backed memory port, verify recalled evidence, recompute when required, and write back an episodic rationale.</description>
+    <annotation kind="rule" evidence="enforced">Memory participation is conditional on the configured ODB path and the runner's decision protocol; unavailable or invalid memory can produce a blocked or recompute outcome.</annotation>
+    <code-link file="dana-agent/src/dana_agent/gateway/leaf.py" symbol="_resolve_memory_port_for_leaf" role="implementation">Builds the ODB-backed memory port for a leaf mission.</code-link>
+    <code-link file="dana-agent/src/dana_agent/star/runner.py" symbol="_memory_complete" role="enforcement">Completes the memory decision path and folds its result into the STAR outcome.</code-link>
+  </relationship>
+  <relationship id="odb-supplies-memory" from="operational-query" to="memory-evidence">
+    <name>supplies retrieval for</name>
+    <description>Memory retrieval and content resolution use ODB-backed lexical, vector, and content surfaces to recover evidence for a later turn.</description>
+    <code-link file="dana-lib/dana-memory/src/dana_memory/retrieval.py" symbol="HybridRetriever" role="implementation">Combines retrieval sources into memory evidence.</code-link>
+  </relationship>
+  <relationship id="world-model-supplies-agent" from="world-model" to="agent-workflow">
+    <name>supplies world context to</name>
+    <description>Model-family implementations and simulator fixtures can provide domain world state, predictions, or evaluation inputs to agent workflows and their bounded missions.</description>
+    <annotation kind="explanation" evidence="observed">The common consumer contract is documented at the package boundary; individual model families expose different APIs, so this first model leaves the exact injection path qualified.</annotation>
+    <code-link file="dana-models/AGENTS.md" role="usage">Documents model families as WorldModel backends consumed by runtime packages.</code-link>
+  </relationship>
+  <relationship id="pack-defines-model-vocabulary" from="operational-pack" to="world-model">
+    <name>defines domain vocabulary for</name>
+    <description>Operational packs and simulator manifests describe the domain entities, signals, scenarios, and scoring terms that a world model represents or evaluates.</description>
+    <code-link file="dana-models/simulators/ahu-3-bms/simulator.toml" role="usage">Binds a simulator implementation to its domain configuration.</code-link>
+  </relationship>
+  <relationship id="resolver-registry-dispatches-adapter" from="resolver-contract" to="resolver-adapter">
+    <name>dispatches requests to</name>
+    <description>The registry selects a provider adapter by supported prefix and returns its resolver result without taking ownership of provider policy or substrate mutation.</description>
+    <code-link file="dana-lib/dana-resolvers/src/dana_resolvers/registry.py" symbol="ResolverRegistry.resolve" role="implementation">Dispatches a resolver request to the matching registered provider.</code-link>
+    <code-link file="dana-agents/dana-librarian/src/dana_librarian/driver_plane.py" symbol="OdbBrokerFederationBroker.resolve" role="usage">Implements a brokered resolver bridge used by the Librarian.</code-link>
+  </relationship>
+  <relationship id="librarian-returns-provenance" from="resolver-adapter" to="librarian-answer">
+    <name>contributes sourced facts to</name>
+    <description>Provider resolver results become source entries in the Librarian's data-only answer, retaining provider identity and provenance for the caller.</description>
+    <code-link file="dana-agents/dana-librarian/src/dana_librarian/fusion.py" symbol="sources_from_outcome" role="implementation">Projects resolver outcomes into source records.</code-link>
+  </relationship>
+  <relationship id="librarian-queries-substrate" from="operational-query" to="librarian-answer">
+    <name>supplies data to</name>
+    <description>The Librarian uses an ODB tool port to search documents, read documents, query the ontology graph, and read Layer-A skills before constructing its sourced answer.</description>
+    <code-link file="dana-agents/dana-librarian/src/dana_librarian/tool_port.py" symbol="LibrarianOdbToolPort" role="implementation">Implements the Librarian's ODB-backed search, document, graph, and skill reads.</code-link>
+  </relationship>
+  <relationship id="ontologist-governs-runtime" from="ontology-review" to="agent-workflow">
+    <name>reviews and promotes</name>
+    <description>The peer ontologist reviews candidate runtime artifacts and catalog or adaptation changes, promoting only candidates that pass the binding checks supported by the current implementation.</description>
+    <annotation kind="rule" evidence="enforced">A failed promote review writes no artifact. The governance agent is a separate peer package over ODB rather than an internal ODB control plane.</annotation>
+    <code-link file="dana-agents/dana-ontologist/src/dana_ontologist/review.py" symbol="run" role="implementation">Runs the review and promotion boundary.</code-link>
+    <code-link file="dana-agents/dana-ontologist/src/dana_ontologist/governance/review_adaptation.py" symbol="write_review_to_odb" role="implementation">Persists the successful review artifact through ODB.</code-link>
+  </relationship>
+  <relationship id="ontology-review-persists-evidence" from="ontology-review" to="durable-operational-object">
+    <name>persists review evidence as</name>
+    <description>A successful governance review becomes a durable ODB review artifact so later runtime and operator surfaces can inspect the decision and its evidence.</description>
+    <code-link file="dana-agents/dana-ontologist/src/dana_ontologist/governance/review_adaptation.py" symbol="write_review_to_odb" role="implementation">Writes a passed review artifact to ODB.</code-link>
+  </relationship>
+  <relationship id="wizard-authors-loop" from="authoring-coach" to="loop-definition">
+    <name>guides authoring of</name>
+    <description>The wizard guides users through loop creation and validates loop definitions before guarded tool writes create or update loop artifacts.</description>
+    <code-link file="dana-agents/dana-wizard/src/dana_wizard/tools.py" symbol="WizardToolPort._validate_loopdef" role="enforcement">Validates the loop definition before an authoring write.</code-link>
+    <code-link file="dana-agents/dana-wizard/src/dana_wizard/tools.py" symbol="WizardToolPort._write_loopdef" role="implementation">Writes a validated loop artifact under the wizard's path guards.</code-link>
+  </relationship>
+  <relationship id="runtime-adapter-supports-console" from="runtime-ontology-adapter" to="dana-console">
+    <name>supplies draft review evidence to</name>
+    <description>The runtime adapter packages visible skills and ontology evidence for the Console's draft-only review and freeze flow.</description>
+    <annotation kind="rationale">This is an adapter integration, while authoritative promotion remains the ontologist's governance responsibility.</annotation>
+    <code-link file="dana-console/src/dana_console/api/ontology_review.py" symbol="satisfy_and_freeze" role="usage">Consumes runtime review evidence at the Console boundary.</code-link>
+  </relationship>
+  <relationship id="cli-dispatches-runtime" from="dana-cli" to="mission-binding">
+    <name>invokes through</name>
+    <description>The CLI's ask, run, workflow, librarian, and loop-agent commands dispatch into the governed runtime and its binding boundary.</description>
+    <code-link file="dana-apps/dana-cli/src/dana_cli/main.py" symbol="_cmd_ask" role="implementation">CLI command that reaches the ask/runtime path.</code-link>
+    <code-link file="dana-apps/dana-cli/src/dana_cli/loop_agent_run.py" symbol="run_from_namespace" role="implementation">CLI loop-agent command wiring to governed agent invocation.</code-link>
+  </relationship>
+  <relationship id="console-inspects-runs" from="dana-console" to="mission-task-record">
+    <name>inspects and projects</name>
+    <description>The Console reads invocation and ODB-backed run state, persists a local activity/session projection, and exposes traces, loop state, and review operations for operators.</description>
+    <code-link file="dana-console/src/dana_console/state.py" symbol="IdeStateStore" role="implementation">Persists local invocation, session, activity, and review projections.</code-link>
+    <code-link file="dana-console/src/dana_console/api/invocations.py" symbol="register_artifact_dir" role="usage">Registers invocation artifacts for Console inspection.</code-link>
+  </relationship>
+  <relationship id="auth-authorizes-front-door" from="principal-and-token" to="dana-cli">
+    <name>authorizes requests from</name>
+    <description>CLI and runtime clients acquire tokens and derive principals to access ODB and governed operations under the configured authority.</description>
+    <code-link file="dana-apps/dana-cli/src/dana_cli/cli_pkce.py" symbol="_acquirer" role="usage">Constructs the token acquirer for the CLI login flow.</code-link>
+    <code-link file="dana-lib/dana-auth/src/dana_auth/runtime.py" symbol="runtime_principal" role="usage">Resolves the runtime principal used by callers.</code-link>
+  </relationship>
+  <relationship id="auth-authorizes-enterprise" from="principal-and-token" to="enterprise-workspace">
+    <name>authorizes</name>
+    <description>The enterprise workspace derives a principal and bearer token for authenticated sessions and governed document or runtime operations.</description>
+    <code-link file="dana-apps/dana-enterprise/src/dana_enterprise/authz.py" symbol="NativeAuthzPort" role="enforcement">Applies enterprise-side authorization decisions for a principal and resource action.</code-link>
+    <code-link file="dana-apps/dana-enterprise/src/dana_enterprise/iam.py" symbol="canonical_iam_client" role="usage">Connects enterprise calls to the canonical IAM boundary.</code-link>
+  </relationship>
+  <relationship id="access-authority-governs-binding" from="access-authority" to="mission-binding">
+    <name>constrains</name>
+    <description>Authenticated principal and service authorization establish the outer request authority, while mission binding resolves the narrower execution policy and authority bands.</description>
+    <annotation kind="explanation" evidence="observed">The service and agent layers implement distinct enforcement points; this relationship describes their cooperation without collapsing service authorization into agent binding.</annotation>
+    <code-link file="dana-agent/src/dana_agent/control_surface/resolution.py" symbol="resolve_authority" role="implementation">Resolves execution authority for a bound mission.</code-link>
+    <code-link file="dana-odb/crates/odb-service/src/authz.rs" role="enforcement">Enforces service-side request authority.</code-link>
+  </relationship>
+</lexicon>

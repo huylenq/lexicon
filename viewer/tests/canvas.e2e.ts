@@ -45,6 +45,166 @@ async function note(page: Page, text: string) {
 const records = (data: any) => (data.snapshot ? Object.values(data.snapshot.store) : data.canvas.records) as any[];
 const object = (data: any, id: string) => records(data).find((r) => r.type === "lexicon-object" && r.props.graphId === `item:${id}`);
 
+const selectedObjects = (page: Page) => page.locator('[data-model-id][data-selected="true"]')
+  .evaluateAll((elements) => elements.map((el) => el.getAttribute("data-model-id")).sort());
+const card = (page: Page, id: string) => page.locator(`[data-model-id="item:${id}"]`);
+async function drag(page: Page, from: { x: number; y: number }, to: { x: number; y: number }) {
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  await page.mouse.move(to.x, to.y, { steps: 12 });
+  await page.mouse.up();
+}
+
+test("native label gestures add and toggle selections, including relationship labels", async ({ page }) => {
+  await open(page);
+  const order = page.getByRole("button", { name: "concept: Order", exact: true });
+  const line = page.getByRole("button", { name: "concept: Order Line", exact: true });
+  for (const modifier of ["Shift", "Meta"] as const) {
+    await order.click();
+    await line.click({ modifiers: [modifier] });
+    await expect.poll(() => selectedObjects(page)).toEqual(["item:order", "item:order-line"]);
+    await line.click({ modifiers: [modifier] });
+    await expect.poll(() => selectedObjects(page)).toEqual(["item:order"]);
+    await page.getByRole("button", { name: "Read relationship: contains", exact: true }).click({ modifiers: [modifier] });
+    await expect(card(page, "order")).toHaveAttribute("data-selected", "true");
+    await expect(page.locator(".tl-container").getByRole("status")).toContainText("2 shapes selected");
+  }
+  // Keyboard activation still opens the explanation through the native selection.
+  await line.focus();
+  await line.press("Enter");
+  await expect(page.locator("main h1")).toHaveText("Order Line");
+  await expect.poll(() => selectedObjects(page)).toEqual(["item:order-line"]);
+});
+
+test("node and context labels drag with native undo and Space panning", async ({ page }) => {
+  await open(page);
+  const initial = (await exportDocument(page)).data;
+  const order = page.getByRole("button", { name: "concept: Order", exact: true });
+  const label = (await order.boundingBox())!;
+  const start = { x: label.x + label.width / 2, y: label.y + label.height / 2 };
+  await drag(page, start, { x: start.x + 20, y: start.y + 20 });
+  const moved = (await exportDocument(page)).data;
+  expect(object(moved, "order").x - object(initial, "order").x).toBeCloseTo(20, 1);
+  expect(object(moved, "order").y - object(initial, "order").y).toBeCloseTo(20, 1);
+  await page.getByRole("button", { name: /^Undo —/ }).click();
+  expect(object((await exportDocument(page)).data, "order")).toEqual(object(initial, "order"));
+  const heading = (await page.getByRole("button", { name: "context: Ordering", exact: true }).boundingBox())!;
+  await drag(page, { x: heading.x + 20, y: heading.y + 10 }, { x: heading.x + 50, y: heading.y + 30 });
+  const groupMoved = (await exportDocument(page)).data;
+  expect(object(groupMoved, "ordering").x - object(initial, "ordering").x).toBeCloseTo(30, 1);
+  expect(object(groupMoved, "order")).toEqual(object(initial, "order"));
+  // Space-drag over that same label moves the camera and leaves placements intact.
+  const camera = await page.locator(".tl-html-layer").getAttribute("style");
+  const panLabel = (await order.boundingBox())!;
+  await page.locator(".tl-container").focus();
+  await page.keyboard.down("Space");
+  await drag(page, { x: panLabel.x + 20, y: panLabel.y + 10 }, { x: panLabel.x + 70, y: panLabel.y + 50 });
+  await page.keyboard.up("Space");
+  await expect(page.locator(".tl-html-layer")).not.toHaveAttribute("style", camera!);
+  expect(object((await exportDocument(page)).data, "order")).toEqual(object(groupMoved, "order"));
+  expect(await readFile(join(root, "lexicon/model.xml"), "utf8")).toBe(original);
+});
+
+test("native marquee treats contexts as frames and Shift adds without toggling existing shapes", async ({ page }) => {
+  await open(page);
+  const group = (await card(page, "ordering").boundingBox())!;
+  const line = (await card(page, "order-line").boundingBox())!;
+  // Touch the container edge and part of one child, away from the relationships.
+  await drag(page, { x: group.x - 20, y: line.y + 5 }, { x: line.x + 40, y: line.y + line.height - 5 });
+  await expect.poll(() => selectedObjects(page)).toEqual(["item:order-line"]);
+  await page.getByRole("button", { name: "concept: Order", exact: true }).click();
+  const item = new URL(page.url()).searchParams.get("item");
+  for (let i = 0; i < 2; i++) {
+    await page.keyboard.down("Shift");
+    await drag(page, { x: group.x + 5, y: line.y + 5 }, { x: line.x + 40, y: line.y + line.height - 5 });
+    await page.keyboard.up("Shift");
+    await expect.poll(() => selectedObjects(page)).toEqual(["item:order", "item:order-line"]);
+    expect(new URL(page.url()).searchParams.get("item")).toBe(item);
+  }
+  // Fully wrapping the context selects the frame, letting the engine filter children.
+  await drag(page, { x: group.x - 15, y: group.y - 15 }, { x: group.x + group.width + 15, y: group.y + group.height + 15 });
+  await expect.poll(() => selectedObjects(page)).toEqual(["item:ordering"]);
+});
+
+test("selection movement keeps spacing at context boundaries for drags, nudges, cancel, and undo", async ({ page }) => {
+  await open(page);
+  await page.getByRole("button", { name: "concept: Order Total", exact: true }).click();
+  await note(page, "Follow the constrained selection.");
+  const initial = (await exportDocument(page)).data;
+  for (const [i, name] of ["Order", "Order Line", "Order Total"].entries())
+    await page.getByRole("button", { name: `concept: ${name}`, exact: true }).click({ modifiers: i ? ["Shift"] : [] });
+  await expect.poll(() => selectedObjects(page)).toEqual(["item:order", "item:order-line", "item:order-total"]);
+  const positions = async () => Promise.all(["order", "order-line", "order-total"].map(async (id) => (await card(page, id).boundingBox())!));
+  const before = await positions();
+  const label = (await page.getByRole("button", { name: "concept: Order", exact: true }).boundingBox())!;
+  const start = { x: label.x + label.width / 2, y: label.y + label.height / 2 };
+  await page.mouse.move(start.x, start.y);
+  await page.mouse.down();
+  await page.mouse.move(start.x, start.y + 60, { steps: 12 });
+  const during = await positions();
+  const delta = during.map((box, i) => box.y - before[i].y);
+  expect(delta[0]).toBeGreaterThan(0);
+  expect(delta[0]).toBeLessThan(60);
+  for (const dy of delta) expect(dy).toBeCloseTo(delta[0], 1);
+  await page.mouse.up();
+  const moved = (await exportDocument(page)).data;
+  const oldNote = records(initial).find((r) => r.type === "note");
+  const movedNote = records(moved).find((r) => r.type === "note");
+  expect(movedNote.y - oldNote.y).toBeCloseTo(delta[0], 1);
+  await page.getByRole("button", { name: /^Undo —/ }).click();
+  const undone = (await exportDocument(page)).data;
+  for (const id of ["order", "order-line", "order-total"])
+    expect(object(undone, id)).toEqual(object(initial, id));
+  expect(records(undone).find((r) => r.type === "note")).toEqual(oldNote);
+  await page.getByRole("button", { name: /^Redo —/ }).click();
+  expect(object((await exportDocument(page)).data, "order-total")).toEqual(object(moved, "order-total"));
+  await page.getByRole("button", { name: /^Undo —/ }).click();
+  await page.locator(".tl-container").press("Shift+ArrowDown");
+  await page.locator(".tl-container").press("Shift+ArrowDown");
+  const nudged = await positions();
+  for (let i = 0; i < nudged.length; i++) expect(nudged[i].y - before[i].y).toBeCloseTo(delta[0], 1);
+  const cancelStart = (await page.getByRole("button", { name: "concept: Order", exact: true }).boundingBox())!;
+  await page.mouse.move(cancelStart.x + 20, cancelStart.y + 10);
+  await page.mouse.down();
+  await page.mouse.move(cancelStart.x + 40, cancelStart.y - 30, { steps: 8 });
+  await page.keyboard.press("Escape");
+  await page.mouse.up();
+  expect(await positions()).toEqual(nudged);
+  expect(await readFile(join(root, "lexicon/model.xml"), "utf8")).toBe(original);
+});
+
+test("clearing native selection survives projection changes and browser history restores explicit navigation", async ({ page }) => {
+  await open(page);
+  await page.getByRole("button", { name: "concept: Order", exact: true }).click();
+  const group = (await card(page, "ordering").boundingBox())!;
+  await page.mouse.click(group.x - 20, group.y + 80);
+  await expect.poll(() => selectedObjects(page)).toEqual([]);
+  await expect(page).not.toHaveURL(/item=/);
+  await page.getByRole("button", { name: "Show all code", exact: true }).click();
+  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  await expect.poll(() => selectedObjects(page)).toEqual([]);
+  await page.getByRole("button", { name: "All code shown", exact: true }).click();
+  await page.getByRole("button", { name: "Refresh", exact: true }).click();
+  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  await expect.poll(() => selectedObjects(page)).toEqual([]);
+  await page.goBack();
+  await expect.poll(() => selectedObjects(page)).toEqual(["item:order"]);
+  await page.goForward();
+  await expect.poll(() => selectedObjects(page)).toEqual([]);
+  await page.getByRole("button", { name: "concept: Order", exact: true }).click();
+  await page.locator("main").getByRole("link", { name: "Open Order Line", exact: true }).click();
+  await expect.poll(() => selectedObjects(page)).toEqual(["item:order-line"]);
+  // Returning to the previously clicked card still navigates after a reader link.
+  await page.getByRole("button", { name: "concept: Order", exact: true }).click();
+  await expect(page.locator("main h1")).toHaveText("Order");
+  await page.getByRole("button", { name: "concept: Order Line", exact: true }).click();
+  await page.keyboard.press("Escape");
+  await expect.poll(() => selectedObjects(page)).toEqual([]);
+  await expect(page).not.toHaveURL(/item=/);
+  await note(page, "This note has no stale attachment.");
+  expect(records((await exportDocument(page)).data).filter((r) => r.type === "lexicon-note")).toHaveLength(0);
+});
+
 test("ordinary project links open Canvas with shared controls, an explicit Graph fallback, and a stable drawing area", async ({ page }) => {
   await open(page);
   expect(new URL(page.url()).searchParams.has("canvas")).toBe(false);

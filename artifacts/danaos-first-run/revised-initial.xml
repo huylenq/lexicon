@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<lexicon schema="2.0" id="danaos-agent-invocation">
+  <name>DanaOS agent invocation</name>
+  <description>How does DanaOS turn a mission request into a bounded workflow result, and where does it refuse? This first model follows the active dana-agent runtime from invoke_agent through deterministic authority checking, catalog binding, graph execution, the post-gate STAR leaf, and trace or audit handoff. It omits the Console and CLI presentation layers, dana-loop orchestration, ODB internals, authoring and publication flows, and archived .deprecated surfaces.</description>
+  <context id="invocation-boundary">
+    <name>Invocation Boundary</name>
+    <description>Accept a mission request, resolve the runtime boundary, and prevent work outside the agent's declared authority before execution begins.</description>
+    <concept id="mission-request" classification="value">
+      <name>Mission Request</name>
+      <description>The mission text and invocation metadata presented to one agent run. The gateway carries the caller channel, current utterance scope, control mode, and optional resume or tenant information into the governed path.</description>
+      <code-link file="dana-agent/src/dana_agent/gateway/invoke.py" symbol="invoke_agent" role="definition">Defines the public runtime boundary that resolves, binds, dispatches, and returns one agent result.</code-link>
+    </concept>
+    <concept id="authority-scope-guard" classification="service">
+      <name>Authority Scope Guard</name>
+      <description>A deterministic check over the current utterance that refuses actuation requests before the intent model is called. It protects authority scope without depending on domain vocabulary or an LLM decision.</description>
+      <annotation kind="rule" evidence="enforced">Actuation-shaped requests, including explicit actuation verbs and imperative control requests, produce an authority fault and do not enter intent classification.</annotation>
+      <code-link file="dana-agent/src/dana_agent/bind/router.py" symbol="default_scope_check" role="enforcement">Matches the authority refusal pattern and returns a Fault before routing.</code-link>
+      <code-link file="dana-agent/src/dana_agent/bind/router.py" symbol="BindRouter.route" role="implementation">Runs the scope check as the first bind step, before the whitelist intent call.</code-link>
+    </concept>
+    <concept id="refused-invocation" classification="value">
+      <name>Refused Invocation</name>
+      <description>A governed result that records a refusal decision, fault, and trace without executing a workflow or leaf.</description>
+      <annotation kind="rule" evidence="enforced">A refusal has dispatch none, executed false, and status refused; it is returned as an AgentResult rather than raised as an ordinary workflow outcome.</annotation>
+      <code-link file="dana-agent/src/dana_agent/gateway/invoke.py" symbol="AgentResult" role="representation">Carries decision, dispatch, execution status, fault-bearing bind data, and the refusal trace.</code-link>
+      <code-link file="dana-agent/src/dana_agent/gateway/invoke.py" symbol="_refused_result" role="implementation">Builds the no-execution result and applies the refusal to a new trace.</code-link>
+    </concept>
+  </context>
+  <context id="workflow-binding">
+    <name>Workflow Binding</name>
+    <description>Translate a mission request into a bounded, versioned workflow pin using the agent's catalog and control surface.</description>
+    <concept id="workflow-catalog" classification="value">
+      <name>Workflow Catalog</name>
+      <description>The allowlisted set of workflow entries and binding metadata against which an agent request is classified.</description>
+      <annotation kind="explanation" evidence="observed">The catalog is resolved from the deployment's configured source, with ODB-canonical resolution when enabled and disk as the authoring or migration fallback.</annotation>
+      <code-link file="dana-agent/src/dana_agent/bind/catalog.py" symbol="WorkflowCatalog" role="representation">Represents the agent-specific catalog and its binding axis.</code-link>
+      <code-link file="dana-agent/src/dana_agent/workflows/agent_run.py" symbol="run_agent_workflow" role="implementation">Resolves the catalog before binding and merges any per-turn composition entries.</code-link>
+    </concept>
+    <concept id="bind-router" classification="service">
+      <name>Bind Router</name>
+      <description>The shared binding service that checks scope, handles deterministic system reflexes, asks one whitelist intent port, resolves the accepted key to a workflow, and applies post-bind policy.</description>
+      <annotation kind="rule" evidence="enforced">Only curated_pin or compat_pin admits normal execution; defer and refuse remain non-executing decisions until an explicit later path handles them.</annotation>
+      <code-link file="dana-agent/src/dana_agent/bind/router.py" symbol="BindRouter" role="definition">Implements the unified bind primitive shared by the runtime's agent profiles.</code-link>
+      <code-link file="dana-agent/src/dana_agent/bind/router.py" symbol="BindRouter.route" role="implementation">Coordinates scope, whitelist intent, deterministic resolution, and post-bind policy.</code-link>
+    </concept>
+    <concept id="bound-mission" classification="entity">
+      <name>Bound Mission</name>
+      <description>The live result of binding carried from the gate into dispatch. It preserves the agent, mission identity, routing key, authority bands, and pinned workflow id and version needed for idempotent re-entry.</description>
+      <annotation kind="rule" evidence="enforced">A bound mission is live when its decision is curated_pin or compat_pin, or when a target layer has been selected; re-entry must match the same agent and mission identity.</annotation>
+      <code-link file="dana-agent/src/dana_agent/gateway/invoke.py" symbol="BoundMission" role="representation">Stores the bind decision and the stable execution pin threaded through dispatch.</code-link>
+      <code-link file="dana-agent/src/dana_agent/gateway/invoke.py" symbol="BoundMission.is_live" role="enforcement">Defines the live-bound predicate used by the gateway's idempotent re-entry guard.</code-link>
+    </concept>
+  </context>
+  <context id="workflow-execution">
+    <name>Workflow Execution</name>
+    <description>Resolve the pinned workflow graph, dispatch bounded nodes, follow deterministic routing, and derive an answer or recommendations from the resulting steps.</description>
+    <concept id="workflow-graph" classification="aggregate">
+      <name>Workflow Graph</name>
+      <description>A versioned graph of typed workflow nodes and edges. The default graph supplies preflight, gather, analyze, and recommend nodes when no agent-specific graph is available.</description>
+      <annotation kind="rule" evidence="enforced">Graph loading validates node and edge shape; execution routing follows declared wall-class or closed-output predicates rather than an LLM-selected route.</annotation>
+      <code-link file="dana-agent/src/dana_agent/orchestration/graph.py" symbol="WorkflowGraph" role="representation">Represents the versioned node and edge graph consumed by the runner.</code-link>
+      <code-link file="dana-agent/src/dana_agent/workflows/agent_run.py" symbol="default_agent_graph" role="implementation">Builds the domain-neutral fallback graph when no declarative graph resolves.</code-link>
+    </concept>
+    <concept id="strategic-graph-runner" classification="service">
+      <name>Strategic Graph Runner</name>
+      <description>The execution service that dispatches graph nodes, merges their outputs into working state, records outcomes, and hands routing to the shared LangGraph-backed engine.</description>
+      <code-link file="dana-agent/src/dana_agent/orchestration/runner.py" symbol="StrategicGraphRunner" role="definition">Owns node dispatch and the runner-facing execution contracts.</code-link>
+      <code-link file="dana-agent/src/dana_agent/orchestration/runner.py" symbol="StrategicGraphRunner.run" role="implementation">Executes a workflow graph with the supplied inputs, trace, and node-event callbacks.</code-link>
+      <code-link file="dana-agent/src/dana_agent/orchestration/langgraph_backend.py" symbol="run_workflow_langgraph" role="implementation">Compiles and invokes the graph while preserving dispatch, merge, and trace semantics.</code-link>
+    </concept>
+    <concept id="star-leaf" classification="service">
+      <name>STAR Leaf</name>
+      <description>The post-gate tactical executor for a star workflow node. It resolves the node's authority bands and tool profile, then runs the See–Think–Act–Reflect loop and returns a typed NodeOutcome.</description>
+      <annotation kind="rule" evidence="enforced">The STAR leaf is a post-gate executor; production invocation enters through invoke_agent and the gateway, while the explicitly named ungoverned leaf path is reserved for tests and gyms.</annotation>
+      <code-link file="dana-agent/src/dana_agent/orchestration/executors/star_agent.py" symbol="run_star_agent" role="implementation">Builds the STAR node context, resolves tools, and delegates the node turn to run_star_leaf.</code-link>
+      <code-link file="dana-agent/src/dana_agent/gateway/leaf.py" symbol="run_leaf" role="implementation">Provides the presentation-free post-gate leaf path and constructs its authority and context envelopes.</code-link>
+    </concept>
+    <concept id="node-outcome" classification="value">
+      <name>Node Outcome</name>
+      <description>The typed result of one graph node, including status, wall class, outputs, evidence references, faults, confidence, budget consumption, and requested handoff.</description>
+      <annotation kind="rule" evidence="enforced">Outcome status, wall class, confidence, node identity, and requested handoff are validated when the result is constructed.</annotation>
+      <code-link file="dana-agent/src/dana_agent/contracts/outcomes.py" symbol="NodeOutcome" role="representation">Defines the STAR and other node-level result contract merged by the graph runner.</code-link>
+    </concept>
+  </context>
+  <context id="trace-and-audit">
+    <name>Trace and Audit</name>
+    <description>Capture binding, node, routing, and identity evidence for the run, then optionally admit and complete a durable ODB audit operation.</description>
+    <concept id="run-trace" classification="aggregate">
+      <name>Run Trace</name>
+      <description>The in-memory envelope for one invocation's identity, bind decision, node records, routing events, and loaded artifacts. It is the trace source that later sinks and result payloads serialize.</description>
+      <annotation kind="explanation" evidence="observed">The trace carries tenant metadata as a carry-only tag and records the resolved principal and control surface; those fields do not by themselves establish authorization or isolation.</annotation>
+      <code-link file="dana-agent/src/dana_agent/trace/envelope.py" symbol="RunTraceEnvelope" role="representation">Stores the run identity, binding fields, node records, and routing events.</code-link>
+      <code-link file="dana-agent/src/dana_agent/trace/envelope.py" symbol="RunTraceEnvelope.append_node_outcome" role="implementation">Adds typed node outcomes to the trace with timing when the graph backend dispatches nodes.</code-link>
+    </concept>
+    <concept id="odb-audit-rail" classification="service">
+      <name>ODB Audit Rail</name>
+      <description>An optional durable sink that admits one agent_run operation at RunStarted, spools events locally before asynchronous append, and finalizes the trace with digest, count, and audit status.</description>
+      <annotation kind="rule" evidence="enforced">When an ODB audit URL is configured, admission is fail-closed: an unreachable or rejecting ODB raises AuditAdmitRefused before other sinks observe RunStarted. DANA_AUDIT_FAIL_OPEN=1 is an explicit development override that marks the trace unaudited.</annotation>
+      <code-link file="dana-agent/src/dana_agent/observability/odb_audit.py" symbol="OdbAuditSink" role="definition">Implements the durable event sink, local spool, retry/degrade behavior, and terminal operation handling.</code-link>
+      <code-link file="dana-agent/src/dana_agent/observability/odb_audit.py" symbol="OdbAuditSink.emit" role="implementation">Routes RunStarted through synchronous admission and appends later events to the durable or spool path.</code-link>
+      <code-link file="dana-agent/src/dana_agent/observability/odb_audit.py" symbol="AuditAdmitRefused" role="enforcement">Names the fail-closed admission error that aborts a configured audit run.</code-link>
+    </concept>
+    <concept id="agent-run-outcome" classification="value">
+      <name>Agent Run Outcome</name>
+      <description>The structured result returned after binding and, when admitted, graph execution. It exposes the run and mission identities, bind decision, workflow version, graph steps, answer or recommendations, trace, and optional ODB artifact reference.</description>
+      <code-link file="dana-agent/src/dana_agent/workflows/agent_run.py" symbol="AgentRunResult" role="representation">Carries the workflow-level result, graph steps, answer extraction, trace, and persisted artifact id.</code-link>
+      <code-link file="dana-agent/src/dana_agent/gateway/invoke.py" symbol="AgentResult" role="representation">Wraps the governed gateway outcome with dispatch, status, budget, answer, bound mission, and folded trace fields.</code-link>
+    </concept>
+  </context>
+  <relationship id="request-guarded-by" from="mission-request" to="authority-scope-guard">
+    <name>is checked by</name>
+    <description>The current utterance reaches the bind pipeline's authority check before intent classification or workflow dispatch.</description>
+    <code-link file="dana-agent/src/dana_agent/bind/router.py" symbol="BindRouter.route" role="implementation">Calls the scope check as the first bind stage.</code-link>
+  </relationship>
+  <relationship id="guard-creates-refusal" from="authority-scope-guard" to="refused-invocation">
+    <name>creates</name>
+    <description>When the authority pattern matches, the guard returns a Fault and the gateway materializes a refused, non-executing result.</description>
+    <code-link file="dana-agent/src/dana_agent/gateway/invoke.py" symbol="_refused_result" role="implementation">Builds the refusal envelope, bind fault, and no-dispatch AgentResult.</code-link>
+  </relationship>
+  <relationship id="catalog-drives-router" from="workflow-catalog" to="bind-router">
+    <name>constrains</name>
+    <description>The catalog supplies the allowlisted workflow metadata projected into the router's intent and deterministic resolution steps.</description>
+    <code-link file="dana-agent/src/dana_agent/bind/router.py" symbol="BindRouter.route" role="usage">Passes catalog metadata to the intent port and bind resolver.</code-link>
+  </relationship>
+  <relationship id="router-produces-bound" from="bind-router" to="bound-mission">
+    <name>produces</name>
+    <description>A successful bind produces the workflow pin and authority context carried as a live mission into dispatch.</description>
+    <code-link file="dana-agent/src/dana_agent/gateway/invoke.py" symbol="BoundMission" role="representation">Represents the gateway's threaded live bind result.</code-link>
+  </relationship>
+  <relationship id="bound-resolves-graph" from="bound-mission" to="workflow-graph">
+    <name>selects</name>
+    <description>The pinned workflow id, version, and routing key determine graph resolution, with a domain-neutral default graph as the fallback.</description>
+    <code-link file="dana-agent/src/dana_agent/workflows/agent_run.py" symbol="run_agent_workflow" role="implementation">Resolves a graph from the bound pin or invokes default_agent_graph.</code-link>
+  </relationship>
+  <relationship id="graph-runs-through" from="workflow-graph" to="strategic-graph-runner">
+    <name>executes through</name>
+    <description>The resolved graph is supplied with mission inputs and executed node by node by the strategic runner.</description>
+    <code-link file="dana-agent/src/dana_agent/orchestration/runner.py" symbol="StrategicGraphRunner.run" role="implementation">Receives the graph and starts the bounded execution.</code-link>
+  </relationship>
+  <relationship id="runner-dispatches-star" from="strategic-graph-runner" to="star-leaf">
+    <name>dispatches to</name>
+    <description>A graph node with executor kind star is dispatched through the STAR leaf, which returns a typed node outcome to the runner.</description>
+    <code-link file="dana-agent/src/dana_agent/orchestration/executors/star_agent.py" symbol="run_star_agent" role="implementation">Executes the STAR node after the gateway has admitted the run.</code-link>
+  </relationship>
+  <relationship id="runner-records-trace" from="strategic-graph-runner" to="run-trace">
+    <name>records into</name>
+    <description>Node results and deterministic routing decisions are appended to the active trace as the graph progresses.</description>
+    <code-link file="dana-agent/src/dana_agent/orchestration/langgraph_backend.py" symbol="run_workflow_langgraph" role="implementation">Preserves the runner's dispatch and trace append behavior in the LangGraph backend.</code-link>
+  </relationship>
+  <relationship id="trace-streams-audit" from="run-trace" to="odb-audit-rail">
+    <name>streams to</name>
+    <description>The event stream derived from the run is offered to the optional audit sink, which spools locally and appends to ODB after admission.</description>
+    <code-link file="dana-agent/src/dana_agent/observability/odb_audit.py" symbol="OdbAuditSink.emit" role="usage">Consumes RunStarted and subsequent AgentEvent values for the audit operation.</code-link>
+  </relationship>
+  <relationship id="trace-supports-outcome" from="run-trace" to="agent-run-outcome">
+    <name>supports</name>
+    <description>The serialized trace gives the caller the binding, node, routing, identity, and audit evidence associated with the returned outcome.</description>
+    <code-link file="dana-agent/src/dana_agent/workflows/agent_run.py" symbol="AgentRunResult" role="implementation">Places the trace payload and optional durable artifact reference on the workflow result.</code-link>
+  </relationship>
+  <relationship id="outcome-contains-nodes" from="agent-run-outcome" to="node-outcome">
+    <name>contains</name>
+    <description>A workflow result preserves the ordered graph steps, including STAR NodeOutcome values and any typed StepResult values.</description>
+    <code-link file="dana-agent/src/dana_agent/workflows/agent_run.py" symbol="AgentRunResult" role="representation">Stores the graph_steps tuple returned by StrategicGraphRunner.</code-link>
+  </relationship>
+</lexicon>
