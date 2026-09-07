@@ -105,6 +105,25 @@ test("node and context labels drag with native undo and Space panning", async ({
   expect(await readFile(join(root, "lexicon/model.xml"), "utf8")).toBe(original);
 });
 
+test("mouse wheel zooms the canvas instead of panning vertically", async ({ page }) => {
+  await open(page);
+  const layer = page.locator(".tl-html-layer");
+  const zoom = () => layer.evaluate((element) => {
+    const transform = (element as HTMLElement).style.transform;
+    const match = transform.match(/scale\(([^)]+)\)/);
+    if (!match) throw new Error(`Unexpected canvas transform: ${transform}`);
+    return Number(match[1]);
+  });
+  const before = await zoom();
+  const area = (await page.locator(".canvas-stage").boundingBox())!;
+  await page.mouse.move(area.x + area.width / 2, area.y + area.height / 2);
+  await page.mouse.wheel(0, -100);
+  await expect.poll(zoom).toBeGreaterThan(before);
+  const zoomedIn = await zoom();
+  await page.mouse.wheel(0, 100);
+  await expect.poll(zoom).toBeLessThan(zoomedIn);
+});
+
 test("native marquee treats contexts as frames and Shift adds without toggling existing shapes", async ({ page }) => {
   await open(page);
   const group = (await card(page, "ordering").boundingBox())!;

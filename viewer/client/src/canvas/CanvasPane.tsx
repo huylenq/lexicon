@@ -51,6 +51,7 @@ import "./canvas.css";
 const shapeUtils = [LexiconObjectUtil, LexiconConnectionUtil];
 const bindingUtils = [LexiconNoteBindingUtil];
 const assetUrls = getAssetUrlsByImport();
+const tldrawOptions = { camera: { wheelBehavior: "zoom" as const } };
 const overrides = {
   translations: {
     en: {
@@ -812,6 +813,7 @@ export default function CanvasPane(props: GraphPaneProps) {
                 shapeUtils={shapeUtils}
                 bindingUtils={bindingUtils}
                 overrides={overrides}
+                options={tldrawOptions}
                 components={components}
                 getShapeVisibility={visibility}
                 onMount={mount}
