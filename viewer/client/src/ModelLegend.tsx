@@ -12,7 +12,7 @@ const objectLegend = [
   ["event", "event", "Event"],
 ] as const;
 
-export default function GraphLegend({
+export default function ModelLegend({
   projection,
   children,
 }: {
@@ -20,11 +20,11 @@ export default function GraphLegend({
   children?: ReactNode;
 }) {
   return (
-    <div className="graph-legend" aria-label="Model legend and counts">
-      <span className="graph-object-legend" aria-label="Object icon legend">
+    <div className="model-legend" aria-label="Model legend and counts">
+      <span className="model-object-legend" aria-label="Object icon legend">
         {objectLegend.map(([tone, icon, label]) => (
           <span
-            className="graph-object-key object-name"
+            className="model-object-key object-name"
             data-tone={tone}
             key={tone}
           >
@@ -33,18 +33,15 @@ export default function GraphLegend({
           </span>
         ))}
       </span>
-      <span className="graph-edge-legend" aria-label="Connection legend">
+      <span className="model-edge-legend" aria-label="Connection legend">
         <span>
           <i /> Relationship
         </span>
         <span>
           <i className="code" /> Code mapping
         </span>
-        <span>
-          <i className="summary" /> Summary
-        </span>
       </span>
-      <span className="graph-count">
+      <span className="model-count">
         {projection.nodes.filter((node) => node.kind === "concept").length}{" "}
         concepts
         {" · "}

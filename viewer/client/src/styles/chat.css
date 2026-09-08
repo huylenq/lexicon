@@ -363,10 +363,10 @@
 }
 
 @media (min-width: 1001px) {
-  .reader.with-graph.agent-attached {
+  .reader.with-canvas.agent-attached {
     grid-template-columns: var(--browse-space) minmax(0, 1fr) 7px var(--chat-width);
   }
-  .reader.with-graph.agent-attached.without-sidebar {
+  .reader.with-canvas.agent-attached.without-sidebar {
     grid-template-columns: minmax(0, 1fr) 7px var(--chat-width);
   }
   .reader > .chat-divider {

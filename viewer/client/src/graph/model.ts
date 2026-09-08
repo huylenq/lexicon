@@ -59,8 +59,6 @@ export type GraphVertex = {
   subtitle: string;
   parentId?: string;
   selection?: GraphSelection;
-  collapsed?: boolean;
-  count?: number;
 };
 export type GraphConnection = {
   id: string;
@@ -68,38 +66,22 @@ export type GraphConnection = {
   target: string;
   kind: "relationship" | "mapping";
   label: string;
-  summary: boolean;
   selection: GraphSelection;
   relationships: string[];
   mappings: string[];
 };
 export type GraphOptions = {
-  collapsed: string[];
   expanded: string[];
   allCode: boolean;
 };
 export type Projection = ReturnType<typeof projectGraph>;
 
 export function projectGraph(index: GraphIndex, options: GraphOptions) {
-  const collapsed = new Set(options.collapsed);
   const expanded = new Set(options.expanded);
   const nodes: GraphVertex[] = [];
   const connections: GraphConnection[] = [];
-  const children = (id: string) =>
-    [...index.items.values()].filter(
-      (i) => i.type === "concept" && i.context === id,
-    );
-  const visibleOwner = (id: string) => {
-    const item = index.items.get(id);
-    return domainId(
-      item?.type === "concept" && collapsed.has(item.context)
-        ? item.context
-        : id,
-    );
-  };
   for (const item of index.items.values()) {
     if (item.type === "relationship") continue;
-    if (item.type === "concept" && collapsed.has(item.context)) continue;
     const parent =
       item.type === "concept" &&
       index.items.get(item.context)?.type === "context"
@@ -113,54 +95,30 @@ export function projectGraph(index: GraphIndex, options: GraphOptions) {
         item.type === "concept" ? item.classification || "Concept" : "Context",
       selection: { kind: "item", id: item.id },
       parentId: parent,
-      collapsed: item.type === "context" && collapsed.has(item.id),
-      count: item.type === "context" ? children(item.id).length : undefined,
     });
   }
   const nodeIds = new Set(nodes.map((n) => n.id));
-  const buckets = new Map<string, GraphConnection>();
   const relationConnection = new Map<string, GraphConnection>();
   let omitted = 0;
   for (const item of index.items.values()) {
     if (item.type !== "relationship") continue;
-    const source = visibleOwner(item.from),
-      target = visibleOwner(item.to);
+    const source = domainId(item.from),
+      target = domainId(item.to);
     if (!nodeIds.has(source) || !nodeIds.has(target)) {
       omitted++;
       continue;
     }
-    const summary =
-      source !== domainId(item.from) || target !== domainId(item.to);
-    // Internal relationships are tucked away with their concepts.
-    if (summary && source === target) continue;
-    const key = summary
-      ? JSON.stringify([source, target, "relationship"])
-      : item.id;
-    let connection = buckets.get(key);
-    if (!connection) {
-      connection = {
-        id: `relation:${key}`,
-        source,
-        target,
-        kind: "relationship",
-        label: item.name,
-        summary,
-        selection: { kind: "item", id: item.id },
-        relationships: [],
-        mappings: [],
-      };
-      buckets.set(key, connection);
-      connections.push(connection);
-    }
-    connection.relationships.push(item.id);
-    if (summary) {
-      connection.label = `${connection.relationships.length} relationship${connection.relationships.length === 1 ? "" : "s"}`;
-      connection.selection = {
-        kind: "bundle",
-        relationships: connection.relationships,
-        mappings: [],
-      };
-    }
+    const connection: GraphConnection = {
+      id: `relation:${item.id}`,
+      source,
+      target,
+      kind: "relationship",
+      label: item.name,
+      selection: { kind: "item", id: item.id },
+      relationships: [item.id],
+      mappings: [],
+    };
+    connections.push(connection);
     relationConnection.set(item.id, connection);
   }
   const shownMappings = [...index.mappings.values()].filter(
@@ -190,49 +148,26 @@ export function projectGraph(index: GraphIndex, options: GraphOptions) {
       selection: { kind: "code", id },
     });
   }
-  const codeBuckets = new Map<string, GraphConnection>();
   for (const m of shownMappings) {
-    let source = visibleOwner(m.owner.id);
+    let source = domainId(m.owner.id);
     if (m.owner.type === "relationship") {
       const relation = relationConnection.get(m.owner.id);
-      if (relation) source = anchorId(relation.id);
-      else {
-        // Code explicitly expanded for a now-hidden internal relationship remains visible.
-        source = visibleOwner(m.owner.from);
-        if (!nodeIds.has(source)) {
-          omitted++;
-          continue;
-        }
+      if (!relation) {
+        omitted++;
+        continue;
       }
+      source = anchorId(relation.id);
     }
-    const summary =
-      source !== domainId(m.owner.id) && !source.startsWith("anchor:");
-    const key = summary ? JSON.stringify([source, m.target, "mapping"]) : m.id;
-    let connection = codeBuckets.get(key);
-    if (!connection) {
-      connection = {
-        id: `mapping:${key}`,
-        source,
-        target: m.target,
-        kind: "mapping",
-        label: m.link.role,
-        summary,
-        selection: { kind: "mapping", id: m.id },
-        relationships: [],
-        mappings: [],
-      };
-      codeBuckets.set(key, connection);
-      connections.push(connection);
-    }
-    connection.mappings.push(m.id);
-    if (summary) {
-      connection.label = `${connection.mappings.length} code mapping${connection.mappings.length === 1 ? "" : "s"}`;
-      connection.selection = {
-        kind: "bundle",
-        relationships: [],
-        mappings: connection.mappings,
-      };
-    }
+    connections.push({
+      id: `mapping:${m.id}`,
+      source,
+      target: m.target,
+      kind: "mapping",
+      label: m.link.role,
+      selection: { kind: "mapping", id: m.id },
+      relationships: [],
+      mappings: [m.id],
+    });
   }
   return { nodes, connections, omitted };
 }
@@ -284,12 +219,6 @@ export function neighborhood(
         if (c.mappings.includes(id)) edgeSeeds.add(c.id);
     }
   }
-  // A selected concept can be represented by its collapsed context.
-  for (const id of [...seeds])
-    if (!projection.nodes.some((n) => n.id === id) && id.startsWith("item:")) {
-      const item = index.items.get(id.slice(5));
-      if (item?.type === "concept") seeds.add(domainId(item.context));
-    }
   const nodes = new Set(seeds),
     edges = new Set(edgeSeeds);
   for (const c of projection.connections) {

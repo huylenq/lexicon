@@ -31,7 +31,7 @@ const xml = `<lexicon schema="2.0" id="shop"><name>Shop</name><description>Examp
 </lexicon>`;
 const model = parseModel(xml);
 const index = indexModel(model);
-const options = { collapsed: [], expanded: [], allCode: false };
+const options = { expanded: [], allCode: false };
 
 describe("domain graph projection", () => {
   test("starts with all domain concepts grouped by ownership, preserving authored edges", () => {
@@ -84,40 +84,29 @@ describe("domain graph projection", () => {
       ).size,
     ).toBe(5);
   });
-  test("collapsed summaries preserve direction and keep authored context relations distinct", () => {
-    const graph = projectGraph(index, {
-      ...options,
-      collapsed: ["sales", "fulfillment"],
-    });
-    expect(graph.nodes.filter((n) => n.kind === "concept")).toHaveLength(0);
-    const outgoing = graph.connections.find(
-      (e) => e.summary && e.source === domainId("sales"),
-    )!;
-    expect(outgoing.relationships).toEqual(["sends", "fulfills"]);
-    expect(outgoing.selection).toEqual({
-      kind: "bundle",
-      relationships: ["sends", "fulfills"],
-      mappings: [],
-    });
-    expect(
-      graph.connections.find((e) => e.relationships.includes("returns"))
-        ?.source,
-    ).toBe(domainId("fulfillment"));
-    expect(
-      graph.connections.find((e) => e.relationships.includes("boundary"))
-        ?.summary,
-    ).toBe(false);
+  test("cross-context relationships retain their own endpoints and authored context relations", () => {
+    const graph = projectGraph(index, options);
+    for (const [id, from, to] of [
+      ["sends", "order", "shipment"],
+      ["fulfills", "line", "shipment"],
+      ["returns", "shipment", "order"],
+      ["boundary", "sales", "fulfillment"],
+    ]) {
+      expect(graph.connections.find((e) => e.id === `relation:${id}`)).toMatchObject({
+        source: domainId(from), target: domainId(to),
+        relationships: [id], selection: { kind: "item", id },
+      });
+    }
   });
-  test("explicitly expanded internal relationship code survives collapse and is inspectable", () => {
+  test("expanding internal relationship code attaches it to that relationship", () => {
     const graph = projectGraph(index, {
       ...options,
       expanded: ["contains"],
-      collapsed: ["sales"],
     });
     const code = graph.connections.find((e) => e.kind === "mapping")!;
-    expect(code.source).toBe(domainId("sales"));
+    expect(code.source).toBe(anchorId("relation:contains"));
     expect(code.mappings).toEqual([index.legacyMappings.get(mappingId("contains", 0))!]);
-    expect(code.summary).toBe(true);
+    expect(code.selection).toEqual({ kind: "mapping", id: code.mappings[0] });
     expect(graph.nodes.filter((n) => n.kind === "code")).toHaveLength(1);
   });
   test("broken endpoints and duplicate IDs do not create dangling graph edges", () => {
@@ -126,10 +115,12 @@ describe("domain graph projection", () => {
         .replace('to="shipment"', 'to="missing"')
         .replace('id="line"', 'id="order"'),
     );
-    const graph = projectGraph(indexModel(invalid), options);
+    const graph = projectGraph(indexModel(invalid), { ...options, allCode: true });
     expect(graph.omitted).toBeGreaterThan(0);
     expect(new Set(graph.nodes.map((n) => n.id)).size).toBe(graph.nodes.length);
     const ids = new Set(graph.nodes.map((n) => n.id));
+    for (const edge of graph.connections)
+      if (edge.kind === "relationship") ids.add(anchorId(edge.id));
     expect(
       graph.connections.every((e) => ids.has(e.source) && ids.has(e.target)),
     ).toBe(true);
@@ -145,7 +136,7 @@ describe("domain graph projection", () => {
     expect(area.edges.has("relation:contains")).toBe(true);
     expect(area.nodes.has(domainId("sales"))).toBe(true);
   });
-  test("malformed selections fail closed; summary selections round-trip through URLs", () => {
+  test("malformed selections fail closed; earlier summary links remain readable", () => {
     expect(
       readSelection('{"kind":"bundle","relationships":null,"mappings":[]}'),
     ).toBeUndefined();

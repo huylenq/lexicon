@@ -2,6 +2,8 @@ import { expect, test, type Page } from "@playwright/test";
 import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { containsBox, inflate } from "../client/src/canvas/territory";
+import { atlasEnclosesNodes, renderedTerritory } from "./canvas-territory-helpers";
 
 let root: string, projectId: string, original: string;
 test.beforeEach(async ({ request }) => {
@@ -145,10 +147,10 @@ test("native marquee treats contexts as frames and Shift adds without toggling e
   await expect.poll(() => selectedObjects(page)).toEqual(["item:ordering"]);
 });
 
-test("selection movement keeps spacing at context boundaries for drags, nudges, cancel, and undo", async ({ page }) => {
+test("selection movement preserves spacing and notes while the context follows drags, nudges, cancel, and undo", async ({ page }) => {
   await open(page);
   await page.getByRole("button", { name: "concept: Order Total", exact: true }).click();
-  await note(page, "Follow the constrained selection.");
+  await note(page, "Follow the moving selection.");
   const initial = (await exportDocument(page)).data;
   for (const [i, name] of ["Order", "Order Line", "Order Total"].entries())
     await page.getByRole("button", { name: `concept: ${name}`, exact: true }).click({ modifiers: i ? ["Shift"] : [] });
@@ -163,7 +165,7 @@ test("selection movement keeps spacing at context boundaries for drags, nudges, 
   const during = await positions();
   const delta = during.map((box, i) => box.y - before[i].y);
   expect(delta[0]).toBeGreaterThan(0);
-  expect(delta[0]).toBeLessThan(60);
+  expect(delta[0]).toBeCloseTo(60, 1);
   for (const dy of delta) expect(dy).toBeCloseTo(delta[0], 1);
   await page.mouse.up();
   const moved = (await exportDocument(page)).data;
@@ -178,8 +180,7 @@ test("selection movement keeps spacing at context boundaries for drags, nudges, 
   await page.getByRole("button", { name: /^Redo —/ }).click();
   expect(object((await exportDocument(page)).data, "order-total")).toEqual(object(moved, "order-total"));
   await page.getByRole("button", { name: /^Undo —/ }).click();
-  await page.locator(".tl-container").press("Shift+ArrowDown");
-  await page.locator(".tl-container").press("Shift+ArrowDown");
+  for (let i = 0; i < 6; i++) await page.locator(".tl-container").press("Shift+ArrowDown");
   const nudged = await positions();
   for (let i = 0; i < nudged.length; i++) expect(nudged[i].y - before[i].y).toBeCloseTo(delta[0], 1);
   const cancelStart = (await page.getByRole("button", { name: "concept: Order", exact: true }).boundingBox())!;
@@ -224,7 +225,7 @@ test("clearing native selection survives projection changes and browser history 
   expect(records((await exportDocument(page)).data).filter((r) => r.type === "lexicon-note")).toHaveLength(0);
 });
 
-test("ordinary project links open Canvas with shared controls, an explicit Graph fallback, and a stable drawing area", async ({ page }) => {
+test("project links open one tldraw canvas with Diagram and Atlas modes and a stable drawing area", async ({ page }) => {
   await open(page);
   expect(new URL(page.url()).searchParams.has("canvas")).toBe(false);
   const stage = page.locator(".canvas-stage");
@@ -234,7 +235,7 @@ test("ordinary project links open Canvas with shared controls, an explicit Graph
     await expect(toolbar.getByRole("button", { name: label, exact: true }).locator("use")).toHaveAttribute("href", `/icons.svg#${icon}`);
   }
   await page.getByRole("button", { name: "concept: Order", exact: true }).click();
-  await expect(toolbar.locator(".graph-scope")).toHaveText("Order");
+  await expect(toolbar.locator(".canvas-scope")).toHaveText("Order");
   await page.getByRole("button", { name: "Selection actions", exact: true }).click();
   await expect(page.getByRole("button", { name: "Move to context…", exact: true })).toBeVisible();
   expect(await stage.boundingBox()).toEqual(before);
@@ -245,25 +246,37 @@ test("ordinary project links open Canvas with shared controls, an explicit Graph
   await expect(page.locator(".workspace-status-bar [data-save-status='saved']")).toBeVisible();
   await expect(page.getByLabel("Object icon legend", { exact: true })).toBeVisible();
 
-  await page.getByRole("button", { name: "Switch to Graph", exact: true }).click();
-  await expect(page).toHaveURL(/canvas=graph/);
-  await expect(page.getByRole("region", { name: "Domain graph", exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Switch to Canvas", exact: true }).click();
-  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
-  await expect(page.locator("main h1")).toHaveText("Order");
-  expect(new URL(page.url()).searchParams.has("canvas")).toBe(false);
-  // Existing explicit Canvas links remain valid.
-  await page.goto(`/p/${projectId}?canvas=tldraw&item=order`);
-  await expect(page.getByRole("region", { name: "Model canvas", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Switch to (Graph|Canvas)/ })).toHaveCount(0);
+  const beforeMode = (await exportDocument(page)).data;
+  const camera = await page.locator(".tl-html-layer").getAttribute("style");
+  for (const mode of ["Diagram", "Atlas"]) {
+    await page.getByRole("radio", { name: mode, exact: true }).check();
+    await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+    await expect(card(page, "order")).toHaveAttribute("data-selected", "true");
+    expect(object((await exportDocument(page)).data, "order")).toEqual(object(beforeMode, "order"));
+    expect(await page.locator(".tl-html-layer").getAttribute("style")).toBe(camera);
+  }
+  // Old renderer links preserve the reader selection and normalize to the same canvas URL.
+  for (const legacy of ["graph", "tldraw"]) {
+    await page.goto(`/p/${projectId}?canvas=${legacy}&item=order`);
+    await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+    await expect(page.locator("main h1")).toHaveText("Order");
+    await expect(page).toHaveURL(new RegExp(`/p/${projectId}\\?item=order$`));
+  }
   await page.setViewportSize({ width: 1024, height: 900 });
   await page.getByRole("button", { name: "Toggle code workspace", exact: true }).click();
   const paneBox = (await toolbar.boundingBox())!;
-  const actionsBox = (await toolbar.locator(".graph-toolbar-actions").boundingBox())!;
+  const actionsBox = (await toolbar.locator(".canvas-toolbar-actions").boundingBox())!;
   expect(actionsBox.x + actionsBox.width).toBeLessThanOrEqual(paneBox.x + paneBox.width);
   await page.getByRole("button", { name: "Toggle code workspace", exact: true }).click();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole("button", { name: "Back to canvas", exact: true }).click();
   await expect(toolbar.getByRole("button", { name: "Arrange", exact: true })).toBeVisible();
+  await expect(page.getByRole("group", { name: "Canvas mode", exact: true })).toBeVisible();
+  await page.getByRole("radio", { name: "Diagram", exact: true }).check();
+  await expect(page.getByTestId("procedural-map")).toHaveCount(0);
+  await page.getByRole("radio", { name: "Atlas", exact: true }).check();
+  await expect(page.getByTestId("procedural-map")).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await expect(page.getByRole("button", { name: "Agent", exact: true })).toBeVisible();
 });
@@ -275,15 +288,15 @@ test("model context actions toggle all code owned by a context and restore the c
   await context.click({ button: "right" });
   await page.getByRole("menuitem", { name: "Expand code", exact: true }).click();
   await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
-  await expect(page.locator(".graph-count")).toHaveText("3 concepts · 3 code");
+  await expect(page.locator(".model-count")).toHaveText("3 concepts · 3 code");
   await context.click({ button: "right" });
   await page.getByRole("menuitem", { name: "Hide code", exact: true }).click();
-  await expect(page.locator(".graph-count")).toHaveText("3 concepts · 0 code");
+  await expect(page.locator(".model-count")).toHaveText("3 concepts · 0 code");
   await page.getByRole("button", { name: "concept: Order", exact: true }).click();
   await page.getByRole("button", { name: "Toggle code in canvas", exact: true }).click();
-  await expect(page.locator(".graph-count")).toHaveText("3 concepts · 1 code");
+  await expect(page.locator(".model-count")).toHaveText("3 concepts · 1 code");
   await page.getByRole("button", { name: "Toggle code in canvas", exact: true }).click();
-  await expect(page.locator(".graph-count")).toHaveText("3 concepts · 0 code");
+  await expect(page.locator(".model-count")).toHaveText("3 concepts · 0 code");
   const area = (await page.locator(".canvas-stage").boundingBox())!;
   await page.getByRole("button", { name: /^Hand —/ }).click();
   await page.mouse.move(area.x + 50, area.y + 120);
@@ -308,7 +321,7 @@ test("model context actions toggle all code owned by a context and restore the c
   expect(await readFile(join(root, "lexicon/model.xml"), "utf8")).toBe(original);
 });
 
-test("first Canvas open preserves Graph placements and camera, while saved canvases take precedence", async ({ page }) => {
+test("first canvas open preserves earlier saved placements and camera, while saved canvases take precedence", async ({ page }) => {
   const key = `lexicon:graph:v1:${projectId}`;
   await page.addInitScript(({ key }) => {
     if (localStorage.getItem(key)) return;
@@ -354,12 +367,12 @@ test("an unmodeled project stays unwritten until the first canvas edit", async (
   expect(await readFile(join(root, "lexicon/model.xml"), "utf8").catch(() => null)).toBeNull();
 });
 
-test("concept dragging and keyboard moves stay inside the owning context", async ({ page }) => {
+test("the Atlas coast follows concept drags and keyboard moves in every direction without changing ownership", async ({ page }) => {
   await open(page);
   await page.getByRole("button", { name: "concept: Order Line", exact: true }).click();
   await note(page, "Follow the concept, including at the context boundary.");
   const initial = (await exportDocument(page)).data;
-  const before = object(initial, "order-line"), context = object(initial, "ordering");
+  const before = object(initial, "order-line"), context = object(initial, "ordering"), initialBoundary = await renderedTerritory(page);
   const beforeNote = records(initial).find((r) => r.type === "note");
   const card = page.locator('[data-model-id="item:order-line"]');
   const group = page.locator('[data-model-id="item:ordering"]');
@@ -374,17 +387,14 @@ test("concept dragging and keyboard moves stay inside the owning context", async
     await page.mouse.move(start.x, start.y);
     await page.mouse.down();
     await page.mouse.move(end.x, end.y, { steps: 12 });
-    // Check during the gesture as well as after release: no escape-and-snap-back.
-    await expect.poll(async () => {
-      const current = (await card.boundingBox())!, parent = (await group.boundingBox())!;
-      return current.x >= parent.x && current.y >= parent.y + 44 &&
-        current.x + current.width <= parent.x + parent.width + 0.1 &&
-        current.y + current.height <= parent.y + parent.height + 0.1;
-    }, { message: `Concept stays inside while dragging ${direction}` }).toBeTruthy();
+    // The coast follows the full movement before release; there is no fixed wall.
+    await atlasEnclosesNodes(page, ["order-line"]);
     await page.mouse.up();
     const moved = (await exportDocument(page)).data;
     const after = object(moved, "order-line"), afterNote = records(moved).find((r) => r.type === "note");
     expect(after.parentId).toBe(context.id);
+    expect(containsBox(await renderedTerritory(page), inflate({ x: context.x + after.x, y: context.y + after.y, w: after.props.w, h: after.props.h }, 7.98))).toBe(true);
+    expect(await renderedTerritory(page)).not.toEqual(initialBoundary);
     expect(object(moved, "ordering")).toEqual(context);
     expect(afterNote.x - beforeNote.x).toBeCloseTo(after.x - before.x, 1);
     expect(afterNote.y - beforeNote.y).toBeCloseTo(after.y - before.y, 1);
@@ -397,16 +407,17 @@ test("concept dragging and keyboard moves stay inside the owning context", async
     expect(object((await exportDocument(page)).data, "order-line")).toEqual(after);
     await page.getByRole("button", { name: /^Undo —/ }).click();
   }
-  // Keyboard nudges go through the same containment rule.
+  // Keyboard nudges also drive the coast.
   const nudgeTarget = (await card.boundingBox())!;
   await page.mouse.click(nudgeTarget.x + 8, nudgeTarget.y + nudgeTarget.height - 6);
   for (let i = 0; i < 15; i++) await page.keyboard.press("Shift+ArrowRight");
   const nudged = object((await exportDocument(page)).data, "order-line");
   expect(nudged.x).toBeGreaterThan(before.x);
-  expect(nudged.x + nudged.props.w).toBeLessThanOrEqual(context.props.w);
+  expect(nudged.x - before.x).toBe(150);
+  await atlasEnclosesNodes(page, ["order-line"]);
   // Moving the context still carries its children and their attached notes.
   const beforeGroupMove = (await exportDocument(page)).data;
-  const boundary = (await group.boundingBox())!;
+  const boundary = (await page.getByRole("button", { name: "context: Ordering", exact: true }).boundingBox())!;
   await page.mouse.move(boundary.x + boundary.width / 2, boundary.y + 6);
   await page.mouse.down();
   await page.mouse.move(boundary.x + boundary.width / 2 + 40, boundary.y + 36, { steps: 10 });
@@ -450,7 +461,7 @@ test("model references preserve context, relationship, code, history, and search
   expect(errors).toEqual([]);
 });
 
-test("restoring escaped concepts repairs their positions and preserves them across collapse", async ({ page }) => {
+test("restoring outlying concepts fits their context without moving them, including after reload", async ({ page }) => {
   await open(page);
   const saved = (await exportDocument(page)).data;
   // A canvas saved by the original prototype could contain escaped concepts.
@@ -463,21 +474,54 @@ test("restoring escaped concepts repairs their positions and preserves them acro
   const repaired = (await exportDocument(page)).data;
   const concept = object(repaired, "order"), context = object(repaired, "ordering");
   expect(concept.parentId).toBe(context.id);
-  expect(concept.x).toBeGreaterThanOrEqual(0);
-  expect(concept.y).toBeGreaterThanOrEqual(44);
-  expect(concept.x + concept.props.w).toBeLessThanOrEqual(context.props.w);
-  expect(concept.y + concept.props.h).toBeLessThanOrEqual(context.props.h);
-  await page.getByRole("button", { name: "Collapse context Ordering" }).click();
-  await expect(page.getByRole("button", { name: "concept: Order", exact: true })).toBeHidden();
-  const collapsed = object((await exportDocument(page)).data, "order");
-  expect({ x: collapsed.x, y: collapsed.y }).toEqual({ x: concept.x, y: concept.y });
-  await page.getByRole("button", { name: "Expand context Ordering" }).click();
+  expect(concept.x).toBe(-150);
+  expect(concept.y).toBe(object(saved, "order").y);
+  expect(containsBox(await renderedTerritory(page), inflate({ x: context.x + concept.x, y: context.y + concept.y, w: concept.props.w, h: concept.props.h }, 7.98))).toBe(true);
+  await expect(page.locator('[data-save-status="saved"]')).toBeVisible();
+  await page.reload();
+  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
   await expect(page.getByRole("button", { name: "concept: Order", exact: true })).toBeVisible();
   expect(object((await exportDocument(page)).data, "order")).toEqual(concept);
   expect(await readFile(join(root, "lexicon/model.xml"), "utf8")).toBe(original);
 });
 
-test("attached notes survive dragging, collapse, model refresh, rearrangement, and reload", async ({ page }) => {
+test("older collapsed canvases and preferences restore every concept without losing placements or notes", async ({ page }) => {
+  await open(page);
+  await page.getByRole("button", { name: "concept: Order", exact: true }).click();
+  await note(page, "Keep this attached note through migration.");
+  const before = (await exportDocument(page)).data;
+  const old = structuredClone(before), context = object(old, "ordering");
+  const fullSize = { w: context.props.w + 200, h: context.props.h + 150 };
+  Object.assign(context.meta, { lexiconCollapsed: true, lexiconExpanded: [fullSize.w, fullSize.h] });
+  Object.assign(context.props, { w: 260, h: 88 });
+  for (const record of records(old))
+    if (record.parentId === context.id) record.meta.lexiconHidden = true;
+  await page.locator('input[aria-label="Restore canvas file"]').setInputFiles({
+    name: "collapsed-canvas.json", mimeType: "application/json", buffer: Buffer.from(JSON.stringify(old)),
+  });
+  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  await expect(page.locator('[data-save-status="saved"]')).toBeVisible();
+  await page.evaluate((key) => {
+    const workspace = JSON.parse(localStorage.getItem(key) || "{}");
+    localStorage.setItem(key, JSON.stringify({ ...workspace, collapsed: ["ordering"], expanded: ["order"] }));
+  }, `lexicon:graph:v1:${projectId}`);
+  await page.reload();
+  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  await page.getByRole("button", { name: "Fit model", exact: true }).click();
+  await expect(page.getByRole("button", { name: "concept: Order", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "concept: Order Line", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: /^(Collapse|Expand) context / })).toHaveCount(0);
+  await expect(page.locator('[data-model-id^="code:"]')).not.toHaveCount(0);
+  const restored = (await exportDocument(page)).data;
+  expect(object(restored, "ordering").props).toMatchObject(fullSize);
+  expect(object(restored, "ordering").meta.lexiconExpanded).toBeUndefined();
+  expect(object(restored, "ordering").meta.lexiconCollapsed).toBeUndefined();
+  expect(object(restored, "order")).toEqual(object(before, "order"));
+  expect(records(restored).find((r) => r.type === "note")).toEqual(records(before).find((r) => r.type === "note"));
+  expect(await readFile(join(root, "lexicon/model.xml"), "utf8")).toBe(original);
+});
+
+test("attached notes survive dragging, model refresh, rearrangement, and reload", async ({ page }) => {
   await open(page);
   await page.getByRole("button", { name: "concept: Order", exact: true }).click();
   await note(page, "Which validation makes an order ready?");
@@ -495,16 +539,15 @@ test("attached notes survive dragging, collapse, model refresh, rearrangement, a
   expect(movedObject.x).not.toBe(beforeObject.x);
   expect(movedNote.x - beforeNote.x).toBeCloseTo(movedObject.x - beforeObject.x, 1);
   expect(movedNote.y - beforeNote.y).toBeCloseTo(movedObject.y - beforeObject.y, 1);
-  await page.getByRole("button", { name: "Collapse context Ordering" }).click();
-  await expect(page.getByRole("button", { name: "concept: Order", exact: true })).toBeHidden();
-  const collapsed = (await exportDocument(page)).data;
-  expect(records(collapsed).find((r) => r.type === "note").props.richText).toEqual(beforeNote.props.richText);
-  await page.getByRole("button", { name: "Expand context Ordering" }).click();
   const renamed = original.replace("<name>Order</name>", "<name>Purchase</name>");
   await writeFile(join(root, "lexicon/model.xml"), renamed);
   await page.getByRole("button", { name: "Refresh", exact: true }).click();
   await expect(page.getByRole("button", { name: "concept: Purchase", exact: true })).toBeVisible();
-  expect(object((await exportDocument(page)).data, "order").x).toBe(movedObject.x);
+  const refreshed = (await exportDocument(page)).data;
+  const refreshedObject = object(refreshed, "order"), refreshedNote = records(refreshed).find((r) => r.type === "note");
+  expect(refreshedObject.x + refreshedObject.props.w / 2).toBe(movedObject.x + movedObject.props.w / 2);
+  expect(refreshedNote.x).toBe(movedNote.x);
+  expect(refreshedNote.y).toBe(movedNote.y);
   await page.getByRole("button", { name: "Arrange", exact: true }).click();
   await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
   const arranged = (await exportDocument(page)).data;
@@ -605,11 +648,11 @@ async function durableNotes() {
   return records(data).filter((r) => r.type === "note").map((r) => JSON.stringify(r.props.richText));
 }
 
-test("project autosave survives a fresh browser and collapse or camera changes do not dirty the file", async ({ page, browser }) => {
+test("project autosave survives a fresh browser and mode or camera changes do not dirty the file", async ({ page, browser }) => {
   await open(page); await page.getByRole("button", { name: "concept: Order", exact: true }).click();
   await note(page, "Shared note saved with the project."); await saved(page);
   const file = join(root, "lexicon/canvas.json"), before = await readFile(file, "utf8");
-  await page.getByRole("button", { name: "Collapse context Ordering" }).click();
+  await page.getByRole("radio", { name: "Diagram", exact: true }).check();
   await page.getByRole("button", { name: "Fit model", exact: true }).click(); await saved(page);
   expect(await readFile(file, "utf8")).toBe(before);
   const context = await browser.newContext(), other = await context.newPage();
@@ -741,16 +784,9 @@ test("notes can be found, linked, detached, and promoted with exact model undo",
   expect(records((await exportDocument(page)).data).filter((r) => r.type === "lexicon-note")).toHaveLength(1);
 });
 
-test("context resizing preserves its children, and reference copies can be moved and deleted independently", async ({ page }) => {
+test("reference copies can be moved and deleted independently inside generated contexts", async ({ page }) => {
   await open(page); await page.getByRole("button", { name: "context: Ordering", exact: true }).click();
   const before = (await exportDocument(page)).data;
-  const group = page.locator('[data-model-id="item:ordering"]'), box = (await group.boundingBox())!;
-  // Resize the context with the SDK selection handle.
-  await page.mouse.move(box.x + box.width, box.y + box.height); await page.mouse.down();
-  await page.mouse.move(box.x + box.width + 70, box.y + box.height + 40, { steps: 10 }); await page.mouse.up();
-  const resized = (await exportDocument(page)).data;
-  expect(object(resized, "ordering").props.w).toBeGreaterThan(object(before, "ordering").props.w);
-  expect(object(resized, "order").x).toBe(object(before, "order").x);
   const card = (await page.locator('[data-model-id="item:order"]').boundingBox())!;
   await page.mouse.click(card.x + 8, card.y + card.height - 5); await page.keyboard.press("Meta+d");
   await expect(page.locator('[data-model-id="item:order"]')).toHaveCount(2);
@@ -758,6 +794,7 @@ test("context resizing preserves its children, and reference copies can be moved
   expect(copies[0].id).not.toBe(copies[1].id);
   await page.keyboard.press("ArrowRight"); await page.getByRole("button", { name: /^Delete —/ }).click();
   await expect(page.locator('[data-model-id="item:order"]')).toHaveCount(1);
+  expect(object((await exportDocument(page)).data, "order").x).toBe(object(before, "order").x);
   expect(await readFile(join(root, "lexicon/model.xml"), "utf8")).toBe(original);
 });
 
@@ -777,7 +814,7 @@ test("a 300-concept model opens, saves, and keeps the complete document while cu
     `<relationship id="r${c}n${n}" from="c${c}n${n}" to="c${c}n${n+1}"><name>feeds</name><description>Benchmark connection.</description></relationship>`).join("")).join("");
   await writeFile(join(root, "lexicon/model.xml"), `<lexicon schema="2.0" id="benchmark"><name>Canvas benchmark</name><description>300 concepts, 20 contexts, 280 relationships.</description>${contexts}${relations}</lexicon>`);
   const started = Date.now();
-  await page.goto(`/p/${projectId}?canvas=tldraw`);
+  await page.goto(`/p/${projectId}`);
   await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible({ timeout: 15_000 });
   const opened = Date.now() - started; await saved(page);
   const document = JSON.parse(await readFile(join(root, "lexicon/canvas.json"), "utf8"));

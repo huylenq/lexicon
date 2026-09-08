@@ -10,6 +10,7 @@ export function normalizeNavigation(
   index: GraphIndex,
 ) {
   const p = new URLSearchParams(params);
+  p.delete("canvas"); // Both former renderer links now open the same tldraw canvas.
   const stableMapping = (id: string) => index.legacyMappings.get(id) || id;
   if (p.has("codeMapping")) p.set("codeMapping", stableMapping(p.get("codeMapping")!));
   const code = p.get("code");

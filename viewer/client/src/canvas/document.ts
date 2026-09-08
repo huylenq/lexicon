@@ -36,22 +36,8 @@ export function captureCanvas(
     delete meta.lexiconHidden;
     delete meta.lexiconTransient;
     delete meta.lexiconCollapsed;
+    delete meta.lexiconExpanded;
     let shape = { ...value, meta };
-    if (
-      shape.type === "lexicon-object" &&
-      shape.props.group &&
-      Array.isArray(meta.lexiconExpanded)
-    ) {
-      shape = {
-        ...shape,
-        props: {
-          ...shape.props,
-          w: Number(meta.lexiconExpanded[0]),
-          h: Number(meta.lexiconExpanded[1]),
-        },
-      };
-      delete meta.lexiconExpanded;
-    }
     if (
       shape.type === "lexicon-connection" &&
       isPrimary(shape) &&
@@ -90,6 +76,21 @@ export function migrateModelReferences(
 ): TLStoreSnapshot {
   const remap = new Map<string, string>();
   const records = Object.values(snapshot.store).map((record) => {
+    // Older browser snapshots stored collapsed frames separately from their full size.
+    // Restore that size before containment runs; current canvases always show concepts.
+    if (record.typeName === "shape" && record.type === "lexicon-object" && record.props.group) {
+      const meta = { ...record.meta }, size = meta.lexiconExpanded;
+      delete meta.lexiconCollapsed;
+      delete meta.lexiconExpanded;
+      return {
+        ...record,
+        props: Array.isArray(size) && size.length === 2 &&
+          size.every((n) => typeof n === "number" && Number.isFinite(n) && n > 0)
+          ? { ...record.props, w: Number(size[0]), h: Number(size[1]) }
+          : record.props,
+        meta,
+      };
+    }
     if (
       record.typeName !== "shape" ||
       record.type !== "lexicon-connection" ||

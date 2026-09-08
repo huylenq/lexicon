@@ -13,11 +13,12 @@ The DentalML example is in `viewer/examples/dentalml/lexicon/model.xml`; its cod
 - `viewer/server/legacy.ts`: read-only import of earlier XML.
 - `viewer/server/code.ts`: declared source-link resolution.
 - `viewer/server/index.ts`: local API and project registration.
-- `viewer/client/src/`: reader, independent graph pane, and source viewing.
-- `viewer/client/src/graph/`: graph projection, layout, and local viewing state. Graph state does not change model XML.
+- `viewer/client/src/`: reader, independent canvas pane, and source viewing.
+- `viewer/client/src/graph/`: engine-independent model projection, layout, and local viewing state.
+- `viewer/client/src/canvas/`: the tldraw canvas and its Diagram / Atlas modes. Viewing state does not change model XML.
 - `skills/lexicon/SKILL.md`: the single agent workflow.
 
-Run `bun run test`, `bun run typecheck`, `bun run build:client` from `viewer/`. For viewer changes, exercise the browser through a context, concept, relationship, and code link; check search, history, narrow screens, and error states. `bun run test:browser` runs the graph browser checks with an isolated registry; see the viewer README for browser installation.
+Run `bun run test`, `bun run typecheck`, `bun run build:client` from `viewer/`. For viewer changes, exercise the browser through a context, concept, relationship, and code link; check search, history, narrow screens, and error states. `bun run test:browser` runs the reader, navigation, and conversation browser checks with an isolated registry; see the viewer README for browser installation.
 
 Preserve unrelated work and existing project registrations. Conversion creates a new file and preserves originals. Keep historical decisions in Git and the changelog rather than repeating superseded instructions in active guidance.
 

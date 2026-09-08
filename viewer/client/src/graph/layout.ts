@@ -8,6 +8,7 @@ export type Positions = Record<string, Point>;
 export async function arrangeGraph(
   graph: Projection,
   saved: Positions = {},
+  sizes: Record<string, { width: number; height: number }> = {},
 ): Promise<Layout> {
   const { default: ELK } = await import("elkjs/lib/elk.bundled.js");
   const elk = new ELK();
@@ -16,17 +17,18 @@ export async function arrangeGraph(
   await Promise.all(
     groups.map(async (group) => {
       const children = graph.nodes.filter((n) => n.parentId === group.id);
-      if (!children.length || group.collapsed) {
+      if (!children.length) {
         layout[group.id] = { x: 0, y: 0, width: 260, height: 88 };
         return;
       }
       if (group.kind === "file") {
+        const columnWidth = Math.max(...children.map(n => sizes[n.id]?.width || 228)) + 24;
+        const rowHeight = Math.max(...children.map(n => sizes[n.id]?.height || 76)) + 24;
         children.forEach((n, i) => {
           layout[n.id] = {
-            x: 24 + (i % 2) * 252,
-            y: 72 + Math.floor(i / 2) * 100,
-            width: 228,
-            height: 76,
+            x: 24 + (i % 2) * columnWidth,
+            y: 72 + Math.floor(i / 2) * rowHeight,
+            ...(sizes[n.id] || { width: 228, height: 76 }),
           };
         });
       } else {
@@ -40,7 +42,7 @@ export async function arrangeGraph(
             "elk.layered.spacing.nodeNodeBetweenLayers": "48",
             "elk.padding": "[top=0,left=0,bottom=0,right=0]",
           },
-          children: children.map((n) => ({ id: n.id, width: 190, height: 70 })),
+          children: children.map((n) => ({ id: n.id, ...(sizes[n.id] || { width: 190, height: 70 }) })),
           edges: graph.connections
             .filter(
               (e) =>
@@ -59,8 +61,7 @@ export async function arrangeGraph(
           layout[n.id] = {
             x: (n.x || 0) + 28,
             y: (n.y || 0) + 60,
-            width: 190,
-            height: 70,
+            ...(sizes[n.id] || { width: 190, height: 70 }),
           };
       }
       // Previously placed children stay still. New children avoid them.

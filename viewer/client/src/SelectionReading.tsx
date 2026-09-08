@@ -3,7 +3,7 @@ import { Paragraph } from "./ui";
 import Icon from "./Icon";
 import ObjectName from "./ObjectName";
 
-export default function GraphReading({
+export default function SelectionReading({
   selection,
   index,
   onSelect,
@@ -59,7 +59,7 @@ export default function GraphReading({
     </div>
   );
   return (
-    <div className="graph-reading">
+    <div className="selection-reading">
       <div className="eyebrow">
         {selection.kind === "mapping"
           ? "Domain to implementation"
@@ -74,7 +74,7 @@ export default function GraphReading({
       </h1>
       {!available && (
         <p>
-          The model may have changed. Select another item from the graph or
+          The model may have changed. Select another item from the canvas or
           navigation.
         </p>
       )}

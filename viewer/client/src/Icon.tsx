@@ -11,7 +11,6 @@ export type IconName =
   | "event"
   | "annotation"
   | "browse"
-  | "panel-graph"
   | "panel-right"
   | "graph"
   | "code"

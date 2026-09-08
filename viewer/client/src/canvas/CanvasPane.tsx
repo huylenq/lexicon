@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { createPortal } from "react-dom";
 import {
@@ -13,27 +13,26 @@ import {
   useEditor,
   useValue,
   type Editor,
+  type TLEventInfo,
   type TLEditorSnapshot,
   type TLShape,
   type TLRecord,
 } from "tldraw";
 import { getAssetUrlsByImport } from "@tldraw/assets/imports.vite";
 import type { CanvasState } from "../../../shared/canvas";
-import type { GraphPaneProps } from "../GraphPane";
+import type { CanvasPaneProps } from "./types";
 import Icon from "../Icon";
-import GraphLegend from "../GraphLegend";
-import { GraphToolbar, GraphButton } from "../GraphToolbar";
+import ModelLegend from "../ModelLegend";
+import { CanvasToolbar, CanvasButton } from "./CanvasToolbar";
 import { codeOwners, selectionName } from "../graph/actions";
 import { CanvasActions, CanvasContextMenu } from "./CanvasContextMenu";
 import {
   indexModel,
   neighborhood,
   projectGraph,
-  selectionRecords,
   type GraphSelection,
 } from "../graph/model";
 import {
-  CanvasModel,
   LexiconConnectionUtil,
   LexiconNoteBindingUtil,
   LexiconObjectUtil,
@@ -45,6 +44,8 @@ import { exportCanvasFile, readCanvasFile } from "./files";
 import { useProjectCanvas } from "./useProjectCanvas";
 import { CanvasInspector, noteText } from "./CanvasInspector";
 import { canvasThemes, syncCanvasTheme } from "./theme";
+import { InkMapBackground, MapStylePanel } from "./terrain/InkMap";
+import { useSyncCanvasPresentation } from "./presentation";
 import "tldraw/tldraw.css";
 import "./canvas.css";
 
@@ -72,20 +73,21 @@ function CanvasStylePanel() {
       editor.getSelectedShapes().some((shape) => !isModelShape(shape)),
     [editor],
   );
-  return shown ? <DefaultStylePanel /> : null;
+  return shown ? <DefaultStylePanel /> : <MapStylePanel />;
 }
 const components = {
   PageMenu: null,
   SharePanel: null,
   StylePanel: CanvasStylePanel,
   ContextMenu: CanvasContextMenu,
+  Background: InkMapBackground,
 };
 const visibility = (shape: TLShape) =>
   shape.meta.lexiconHidden ? ("hidden" as const) : ("inherit" as const);
 const selectionKey = (selection?: GraphSelection) =>
   JSON.stringify(selection || null);
 
-export default function CanvasPane(props: GraphPaneProps) {
+export default function CanvasPane(props: CanvasPaneProps) {
   const [searchParams] = useSearchParams();
   const {
     model,
@@ -127,12 +129,12 @@ export default function CanvasPane(props: GraphPaneProps) {
   const pendingCamera = useRef<{ x: number; y: number; z: number }>();
   const index = useMemo(() => indexModel(model), [model]);
   const full = useMemo(
-    () => projectGraph(index, { collapsed: [], expanded: [], allCode: true }),
+    () => projectGraph(index, { expanded: [], allCode: true }),
     [index],
   );
   const projected = useMemo(
     () => projectGraph(index, workspace),
-    [index, workspace.collapsed, workspace.expanded, workspace.allCode],
+    [index, workspace.expanded, workspace.allCode],
   );
   const vertices = useMemo(
     () =>
@@ -151,6 +153,17 @@ export default function CanvasPane(props: GraphPaneProps) {
       ),
     [full, projected],
   );
+  useLayoutEffect(() => {
+    // Refresh before painting a reopened mobile pane; the SDK's throttled bounds
+    // observer otherwise briefly culls every unselected shape against a hidden viewport.
+    if (editor && props.visible) {
+      editor.updateViewportScreenBounds(editor.getContainer());
+      if (!loading && initialFit.current) {
+        fit();
+        initialFit.current = false;
+      }
+    }
+  }, [editor, props.visible, loading]);
   const graph = useRef({ vertices, connections });
   graph.current = { vertices, connections };
   const focused = useMemo(() => {
@@ -219,20 +232,6 @@ export default function CanvasPane(props: GraphPaneProps) {
     }
   };
   const reveal = (chosen: GraphSelection) => {
-    const records = selectionRecords(index, chosen);
-    const owners = records.items
-      .map((id) => index.items.get(id))
-      .filter(Boolean);
-    const contexts = owners.flatMap((item) =>
-      item?.type === "concept"
-        ? [item.context]
-        : item?.type === "relationship"
-          ? [index.items.get(item.from), index.items.get(item.to)].flatMap(
-              (endpoint) =>
-                endpoint?.type === "concept" ? [endpoint.context] : [],
-            )
-          : [],
-    );
     const expand =
       chosen.kind === "code"
         ? index.targets.get(chosen.id)?.mappings.map((m) => m.owner.id) || []
@@ -245,7 +244,6 @@ export default function CanvasPane(props: GraphPaneProps) {
     setFocus(undefined);
     setWorkspace((current) => ({
       ...current,
-      collapsed: current.collapsed.filter((id) => !contexts.includes(id)),
       expanded: [...new Set([...current.expanded, ...expand])],
     }));
     setRevision((n) => n + 1);
@@ -280,9 +278,9 @@ export default function CanvasPane(props: GraphPaneProps) {
         !boot.snapshot?.document && !boot.remote.issue
           ? latest.current.workspace
           : undefined;
-      initialFit.current =
-        !legacy?.viewport &&
-        !instance.getCurrentPageShapes().some(isModelShape);
+      // Project documents contain placements, but the camera belongs to this
+      // browser. A first visit still needs a fit when the document already exists.
+      initialFit.current = !legacy?.viewport && !boot.snapshot?.session;
       if (legacy?.viewport) {
         const { x, y, zoom } = legacy.viewport;
         pendingCamera.current = { x: x / zoom, y: y / zoom, z: zoom };
@@ -300,6 +298,25 @@ export default function CanvasPane(props: GraphPaneProps) {
       );
       setEditor(instance);
       let lastSelected = "";
+      let repeatSelection = false;
+      const beforeEvent = (event: TLEventInfo) => {
+        if (event.name !== "pointer_up") return;
+        repeatSelection = event.button === 0 &&
+          !event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey &&
+          (instance.isIn("select.pointing_shape") || instance.isIn("select.pointing_selection"));
+      };
+      const afterEvent = (event: TLEventInfo) => {
+        if (event.name !== "pointer_up" || !repeatSelection) return;
+        repeatSelection = false;
+        if (!instance.isIn("select.idle")) return;
+        const ids = instance.getSelectedShapeIds();
+        const chosen = ids.length === 1 && shapeSelection(instance.getShape(ids[0]));
+        // A completed native tap can reopen the mobile reader even when the
+        // selection has not changed. Dragging and modifier selection stay native.
+        if (chosen && selectionKey(chosen) === selectionKey(latest.current.selection))
+          latest.current.onSelect(chosen);
+      };
+      instance.on("before-event", beforeEvent).on("event", afterEvent);
       const stop = react("Lexicon canvas selection", () => {
         const ids = instance.getSelectedShapeIds();
         // Brushing and pointing can pass through a single selection. Only
@@ -333,6 +350,7 @@ export default function CanvasPane(props: GraphPaneProps) {
       return () => {
         stopStorage();
         stop();
+        instance.off("before-event", beforeEvent).off("event", afterEvent);
         observer.disconnect();
         projection.current?.dispose();
         projection.current = undefined;
@@ -353,7 +371,9 @@ export default function CanvasPane(props: GraphPaneProps) {
         if (!active || !applied) return;
         setLoading(false);
         storageRef.current.ready();
-        if (initialFit.current || arrange) {
+        if (arrange) initialFit.current = true;
+        if (initialFit.current && latest.current.visible) {
+          editor.updateViewportScreenBounds(editor.getContainer());
           fit();
           initialFit.current = false;
         }
@@ -487,8 +507,8 @@ export default function CanvasPane(props: GraphPaneProps) {
       ? "Note or arrow attachment"
       : record.typeName;
   };
-  const matchSet = new Set(props.matches);
-  const matches = (id: string) => {
+  const matchSet = useMemo(() => new Set(props.matches), [props.matches]);
+  const matches = useCallback((id: string) => {
     if (!props.query.trim()) return true;
     const vertex = vertices.get(id),
       edge = connections.get(id);
@@ -502,7 +522,9 @@ export default function CanvasPane(props: GraphPaneProps) {
             matchSet.has(vertex.selection.id)))
       ) || !!edge?.relationships.some((item) => matchSet.has(item))
     );
-  };
+  }, [props.query, vertices, connections, matchSet]);
+  useSyncCanvasPresentation(editor, { modelId: model.id, mapEnabled: workspace.map ?? true,
+    vertices, connections, matches });
 
   const saveLabel = {
     loading: "Opening canvas…",
@@ -541,10 +563,24 @@ export default function CanvasPane(props: GraphPaneProps) {
         },
       }}
     >
-      <section className="graph-pane canvas-pane" aria-label="Model canvas">
-        <GraphToolbar
+      <section className="canvas-pane" aria-label="Model canvas" data-map={workspace.map ?? true}>
+        <CanvasToolbar
           title="Canvas"
-          className="canvas-toolbar"
+          controls={
+            <fieldset className="canvas-mode" aria-label="Canvas mode">
+              {([false, true] as const).map((atlas) => (
+                <label key={String(atlas)} title={atlas ? "Explore the model as places and landmarks" : "Read the model as cards and connections"}>
+                  <input
+                    type="radio"
+                    name="canvas-mode"
+                    checked={(workspace.map ?? true) === atlas}
+                    onChange={() => setWorkspace((w) => ({ ...w, map: atlas }))}
+                  />
+                  <span>{atlas ? "Atlas" : "Diagram"}</span>
+                </label>
+              ))}
+            </fieldset>
+          }
           scope={
             (selectedShapes.length > 1
               ? `${selectedShapes.length} selected`
@@ -553,26 +589,26 @@ export default function CanvasPane(props: GraphPaneProps) {
           }
         >
           {focus && (
-            <GraphButton
+            <CanvasButton
               icon="arrow-left"
               label="Back to overview"
               onClick={overview}
             />
           )}
-          <GraphButton
+          <CanvasButton
             icon="fit"
             label="Fit model"
             disabled={!editor || loading}
             onClick={fit}
           />
-          <GraphButton
+          <CanvasButton
             icon="locate"
             label="Locate"
             title="Locate selection in canvas"
             disabled={!selection || !editor || loading}
             onClick={() => selection && reveal(selection)}
           />
-          <GraphButton
+          <CanvasButton
             icon="code"
             label={workspace.allCode ? "All code shown" : "Show all code"}
             title={
@@ -584,7 +620,7 @@ export default function CanvasPane(props: GraphPaneProps) {
             disabled={!editor || loading}
             onClick={() => setWorkspace((w) => ({ ...w, allCode: !w.allCode }))}
           />
-          <GraphButton
+          <CanvasButton
             icon="graph"
             label="Arrange"
             title="Rearrange model objects; keep freeform content"
@@ -594,7 +630,7 @@ export default function CanvasPane(props: GraphPaneProps) {
               setRevision((n) => n + 1);
             }}
           />
-          <GraphButton
+          <CanvasButton
             icon="plus"
             label="Add note"
             title={
@@ -641,7 +677,7 @@ export default function CanvasPane(props: GraphPaneProps) {
             hidden
             onChange={(e) => importCanvas(e.target.files?.[0])}
           />
-        </GraphToolbar>
+        </CanvasToolbar>
         {!!needsAttention && (
           <div
             className="canvas-save-state"
@@ -782,7 +818,12 @@ export default function CanvasPane(props: GraphPaneProps) {
             </button>
           </div>
         )}
-        <div className="canvas-stage" data-ready={!loading && !importing}>
+        <div className="canvas-stage" data-ready={!loading && !importing}
+          // Native bounds updates are throttled; refresh before the first tap
+          // after a mobile pane has been shown again.
+          onPointerDownCapture={() => {
+            if (editor) editor.updateViewportScreenBounds(editor.getContainer());
+          }}>
           {editor && (
             <CanvasInspector
               editor={editor}
@@ -790,40 +831,25 @@ export default function CanvasPane(props: GraphPaneProps) {
               toolbarHost={inspectorHost}
             />
           )}
-          <CanvasModel.Provider
-            value={{
-              vertices,
-              connections,
-              matches,
-              collapse: (id) =>
-                setWorkspace((w) => ({
-                  ...w,
-                  collapsed: w.collapsed.includes(id)
-                    ? w.collapsed.filter((value) => value !== id)
-                    : [...w.collapsed, id],
-                })),
-            }}
-          >
-            {storage.boot && (
-              <Tldraw
-                snapshot={storage.boot.snapshot}
-                assets={storage.assets}
-                assetUrls={assetUrls}
-                themes={canvasThemes}
-                shapeUtils={shapeUtils}
-                bindingUtils={bindingUtils}
-                overrides={overrides}
-                options={tldrawOptions}
-                components={components}
-                getShapeVisibility={visibility}
-                onMount={mount}
-                licenseKey={
-                  (import.meta as ImportMeta & { env: Record<string, string> })
-                    .env.VITE_TLDRAW_LICENSE_KEY
-                }
-              />
-            )}
-          </CanvasModel.Provider>
+          {storage.boot && (
+            <Tldraw
+              snapshot={storage.boot.snapshot}
+              assets={storage.assets}
+              assetUrls={assetUrls}
+              themes={canvasThemes}
+              shapeUtils={shapeUtils}
+              bindingUtils={bindingUtils}
+              overrides={overrides}
+              options={tldrawOptions}
+              components={components}
+              getShapeVisibility={visibility}
+              onMount={mount}
+              licenseKey={
+                (import.meta as ImportMeta & { env: Record<string, string> })
+                  .env.VITE_TLDRAW_LICENSE_KEY
+              }
+            />
+          )}
           {loading && (
             <div className="canvas-loading" role="status">
               Arranging the canvas…
@@ -832,7 +858,7 @@ export default function CanvasPane(props: GraphPaneProps) {
         </div>
         {statusHost &&
           createPortal(
-            <GraphLegend projection={projected}>
+            <ModelLegend projection={projected}>
               <span
                 className="canvas-save-indicator"
                 role="status"
@@ -840,7 +866,7 @@ export default function CanvasPane(props: GraphPaneProps) {
               >
                 {saveLabel}
               </span>
-            </GraphLegend>,
+            </ModelLegend>,
             statusHost,
           )}
       </section>

@@ -7,12 +7,12 @@ const browse = (page: Page, name: string) =>
 const toggle = (page: Page) =>
   page.getByRole("button", { name: "Toggle code workspace", exact: true });
 
-test("Browse and Graph share one persistent, independently resizable Code workspace", async ({
+test("Browse and Canvas share one persistent, independently resizable Code workspace", async ({
   page,
 }) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
-  await page.goto("/p/dentalml?canvas=graph");
+  await page.goto("/p/dentalml");
   await toggle(page).click();
   await expect(codePane(page)).toContainText("Explore the implementation");
   await browse(page, "Selected tooth");
@@ -26,7 +26,7 @@ test("Browse and Graph share one persistent, independently resizable Code worksp
   await expect(page.locator("main h1")).toHaveText("Reference point");
   await expect(page.locator(".code-breadcrumb")).toHaveText(path);
   await expect(
-    page.getByRole("region", { name: "Domain graph" }),
+    page.getByRole("region", { name: "Model canvas" }),
   ).toBeVisible();
   await expect(codePane(page)).toBeVisible();
   expect(new URL(page.url()).searchParams.get("code")).toBe(target);
@@ -46,7 +46,7 @@ test("Browse and Graph share one persistent, independently resizable Code worksp
     codeBox.width,
   );
   const resizedWidth = (await codePane(page).boundingBox())!.width;
-  await page.getByRole("button", { name: "Reset graph view", exact: true }).click();
+  await page.getByRole("button", { name: "Fit model", exact: true }).click();
   expect((await codePane(page).boundingBox())!.width).toBe(resizedWidth);
   expect(new URL(page.url()).searchParams.get("code")).toBe(target);
   await page.keyboard.press("Escape");
@@ -87,19 +87,20 @@ test("Browse and Graph share one persistent, independently resizable Code worksp
 test("code nodes preserve the reader; mapping edges open explanation and the same Code pane", async ({
   page,
 }) => {
-  await page.goto("/p/dentalml?item=selected-tooth&canvas=graph");
-  await expect(page.locator(".graph-vertex.concept")).toHaveCount(8);
-  await page.locator('[data-id="item:selected-tooth"]').click({ button: "right" });
+  await page.goto("/p/dentalml?item=selected-tooth");
+  await expect(page.locator(".canvas-card[data-model-id^='item:']")).toHaveCount(8);
+  await page.getByRole("button", { name: "Fit model", exact: true }).click();
+  await page.getByRole("button", { name: "concept: Selected tooth", exact: true }).click({ button: "right" });
   await page.getByRole("menuitem", { name: "Expand code", exact: true }).click();
-  await expect(page.locator(".graph-vertex.code")).toHaveCount(1);
-  await page.getByRole("button", { name: "Fit view", exact: true }).click();
-  await page.locator(".graph-vertex.code").click();
+  await expect(page.locator(".canvas-card[data-model-id^='code:']")).toHaveCount(1);
+  await page.getByRole("button", { name: "Fit model", exact: true }).click();
+  await page.locator(".canvas-card[data-model-id^='code:'] .canvas-object-title").click();
   await expect(page.locator("main h1")).toHaveText("Selected tooth");
   await expect(codePane(page)).toContainText("Mapped from");
   await expect(page.locator(".code-scroll")).toBeVisible();
-  await page.getByRole("button", { name: "Fit view", exact: true }).click();
+  await page.getByRole("button", { name: "Fit model", exact: true }).click();
   await page
-    .getByRole("button", { name: "Read mapping: implementation", exact: true })
+    .getByRole("button", { name: "Read code mapping: implementation", exact: true })
     .click();
   await expect(page.locator("main")).toContainText("Mapping explanation");
   await expect(codePane(page)).toContainText("Selected tooth");
@@ -113,7 +114,7 @@ test("code nodes preserve the reader; mapping edges open explanation and the sam
 test("Code history changes source independently of domain navigation and survives hide/show", async ({
   page,
 }) => {
-  await page.goto("/p/dentalml?item=selected-tooth&canvas=graph");
+  await page.goto("/p/dentalml?item=selected-tooth");
   await page.locator("main .code-links button").first().click();
   const first = new URL(page.url()).searchParams.get("code");
   await browse(page, "Reference point");
@@ -133,13 +134,14 @@ test("Code history changes source independently of domain navigation and survive
   expect(new URL(page.url()).searchParams.get("code")).toBe(second);
 });
 
-test("old Browse and Graph links resolve to Code; missing targets stay dismissible", async ({
+test("earlier shared links resolve to Code; missing targets stay dismissible", async ({
   page,
 }) => {
   await page.goto("/p/dentalml?item=selected-tooth&code=selected-tooth&link=0&canvas=graph");
   await expect(page.locator(".code-scroll")).toBeVisible();
   const target = new URL(page.url()).searchParams.get("code");
   expect(target).toMatch(/^code:/);
+  expect(new URL(page.url()).searchParams.has("canvas")).toBe(false);
   await expect(
     page.getByRole("button", { name: "Previous code location" }),
   ).toBeDisabled();
@@ -155,7 +157,7 @@ test("old Browse and Graph links resolve to Code; missing targets stay dismissib
   );
   await expect(page.locator(".code-scroll")).toBeVisible();
   await expect(page.locator("main .code-pane")).toHaveCount(0);
-  await page.goto("/p/dentalml?code=code:missing&canvas=graph");
+  await page.goto("/p/dentalml?code=code:missing");
   await expect(codePane(page)).toContainText("Code target unavailable");
   await page.getByRole("button", { name: "Close code pane" }).click();
   await expect(codePane(page)).toBeHidden();
@@ -165,7 +167,7 @@ test("on narrow screens Code has its own full-screen surface and returns to the 
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/p/dentalml?item=selected-tooth&canvas=graph");
+  await page.goto("/p/dentalml?item=selected-tooth");
   await page.locator("main .code-links button").first().click();
   await expect(codePane(page)).toBeVisible();
   await expect(page.locator("main")).toBeHidden();

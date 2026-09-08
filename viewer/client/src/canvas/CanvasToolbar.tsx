@@ -1,31 +1,32 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
-import Icon, { type IconName } from "./Icon";
+import Icon, { type IconName } from "../Icon";
 
-export function GraphToolbar({
+export function CanvasToolbar({
   title,
   scope,
-  className = "",
+  controls,
   children,
 }: {
   title: string;
   scope: string;
-  className?: string;
+  controls?: ReactNode;
   children: ReactNode;
 }) {
   return (
-    <div className={`graph-toolbar ${className}`}>
-      <div className="graph-toolbar-heading">
+    <div className="canvas-toolbar">
+      <div className="canvas-toolbar-heading">
         <span className="pane-title">{title}</span>
-        <span className="graph-scope" title={scope}>
+        {controls}
+        <span className="canvas-scope" title={scope}>
           {scope}
         </span>
       </div>
-      <div className="graph-toolbar-actions">{children}</div>
+      <div className="canvas-toolbar-actions">{children}</div>
     </div>
   );
 }
 
-export function GraphButton({
+export function CanvasButton({
   icon,
   label,
   title = label,

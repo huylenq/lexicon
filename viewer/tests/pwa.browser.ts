@@ -44,7 +44,7 @@ test("install metadata, offline deep links, and uncached local API", async ({ pa
       return `${image.naturalWidth}x${image.naturalHeight}`;
     }, icon.src)).toBe(icon.sizes);
   }
-  await page.goto("/p/dentalml?canvas=graph");
+  await page.goto("/p/dentalml");
   await expect(page.locator(".project-name")).toHaveText("Canal measurement");
   expect(await page.evaluate(async () => {
     const keys = await caches.keys();
@@ -76,7 +76,7 @@ test("inline header remains usable across themes and narrow screens", async ({ p
   await page.getByRole("button", { name: "Use dark theme" }).click();
   await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", "#0a0a0a");
   await page.screenshot({ path: test.info().outputPath("library-dark.png") });
-  await page.goto("/p/dentalml?canvas=graph");
+  await page.goto("/p/dentalml");
   await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", "#0a0a0a");
   await page.getByRole("button", { name: "Use light theme" }).click();
   await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", "#f7f7f7");

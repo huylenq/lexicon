@@ -18,7 +18,7 @@ import InstallApp from "./InstallApp";
 import Icon from "./Icon";
 import ObjectName from "./ObjectName";
 import ChatPane from "./ChatPane";
-import GraphReading from "./GraphReading";
+import SelectionReading from "./SelectionReading";
 import {
   indexModel,
   mappingId,
@@ -26,12 +26,11 @@ import {
   type GraphSelection,
 } from "./graph/model";
 import { useWorkspace } from "./graph/storage";
-import type { GraphCommand } from "./GraphPane";
-import "./styles/graph.css";
+import type { CanvasCommand } from "./canvas/types";
+import "./styles/workspace.css";
 import "./styles/code.css";
 import "./styles/status.css";
 import CanvasBoundary from "./CanvasBoundary";
-const GraphPane = lazy(() => import("./GraphPane"));
 const CanvasPane = lazy(() => import("./canvas/CanvasPane"));
 export default function Reader() {
   const { projectId = "" } = useParams();
@@ -48,11 +47,9 @@ function ReaderProject({ projectId }: { projectId: string }) {
     catch {}
   }, [agentAttached, projectId]);
   const [agentRunning, setAgentRunning] = useState(false);
-  const [graphStatusHost, setGraphStatusHost] = useState<HTMLDivElement | null>(null);
+  const [canvasStatusHost, setCanvasStatusHost] = useState<HTMLDivElement | null>(null);
   const chatToggle = useRef<HTMLButtonElement>(null);
   const [params, setParams] = useSearchParams();
-  const canvasEnabled = params.get("canvas") !== "graph";
-  const GraphSurface = canvasEnabled ? CanvasPane : GraphPane;
   const routeLocation = useLocation();
   const navigate = useNavigate();
   const navigationType = useNavigationType();
@@ -77,7 +74,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
   const [mobileRead, setMobileRead] = useState(
     !!params.get("item") || !!params.get("selection"),
   );
-  const [graphCommand, setGraphCommand] = useState<GraphCommand>();
+  const [canvasCommand, setCanvasCommand] = useState<CanvasCommand>();
   const workArea = useRef<HTMLDivElement>(null);
   const [data, setData] = useState<{ model: Model; project: Project; modelRevision: string; artifactRoot: string }>();
   const model = data?.model;
@@ -165,7 +162,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
       if (e.key === "Escape") {
         setMenu(false);
         if (codeNavigation.open) {
-          // Close Code before a focused graph handles Escape as deselection.
+          // Close Code before a focused canvas handles Escape as deselection.
           e.preventDefault();
           e.stopPropagation();
           closeCode();
@@ -268,7 +265,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
   ) => {
     setMobileRead(false);
     setMobileCode(false);
-    setGraphCommand((c) => ({
+    setCanvasCommand((c) => ({
       sequence: (c?.sequence || 0) + 1,
       action,
       selection,
@@ -310,7 +307,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
   return (
     <div
       ref={readerSurface}
-      className={`reader ${chatOpen && agentAttached && !compact ? "agent-attached" : ""} ${codeNavigation.open ? "with-code" : ""} with-graph ${!workspace.sidebar ? "without-sidebar" : ""} ${mobileRead ? "mobile-reading" : "mobile-graph"} ${mobileCode ? "mobile-code" : ""}`}
+      className={`reader ${chatOpen && agentAttached && !compact ? "agent-attached" : ""} ${codeNavigation.open ? "with-code" : ""} with-canvas ${!workspace.sidebar ? "without-sidebar" : ""} ${mobileRead ? "mobile-reading" : "mobile-canvas"} ${mobileCode ? "mobile-code" : ""}`}
       style={{ "--chat-width": `${workspace.chatWidth}px` } as CSSProperties}
     >
       <a className="skip-link" href="#main-content">
@@ -330,16 +327,6 @@ function ReaderProject({ projectId }: { projectId: string }) {
         <span className="header-divider" />
         <span className="project-name">{model?.name || "Opening project"}</span>
         <div className="header-actions">
-          <button className="quiet canvas-toggle" aria-label={canvasEnabled ? "Switch to Graph" : "Switch to Canvas"} aria-pressed={canvasEnabled}
-            title={canvasEnabled ? "Switch to graph" : "Open the canvas"}
-            onClick={() => {
-              const next = new URLSearchParams(params);
-              if (canvasEnabled) next.set("canvas", "graph");
-              else next.delete("canvas");
-              setParams(next);
-              setMobileRead(false);
-              setMobileCode(false);
-            }}><Icon name="panel-graph" size={14} />{canvasEnabled ? "Canvas" : "Graph"}</button>
           <div className="pane-toggles" role="group" aria-label="Pane visibility">
           <button
             ref={codeToggle}
@@ -443,21 +430,22 @@ function ReaderProject({ projectId }: { projectId: string }) {
         <div
           className="reader-workspace"
           ref={workArea}
-          style={{ "--graph-width": `${workspace.width}%` } as CSSProperties}
+          style={{ "--canvas-width": `${workspace.width}%` } as CSSProperties}
         >
           {model && (
             <div
-              className="graph-slot"
+              className="canvas-slot"
             >
-              <CanvasBoundary key={canvasEnabled ? "canvas" : "graph"}><Suspense fallback={<p className="empty">Opening {canvasEnabled ? "canvas" : "graph"}…</p>}>
-                <GraphSurface
-                  key={canvasEnabled ? `canvas:${projectId}` : `graph:${projectId}`}
+              <CanvasBoundary><Suspense fallback={<p className="empty">Opening canvas…</p>}>
+                <CanvasPane
+                  key={projectId}
                   model={model}
                   projectId={projectId}
                   modelRevision={data?.modelRevision || ""}
                   onModelChanged={refresh}
                   projectKey={data?.project.root || projectId}
-                  statusHost={graphStatusHost}
+                  statusHost={canvasStatusHost}
+                  visible={!compact || !(mobileRead || (mobileCode && codeNavigation.open))}
                   workspace={workspace}
                   setWorkspace={setWorkspace}
                   selection={graphSelection}
@@ -470,17 +458,16 @@ function ReaderProject({ projectId }: { projectId: string }) {
                       p.delete(key);
                     if (p.toString() !== params.toString()) setParams(p);
                   }}
-                  command={graphCommand}
-                  onReset={() => setMobileRead(false)}
+                  command={canvasCommand}
                 />
               </Suspense></CanvasBoundary>
             </div>
           )}
           {model && (
             <div
-              className="graph-divider"
+              className="canvas-divider"
               role="separator"
-              aria-label={`Resize ${canvasEnabled ? "canvas" : "graph"} and reader`}
+              aria-label="Resize canvas and reader"
               aria-orientation="vertical"
               aria-valuemin={25}
               aria-valuemax={75}
@@ -521,10 +508,10 @@ function ReaderProject({ projectId }: { projectId: string }) {
           )}
           <main className="reading-pane" ref={content} id="main-content">
             {compact && (
-              <button className="quiet back-to-graph" onClick={() => {
+              <button className="quiet back-to-canvas" onClick={() => {
                 setMobileRead(false);
                 setMobileCode(false);
-              }}><Icon name="arrow-left" /> Back to {canvasEnabled ? "canvas" : "graph"}</button>
+              }}><Icon name="arrow-left" /> Back to canvas</button>
             )}
             <div className="reader-toolbar">
               <div className="reader-history" role="group" aria-label="Navigation history">
@@ -562,12 +549,12 @@ function ReaderProject({ projectId }: { projectId: string }) {
               </nav>
             </div>
             {readerSelection && (
-              <div className="reader-graph-actions">
+              <div className="reader-canvas-actions">
                 <button
                   className="quiet"
                   onClick={() => graphAction("locate", readerSelection)}
                 >
-                  Locate in {canvasEnabled ? "canvas" : "graph"}
+                  Locate in canvas
                 </button>
                 {item && (
                   <button
@@ -578,7 +565,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
                       graphAction("expand", { kind: "item", id: item.id })
                     }
                   >
-                    Toggle code in {canvasEnabled ? "canvas" : "graph"}
+                    Toggle code in canvas
                   </button>
                 )}
               </div>
@@ -623,7 +610,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
                 specialSelection.kind !== "item" &&
                 specialSelection.kind !== "code" &&
                 graphIndex ? (
-                  <GraphReading
+                  <SelectionReading
                     selection={specialSelection}
                     index={graphIndex}
                     onSelect={selectGraph}
@@ -972,7 +959,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
         />
       )}
       <div className="workspace-status-bar" role="region" aria-label="Workspace status">
-        <div className="workspace-graph-status" ref={setGraphStatusHost} />
+        <div className="workspace-canvas-status" ref={setCanvasStatusHost} />
         <button ref={chatToggle} className="quiet agent-toggle" aria-label="Agent" aria-controls="chat-pane" aria-pressed={chatOpen}
           title={chatOpen ? "Minimize Agent" : agentRunning ? "Open Agent · Working" : "Open Agent"}
           disabled={!data} onClick={() => setChatOpen(open => !open)}>

@@ -1,18 +1,17 @@
 import { useEffect, useState } from "react";
-import type { Viewport } from "@xyflow/react";
 import type { Positions } from "./layout";
 import type { GraphOptions } from "./model";
 
 export type Workspace = GraphOptions & {
   positions: Positions;
-  viewport?: Viewport;
+  viewport?: { x: number; y: number; zoom: number };
   sidebar: boolean;
   width: number;
   codeWidth: number;
   chatWidth: number;
+  map?: boolean;
 };
 export const defaults = (): Workspace => ({
-  collapsed: [],
   expanded: [],
   allCode: false,
   positions: {},
@@ -20,7 +19,9 @@ export const defaults = (): Workspace => ({
   width: 52,
   codeWidth: 38,
   chatWidth: 400,
+  map: true,
 });
+// Retain the existing key so canvas preferences and earlier saved positions migrate.
 export const storageKey = (projectId: string) =>
   `lexicon:graph:v1:${projectId}`;
 export function readWorkspace(key: string): Workspace {
@@ -28,12 +29,11 @@ export function readWorkspace(key: string): Workspace {
   try {
     const value = JSON.parse(localStorage.getItem(key) || "null");
     if (!value || typeof value !== "object") return result;
-    for (const name of ["collapsed", "expanded"] as const)
-      if (Array.isArray(value[name]))
-        result[name] = value[name].filter(
-          (s: unknown) => typeof s === "string",
-        );
-    for (const name of ["sidebar", "allCode"] as const)
+    if (Array.isArray(value.expanded))
+      result.expanded = value.expanded.filter(
+        (s: unknown) => typeof s === "string",
+      );
+    for (const name of ["sidebar", "allCode", "map"] as const)
       if (typeof value[name] === "boolean") result[name] = value[name];
     if (Number.isFinite(value.width))
       result.width = Math.max(25, Math.min(75, value.width));

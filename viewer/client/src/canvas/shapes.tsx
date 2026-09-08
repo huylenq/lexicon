@@ -1,24 +1,24 @@
-import { createContext, useContext } from "react";
 import {
   BaseBoxShapeUtil,
   BindingUtil,
   Group2d,
   HTMLContainer,
+  Polygon2d,
   Polyline2d,
   Rectangle2d,
   ShapeUtil,
   Vec,
+  getIndexAbove,
+  ZERO_INDEX_KEY,
   useEditor,
   useValue,
   type BindingOnShapeChangeOptions,
   type TLShapePartial,
   type SvgExportContext,
+  type TLHandle,
+  type TLHandleDragInfo,
 } from "tldraw";
 import ObjectName from "../ObjectName";
-import type {
-  GraphConnection,
-  GraphVertex,
-} from "../graph/model";
 import {
   objectProps,
   objectMigrations,
@@ -29,17 +29,15 @@ import {
   type NoteBinding,
 } from "../../../shared/canvas-schema";
 import { isPrimary } from "./references";
-
-export const CanvasModel = createContext({
-  vertices: new Map<string, GraphVertex>(),
-  connections: new Map<string, GraphConnection>(),
-  collapse: (_id: string) => {},
-  matches: (_id: string): boolean => true,
-});
+import { choice, landmarkFor, paths, pathFor } from "./terrain/generate";
+import { roadCoveredAt, roadInput, shapeRoad, visibleObjectFrame } from "./terrain/view";
+import { canvasPresentation, useCanvasPresentation } from "./presentation";
+import { contextLabelFrame, contextPreferences, contextTerritory, isContext } from "./contexts";
+import { moveBorderVertex, territoryEdit } from "./territory";
 
 function ObjectCard({ shape }: { shape: ObjectShape }) {
-  const model = useContext(CanvasModel);
   const editor = useEditor();
+  const model = useCanvasPresentation(editor);
   const selected = useValue(
     "Selected model reference",
     () => editor.getSelectedShapeIds().includes(shape.id),
@@ -48,14 +46,28 @@ function ObjectCard({ shape }: { shape: ObjectShape }) {
   const vertex = model.vertices.get(shape.props.graphId);
   const missing = !vertex;
   const primary = isPrimary(shape);
+  const frame = useValue("Visible model bounds", () => visibleObjectFrame(editor, shape), [editor, shape]);
+  const boundary = useValue("Context boundary", () => isContext(shape) ? {
+    label: contextLabelFrame(editor, shape, model.mapEnabled),
+    points: model.mapEnabled ? contextTerritory(editor, shape).points : undefined,
+  } : undefined, [editor, shape, model.mapEnabled]);
   return (
     <HTMLContainer
+      style={{ left: frame.x, top: frame.y, width: frame.w, height: frame.h }}
       className={`canvas-object ${shape.props.group ? "canvas-group" : "canvas-card"} ${!model.matches(shape.props.graphId) ? "canvas-dimmed" : ""}`}
       data-model-id={shape.props.graphId}
+      data-context-boundary={boundary ? model.mapEnabled ? "territory" : "rectangle" : undefined}
+      data-map-building={primary && vertex?.kind === "concept" && landmarkFor({ classification: vertex.subtitle, landmark: shape.meta.lexiconLandmark }) !== "none" ? "true" : undefined}
       data-missing={missing || undefined}
       data-selected={selected || undefined}
     >
-      <div className="canvas-object-heading">
+      {boundary?.points && <svg className="canvas-territory-selection" aria-hidden="true">
+        <path d={pathFor(boundary.points.map(p => ({ x: p.x - frame.x, y: p.y - frame.y })), true)} />
+      </svg>}
+      <div className="canvas-object-heading" style={boundary ? {
+        position: "absolute", left: boundary.label.x - frame.x, top: boundary.label.y - frame.y,
+        width: boundary.label.w, height: boundary.label.h, padding: "6px 8px",
+      } : undefined}>
         <button
           className="canvas-object-title"
           aria-label={`${vertex?.kind || "Missing object"}: ${vertex?.title || shape.props.graphId}`}
@@ -81,22 +93,6 @@ function ObjectCard({ shape }: { shape: ObjectShape }) {
             "Object removed from model"
           )}
         </button>
-        {vertex?.kind === "context" && vertex.selection?.kind === "item" && (
-          <button
-            className="canvas-collapse"
-            aria-label={`${vertex.collapsed ? "Expand" : "Collapse"} context ${vertex.title}`}
-            onPointerDown={(event) => event.stopPropagation()}
-            onClick={() =>
-              model.collapse(
-                vertex.selection && "id" in vertex.selection
-                  ? vertex.selection.id
-                  : "",
-              )
-            }
-          >
-            {vertex.collapsed ? "+" : "−"} {vertex.count}
-          </button>
-        )}
       </div>
       {vertex?.kind === "code" && <small>{vertex.subtitle}</small>}
       {missing && (
@@ -116,11 +112,13 @@ export class LexiconObjectUtil extends BaseBoxShapeUtil<ObjectShape> {
   static override props = objectProps;
   static override migrations = objectMigrations;
   getDefaultProps() {
-    return { graphId: "", w: 190, h: 70, group: false };
+    return { graphId: "", w: 190, h: 70, group: false, territory: null };
   }
   override canResize(shape: ObjectShape) {
-    return shape.props.group && !shape.meta.lexiconCollapsed;
+    return shape.props.group && !isContext(shape);
   }
+  override hideResizeHandles(shape: ObjectShape) { return isContext(shape); }
+  override hideSelectionBoundsBg(shape: ObjectShape) { return isContext(shape); }
   override canResizeChildren() {
     return false;
   }
@@ -134,16 +132,19 @@ export class LexiconObjectUtil extends BaseBoxShapeUtil<ObjectShape> {
     return true;
   }
   override hideSelectionBoundsFg() {
-    // The card paints its rounded border; context resize handles remain native.
+    // Cards and territories paint their own selection border.
     return true;
   }
   override canRemoveChildrenOfType() {
     return false;
   }
   override getGeometry(shape: ObjectShape) {
-    const outline = new Rectangle2d({
-      width: shape.props.w,
-      height: shape.props.h,
+    const frame = visibleObjectFrame(this.editor, shape);
+    const atlas = canvasPresentation(this.editor).get().mapEnabled;
+    const outline = isContext(shape) && atlas ? new Polygon2d({
+      points: contextTerritory(this.editor, shape).points.map(p => new Vec(p.x, p.y)), isFilled: false,
+    }) : new Rectangle2d({
+      x: frame.x, y: frame.y, width: frame.w, height: frame.h,
       isFilled: !shape.props.group,
     });
     return shape.props.group
@@ -151,8 +152,10 @@ export class LexiconObjectUtil extends BaseBoxShapeUtil<ObjectShape> {
           children: [
             outline,
             new Rectangle2d({
-              width: shape.props.w,
-              height: 44,
+              ...(isContext(shape) ? (() => {
+                const b = contextLabelFrame(this.editor, shape, atlas);
+                return { x: b.x, y: b.y, width: b.w, height: b.h };
+              })() : { width: shape.props.w, height: 44 }),
               isFilled: true,
               isLabel: true,
             }),
@@ -160,14 +163,35 @@ export class LexiconObjectUtil extends BaseBoxShapeUtil<ObjectShape> {
         })
       : outline;
   }
+  override getHandles(shape: ObjectShape): TLHandle[] {
+    const view = canvasPresentation(this.editor).get();
+    if (!isContext(shape) || !view.mapEnabled || view.editingTerritory !== shape.id) return [];
+    let index = ZERO_INDEX_KEY;
+    return contextTerritory(this.editor, shape).points.map((p, i) => ({
+      ...p, id: `border:${i}`, index: index = getIndexAbove(index), type: "vertex", canSnap: false,
+    }));
+  }
+  override onHandleDrag(shape: ObjectShape, { handle, initial = shape }: TLHandleDragInfo<ObjectShape>): TLShapePartial<ObjectShape> | void {
+    if (!isContext(shape) || !handle.id.startsWith("border:")) return;
+    const before = contextTerritory(this.editor, initial);
+    const after = moveBorderVertex(before, Number(handle.id.slice(7)), handle);
+    const edits = contextPreferences(this.editor, initial)?.edits || [];
+    // The handle index exists only for this native gesture. Persist geographic
+    // differences with their own identity, never indices into a generated hull.
+    const edit = territoryEdit(`border:${edits.length}`, before.points, after.points);
+    return { id: shape.id, type: shape.type, props: {
+      territory: edit ? { edits: [...edits, edit], legacy: null } : initial.props.territory,
+    } };
+  }
   override getText(shape: ObjectShape) {
     return String(shape.meta.lexiconLabel || "Model reference");
   }
   override toSvg(shape: ObjectShape, ctx: SvgExportContext) {
+    const frame = visibleObjectFrame(this.editor, shape, false);
     const ink = ctx.isDarkMode ? "#edeef4" : "#242b3d",
       paper = ctx.isDarkMode ? "#252b39" : "#fafbff";
     const label = this.getText(shape),
-      max = Math.max(8, Math.floor((shape.props.w - 24) / 7));
+      max = Math.max(8, Math.floor((frame.w - 24) / 7));
     const words = label.split(" "),
       lines = [""];
     for (const word of words) {
@@ -175,10 +199,10 @@ export class LexiconObjectUtil extends BaseBoxShapeUtil<ObjectShape> {
       else lines[lines.length - 1] += `${lines.at(-1) ? " " : ""}${word}`;
     }
     return (
-      <g>
+      <g transform={`translate(${frame.x},${frame.y})`}>
         <rect
-          width={shape.props.w}
-          height={shape.props.h}
+          width={frame.w}
+          height={frame.h}
           rx={7}
           fill={paper}
           fillOpacity={shape.props.group ? 0.5 : 1}
@@ -189,18 +213,18 @@ export class LexiconObjectUtil extends BaseBoxShapeUtil<ObjectShape> {
           fill={ink}
           fontFamily="sans-serif"
           fontSize={14}
-          x={shape.props.group ? 14 : shape.props.w / 2}
+          x={shape.props.group ? 14 : frame.w / 2}
           y={
             shape.props.group
               ? 27
-              : Math.max(20, shape.props.h / 2 - (lines.length - 1) * 8)
+              : Math.max(20, frame.h / 2 - (lines.length - 1) * 8)
           }
           textAnchor={shape.props.group ? "start" : "middle"}
         >
           {lines.map((line, i) => (
             <tspan
               key={i}
-              x={shape.props.group ? 14 : shape.props.w / 2}
+              x={shape.props.group ? 14 : frame.w / 2}
               dy={i ? 17 : 0}
             >
               {line}
@@ -217,16 +241,25 @@ export class LexiconObjectUtil extends BaseBoxShapeUtil<ObjectShape> {
     // Keep hover feedback without drawing a second outline over selected cards.
     if (this.editor.getSelectedShapeIds().includes(shape.id)) return;
     const path = new Path2D();
-    path.roundRect(0, 0, shape.props.w, shape.props.h, 7);
+    if (isContext(shape) && canvasPresentation(this.editor).get().mapEnabled) {
+      for (const [i, p] of contextTerritory(this.editor, shape).points.entries())
+        if (i) path.lineTo(p.x, p.y); else path.moveTo(p.x, p.y);
+      path.closePath();
+      return path;
+    }
+    const frame = visibleObjectFrame(this.editor, shape);
+    path.roundRect(frame.x, frame.y, frame.w, frame.h, 7);
     return path;
   }
 }
 
 function ConnectionCard({ shape }: { shape: ConnectionShape }) {
-  const model = useContext(CanvasModel);
   const editor = useEditor();
+  const model = useCanvasPresentation(editor);
   const connection = model.connections.get(shape.props.graphId);
   const p = shape.props;
+  const road = useValue("Visible relationship route", () => roadInput(editor, shape), [editor, shape]);
+  const label = road || p;
   const marker = `arrow-${encodeURIComponent(shape.id)}`;
   const end = p.points.at(-1) || { x: 0, y: 0 };
   const before = p.points.at(-2) || end;
@@ -236,6 +269,7 @@ function ConnectionCard({ shape }: { shape: ConnectionShape }) {
   return (
     <svg
       className={`tl-svg-container canvas-connection ${connection?.kind === "mapping" ? "canvas-mapping" : ""} ${!model.matches(p.graphId) ? "canvas-dimmed" : ""}`}
+      data-atlas-road={model.mapEnabled && connection?.kind === "relationship" && isPrimary(shape) && choice(shape.meta.lexiconPath, paths, "road") !== "none" || undefined}
     >
       <path
         d={p.path}
@@ -253,15 +287,15 @@ function ConnectionCard({ shape }: { shape: ConnectionShape }) {
         transform={`translate(${end.x}, ${end.y}) rotate(${angle})`}
       />
       <foreignObject
-        x={p.labelX - p.labelWidth / 2}
-        y={p.labelY - 15}
+        x={label.labelX - p.labelWidth / 2}
+        y={label.labelY - 15}
         width={p.labelWidth}
         height={30}
       >
         <button
           className="canvas-connection-label"
           data-connection-id={p.graphId}
-          aria-label={`${connection?.summary ? "Read summary" : connection?.kind === "mapping" ? "Read code mapping" : "Read relationship"}: ${connection?.label || "Removed relationship"}`}
+          aria-label={`${connection?.kind === "mapping" ? "Read code mapping" : "Read relationship"}: ${connection?.label || "Removed relationship"}`}
           onClick={(event) => {
             if (event.detail === 0)
               editor.setCurrentTool("select").select(shape.id).focus();
@@ -317,20 +351,27 @@ export class LexiconConnectionUtil extends ShapeUtil<ConnectionShape> {
   }
   getGeometry(shape: ConnectionShape) {
     const p = shape.props;
-    return new Group2d({
+    const road = shapeRoad(this.editor, shape);
+    const geometry = new Group2d({
       children: [
-        new Polyline2d({
+        road ? new Polygon2d({ points: road.outline.map(p => new Vec(p.x, p.y)), isFilled: true }) : new Polyline2d({
           points: p.points.map((point) => new Vec(point.x, point.y)),
         }),
         new Rectangle2d({
-          x: p.labelX - p.labelWidth / 2,
-          y: p.labelY - 15,
+          x: (road || p).labelX - p.labelWidth / 2,
+          y: (road || p).labelY - 15,
           width: p.labelWidth,
           height: 30,
           isFilled: true,
         }),
       ],
     });
+    if (road) {
+      geometry.ignoreHit = point => roadCoveredAt(this.editor, shape, point);
+      const hitTestPoint = geometry.hitTestPoint.bind(geometry);
+      geometry.hitTestPoint = (...args) => !geometry.ignoreHit(args[0]) && hitTestPoint(...args);
+    }
+    return geometry;
   }
   override getText(shape: ConnectionShape) {
     return String(shape.meta.lexiconLabel || "Model relationship");
@@ -379,7 +420,8 @@ export class LexiconConnectionUtil extends ShapeUtil<ConnectionShape> {
     return <ConnectionCard shape={shape} />;
   }
   getIndicatorPath(shape: ConnectionShape) {
-    return new Path2D(shape.props.path);
+    const road = shapeRoad(this.editor, shape);
+    return new Path2D(road ? pathFor(road.outline, true) : shape.props.path);
   }
 }
 

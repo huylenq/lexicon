@@ -114,8 +114,8 @@ export default function CodePane({
           </h2>
           <p>
             {targetId
-              ? "This target is no longer linked in the model. Choose another code link from Browse or Graph."
-              : "Choose a code link in the reader or a code node in Graph. Your code location stays here as you explore the domain."}
+              ? "This target is no longer linked in the model. Choose another code link from Browse or Canvas."
+              : "Choose a code link in the reader or a code card in Canvas. Your code location stays here as you explore the domain."}
           </p>
         </div>
       ) : (
@@ -129,7 +129,7 @@ export default function CodePane({
           </nav>
           <div className="code-target-actions">
             <button className="quiet" onClick={onLocate}>
-              Locate code in graph
+              Locate code in canvas
             </button>
           </div>
           {mapping && (

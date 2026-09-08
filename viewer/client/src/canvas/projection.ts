@@ -18,7 +18,8 @@ import type {
 } from "../../../shared/canvas-schema";
 import { isModelShape, isPrimary, modelShapeId } from "./references";
 import { relationshipRoute } from "./routes";
-import { containMovement, contextPosition } from "./containment";
+import { objectFrame, objectSizes } from "./sizing";
+import { contextPreferences, diagramContextFrame, isContext } from "./contexts";
 
 /** Use exact orthogonal hit geometry for relationships; code mappings retain curves. */
 export function connectionGeometry(
@@ -103,7 +104,6 @@ export function createProjection(
     }
   };
   let vertices = new Map<string, GraphVertex>();
-  // Expanded bounds also constrain hidden children without moving them on collapse.
   let layout: Layout = {};
   let visible = new Set<string>();
   let focus: Set<string> | undefined;
@@ -121,6 +121,13 @@ export function createProjection(
     !visible.has(id) || (!!focus && !focus.has(id));
   const syncConnections = (changed?: Set<string>) => {
     const anchors = new Map<string, Box>();
+    const bounds = (id: string) => {
+      const shape = editor.getShape<ObjectShape>(modelShapeId(id));
+      if (!shape || shape.type !== "lexicon-object") return;
+      const frame = isContext(shape) ? diagramContextFrame(editor, shape) : objectFrame(editor, shape, vertices.get(id), false);
+      const point = editor.getShapePageTransform(shape).applyToPoint(frame);
+      return { ...point, width: frame.w, height: frame.h };
+    };
     for (const edge of connections) {
       if (changed && !changed.has(edge.id)) continue;
       if (edge.source.startsWith("anchor:")) {
@@ -139,9 +146,9 @@ export function createProjection(
           });
       }
       const a =
-        editor.getShapePageBounds(modelShapeId(edge.source)) ||
+        bounds(edge.source) ||
         anchors.get(edge.source);
-      const b = editor.getShapePageBounds(modelShapeId(edge.target));
+      const b = bounds(edge.target);
       if (!a || !b) continue;
       const lane = lanes.get(edge.id) || 0;
       const geometry = connectionGeometry(
@@ -165,7 +172,7 @@ export function createProjection(
       const meta = {
         lexiconHidden: hidden(edge.id),
         lexiconLabel: edge.label,
-        ...(edge.summary ? { lexiconTransient: true } : {}),
+        lexiconLane: edge.source < edge.target ? lane : -lane,
       };
       if (!shape)
         editor.createShape<ConnectionShape>({
@@ -181,7 +188,7 @@ export function createProjection(
         shape.x !== geometry.x ||
         shape.y !== geometry.y ||
         JSON.stringify(shape.props) !== JSON.stringify(props) ||
-        shape.meta.lexiconHidden !== meta.lexiconHidden
+        shape.meta.lexiconHidden !== meta.lexiconHidden || shape.meta.lexiconLane !== meta.lexiconLane
       )
         editor.updateShape<ConnectionShape>({
           id,
@@ -193,20 +200,9 @@ export function createProjection(
         });
     }
   };
-  const moved = new Map<TLShapeId, TLShape>();
-  const contextBounds = (shape: TLShape) => {
-    if (!isModelShape(shape) || !isPrimary(shape)) return;
-    const node = vertices.get(shape.props.graphId);
-    const parent =
-      node?.kind === "concept" && node.parentId
-        ? editor.getShape<ObjectShape>(modelShapeId(node.parentId))
-        : undefined;
-    if (!parent) return;
-    const expanded = parent.meta.lexiconExpanded as number[] | undefined;
-    return {
-      width: Number(expanded?.[0] || parent.props.w),
-      height: Number(expanded?.[1] || parent.props.h),
-    };
+  const queueContext = (shape: TLShape) => {
+    const parent = editor.getShape(shape.parentId);
+    if (parent && isContext(parent)) markConnections(parent.props.graphId);
   };
   const disposes = [
     editor.sideEffects.registerBeforeDeleteHandler("shape", (shape) => {
@@ -225,12 +221,14 @@ export function createProjection(
           return next;
         // A visual gesture cannot rename, rewire, or move a concept into a different context.
         let props = previous.props;
-        let meta = next.meta;
-        if (
+        if (isContext(previous) && next.type === "lexicon-object") {
+          // Only authored preferences live in the record. The visible polygon is
+          // derived from them and current children, including during undo/redo.
+          props = { ...previous.props, territory: next.props.territory };
+        } else if (
           previous.type === "lexicon-object" &&
           next.type === "lexicon-object" &&
-          previous.props.group &&
-          !previous.meta.lexiconCollapsed
+          previous.props.group
         ) {
           const children = editor
             .getSortedChildIdsForParent(previous.id)
@@ -249,12 +247,10 @@ export function createProjection(
             ...children.map((s) => s.y + s.props.h + 16),
           );
           props = { ...previous.props, w, h };
-          meta = { ...meta, lexiconExpanded: [w, h] };
         }
         return {
           ...next,
           props,
-          meta,
           rotation: previous.rotation,
           ...(isPrimary(previous) ? { parentId: previous.parentId } : {}),
           ...(previous.type === "lexicon-connection" && isPrimary(previous)
@@ -264,13 +260,9 @@ export function createProjection(
       },
     ),
     editor.sideEffects.registerAfterChangeHandler("shape", (previous, next) => {
-      if (
-        !writing &&
-        (previous.x !== next.x || previous.y !== next.y) &&
-        !moved.has(next.id)
-      )
-        moved.set(next.id, previous);
-      if (next.type !== "lexicon-object" || !isPrimary(next)) return;
+      if (next.type !== "lexicon-object") return;
+      if (!writing && (previous.x !== next.x || previous.y !== next.y || JSON.stringify(previous.props) !== JSON.stringify(next.props))) queueContext(next);
+      if (!isPrimary(next)) return;
       if (
         !writing &&
         (previous.x !== next.x ||
@@ -301,13 +293,9 @@ export function createProjection(
           });
       });
     }),
+    editor.sideEffects.registerAfterCreateHandler("shape", shape => { if (!writing && shape.type === "lexicon-object") queueContext(shape); }),
+    editor.sideEffects.registerAfterDeleteHandler("shape", shape => { if (!writing && shape.type === "lexicon-object") queueContext(shape); }),
     editor.sideEffects.registerOperationCompleteHandler(() => {
-      if (!writing && moved.size) {
-        const before = new Map(moved);
-        moved.clear();
-        // Corrections stay inside the SDK transaction, before rendering or saving.
-        containMovement(editor, before, contextBounds);
-      }
       if (!writing && dirty.size) {
         const changed = new Set(dirty);
         dirty.clear();
@@ -346,47 +334,31 @@ export function createProjection(
             !!editor.getShape(modelShapeId(e.id)),
         ),
       };
-      // React Flow and our model shapes use the same parent-relative layout coordinates.
+      const sizes = Object.fromEntries(full.nodes.filter(n => n.parentId).map(node => {
+        const { reserve } = objectSizes(editor, node.title, node.kind);
+        return [node.id, { width: reserve.w, height: reserve.h }];
+      }));
+      // Earlier placements and model shapes share parent-relative coordinates.
       // Seed only the first canvas projection; subsequent positions belong to the document.
       const saved: Positions = rearrange ? {} : { ...legacyPositions };
-      for (const node of full.nodes) {
-        if (node.kind === "concept" && saved[node.id]) {
-          saved[node.id] = {
-            x: Math.max(16, saved[node.id].x),
-            y: Math.max(60, saved[node.id].y),
-          };
-        }
-      }
       if (!rearrange)
         for (const node of full.nodes) {
           const existing = editor.getShape<ObjectShape>(modelShapeId(node.id));
           if (!existing) continue;
-          saved[node.id] = { x: existing.x, y: existing.y };
-          const parent =
-            node.parentId && editor.getShape(modelShapeId(node.parentId));
-          // Repair positions saved by the unconstrained prototype. A collapsed context
-          // has no usable interior; preserve its children until the full layout is known.
-          if (
-            node.kind === "concept" &&
-            parent &&
-            parent.type === "lexicon-object" &&
-            existing.parentId === parent.id &&
-            parent.props.h >= 60 + existing.props.h + 16 &&
-            parent.props.w >= existing.props.w + 32
-          )
-            saved[node.id] = contextPosition(existing, existing.props, {
-              width: parent.props.w,
-              height: parent.props.h,
-            });
+          const size = sizes[node.id];
+          saved[node.id] = {
+            x: existing.x + (size ? (existing.props.w - size.width) / 2 : 0),
+            y: existing.y + (size ? (existing.props.h - size.height) / 2 : 0),
+          };
         }
       const key = JSON.stringify([
-        full.nodes.map((n) => [n.id, n.parentId]),
+        full.nodes.map((n) => [n.id, n.parentId, sizes[n.id]]),
         full.connections.map((e) => [e.id, e.source, e.target]),
       ]);
       const arranged =
         !rearrange && key === layoutKey
           ? structuredClone(layout)
-          : await arrangeGraph(full, saved);
+          : await arrangeGraph(full, saved, sizes);
       if (token !== generation) return false;
       layout = arranged;
       layoutKey = key;
@@ -396,19 +368,17 @@ export function createProjection(
           if (!existing) continue;
           if (saved[node.id]) Object.assign(layout[node.id], saved[node.id]);
           if (existing.props.group) {
-            const size = existing.meta.lexiconExpanded as number[] | undefined;
             layout[node.id].width = Math.max(
               layout[node.id].width,
-              size?.[0] || existing.props.w,
+              existing.props.w,
             );
             layout[node.id].height = Math.max(
               layout[node.id].height,
-              size?.[1] || existing.props.h,
+              existing.props.h,
             );
           }
         }
       vertices = new Map(full.nodes.map((v) => [v.id, v]));
-      const projectedNodes = new Map(projected.nodes.map((v) => [v.id, v]));
       connections = [
         ...new Map(
           [...full.connections, ...projected.connections].map((c) => [c.id, c]),
@@ -453,31 +423,31 @@ export function createProjection(
           const id = modelShapeId(node.id),
             existing = editor.getShape<ObjectShape>(id);
           const box = layout[node.id];
-          const collapsed = projectedNodes.get(node.id)?.collapsed;
           const parentId = node.parentId ? modelShapeId(node.parentId) : pageId;
           const props = {
             graphId: node.id,
-            w: collapsed ? 260 : box.width,
-            h: collapsed ? 88 : box.height,
+            w: box.width,
+            h: box.height,
             group: node.kind === "context" || node.kind === "file",
           };
           const meta = {
             lexiconHidden: hidden(node.id),
             lexiconLabel: node.title,
-            ...(props.group
-              ? {
-                  lexiconExpanded: [box.width, box.height],
-                  lexiconCollapsed: !!collapsed,
-                }
-              : {}),
           };
           if (!existing && props.group) newGroups.push(id);
-          let position =
+          const position =
             !rearrange && existing?.parentId === parentId
               ? saved[node.id]
               : { x: box.x, y: box.y };
-          if (node.kind === "concept" && node.parentId)
-            position = contextPosition(position, props, layout[node.parentId]);
+          if (existing && !props.group && !rearrange && existing.parentId === parentId &&
+            (existing.props.w !== props.w || existing.props.h !== props.h)) {
+            // Fitting around a stable center must not drag attached notes when a name changes.
+            for (const binding of editor.getBindingsToShape(id, "lexicon-note"))
+              editor.updateBinding({ id: binding.id, type: binding.type, props: {
+                x: binding.props.x - (existing.props.w - props.w) / 2,
+                y: binding.props.y - (existing.props.h - props.h) / 2,
+              } });
+          }
           if (!existing)
             editor.createShape<ObjectShape>({
               id,
@@ -535,6 +505,12 @@ export function createProjection(
                 lexiconMissing: true,
               },
             });
+        }
+        for (const shape of editor.getCurrentPageShapes()) {
+          if (!isContext(shape)) continue;
+          const territory = rearrange ? null : contextPreferences(editor, shape);
+          if (territory !== shape.props.territory)
+            editor.updateShape<ObjectShape>({ id: shape.id, type: shape.type, props: { territory } });
         }
         syncConnections();
         if (newEdges.length) editor.sendToBack(newEdges);

@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="760" height="904" viewBox="0 0 760 904" role="img" aria-labelledby="title desc">
 <title id="title">Lexicon icon set</title>
-<desc id="desc">Thirty-two original icons on a 20-unit grid. Four model objects, five DDD classifications, annotations, and viewer controls. Each glyph is shown at 28 and 16 pixels. Reuse symbols by their IDs.</desc>
+<desc id="desc">Thirty-one original icons on a 20-unit grid. Four model objects, five DDD classifications, annotations, and viewer controls. Each glyph is shown at 28 and 16 pixels. Reuse symbols by their IDs.</desc>
 <defs>
 <symbol id="context" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="3.5" width="15" height="13" rx="3" stroke-dasharray="2 2.5"/><circle cx="7" cy="10" r="1.5"/><circle cx="13" cy="10" r="1.5"/><path d="M8.5 10h3"/></g></symbol>
 <symbol id="concept" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="6.5"/><circle cx="10" cy="10" r="1.5" fill="currentColor" stroke="none"/></g></symbol>
@@ -32,7 +32,6 @@
 <symbol id="more" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="4" cy="10" r="1" fill="currentColor" stroke="none"/><circle cx="10" cy="10" r="1" fill="currentColor" stroke="none"/><circle cx="16" cy="10" r="1" fill="currentColor" stroke="none"/></g></symbol>
 <symbol id="fit" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3H3v4m10-4h4v4M3 13v4h4m10-4v4h-4"/></g></symbol>
 <symbol id="locate" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="5.5"/><circle cx="10" cy="10" r="1.5"/><path d="M10 1v3m0 12v3M1 10h3m12 0h3"/></g></symbol>
-<symbol id="panel-graph" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="3.5" width="15" height="13" rx="2"/><path d="M10 3.5v13M4.5 7l3 3-3 3"/><circle cx="4.5" cy="7" r=".6"/><circle cx="7.5" cy="10" r=".6"/><circle cx="4.5" cy="13" r=".6"/></g></symbol>
 <symbol id="panel-right" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="3.5" width="15" height="13" rx="2"/><path d="M12.5 3.5v13"/><path d="M14.5 6h1m-1 4h1m-1 4h1"/></g></symbol>
 </defs>
 <rect width="760" height="904" rx="12" fill="#fff"/>
@@ -72,7 +71,6 @@
 <g transform="translate(320 712)"><use href="#more" width="28" height="28"/><use href="#more" x="40" y="6" width="16" height="16"/><text y="49" font-size="12">More</text></g>
 <g transform="translate(464 712)"><use href="#fit" width="28" height="28"/><use href="#fit" x="40" y="6" width="16" height="16"/><text y="49" font-size="12">Fit</text></g>
 <g transform="translate(608 712)"><use href="#locate" width="28" height="28"/><use href="#locate" x="40" y="6" width="16" height="16"/><text y="49" font-size="12">Locate</text></g>
-<g transform="translate(32 796)"><use href="#panel-graph" width="28" height="28"/><use href="#panel-graph" x="40" y="6" width="16" height="16"/><text y="49" font-size="12">Graph pane</text></g>
-<g transform="translate(176 796)"><use href="#panel-right" width="28" height="28"/><use href="#panel-right" x="40" y="6" width="16" height="16"/><text y="49" font-size="12">Right pane</text></g>
+<g transform="translate(32 796)"><use href="#panel-right" width="28" height="28"/><use href="#panel-right" x="40" y="6" width="16" height="16"/><text y="49" font-size="12">Right pane</text></g>
 </g>
 </svg>

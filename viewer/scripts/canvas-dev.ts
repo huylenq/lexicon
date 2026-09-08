@@ -12,7 +12,7 @@ const processes = [
 const stop = () => processes.forEach((process) => process.kill());
 process.on("SIGINT", stop);
 process.on("SIGTERM", stop);
-console.log(`Canvas workshop: http://127.0.0.1:${clientPort}/p/canvas-workshop?canvas=tldraw`);
+console.log(`Canvas workshop: http://127.0.0.1:${clientPort}/p/canvas-workshop`);
 const exitCode = await Promise.race(processes.map((process) => process.exited));
 stop();
 process.exit(exitCode);

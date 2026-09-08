@@ -13,7 +13,7 @@ afterEach(async () => { await Promise.all(roots.splice(0).map((path) => rm(path,
 function canvas(): CanvasDocument {
   const page = canvasSchema.types.page.create({ id: "page:page" as any, name: "Page 1", index: "a1" as any });
   const shape = canvasSchema.types.shape.create({ id: "shape:one" as any, type: "lexicon-object", parentId: page.id, index: "a1" as any,
-    props: { graphId: "item:thing", w: 190, h: 70, group: false } });
+    props: { graphId: "item:thing", w: 190, h: 70, group: false, territory: null } });
   return { format: "lexicon-canvas", version: 2, id: "test-canvas", modelId: "test", snapshot: { schema: canvasSchema.serialize(), store: { [page.id]: page, [shape.id]: shape } } };
 }
 function shift(document: CanvasDocument, x: number, id = "shape:one") {
@@ -79,6 +79,47 @@ test("the shared schema migrates old custom props and rejects wrong models, inva
   expect(() => validateCanvas(invalid, "test")).toThrow("Invalid canvas record");
   const dangling = canvas(); (dangling.snapshot.store as any)["binding:note"] = { id: "binding:note", typeName: "binding", type: "lexicon-note", fromId: "shape:one", toId: "shape:absent", props: { x: 0, y: 0 }, meta: {} };
   expect(() => validateCanvas(dangling, "test")).toThrow("missing endpoint");
+});
+
+test("saved polygons migrate intact into preferences without changing node positions", () => {
+  const old = canvas();
+  (old.snapshot.schema as { sequences: Record<string, number> }).sequences["com.tldraw.shape.lexicon-object"] = 2;
+  const shape = old.snapshot.store["shape:one" as any] as any;
+  const territory = { points: [{ x: -30, y: -40 }, { x: 320, y: 0 }, { x: 280, y: 250 }, { x: -10, y: 200 }], label: { x: 10, y: 10 } };
+  shape.x = 45; shape.y = -120; shape.props.territory = territory;
+  const migrated = validateCanvas(old, "test").snapshot.store["shape:one" as any] as any;
+  expect(migrated.props.territory).toEqual({ edits: [], legacy: territory });
+  expect({ x: migrated.x, y: migrated.y }).toEqual({ x: shape.x, y: shape.y });
+  const current = canvas(), record = current.snapshot.store["shape:one" as any] as any;
+  record.props.territory = { edits: [{ id: "bay", add: [], cut: [[territory.points]] }], legacy: null };
+  expect(validateCanvas(current, "test").snapshot.store["shape:one" as any]).toEqual(record);
+});
+
+test("territory regions accept empty edits and open or closed rings, and reject malformed rings before saving", async () => {
+  const ring = [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 0, y: 100 }];
+  const hole = [{ x: 10, y: 10 }, { x: 20, y: 10 }, { x: 10, y: 20 }];
+  const edited = (region: unknown, side = "add") => {
+    const document = canvas();
+    (document.snapshot.store["shape:one" as any] as any).props.territory = {
+      edits: [{ id: "border", add: [], cut: [], [side]: region }], legacy: null,
+    };
+    return document;
+  };
+  for (const region of [[], [[ring]], [[[...ring, ring[0]]]], [[ring, hole]]])
+    expect(() => validateCanvas(edited(region), "test")).not.toThrow();
+  const invalid = [
+    [[]], [[[]]], [[[ring[0]]]], [[[ring[0], ring[1]]]],
+    [[[ring[0], ring[1], { x: 200, y: 0 }]]], [[ring, []]],
+    [[[{ x: NaN, y: 0 }, ...ring]]], [[[{ x: 0, y: Infinity }, ...ring]]],
+  ];
+  for (const region of invalid) for (const side of ["add", "cut"])
+    expect(() => validateCanvas(edited(region, side), "test")).toThrow("Invalid canvas record");
+  const path = await root(), initial = await readCanvas(path, "test");
+  const saved = await saveCanvas(path, "test", initial.revision, canvas());
+  const file = join(path, "lexicon/canvas.json"), before = await readFile(file, "utf8");
+  await expect(saveCanvas(path, "test", saved.revision, edited([[[]]]))).rejects.toThrow("Invalid canvas record");
+  expect(await readFile(file, "utf8")).toBe(before);
+  expect((await readCanvas(path, "test")).revision).toBe(saved.revision);
 });
 
 test("media is content addressed, portable, repairable, and confined to the artifact root", async () => {

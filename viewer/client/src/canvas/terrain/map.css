@@ -1,0 +1,47 @@
+.canvas-pane[data-map="true"] {
+  --map-ground: #f7f3e8; --map-ink: #6c6658; --map-roof: #dbd2bd;
+  --map-leaves: #d6dccb; --map-water: #d9e5e6; --map-field: #d1c7ad;
+  --map-shadow: #706c5b; --map-road: #e5d8bb;
+}
+[data-theme="dark"] .canvas-pane[data-map="true"] {
+  --map-ground: #20241f; --map-ink: #8e9485; --map-roof: #41453a;
+  --map-leaves: #303e31; --map-water: #203740; --map-field: #454b39;
+  --map-shadow: #090d0b; --map-road: #383c31;
+}
+.canvas-pane[data-map="true"] .tl-background { background: var(--map-ground); }
+.canvas-map { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: hidden; }
+.map-drawing { fill: none; stroke: var(--map-ink); stroke-width: 1.1; stroke-linecap: round; stroke-linejoin: round; }
+.map-district { fill: var(--map-ground); stroke-opacity: .35; stroke-width: 1.4; }
+.map-district-woodland { fill: var(--map-leaves); fill-opacity: .25; }
+.map-water-outer { fill: none; stroke: var(--map-water); stroke-width: 58; opacity: .45; }
+.map-water { fill: var(--map-water); stroke: var(--map-water); stroke-width: 36; }
+.map-ground, .map-stone { fill: var(--map-ground); }
+.map-roof { fill: var(--map-roof); }
+.map-leaves { fill: var(--map-leaves); stroke-opacity: .7; }
+.map-shadow { fill: var(--map-shadow); fill-opacity: .16; stroke: none; }
+.map-field { stroke: var(--map-field); stroke-width: 1; }
+.map-hatch-line { stroke-opacity: .5; stroke-width: .7; fill: none; }
+.map-doorstep { fill: var(--map-road); stroke-opacity: .35; }
+.map-banner { fill: var(--map-roof); }
+.map-road-ground { fill: var(--map-road); stroke: none; }
+.map-road-bank { fill: none; stroke: var(--map-ink); stroke-opacity: .55; stroke-width: .9; }
+.map-road-bank.map-trail { stroke-opacity: .35; stroke-dasharray: 7 4 2 6; }
+.map-road-rut { fill: none; stroke: var(--map-ink); stroke-opacity: .18; stroke-width: .7; stroke-dasharray: 12 9 3 13; }
+.map-road-grain { fill: none; stroke: var(--map-ink); stroke-opacity: .3; stroke-width: 1; }
+.map-road-direction { fill: none; stroke: var(--map-ink); stroke-width: 1.2; }
+.canvas-connection[data-atlas-road="true"] > path { visibility: hidden; }
+.canvas-connection[data-atlas-road="true"] .canvas-connection-label { background: transparent; border-color: transparent; border-radius: 2px; color: var(--map-ink); font-style: italic; text-shadow: -2px 0 var(--map-ground), 2px 0 var(--map-ground), 0 -2px var(--map-ground), 0 2px var(--map-ground); }
+.map-bridge { fill: var(--map-roof); }
+.canvas-pane[data-map="true"] .canvas-object.canvas-group { background: transparent; border-color: color-mix(in srgb, var(--map-ink) 18%, transparent); }
+.canvas-pane[data-map="true"] .canvas-object[data-context-boundary="territory"] { border-color: transparent; }
+.canvas-pane[data-map="true"] .canvas-group .canvas-object-heading { background: color-mix(in srgb, var(--map-ground) 90%, transparent); border-radius: 7px 7px 0 0; }
+.canvas-pane[data-map="true"] .canvas-object[data-map-building="true"] { background: transparent; border-color: transparent; }
+.canvas-pane[data-map="true"] .canvas-object[data-map-building="true"] .canvas-object-heading { align-items: flex-end; padding: 0 5px 5px; }
+.canvas-pane[data-map="true"] .canvas-object[data-map-building="true"] .canvas-object-title { background: color-mix(in srgb, var(--map-ground) 95%, transparent); border-radius: 4px; padding: 0; }
+.canvas-pane[data-map="true"] .canvas-object[data-map-building="true"] .object-name { font-size: 12px; }
+.map-style-panel { display: flex; flex-direction: column; gap: 6px; padding: 12px; width: 200px; font: 12px system-ui, sans-serif; }
+.map-style-panel label { display: flex; flex-direction: column; gap: 6px; }
+.map-style-panel select { width: 100%; padding: 6px; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 4px; font: inherit; }
+.map-style-panel small { font-size: 10px; color: var(--muted); }
+.map-style-panel button { padding: 6px; border: 1px solid var(--line); border-radius: 4px; background: var(--paper); color: var(--ink); font: inherit; cursor: pointer; }
+.map-style-panel button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }

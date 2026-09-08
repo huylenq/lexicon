@@ -8,14 +8,14 @@ import {
   type TLShape,
   type TLShapeId,
 } from "tldraw";
-import type { GraphPaneProps } from "../GraphPane";
+import type { CanvasPaneProps } from "./types";
 import type { Annotation } from "../../../shared/model";
 import type { CanvasModelCommand } from "../../../shared/canvas";
 import { canvasApi } from "./api";
 import { exportCanvasSelection } from "./files";
 import { isModelShape, modelShapeId } from "./references";
 import { indexModel, projectGraph } from "../graph/model";
-import { GraphButton } from "../GraphToolbar";
+import { CanvasButton } from "./CanvasToolbar";
 
 export const noteText = (editor: Editor, shape: TLShape) =>
   shape.type === "note" || shape.type === "text"
@@ -28,7 +28,7 @@ export function CanvasInspector({
   toolbarHost,
 }: {
   editor: Editor;
-  props: GraphPaneProps;
+  props: CanvasPaneProps;
   toolbarHost: HTMLSpanElement | null;
 }) {
   const [params, setParams] = useSearchParams();
@@ -209,7 +209,7 @@ export function CanvasInspector({
       {toolbarHost &&
         createPortal(
           <>
-            <GraphButton
+            <CanvasButton
               icon="annotation"
               label={`Notes (${annotations.length})`}
               title="Search canvas notes"
@@ -219,7 +219,7 @@ export function CanvasInspector({
                 setActionsOpen(false);
               }}
             />
-            <GraphButton
+            <CanvasButton
               icon="more"
               label="Selection actions"
               aria-expanded={actionsOpen}

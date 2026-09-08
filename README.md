@@ -23,7 +23,7 @@ For development, run `mise run viewer` from this repository, then open **http://
 
 The reader provides context browsing, search across meaning and code symbols, incoming and outgoing relationships with separate links for each endpoint and relationship, and a source pane with declaration highlighting. Browser addresses preserve the selected item and code link. Refresh reads the current files.
 
-Projects open in **Canvas**, with concepts grouped by context alongside notes, drawings, and media. Expand code into shared target nodes, collapse contexts, or focus on a neighborhood; selections update the reader. The [viewer guide](viewer/README.md#canvas) covers navigation and saved layouts. The earlier Graph remains available from the header.
+Projects open in **Canvas**, with concepts grouped by context alongside notes, drawings, and media. Expand code into shared target nodes or focus on a neighborhood; selections update the reader. The [viewer guide](viewer/README.md#canvas) covers navigation and saved layouts. The **Diagram / Atlas** toggle changes the presentation within this same tldraw canvas.
 
 ## Model a project
 
