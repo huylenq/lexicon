@@ -312,6 +312,7 @@ test("a partly scrolled card retains its sticky header until its whole body pass
   await expect.poll(async () => Math.abs((await first.locator(":scope > header").boundingBox())!.y - (await page.locator("main").boundingBox())!.y)).toBeLessThan(2);
   await first.evaluate(el => { el.closest("main")!.scrollTop = (el as HTMLElement).offsetTop + (el as HTMLElement).offsetHeight + 1; });
   await expect(page.locator('[data-collapsed-card="item:selected-tooth"]')).toBeVisible();
+  await expect(page.locator(".reader-sticky-list").first()).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
   await page.locator("main").evaluate(el => { el.scrollTop = 180; });
   await expect(page.locator('[data-collapsed-card="item:selected-tooth"]')).toHaveCount(0);
 });

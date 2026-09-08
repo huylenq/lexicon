@@ -98,7 +98,8 @@
 .reader-morph .reader-card-title h1 { font-size: calc(14px - 2px * var(--morph-progress)) !important; }
 .reader-morph .type-icon .icon { width: calc(18px - 4px * var(--morph-progress)); height: calc(18px - 4px * var(--morph-progress)); }
 .reader-morph .icon-button { width: calc(30px - 6px * var(--morph-progress)); min-width: 0; height: calc(30px - 6px * var(--morph-progress)); padding: 3px; }
-.reader-sticky-list { position: relative; display: flex; flex-direction: column; gap: 8px; padding: 3px 3px 12px; background: var(--paper); }
+/* Collapsed cards float directly over the canvas; only the cards get a surface. */
+.reader-sticky-list { position: relative; display: flex; flex-direction: column; gap: 8px; padding: 3px 3px 12px; background: transparent; }
 .reader-sticky-list:empty { display: none; }
 .reader-collapsed-card .reader-card-header { min-height: 34px; padding: 2px 8px; border-bottom: 0; }
 .reader-collapsed-card .reader-card-title h1 { font-size: 12px !important; }
