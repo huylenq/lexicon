@@ -17,7 +17,9 @@ export interface AcpAgentConfig {
   executable: string;
   args: string[];
   // Local-credential auth method advertised by the agent; hermes pins its
-  // configured provider credentials, pi and omp reuse their cached state.
+  // configured provider credentials, pi and omp reuse their cached state. A
+  // non-matching authMethods list falls back to the agent's first advertised
+  // method so authenticate is never sent with an unadvertised id.
   authMethodId: string;
   // "config-option" selects the model config option; hermes instead implements
   // the session/set_model request that the ACP spec marks unstable.
@@ -54,7 +56,14 @@ export function createAcpAdapter(config: AcpAgentConfig): ProviderAdapter {
           terminal: false,
         },
       });
-      await rpc.request("authenticate", { methodId: config.authMethodId });
+      // Prefer the pinned method when the agent advertises it; otherwise use
+      // its first advertised method. Agents advertising nothing keep the pin.
+      const methods: Wire[] = initialized.authMethods || [];
+      await rpc.request("authenticate", {
+        methodId: methods.some((m: Wire) => m.id === config.authMethodId)
+          ? config.authMethodId
+          : methods[0]?.id || config.authMethodId,
+      });
       return { rpc, initialized };
     } catch (error) {
       rpc.stop();
@@ -92,15 +101,28 @@ export function createAcpAdapter(config: AcpAgentConfig): ProviderAdapter {
           name: m.name || m.modelId,
           description: m.description,
         }));
+        // Reasoning effort rides the session "thought_level" config option
+        // where the agent advertises one; attach its choices to every model
+        // so the picker can offer them.
+        const thought = (session.configOptions || []).find(
+          (candidate: Wire) => candidate.id === "thought_level",
+        );
+        const choices = models.length
+          ? models
+          : (option?.options || []).map((o: Wire) => ({
+              id: o.value,
+              name: o.name || o.value,
+              description: o.description,
+            }));
         return {
           defaultModel: catalog.currentModelId || option?.currentValue,
-          models: models.length
-            ? models
-            : (option?.options || []).map((o: Wire) => ({
-                id: o.value,
-                name: o.name || o.value,
-                description: o.description,
-              })),
+          models: thought
+            ? choices.map((choice: Wire) => ({
+                ...choice,
+                efforts: thought.options.map((o: Wire) => o.value),
+                defaultEffort: thought.currentValue,
+              }))
+            : choices,
         };
       } finally {
         await rpc.close();
