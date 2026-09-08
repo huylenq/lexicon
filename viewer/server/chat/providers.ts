@@ -631,7 +631,9 @@ export async function probeProviders(): Promise<ProviderStatus[]> {
           id,
           installed: true,
           authenticated: null,
-          detail: /spawn .* ENOENT/i.test(message)
+          detail: /spawn .* ENOENT|Executable not found in \$?PATH/i.test(
+            message,
+          )
             ? `Install ${id} and its ACP entry point, then sign in locally`
             : message,
         };

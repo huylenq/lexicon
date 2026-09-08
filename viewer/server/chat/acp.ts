@@ -116,13 +116,14 @@ export function createAcpAdapter(config: AcpAgentConfig): ProviderAdapter {
             }));
         return {
           defaultModel: catalog.currentModelId || option?.currentValue,
-          models: thought
-            ? choices.map((choice: Wire) => ({
-                ...choice,
-                efforts: thought.options.map((o: Wire) => o.value),
-                defaultEffort: thought.currentValue,
-              }))
-            : choices,
+          models:
+            thought && config.effortSetting !== "none"
+              ? choices.map((choice: Wire) => ({
+                  ...choice,
+                  efforts: thought.options.map((o: Wire) => o.value),
+                  defaultEffort: thought.currentValue,
+                }))
+              : choices,
         };
       } finally {
         await rpc.close();
