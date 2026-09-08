@@ -44,7 +44,7 @@ test("object type tooltips work with hover, keyboard, and a zoomed graph", async
   await expect(page.getByRole("tooltip")).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("tooltip")).toBeHidden();
-  await expect(page.locator("main h1")).toHaveText("Selected tooth");
+  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Selected tooth");
   await page.mouse.move(0, 0);
   await page.keyboard.press("Tab");
   await tooth.focus();
@@ -88,7 +88,7 @@ test("domain selection, context collapse, code expansion, focus, and history", a
     .locator(".object-name-text")
     .boundingBox();
   await selectedTooth.click();
-  await expect(page.locator("main h1")).toHaveText("Selected tooth");
+  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Selected tooth");
   const labelAfterSelection = await selectedTooth
     .locator(".object-name-text")
     .boundingBox();
@@ -104,13 +104,13 @@ test("domain selection, context collapse, code expansion, focus, and history", a
   await page
     .getByRole("button", { name: "Read relationship: selects", exact: true })
     .click();
-  await expect(page.locator("main h1")).toHaveText(
+  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText(
     "Selected tooth selects Tooth input",
   );
   await page.goBack();
-  await expect(page.locator("main h1")).toHaveText("Selected tooth");
+  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Selected tooth");
   await page.goForward();
-  await expect(page.locator("main h1")).toHaveText(
+  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText(
     "Selected tooth selects Tooth input",
   );
   await graphAction(page, "Focus");
@@ -179,7 +179,7 @@ test("shared code nodes, mapping readers, Browse toggling, search, and resizing"
     page.getByRole("complementary", { name: "Code workspace" }),
   ).toBeVisible();
   const oldWidth = await page
-    .locator(".graph-slot")
+    .locator("main")
     .evaluate((el) => el.getBoundingClientRect().width);
   await page
     .getByRole("separator", { name: "Resize graph and reader" })
@@ -187,9 +187,9 @@ test("shared code nodes, mapping readers, Browse toggling, search, and resizing"
   await page.keyboard.press("ArrowRight");
   expect(
     await page
-      .locator(".graph-slot")
+      .locator("main")
       .evaluate((el) => el.getBoundingClientRect().width),
-  ).toBeGreaterThan(oldWidth);
+  ).toBeLessThan(oldWidth);
   await page
     .getByRole("button", { name: "Toggle navigation", exact: true })
     .click();
@@ -210,15 +210,15 @@ test("shared code nodes, mapping readers, Browse toggling, search, and resizing"
     .locator(".sidebar .nav-item")
     .filter({ hasText: "Reference point" })
     .click();
-  await expect(page.locator("main h1")).toHaveText("Reference point");
+  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Reference point");
   await page
-    .getByRole("button", { name: "Locate in graph", exact: true })
+    .locator(".reader-card.active").getByRole("button", { name: "Locate in graph", exact: true })
     .click();
   await expect(
     page.getByRole("button", { name: "concept: Reference point", exact: true }),
   ).toBeInViewport();
   await expect(page.getByRole("region", { name: "Domain graph" })).toBeVisible();
-  await expect(page.locator("main h1")).toHaveText("Reference point");
+  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Reference point");
 });
 
 test("manual group placement and keyboard selection survive reload; reset restores the overview", async ({
@@ -231,7 +231,7 @@ test("manual group placement and keyboard selection survive reload; reset restor
   });
   await node.focus();
   await page.keyboard.press("Enter");
-  await expect(page.locator("main h1")).toHaveText("Selected tooth");
+  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Selected tooth");
   const initial = await positions(page);
   const heading = page.locator(
     '[data-id="item:selection"] .graph-group-heading',
@@ -265,10 +265,10 @@ test("narrow screens and dark theme retain graph state and show readable code er
   await page
     .getByRole("button", { name: "concept: Selected tooth", exact: true })
     .click();
-  await expect(page.locator("main h1")).toHaveText("Selected tooth");
+  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Selected tooth");
   await expect(page.locator(".graph-slot")).toBeHidden();
   await page
-    .getByRole("button", { name: "Back to graph", exact: true })
+    .getByRole("button", { name: "Toggle reader", exact: true })
     .click();
   await expect(page.locator(".graph-slot")).toBeVisible();
   await page.getByRole("button", { name: "Use dark theme" }).click();
@@ -334,7 +334,7 @@ test("a registered model with parallel edges, self-links, stale links, and inval
     await page
       .getByRole("button", { name: "Read relationship: itself", exact: true })
       .click();
-    await expect(page.locator("main h1")).toHaveText("Alpha itself Alpha");
+    await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Alpha itself Alpha");
   } finally {
     if (id) await request.delete(`/api/projects/${id}`);
     await rm(root, { recursive: true, force: true });
@@ -449,7 +449,7 @@ test("left drag selects while right drag, wheel, and Space navigate the canvas",
     exact: true,
   });
   await selectedTooth.click();
-  await expect(page.locator("main h1")).toHaveText("Selected tooth");
+  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Selected tooth");
   await toothInput.click({ modifiers: ["Meta"] });
   await expect(selectedTooth).toHaveClass(/selected/);
   await expect(toothInput).toHaveClass(/selected/);
@@ -623,7 +623,7 @@ test("selection and focus controls do not move the graph canvas", async ({
   expect(await canvasTop()).toBe(initialTop);
 
   await page.locator(".reader-workspace").evaluate((element) =>
-    (element as HTMLElement).style.setProperty("--graph-width", "25%"),
+    (element as HTMLElement).style.setProperty("--reader-width", "75%"),
   );
   const narrowTop = await canvasTop();
   await page

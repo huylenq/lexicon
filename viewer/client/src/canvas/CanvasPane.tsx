@@ -188,35 +188,36 @@ export default function CanvasPane(props: GraphPaneProps) {
     selectedShapes.length === 1 && isModelShape(selectedShapes[0])
       ? selectedShapes[0]
       : undefined;
+  const fitBounds = (box: Box) => {
+    if (!editor) return;
+    const screen = editor.getViewportScreenBounds();
+    const shelf = document
+      .getElementById("browse-pane")
+      ?.getBoundingClientRect();
+    const left =
+      workspace.sidebar && window.innerWidth > 1000 && shelf
+        ? Math.max(0, shelf.right - screen.x + 20)
+        : 20;
+    const overlay = document.getElementById("main-content");
+    const right = window.innerWidth > 1000 && overlay?.getClientRects().length
+      ? Math.max(30, screen.x + screen.w - overlay.getBoundingClientRect().left + 20) : 30;
+    const width = Math.max(150, screen.w - left - right),
+      height = Math.max(150, screen.h - 160);
+    const zoom = Math.min(
+      1,
+      width / Math.max(1, box.w),
+      height / Math.max(1, box.h),
+    );
+    editor.setCamera({
+      x: -box.center.x + (left + width / 2) / zoom,
+      y: -box.center.y + (screen.h / 2 - 25) / zoom,
+      z: zoom,
+    });
+  };
   const fit = () => {
     if (!editor || !projection.current) return;
-    const bounds = projection.current
-      .visibleIds()
-      .map((id) => editor.getShapePageBounds(id))
-      .filter((box): box is Box => !!box);
-    if (bounds.length) {
-      const box = Box.Common(bounds),
-        screen = editor.getViewportScreenBounds();
-      const shelf = document
-        .getElementById("browse-pane")
-        ?.getBoundingClientRect();
-      const left =
-        workspace.sidebar && window.innerWidth > 1000 && shelf
-          ? Math.max(0, shelf.right - screen.x + 20)
-          : 20;
-      const width = Math.max(150, screen.w - left - 30),
-        height = Math.max(150, screen.h - 160);
-      const zoom = Math.min(
-        1,
-        width / Math.max(1, box.w),
-        height / Math.max(1, box.h),
-      );
-      editor.setCamera({
-        x: -box.center.x + (left + width / 2) / zoom,
-        y: -box.center.y + (screen.h / 2 - 25) / zoom,
-        z: zoom,
-      });
-    }
+    const bounds = projection.current.visibleIds().map(id => editor.getShapePageBounds(id)).filter((box): box is Box => !!box);
+    if (bounds.length) fitBounds(Box.Common(bounds));
   };
   const reveal = (chosen: GraphSelection) => {
     const records = selectionRecords(index, chosen);
@@ -367,7 +368,7 @@ export default function CanvasPane(props: GraphPaneProps) {
           const id = findSelection(chosen),
             bounds = id && editor.getShapePageBounds(id);
           if (bounds)
-            editor.zoomToBounds(bounds, { inset: 100, targetZoom: 1 });
+            fitBounds(bounds);
         }
       })
       .catch((e) => {
@@ -437,11 +438,7 @@ export default function CanvasPane(props: GraphPaneProps) {
       editor.setCurrentTool("select").select(id);
     });
     const noteBounds = editor.getShapePageBounds(id);
-    if (noteBounds)
-      editor.zoomToBounds(noteBounds, {
-        inset: 100,
-        targetZoom: Math.max(0.65, editor.getZoomLevel()),
-      });
+    if (noteBounds) fitBounds(noteBounds);
     editor.setEditingShape(id);
   };
   const exportCanvas = async () => {
@@ -788,6 +785,7 @@ export default function CanvasPane(props: GraphPaneProps) {
               editor={editor}
               props={props}
               toolbarHost={inspectorHost}
+              onLocateBounds={fitBounds}
             />
           )}
           <CanvasModel.Provider

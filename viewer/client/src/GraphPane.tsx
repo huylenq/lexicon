@@ -266,10 +266,12 @@ function GraphCanvas({
 }: Props) {
   // Keep fitted nodes clear of the shelf, while panning uses the whole canvas.
   const fitPadding = () => {
-    if (!workspace.sidebar || window.matchMedia("(max-width: 1000px)").matches) return 0.18;
+    if (window.matchMedia("(max-width: 1000px)").matches) return 0.18;
     const reader = document.getElementById("browse-pane")?.parentElement;
-    const shelfSpace = reader ? parseFloat(getComputedStyle(reader).getPropertyValue("--browse-space")) : 252;
-    return { left: `${shelfSpace + 24}px` as const, right: "24px" as const, y: 0.18 };
+    const shelfSpace = workspace.sidebar && reader ? parseFloat(getComputedStyle(reader).getPropertyValue("--browse-space")) || 252 : 0;
+    const overlay = document.getElementById("main-content");
+    const right = overlay?.getClientRects().length ? overlay.getBoundingClientRect().width + 36 : 24;
+    return { left: `${shelfSpace + 24}px` as const, right: `${right}px` as const, y: 0.18 };
   };
   const index = useMemo(() => indexModel(model), [model]);
   const projection = useMemo(

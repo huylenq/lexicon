@@ -43,9 +43,9 @@ test("reader history branches correctly and pane close buttons preserve navigati
   await page.getByRole("button", { name: "Concept · entity Selected tooth", exact: true }).click();
   await page.getByRole("button", { name: "Concept · value Tooth input", exact: true }).click();
   await back.click();
-  await expect(page.locator("main h1")).toHaveText("Selected tooth");
+  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Selected tooth");
   await forward.click();
-  await expect(page.locator("main h1")).toHaveText("Tooth input");
+  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Tooth input");
   await back.click();
   await page.getByRole("button", { name: "Concept · aggregate Canal measurement", exact: true }).click();
   await expect(forward).toBeDisabled();
@@ -63,7 +63,7 @@ test("reader history branches correctly and pane close buttons preserve navigati
   await page.getByRole("button", { name: "Collapse context Tooth selection" }).click();
   await page.reload();
   await expect(graph).toBeVisible();
-  await expect(page.locator("main h1")).toHaveText("Canal measurement");
+  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Canal measurement");
   await expect(page.getByRole("button", { name: "Expand context Tooth selection" })).toBeVisible();
 
   await page.getByRole("button", { name: "Toggle code workspace" }).click();
@@ -73,7 +73,7 @@ test("reader history branches correctly and pane close buttons preserve navigati
   await expect(browse).toHaveAttribute("aria-pressed", "true");
 });
 
-test("compact reader returns to the permanent graph without a toggle", async ({ page }) => {
+test("compact reader returns to the permanent graph using the header reader toggle", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/p/dentalml?canvas=graph");
   const browse = page.getByRole("button", { name: "Toggle navigation", exact: true });
@@ -84,12 +84,12 @@ test("compact reader returns to the permanent graph without a toggle", async ({ 
   await browse.click();
   await page.getByRole("button", { name: "Concept · entity Selected tooth", exact: true }).click();
   await expect(browse).toHaveAttribute("aria-pressed", "false");
-  await expect(page.locator("main h1")).toHaveText("Selected tooth");
-  await page.getByRole("button", { name: "Back to graph", exact: true }).click();
+  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Selected tooth");
+  await page.getByRole("button", { name: "Toggle reader", exact: true }).click();
   await expect(graph).toBeVisible();
   await page.getByRole("button", { name: "concept: Selected tooth", exact: true }).click();
-  await expect(page.locator("main h1")).toHaveText("Selected tooth");
-  await page.getByRole("button", { name: "Back to graph", exact: true }).click();
+  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Selected tooth");
+  await page.getByRole("button", { name: "Toggle reader", exact: true }).click();
   await expect(graph).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
@@ -186,7 +186,7 @@ test("one shared status bar follows graph counts and keeps Agent reachable acros
   await expect(bar.locator(".graph-count")).toBeVisible();
   await expect(agent).toBeVisible();
   await page.goto("/p/dentalml?item=selected-tooth&canvas=graph");
-  await expect(page.locator("main h1")).toHaveText("Selected tooth");
+  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Selected tooth");
   await expect(bar).toBeVisible();
   await page.getByRole("button", { name: "Toggle code workspace" }).click();
   await expect(bar).toBeVisible();

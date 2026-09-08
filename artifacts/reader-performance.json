@@ -1,0 +1,158 @@
+{
+  "scenario": "Production Chromium, Graph-backed DentalML reader, 1600x900, 4x CPU throttling; three six-second down-and-back RAF scroll sweeps plus 500ms settling per stack size.",
+  "limits": "Synthetic scroll benchmark on this machine; frame intervals are animation callback cadence, not compositor presentation timings. Do not treat these results as portable thresholds. No baseline Canvas measurement was collected.",
+  "before": [
+    {
+      "cards": 5,
+      "cpuThrottle": 4,
+      "viewport": "1600x900",
+      "runs": [
+        {
+          "frames": 350,
+          "p95ms": 16.8,
+          "maxMs": 33.4,
+          "over25ms": 11,
+          "scriptMs": 975,
+          "layoutMs": 155,
+          "taskMs": 3580,
+          "layouts": 176
+        },
+        {
+          "frames": 351,
+          "p95ms": 16.8,
+          "maxMs": 83.3,
+          "over25ms": 5,
+          "scriptMs": 1026,
+          "layoutMs": 83,
+          "taskMs": 3193,
+          "layouts": 180
+        },
+        {
+          "frames": 357,
+          "p95ms": 16.8,
+          "maxMs": 33.4,
+          "over25ms": 4,
+          "scriptMs": 882,
+          "layoutMs": 79,
+          "taskMs": 3138,
+          "layouts": 181
+        }
+      ]
+    },
+    {
+      "cards": 20,
+      "cpuThrottle": 4,
+      "viewport": "1600x900",
+      "runs": [
+        {
+          "frames": 171,
+          "p95ms": 66.6,
+          "maxMs": 83.4,
+          "over25ms": 120,
+          "scriptMs": 1736,
+          "layoutMs": 283,
+          "taskMs": 6191,
+          "layouts": 414
+        },
+        {
+          "frames": 164,
+          "p95ms": 66.6,
+          "maxMs": 183.3,
+          "over25ms": 118,
+          "scriptMs": 1685,
+          "layoutMs": 186,
+          "taskMs": 6115,
+          "layouts": 415
+        },
+        {
+          "frames": 150,
+          "p95ms": 66.7,
+          "maxMs": 383.4,
+          "over25ms": 114,
+          "scriptMs": 1772,
+          "layoutMs": 192,
+          "taskMs": 6363,
+          "layouts": 381
+        }
+      ]
+    }
+  ],
+  "after": [
+    {
+      "surface": "graph",
+      "cards": 5,
+      "cpuThrottle": 4,
+      "viewport": "1600x900",
+      "runs": [
+        {
+          "frames": 361,
+          "p95ms": 16.7,
+          "maxMs": 16.8,
+          "over25ms": 0,
+          "scriptMs": 196,
+          "layoutMs": 144,
+          "taskMs": 1834,
+          "layouts": 179
+        },
+        {
+          "frames": 359,
+          "p95ms": 16.7,
+          "maxMs": 33.3,
+          "over25ms": 2,
+          "scriptMs": 171,
+          "layoutMs": 96,
+          "taskMs": 1710,
+          "layouts": 176
+        },
+        {
+          "frames": 359,
+          "p95ms": 16.8,
+          "maxMs": 33.4,
+          "over25ms": 2,
+          "scriptMs": 163,
+          "layoutMs": 91,
+          "taskMs": 1650,
+          "layouts": 178
+        }
+      ]
+    },
+    {
+      "surface": "graph",
+      "cards": 20,
+      "cpuThrottle": 4,
+      "viewport": "1600x900",
+      "runs": [
+        {
+          "frames": 310,
+          "p95ms": 33.4,
+          "maxMs": 50,
+          "over25ms": 49,
+          "scriptMs": 719,
+          "layoutMs": 372,
+          "taskMs": 5502,
+          "layouts": 503
+        },
+        {
+          "frames": 307,
+          "p95ms": 33.4,
+          "maxMs": 50.1,
+          "over25ms": 48,
+          "scriptMs": 719,
+          "layoutMs": 242,
+          "taskMs": 5388,
+          "layouts": 506
+        },
+        {
+          "frames": 327,
+          "p95ms": 33.3,
+          "maxMs": 33.5,
+          "over25ms": 34,
+          "scriptMs": 629,
+          "layoutMs": 222,
+          "taskMs": 5251,
+          "layouts": 522
+        }
+      ]
+    }
+  ]
+}

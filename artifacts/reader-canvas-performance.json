@@ -1,0 +1,1224 @@
+{
+  "scenario": "Default Canvas, temporary Forge Cognition model copy (57 objects), 24 concept cards, production Chromium at 1600x900, 4x CPU throttling. CPU profiler and timeline tracing enabled.",
+  "change": "Replace inherited reader-wide sticky-position CSS variables with direct header/backdrop positioning; batch tile geometry reads before animation writes.",
+  "limits": "One reference trace and two optimized replays on this machine. Synthetic scroll input, fresh Canvas layout, no saved user camera state. Tracing adds overhead. Nested trace event durations overlap and must not be summed as total time. Fast row sweeps still miss some frames.",
+  "before": {
+    "model": "Forge Cognition",
+    "modelItems": 57,
+    "cards": 24,
+    "cpuThrottle": 4,
+    "phases": [
+      {
+        "phase": "bottom-morph",
+        "frames": 145,
+        "p95ms": 16.7,
+        "over25ms": 0
+      },
+      {
+        "phase": "top-morph",
+        "frames": 109,
+        "p95ms": 33.4,
+        "over25ms": 34
+      },
+      {
+        "phase": "rows-down",
+        "frames": 138,
+        "p95ms": 33.4,
+        "over25ms": 71
+      },
+      {
+        "phase": "rows-up",
+        "frames": 144,
+        "p95ms": 49.9,
+        "over25ms": 63
+      }
+    ],
+    "mainThread": {
+      "v8.callFunction": {
+        "count": 5321,
+        "ms": 6884.992000000108,
+        "maxMs": 49.368
+      },
+      "FunctionCall": {
+        "count": 4783,
+        "ms": 6824.149000000068,
+        "maxMs": 47.21
+      },
+      "UpdateLayoutTree": {
+        "count": 1717,
+        "ms": 3426.1469999999995,
+        "maxMs": 21.972
+      },
+      "EventDispatch": {
+        "count": 3683,
+        "ms": 3182.607000000149,
+        "maxMs": 49.404
+      },
+      "Layout": {
+        "count": 1098,
+        "ms": 2176.329,
+        "maxMs": 21.378
+      },
+      "Paint": {
+        "count": 3147,
+        "ms": 1875.9670000000374,
+        "maxMs": 4.172
+      },
+      "Layerize": {
+        "count": 736,
+        "ms": 1130.5059999999974,
+        "maxMs": 3.39
+      },
+      "FireAnimationFrame": {
+        "count": 1470,
+        "ms": 827.1469999999999,
+        "maxMs": 16.949
+      },
+      "PrePaint": {
+        "count": 1166,
+        "ms": 821.7049999999962,
+        "maxMs": 4.001
+      },
+      "V8.GCIncrementalMarking": {
+        "count": 97,
+        "ms": 101.723,
+        "maxMs": 7.269
+      },
+      "V8.GC_MC_INCREMENTAL": {
+        "count": 97,
+        "ms": 101.66100000000006,
+        "maxMs": 7.268
+      },
+      "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING": {
+        "count": 90,
+        "ms": 95.28500000000001,
+        "maxMs": 7.138
+      },
+      "MajorGC": {
+        "count": 4,
+        "ms": 81.737,
+        "maxMs": 29.688
+      },
+      "V8.GCFinalizeMC": {
+        "count": 4,
+        "ms": 81.684,
+        "maxMs": 29.674
+      },
+      "V8.GC_MARK_COMPACTOR": {
+        "count": 4,
+        "ms": 81.662,
+        "maxMs": 29.667
+      },
+      "TimerFire": {
+        "count": 84,
+        "ms": 52.553,
+        "maxMs": 15.976
+      },
+      "IntersectionObserverController::computeIntersections": {
+        "count": 1665,
+        "ms": 16.740000000000023,
+        "maxMs": 0.923
+      },
+      "HitTest": {
+        "count": 69,
+        "ms": 16.372999999999998,
+        "maxMs": 1.145
+      },
+      "ScrollLayer": {
+        "count": 578,
+        "ms": 13.826999999999996,
+        "maxMs": 0.91
+      },
+      "MinorGC": {
+        "count": 7,
+        "ms": 13.501999999999999,
+        "maxMs": 2.466
+      },
+      "V8.GCScavenger": {
+        "count": 7,
+        "ms": 13.39,
+        "maxMs": 2.451
+      },
+      "V8.GC_MC_EVACUATE": {
+        "count": 7,
+        "ms": 12.744,
+        "maxMs": 3.809
+      }
+    },
+    "functions": [
+      {
+        "ms": 7393.676000000423,
+        "name": "(program)",
+        "source": "",
+        "line": 0
+      },
+      {
+        "ms": 5657.198999999988,
+        "name": "(idle)",
+        "source": "",
+        "line": 0
+      },
+      {
+        "ms": 2341.5359999999882,
+        "name": "getClientRects",
+        "source": "",
+        "line": 0
+      },
+      {
+        "ms": 819.7339999999994,
+        "name": "S",
+        "source": "../../src/ReaderStackViewport.tsx",
+        "line": 92
+      },
+      {
+        "ms": 608.8669999999997,
+        "name": "getBoundingClientRect",
+        "source": "",
+        "line": 0
+      },
+      {
+        "ms": 442.232,
+        "name": "clearTimeout",
+        "source": "",
+        "line": 0
+      },
+      {
+        "ms": 387.1359999999994,
+        "name": "requestAnimationFrame",
+        "source": "",
+        "line": 0
+      },
+      {
+        "ms": 310.57999999999987,
+        "name": "S",
+        "source": "../../src/ReaderStackViewport.tsx",
+        "line": 58
+      },
+      {
+        "ms": 284.808,
+        "name": "pe",
+        "source": "../../src/ReaderStackViewport.tsx",
+        "line": 128
+      },
+      {
+        "ms": 231.3760000000001,
+        "name": "setAttribute",
+        "source": "",
+        "line": 0
+      },
+      {
+        "ms": 120.631,
+        "name": "(garbage collector)",
+        "source": "",
+        "line": 0
+      },
+      {
+        "ms": 93.71500000000007,
+        "name": "clearTimeout",
+        "source": "",
+        "line": 0
+      },
+      {
+        "ms": 91.54400000000031,
+        "name": "requestAnimationFrame",
+        "source": "",
+        "line": 0
+      },
+      {
+        "ms": 53.09100000000001,
+        "name": "requestAnimationFrame",
+        "source": "",
+        "line": 0
+      },
+      {
+        "ms": 44.777999999999984,
+        "name": "tick",
+        "source": "",
+        "line": 9
+      },
+      {
+        "ms": 44.026,
+        "name": "S",
+        "source": "../../src/ReaderStackViewport.tsx",
+        "line": 58
+      },
+      {
+        "ms": 43.21099999999999,
+        "name": "Ej",
+        "source": "../../../node_modules/react-dom/cjs/react-dom.production.min.js",
+        "line": 224
+      },
+      {
+        "ms": 37.567000000000064,
+        "name": "clearTimeout",
+        "source": "",
+        "line": 0
+      },
+      {
+        "ms": 36.62000000000009,
+        "name": "setTimeout",
+        "source": "",
+        "line": 0
+      },
+      {
+        "ms": 35.85200000000002,
+        "name": "getBoundingClientRect",
+        "source": "",
+        "line": 0
+      },
+      {
+        "ms": 34.989999999999974,
+        "name": "setTimeout",
+        "source": "",
+        "line": 0
+      },
+      {
+        "ms": 33.21800000000007,
+        "name": "clearTimeout",
+        "source": "",
+        "line": 0
+      },
+      {
+        "ms": 22.230999999999995,
+        "name": "$f",
+        "source": "../../../node_modules/react-dom/cjs/react-dom.production.min.js",
+        "line": 219
+      },
+      {
+        "ms": 10.163,
+        "name": "Uk",
+        "source": "../../../node_modules/react-dom/cjs/react-dom.production.min.js",
+        "line": 279
+      },
+      {
+        "ms": 8.95,
+        "name": "Nh",
+        "source": "../../../node_modules/react-dom/cjs/react-dom.production.min.js",
+        "line": 160
+      },
+      {
+        "ms": 8.716000000000001,
+        "name": "query",
+        "source": "",
+        "line": 5719
+      },
+      {
+        "ms": 8.540000000000001,
+        "name": "ta",
+        "source": "../../../node_modules/react-dom/cjs/react-dom.production.min.js",
+        "line": 24
+      },
+      {
+        "ms": 7.3500000000000005,
+        "name": "getBoundingClientRect",
+        "source": "",
+        "line": 0
+      },
+      {
+        "ms": 6.561,
+        "name": "ml",
+        "source": "../../src/Reader.tsx",
+        "line": 314
+      },
+      {
+        "ms": 5.936999999999999,
+        "name": "Oj",
+        "source": "../../../node_modules/react-dom/cjs/react-dom.production.min.js",
+        "line": 240
+      },
+      {
+        "ms": 5.820000000000001,
+        "name": "ObjectName",
+        "source": "../../src/ObjectName.tsx",
+        "line": 25
+      },
+      {
+        "ms": 5.747,
+        "name": "sd",
+        "source": "../../../node_modules/react-dom/cjs/react-dom.production.min.js",
+        "line": 289
+      },
+      {
+        "ms": 5.522,
+        "name": "J",
+        "source": "../../src/ReaderStackViewport.tsx",
+        "line": 262
+      },
+      {
+        "ms": 5.242000000000001,
+        "name": "card",
+        "source": "../../src/Reader.tsx",
+        "line": 872
+      },
+      {
+        "ms": 5.234999999999999,
+        "name": "q",
+        "source": "../../../node_modules/react/cjs/react-jsx-runtime.production.min.js",
+        "line": 11
+      },
+      {
+        "ms": 5.2109999999999985,
+        "name": "n",
+        "source": "../../../node_modules/react-dom/cjs/react-dom.production.min.js",
+        "line": 141
+      },
+      {
+        "ms": 4.829,
+        "name": "ve",
+        "source": "../../src/ReaderStackViewport.tsx",
+        "line": 222
+      },
+      {
+        "ms": 4.756,
+        "name": "appendChild",
+        "source": "",
+        "line": 0
+      },
+      {
+        "ms": 4.7490000000000006,
+        "name": "$f",
+        "source": "../../../node_modules/react-dom/cjs/react-dom.production.min.js",
+        "line": 219
+      },
+      {
+        "ms": 4.6690000000000005,
+        "name": "mark",
+        "source": "",
+        "line": 0
+      }
+    ],
+    "topMorphMaxRestyledElements": 4868
+  },
+  "after": [
+    {
+      "model": "Forge Cognition",
+      "modelItems": 57,
+      "cards": 24,
+      "cpuThrottle": 4,
+      "phases": [
+        {
+          "phase": "bottom-morph",
+          "frames": 145,
+          "p95ms": 16.8,
+          "over25ms": 0
+        },
+        {
+          "phase": "top-morph",
+          "frames": 144,
+          "p95ms": 16.7,
+          "over25ms": 1
+        },
+        {
+          "phase": "rows-down",
+          "frames": 208,
+          "p95ms": 16.8,
+          "over25ms": 8
+        },
+        {
+          "phase": "rows-up",
+          "frames": 214,
+          "p95ms": 16.8,
+          "over25ms": 3
+        }
+      ],
+      "mainThread": {
+        "v8.callFunction": {
+          "count": 6748,
+          "ms": 4518.629000000109,
+          "maxMs": 49.503
+        },
+        "FunctionCall": {
+          "count": 6227,
+          "ms": 4451.053999999998,
+          "maxMs": 47.408
+        },
+        "Paint": {
+          "count": 3778,
+          "ms": 2423.599000000015,
+          "maxMs": 4.389
+        },
+        "EventDispatch": {
+          "count": 4211,
+          "ms": 1783.1539999999343,
+          "maxMs": 49.711
+        },
+        "UpdateLayoutTree": {
+          "count": 1690,
+          "ms": 1699.142,
+          "maxMs": 14.142
+        },
+        "Layerize": {
+          "count": 915,
+          "ms": 1435.233999999999,
+          "maxMs": 4.697
+        },
+        "Layout": {
+          "count": 968,
+          "ms": 1243.4349999999995,
+          "maxMs": 6.747
+        },
+        "FireAnimationFrame": {
+          "count": 1834,
+          "ms": 759.1879999999993,
+          "maxMs": 5.019
+        },
+        "PrePaint": {
+          "count": 1361,
+          "ms": 721.6879999999975,
+          "maxMs": 2.973
+        },
+        "V8.GCIncrementalMarking": {
+          "count": 68,
+          "ms": 43.903999999999996,
+          "maxMs": 5.578
+        },
+        "V8.GC_MC_INCREMENTAL": {
+          "count": 68,
+          "ms": 43.864,
+          "maxMs": 5.577
+        },
+        "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING": {
+          "count": 64,
+          "ms": 41.53900000000001,
+          "maxMs": 5.572
+        },
+        "MajorGC": {
+          "count": 2,
+          "ms": 40.953,
+          "maxMs": 21.614
+        },
+        "V8.GCFinalizeMC": {
+          "count": 2,
+          "ms": 40.598,
+          "maxMs": 21.271
+        },
+        "V8.GC_MARK_COMPACTOR": {
+          "count": 2,
+          "ms": 40.574,
+          "maxMs": 21.265
+        },
+        "TimerFire": {
+          "count": 84,
+          "ms": 29.634999999999994,
+          "maxMs": 3.707
+        },
+        "MinorGC": {
+          "count": 13,
+          "ms": 23.093999999999998,
+          "maxMs": 2.621
+        },
+        "V8.GCScavenger": {
+          "count": 13,
+          "ms": 21.035,
+          "maxMs": 2.603
+        },
+        "V8.GC_SCAVENGER": {
+          "count": 13,
+          "ms": 20.469,
+          "maxMs": 2.599
+        },
+        "V8.GC_SCAVENGER_SCAVENGE": {
+          "count": 13,
+          "ms": 19.301000000000002,
+          "maxMs": 2.591
+        },
+        "IntersectionObserverController::computeIntersections": {
+          "count": 2044,
+          "ms": 17.857000000000003,
+          "maxMs": 0.772
+        },
+        "HitTest": {
+          "count": 69,
+          "ms": 15.306999999999993,
+          "maxMs": 1.173
+        }
+      },
+      "functions": [
+        {
+          "ms": 8249.53800000061,
+          "name": "(program)",
+          "source": "",
+          "line": 0
+        },
+        {
+          "ms": 7273.544000000001,
+          "name": "(idle)",
+          "source": "",
+          "line": 0
+        },
+        {
+          "ms": 669.5530000000005,
+          "name": "getClientRects",
+          "source": "",
+          "line": 0
+        },
+        {
+          "ms": 552.0259999999992,
+          "name": "clearTimeout",
+          "source": "",
+          "line": 0
+        },
+        {
+          "ms": 550.1799999999993,
+          "name": "requestAnimationFrame",
+          "source": "",
+          "line": 0
+        },
+        {
+          "ms": 438.52200000000045,
+          "name": "getAnimations",
+          "source": "",
+          "line": 0
+        },
+        {
+          "ms": 252.31200000000004,
+          "name": "setAttribute",
+          "source": "",
+          "line": 0
+        },
+        {
+          "ms": 167.71699999999996,
+          "name": "C",
+          "source": "../../src/ReaderStackViewport.tsx",
+          "line": 96
+        },
+        {
+          "ms": 101.79600000000005,
+          "name": "clearTimeout",
+          "source": "",
+          "line": 0
+        },
+        {
+          "ms": 89.93600000000039,
+          "name": "requestAnimationFrame",
+          "source": "",
+          "line": 0
+        },
+        {
+          "ms": 85.76200000000006,
+          "name": "clearTimeout",
+          "source": "",
+          "line": 0
+        },
+        {
+          "ms": 72.75199999999997,
+          "name": "(garbage collector)",
+          "source": "",
+          "line": 0
+        },
+        {
+          "ms": 70.87500000000001,
+          "name": "Y",
+          "source": "../../src/ReaderStackViewport.tsx",
+          "line": 134
+        },
+        {
+          "ms": 66.66300000000004,
+          "name": "tick",
+          "source": "",
+          "line": 9
+        },
+        {
+          "ms": 55.36500000000017,
+          "name": "setTimeout",
+          "source": "",
+          "line": 0
+        },
+        {
+          "ms": 53.54400000000001,
+          "name": "C",
+          "source": "../../src/ReaderStackViewport.tsx",
+          "line": 59
+        },
+        {
+          "ms": 47.668000000000035,
+          "name": "Ej",
+          "source": "../../../node_modules/react-dom/cjs/react-dom.production.min.js",
+          "line": 224
+        },
+        {
+          "ms": 45.12,
+          "name": "requestAnimationFrame",
+          "source": "",
+          "line": 0
+        },
+        {
+          "ms": 41.25099999999999,
+          "name": "$f",
+          "source": "../../../node_modules/react-dom/cjs/react-dom.production.min.js",
+          "line": 219
+        },
+        {
+          "ms": 39.0170000000001,
+          "name": "clearTimeout",
+          "source": "",
+          "line": 0
+        },
+        {
+          "ms": 38.958000000000055,
+          "name": "setTimeout",
+          "source": "",
+          "line": 0
+        },
+        {
+          "ms": 24.816999999999997,
+          "name": "C",
+          "source": "../../src/ReaderStackViewport.tsx",
+          "line": 96
+        },
+        {
+          "ms": 18.979,
+          "name": "Uk",
+          "source": "../../../node_modules/react-dom/cjs/react-dom.production.min.js",
+          "line": 279
+        },
+        {
+          "ms": 13.48,
+          "name": "getBoundingClientRect",
+          "source": "",
+          "line": 0
+        },
+        {
+          "ms": 12.315999999999999,
+          "name": "S",
+          "source": "../../../node_modules/react-dom/cjs/react-dom.production.min.js",
+          "line": 223
+        },
+        {
+          "ms": 12.001999999999999,
+          "name": "clearTimeout",
+          "source": "",
+          "line": 0
+        },
+        {
+          "ms": 11.437000000000001,
+          "name": "q",
+          "source": "../../../node_modules/react/cjs/react-jsx-runtime.production.min.js",
+          "line": 11
+        },
+        {
+          "ms": 11.278,
+          "name": "J",
+          "source": "../../../node_modules/react-dom/cjs/react-dom.production.min.js",
+          "line": 143
+        },
+        {
+          "ms": 11.124,
+          "name": "Nh",
+          "source": "../../../node_modules/react-dom/cjs/react-dom.production.min.js",
+          "line": 160
+        },
+        {
+          "ms": 10.967,
+          "name": "q",
+          "source": "../../../node_modules/react/cjs/react-jsx-runtime.production.min.js",
+          "line": 11
+        },
+        {
+          "ms": 10.782999999999998,
+          "name": "createElementNS",
+          "source": "",
+          "line": 0
+        },
+        {
+          "ms": 10.197000000000001,
+          "name": "sb",
+          "source": "../../../node_modules/react-dom/cjs/react-dom.production.min.js",
+          "line": 49
+        },
+        {
+          "ms": 9.91,
+          "name": "ReaderStackViewport",
+          "source": "../../src/ReaderStackViewport.tsx",
+          "line": 17
+        },
+        {
+          "ms": 9.032,
+          "name": "sd",
+          "source": "../../../node_modules/react-dom/cjs/react-dom.production.min.js",
+          "line": 289
+        },
+        {
+          "ms": 9.003,
+          "name": "q",
+          "source": "../../../node_modules/react/cjs/react-jsx-runtime.production.min.js",
+          "line": 11
+        },
+        {
+          "ms": 8.302999999999999,
+          "name": "query",
+          "source": "",
+          "line": 5719
+        },
+        {
+          "ms": 8.201,
+          "name": "ml",
+          "source": "../../src/Reader.tsx",
+          "line": 314
+        },
+        {
+          "ms": 7.891000000000001,
+          "name": "r",
+          "source": "../../../node_modules/react-dom/cjs/react-dom.production.min.js",
+          "line": 139
+        },
+        {
+          "ms": 7.885999999999999,
+          "name": "ObjectName",
+          "source": "../../src/ObjectName.tsx",
+          "line": 25
+        },
+        {
+          "ms": 7.3149999999999995,
+          "name": "Sk",
+          "source": "../../../node_modules/react-dom/cjs/react-dom.production.min.js",
+          "line": 280
+        }
+      ],
+      "topMorphMaxRestyledElements": 532
+    },
+    {
+      "model": "Forge Cognition",
+      "modelItems": 57,
+      "cards": 24,
+      "cpuThrottle": 4,
+      "phases": [
+        {
+          "phase": "bottom-morph",
+          "frames": 144,
+          "p95ms": 16.8,
+          "over25ms": 1
+        },
+        {
+          "phase": "top-morph",
+          "frames": 143,
+          "p95ms": 16.7,
+          "over25ms": 1
+        },
+        {
+          "phase": "rows-down",
+          "frames": 200,
+          "p95ms": 33.3,
+          "over25ms": 17
+        },
+        {
+          "phase": "rows-up",
+          "frames": 189,
+          "p95ms": 33.4,
+          "over25ms": 26
+        }
+      ],
+      "regions": {
+        "bottom-morph": {
+          "elapsedMs": 2419.643,
+          "UpdateLayoutTree": 288.78600000000023,
+          "Layout": 195.54500000000004,
+          "Paint": 464.66999999999945
+        },
+        "bottom-morph-settle": {
+          "elapsedMs": 600.546,
+          "UpdateLayoutTree": 0,
+          "Layout": 0,
+          "Paint": 0.9049999999999999
+        },
+        "top-morph": {
+          "elapsedMs": 2435.022,
+          "UpdateLayoutTree": 292.1630000000002,
+          "Layout": 154.62600000000006,
+          "Paint": 413.2989999999992
+        },
+        "top-morph-settle": {
+          "elapsedMs": 600.443,
+          "UpdateLayoutTree": 21.837,
+          "Layout": 19.142,
+          "Paint": 14.445
+        },
+        "rows-down": {
+          "elapsedMs": 3625.988,
+          "UpdateLayoutTree": 564.2810000000001,
+          "Layout": 464.17499999999995,
+          "Paint": 776.3649999999965
+        },
+        "rows-down-settle": {
+          "elapsedMs": 600.122,
+          "UpdateLayoutTree": 19.614,
+          "Layout": 19.669999999999998,
+          "Paint": 13.062000000000003
+        },
+        "rows-up": {
+          "elapsedMs": 3639.222,
+          "UpdateLayoutTree": 540.1620000000003,
+          "Layout": 442.80900000000014,
+          "Paint": 782.7619999999971
+        },
+        "rows-up-settle": {
+          "elapsedMs": 600.184,
+          "UpdateLayoutTree": 1.6529999999999998,
+          "Layout": 1.041,
+          "Paint": 4.801000000000001
+        },
+        "navigation": {
+          "elapsedMs": 1359.365,
+          "UpdateLayoutTree": 95.81900000000005,
+          "Layout": 98.57099999999997,
+          "Paint": 141.82999999999987
+        }
+      },
+      "mainThread": {
+        "v8.callFunction": {
+          "count": 6538,
+          "ms": 5189.365000000114,
+          "maxMs": 54.967
+        },
+        "FunctionCall": {
+          "count": 5970,
+          "ms": 5117.149000000061,
+          "maxMs": 51.597
+        },
+        "Paint": {
+          "count": 3706,
+          "ms": 2670.471000000003,
+          "maxMs": 4.166
+        },
+        "EventDispatch": {
+          "count": 4118,
+          "ms": 2096.9339999999684,
+          "maxMs": 55.001
+        },
+        "UpdateLayoutTree": {
+          "count": 1642,
+          "ms": 1880.2069999999976,
+          "maxMs": 7.641
+        },
+        "Layerize": {
+          "count": 910,
+          "ms": 1481.3119999999967,
+          "maxMs": 5.264
+        },
+        "Layout": {
+          "count": 960,
+          "ms": 1450.1130000000005,
+          "maxMs": 8.112
+        },
+        "FireAnimationFrame": {
+          "count": 1770,
+          "ms": 888.4880000000002,
+          "maxMs": 7.678
+        },
+        "PrePaint": {
+          "count": 1347,
+          "ms": 821.3139999999969,
+          "maxMs": 5.623
+        },
+        "V8.GCIncrementalMarking": {
+          "count": 67,
+          "ms": 62.469,
+          "maxMs": 5.576
+        },
+        "V8.GC_MC_INCREMENTAL": {
+          "count": 67,
+          "ms": 62.001,
+          "maxMs": 5.575
+        },
+        "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING": {
+          "count": 65,
+          "ms": 60.058,
+          "maxMs": 5.574
+        },
+        "MajorGC": {
+          "count": 3,
+          "ms": 54.709,
+          "maxMs": 24.548
+        },
+        "V8.GCFinalizeMC": {
+          "count": 3,
+          "ms": 54.662,
+          "maxMs": 24.531
+        },
+        "V8.GC_MARK_COMPACTOR": {
+          "count": 3,
+          "ms": 54.620999999999995,
+          "maxMs": 24.525
+        },
+        "TimerFire": {
+          "count": 84,
+          "ms": 36.719,
+          "maxMs": 4.45
+        },
+        "IntersectionObserverController::computeIntersections": {
+          "count": 2013,
+          "ms": 22.65900000000023,
+          "maxMs": 0.728
+        },
+        "MinorGC": {
+          "count": 10,
+          "ms": 20.285999999999998,
+          "maxMs": 2.602
+        },
+        "V8.GCScavenger": {
+          "count": 10,
+          "ms": 20.075000000000003,
+          "maxMs": 2.539
+        },
+        "ScrollLayer": {
+          "count": 718,
+          "ms": 19.292000000000005,
+          "maxMs": 0.78
+        },
+        "V8.GC_SCAVENGER": {
+          "count": 10,
+          "ms": 18.257,
+          "maxMs": 2.534
+        },
+        "V8.GC_SCAVENGER_SCAVENGE": {
+          "count": 10,
+          "ms": 17.408,
+          "maxMs": 2.326
+        }
+      },
+      "functions": [
+        {
+          "ms": 8808.356000000558,
+          "name": "(program)",
+          "source": "",
+          "line": 0
+        },
+        {
+          "ms": 6241.1080000000175,
+          "name": "(idle)",
+          "source": "",
+          "line": 0
+        },
+        {
+          "ms": 835.1259999999984,
+          "name": "getClientRects",
+          "source": "",
+          "line": 0
+        },
+        {
+          "ms": 599.8709999999991,
+          "name": "clearTimeout",
+          "source": "",
+          "line": 0
+        },
+        {
+          "ms": 562.7199999999996,
+          "name": "requestAnimationFrame",
+          "source": "",
+          "line": 0
+        },
+        {
+          "ms": 504.54000000000025,
+          "name": "getAnimations",
+          "source": "",
+          "line": 0
+        },
+        {
+          "ms": 275.7699999999999,
+          "name": "setAttribute",
+          "source": "",
+          "line": 0
+        },
+        {
+          "ms": 160.36300000000003,
+          "name": "C",
+          "source": "../../src/ReaderStackViewport.tsx",
+          "line": 96
+        },
+        {
+          "ms": 150.19400000000007,
+          "name": "requestAnimationFrame",
+          "source": "",
+          "line": 0
+        },
+        {
+          "ms": 95.08600000000006,
+          "name": "clearTimeout",
+          "source": "",
+          "line": 0
+        },
+        {
+          "ms": 89.479,
+          "name": "(garbage collector)",
+          "source": "",
+          "line": 0
+        },
+        {
+          "ms": 86.08300000000003,
+          "name": "Y",
+          "source": "../../src/ReaderStackViewport.tsx",
+          "line": 134
+        },
+        {
+          "ms": 75.482,
+          "name": "Ej",
+          "source": "../../../node_modules/react-dom/cjs/react-dom.production.min.js",
+          "line": 224
+        },
+        {
+          "ms": 65.03300000000011,
+          "name": "clearTimeout",
+          "source": "",
+          "line": 0
+        },
+        {
+          "ms": 56.634999999999984,
+          "name": "requestAnimationFrame",
+          "source": "",
+          "line": 0
+        },
+        {
+          "ms": 56.19199999999996,
+          "name": "$f",
+          "source": "../../../node_modules/react-dom/cjs/react-dom.production.min.js",
+          "line": 219
+        },
+        {
+          "ms": 50.40400000000012,
+          "name": "setTimeout",
+          "source": "",
+          "line": 0
+        },
+        {
+          "ms": 49.202,
+          "name": "C",
+          "source": "../../src/ReaderStackViewport.tsx",
+          "line": 59
+        },
+        {
+          "ms": 44.20700000000013,
+          "name": "setTimeout",
+          "source": "",
+          "line": 0
+        },
+        {
+          "ms": 37.92900000000004,
+          "name": "tick",
+          "source": "",
+          "line": 9
+        },
+        {
+          "ms": 37.884000000000114,
+          "name": "clearTimeout",
+          "source": "",
+          "line": 0
+        },
+        {
+          "ms": 29.353000000000012,
+          "name": "C",
+          "source": "../../src/ReaderStackViewport.tsx",
+          "line": 96
+        },
+        {
+          "ms": 23.923,
+          "name": "q",
+          "source": "../../../node_modules/react/cjs/react-jsx-runtime.production.min.js",
+          "line": 11
+        },
+        {
+          "ms": 20.234999999999978,
+          "name": "clearTimeout",
+          "source": "",
+          "line": 0
+        },
+        {
+          "ms": 16.900000000000002,
+          "name": "Uk",
+          "source": "../../../node_modules/react-dom/cjs/react-dom.production.min.js",
+          "line": 279
+        },
+        {
+          "ms": 16.081999999999997,
+          "name": "r",
+          "source": "../../../node_modules/react-dom/cjs/react-dom.production.min.js",
+          "line": 139
+        },
+        {
+          "ms": 14.536999999999997,
+          "name": "sb",
+          "source": "../../../node_modules/react-dom/cjs/react-dom.production.min.js",
+          "line": 49
+        },
+        {
+          "ms": 14.156999999999998,
+          "name": "n",
+          "source": "../../../node_modules/react-dom/cjs/react-dom.production.min.js",
+          "line": 141
+        },
+        {
+          "ms": 11.639999999999997,
+          "name": "getBoundingClientRect",
+          "source": "",
+          "line": 0
+        },
+        {
+          "ms": 10.975999999999999,
+          "name": "ReaderStackViewport",
+          "source": "../../src/ReaderStackViewport.tsx",
+          "line": 17
+        },
+        {
+          "ms": 10.863000000000001,
+          "name": "q",
+          "source": "../../../node_modules/react/cjs/react-jsx-runtime.production.min.js",
+          "line": 11
+        },
+        {
+          "ms": 10.71,
+          "name": "q",
+          "source": "../../../node_modules/react/cjs/react-jsx-runtime.production.min.js",
+          "line": 11
+        },
+        {
+          "ms": 10.257,
+          "name": "q",
+          "source": "../../../node_modules/react/cjs/react-jsx-runtime.production.min.js",
+          "line": 11
+        },
+        {
+          "ms": 10.134999999999998,
+          "name": "querySelector",
+          "source": "",
+          "line": 0
+        },
+        {
+          "ms": 9.894,
+          "name": "appendChild",
+          "source": "",
+          "line": 0
+        },
+        {
+          "ms": 9.542000000000002,
+          "name": "getBoundingClientRect",
+          "source": "",
+          "line": 0
+        },
+        {
+          "ms": 9.505,
+          "name": "query",
+          "source": "",
+          "line": 5719
+        },
+        {
+          "ms": 9.450999999999999,
+          "name": "Sk",
+          "source": "../../../node_modules/react-dom/cjs/react-dom.production.min.js",
+          "line": 280
+        },
+        {
+          "ms": 9.032,
+          "name": "q",
+          "source": "../../../node_modules/react/cjs/react-jsx-runtime.production.min.js",
+          "line": 11
+        },
+        {
+          "ms": 8.478999999999996,
+          "name": "q",
+          "source": "../../src/ReaderStackViewport.tsx",
+          "line": 32
+        }
+      ],
+      "topMorphMaxRestyledElements": 532
+    }
+  ]
+}

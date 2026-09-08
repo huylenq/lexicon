@@ -5,6 +5,7 @@ import {
   renderPlaintextFromRichText,
   useValue,
   type Editor,
+  type Box,
   type TLShape,
   type TLShapeId,
 } from "tldraw";
@@ -26,10 +27,12 @@ export function CanvasInspector({
   editor,
   props,
   toolbarHost,
+  onLocateBounds,
 }: {
   editor: Editor;
   props: GraphPaneProps;
   toolbarHost: HTMLSpanElement | null;
+  onLocateBounds: (bounds: Box) => void;
 }) {
   const [params, setParams] = useSearchParams();
   const api = canvasApi(props.projectId);
@@ -122,10 +125,8 @@ export function CanvasInspector({
     const shape = editor.getShape(id),
       bounds = shape && editor.getShapePageBounds(shape);
     if (!bounds) return;
-    editor
-      .setCurrentTool("select")
-      .select(id)
-      .zoomToBounds(bounds, { inset: 100, targetZoom: 1 });
+    editor.setCurrentTool("select").select(id);
+    onLocateBounds(bounds);
     editor.focus();
   };
   useEffect(() => {
