@@ -13,7 +13,40 @@ import {
 } from "../../shared/chat";
 import { AgentProcess, Rpc, type Wire } from "./process";
 import { toolText } from "./activity";
+import { createAcpAdapter, type AcpAgentConfig } from "./acp";
 
+// pi has no native ACP server yet (0.85.x); the community pi-acp bridge
+// exposes one over pi's RPC mode. Distribute it next to the viewer or point
+// LEXICON_PI_BIN at the installed bridge.
+const piAcpConfig: AcpAgentConfig = {
+  id: "pi",
+  label: "pi",
+  executable: "pi-acp",
+  args: [],
+  authMethodId: "pi_terminal_login",
+  modelSetting: "config-option",
+  effortSetting: "thought-level-option",
+};
+const ompAcpConfig: AcpAgentConfig = {
+  id: "omp",
+  label: "Oh My Pi",
+  executable: "omp",
+  // Full auto-approval per project decision; the permission handler still
+  // refuses any request the agent does send.
+  args: ["acp", "--auto-approve"],
+  authMethodId: "agent",
+  modelSetting: "config-option",
+  effortSetting: "none",
+};
+const hermesAcpConfig: AcpAgentConfig = {
+  id: "hermes",
+  label: "Hermes",
+  executable: "hermes",
+  args: ["acp"],
+  authMethodId: "openai-codex",
+  modelSetting: "set-model",
+  effortSetting: "none",
+};
 const exec = promisify(execFile);
 const executable = (provider: Provider) =>
   process.env[`LEXICON_${provider.toUpperCase()}_BIN`] || provider;
@@ -34,6 +67,7 @@ export interface TurnInput {
 export interface ProviderAdapter {
   probe(): Promise<ProviderStatus>;
   turn(input: TurnInput): Promise<string>;
+  models?(): Promise<ModelCatalog>;
 }
 async function codexConnection(cwd: string) {
   const rpc = new Rpc(executable("codex"), ["app-server"], cwd);
@@ -514,6 +548,9 @@ export const adapters: Record<Provider, ProviderAdapter> = {
   codex,
   grok,
   claude,
+  pi: createAcpAdapter(piAcpConfig),
+  omp: createAcpAdapter(ompAcpConfig),
+  hermes: createAcpAdapter(hermesAcpConfig),
 };
 function codexFastTier(model: Wire): { id: string; description: string } | undefined {
   const tier = model.serviceTiers?.find((t: Wire) => t.id === "priority" || t.id === "fast");
@@ -531,6 +568,8 @@ export async function listModels(provider: Provider): Promise<ModelCatalog> {
         { id: "haiku", name: "Haiku" },
       ],
     };
+  const adapter = adapters[provider];
+  if (adapter.models) return adapter.models();
   if (provider === "grok") {
     const { rpc } = await grokConnection(homedir());
     try {
@@ -569,8 +608,13 @@ export async function listModels(provider: Provider): Promise<ModelCatalog> {
 export async function probeProviders(): Promise<ProviderStatus[]> {
   return Promise.all(
     providers.map(async (id) => {
+      // Overrides may carry arguments ("agent.ts acp --acp-owner p-owned");
+      // probe the first token, passing any extras before --version.
+      const [command, ...extra] = (
+        process.env[`LEXICON_${id.toUpperCase()}_BIN`] || id
+      ).split(" ");
       try {
-        await exec(executable(id), ["--version"], { timeout: 5000 });
+        await exec(command, [...extra, "--version"], { timeout: 15_000 });
       } catch {
         return {
           id,
@@ -582,11 +626,16 @@ export async function probeProviders(): Promise<ProviderStatus[]> {
       try {
         return await adapters[id].probe();
       } catch (error) {
+        const message = (error as Error).message;
         return {
           id,
           installed: true,
           authenticated: null,
-          detail: (error as Error).message,
+          detail: /spawn .* ENOENT|Executable not found in \$?PATH/i.test(
+            message,
+          )
+            ? `Install ${id} and its ACP entry point, then sign in locally`
+            : message,
         };
       }
     }),

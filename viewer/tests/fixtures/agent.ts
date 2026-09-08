@@ -2,11 +2,21 @@
 // Deterministic native-protocol peer for integration tests. Never used by the app.
 import { createInterface } from "node:readline";
 const args = process.argv.slice(2);
-const send = (message: unknown) =>
-  process.stdout.write(JSON.stringify(message) + "\n");
-let selectedModel = args[args.indexOf("--model") + 1] || "";
-let selectedEffort = args[args.indexOf("--effort") + 1] || "";
+const acpEnvelope = args.includes("acp") && !args.includes("agent");
+const send = (message: Record<string, unknown>) =>
+  process.stdout.write(
+    JSON.stringify(acpEnvelope ? { jsonrpc: "2.0", ...message } : message) +
+      "\n",
+  );
+const flagValue = (flag: string) => {
+  const index = args.indexOf(flag);
+  return index >= 0 ? args[index + 1] || "" : "";
+};
+let selectedModel = flagValue("--model");
+let selectedEffort = flagValue("--effort");
 let selectedSpeed = args.includes("--settings") && JSON.parse(args[args.indexOf("--settings") + 1]).fastMode ? "fast" : "standard";
+let selectedAuth = "";
+const onlyAuth = flagValue("--only-auth");
 if (args.includes("--version")) {
   console.log("Lexicon test agent 1.0");
   process.exit(0);
@@ -31,6 +41,7 @@ function reply(prompt: string) {
     );
   }
   if (text.includes("question")) return { question: true, text: "" };
+  if (text.includes("auth method")) return { text: `Auth ${selectedAuth}.` };
   if (text.includes("model selection")) return { text: `Model ${selectedModel}, effort ${selectedEffort || "default"}.` };
   if (text.includes("speed selection")) return { text: `Speed ${selectedSpeed}.` };
   if (text.includes("slow")) return { slow: true, text: "Working…" };
@@ -77,11 +88,26 @@ if (args.includes("--print")) {
   process.exit(0);
 }
 const grok = args.includes("agent");
+// Generic ACP dialect (JSON-RPC envelope) selected by `acp` in the args; the
+// grok flag keeps the original bare-id framing for the unchanged grok path.
+const acp = args.includes("acp") && !grok;
+const acpSessionId = (args[args.indexOf("--acp-owner") + 1] ||
+  "acp-owned") as string;
 let activeId = 0;
+const permissions: Record<string, string> = {};
 const notification = (method: string, params: unknown) =>
   send({ method, params });
 function complete(text: string) {
-  if (grok) {
+  if (acp) {
+    notification("session/update", {
+      sessionId: acpSessionId,
+      update: {
+        sessionUpdate: "agent_message_chunk",
+        content: { type: "text", text },
+      },
+    });
+    send({ id: activeId, result: { stopReason: "end_turn" } });
+  } else if (grok) {
     notification("session/update", {
       sessionId: "grok-owned",
       update: {
@@ -105,6 +131,14 @@ function complete(text: string) {
 createInterface({ input: process.stdin }).on("line", (line) => {
   const message = JSON.parse(line),
     p = message.params || {};
+  if (message.id === "perm-edit" || message.id === "perm-read") {
+    const outcome = message.result?.outcome || {};
+    permissions[message.id === "perm-edit" ? "edit" : "read"] =
+      outcome.optionId || outcome.outcome;
+    if (permissions.edit && permissions.read)
+      complete(`Permissions: edit=${permissions.edit}, read=${permissions.read}.`);
+    return;
+  }
   if (message.id === "question") {
     complete(
       `Selected ${Object.values(message.result.answers)[0] && (Object.values(message.result.answers)[0] as any).answers[0]}.`,
@@ -114,8 +148,16 @@ createInterface({ input: process.stdin }).on("line", (line) => {
   if (message.method === "initialize")
     send({
       id: message.id,
-      result: grok
-        ? { protocolVersion: 1, agentCapabilities: { loadSession: true } }
+      result: acp || grok
+        ? {
+            protocolVersion: 1,
+            agentCapabilities: args.includes("--no-load-session")
+              ? {}
+              : { loadSession: true },
+            authMethods: onlyAuth
+              ? [{ id: onlyAuth }]
+              : [{ id: "agent" }, { id: "pi_terminal_login" }],
+          }
         : {},
     });
   else if (message.method === "account/read")
@@ -140,18 +182,33 @@ createInterface({ input: process.stdin }).on("line", (line) => {
       return;
     }
     send({ id: message.id, result: { thread: { id: "codex-owned" } } });
-  } else if (message.method === "authenticate")
+  } else if (message.method === "authenticate") {
+    selectedAuth = p.methodId;
     send({ id: message.id, result: {} });
-  else if (["session/new", "session/load"].includes(message.method))
-    send({ id: message.id, result: { sessionId: "grok-owned", models: { currentModelId: "grok-test", availableModels: [{ modelId: "grok-test", name: "Grok test", _meta: { reasoningEffort: "high", reasoningEfforts: [{ value: "low" }, { value: "high" }] } }] } } });
+  } else if (["session/new", "session/load"].includes(message.method)) {
+    if (acp)
+      send({ id: message.id, result: {
+        sessionId: acpSessionId,
+        models: { currentModelId: "acp-test", availableModels: [{ modelId: "acp-test", name: "ACP test" }] },
+        configOptions: [{ id: "model", currentValue: "acp-test", options: [{ value: "acp-test", name: "ACP test" }] },
+          { id: "thought_level", currentValue: "high", options: [{ value: "low" }, { value: "high" }] }],
+      } });
+    else
+      send({ id: message.id, result: { sessionId: "grok-owned", models: { currentModelId: "grok-test", availableModels: [{ modelId: "grok-test", name: "Grok test", _meta: { reasoningEffort: "high", reasoningEfforts: [{ value: "low" }, { value: "high" }] } }] } } });
+  }
   else if (message.method === "session/set_model") {
     selectedModel = p.modelId;
     selectedEffort = p._meta?.reasoningEffort || "";
     send({ id: message.id, result: {} });
   }
+  else if (message.method === "session/set_config_option") {
+    if (p.configId === "model") selectedModel = p.value;
+    if (p.configId === "thought_level") selectedEffort = p.value;
+    send({ id: message.id, result: {} });
+  }
   else if (["turn/start", "session/prompt"].includes(message.method)) {
     activeId = message.id;
-    if (!grok) {
+    if (!grok && !acp) {
       if (p.model && selectedModel !== p.model) {
         send({ id: message.id, error: { message: "Thread and turn model mismatch" } }); return;
       }
@@ -163,11 +220,20 @@ createInterface({ input: process.stdin }).on("line", (line) => {
       }
       send({ id: message.id, result: { turn: { id: "turn" } } });
     }
-    const prompt = grok ? p.prompt[0].text : p.input[0].text;
+    const prompt = grok || acp ? p.prompt[0].text : p.input[0].text;
+    if (acp && prompt.includes("permission")) {
+      const options = [
+        { optionId: "allow", kind: "allow_once" },
+        { optionId: "deny", kind: "reject_once" },
+      ];
+      send({ id: "perm-edit", method: "session/request_permission", params: { toolCall: { toolCallId: "edit-1", kind: "edit" }, options } });
+      send({ id: "perm-read", method: "session/request_permission", params: { toolCall: { toolCallId: "read-1", kind: "read" }, options } });
+      return;
+    }
     if (prompt.includes("tools")) {
-      if (grok) {
-        notification("session/update", { update: { sessionUpdate: "tool_call", toolCallId: "read-1", title: "Read order.ts", kind: "read", status: "in_progress", rawInput: { path: "order.ts" } } });
-        notification("session/update", { update: { sessionUpdate: "tool_call_update", toolCallId: "read-1", status: "completed", rawOutput: "export interface Order {}" } });
+      if (grok || acp) {
+        notification("session/update", { sessionId: acp ? acpSessionId : "grok-owned", update: { sessionUpdate: "tool_call", toolCallId: "read-1", title: "Read order.ts", kind: "read", status: "in_progress", rawInput: { path: "order.ts" } } });
+        notification("session/update", { sessionId: acp ? acpSessionId : "grok-owned", update: { sessionUpdate: "tool_call_update", toolCallId: "read-1", status: "completed", rawOutput: "export interface Order {}" } });
       } else {
         notification("item/started", { threadId: "codex-owned", item: { type: "commandExecution", id: "read-1", command: "cat order.ts", status: "inProgress" } });
         notification("item/commandExecution/outputDelta", { threadId: "codex-owned", itemId: "read-1", delta: "export interface Order {}" });
@@ -175,9 +241,9 @@ createInterface({ input: process.stdin }).on("line", (line) => {
       }
     }
     const response = reply(prompt);
-    if (!grok && prompt.includes("segments"))
+    if (!grok && !acp && prompt.includes("segments"))
       notification("item/agentMessage/delta", { threadId: "codex-owned", itemId: "commentary", delta: "Reading the source." });
-    if (response.question && !grok)
+    if (response.question && !grok && !acp)
       send({
         id: "question",
         method: "item/tool/requestUserInput",
