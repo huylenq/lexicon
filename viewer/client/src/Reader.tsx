@@ -8,7 +8,7 @@ import {
   useState,
   type CSSProperties,
 } from "react";
-import { Link, useLocation, useNavigate, useNavigationType, useParams, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useNavigationType, useParams } from "react-router-dom";
 import type { Model, ModelItem, Project } from "../../shared/model";
 import { related } from "../../shared/model";
 import { request, Theme, ErrorNotice, Paragraph } from "./ui";
@@ -30,6 +30,9 @@ import type { CanvasCommand } from "./canvas/types";
 import "./styles/workspace.css";
 import "./styles/code.css";
 import "./styles/status.css";
+import { useReaderStack, cardKey, type ReaderCard } from "./readerStack";
+import "./styles/reader-stack.css";
+import ReaderStackViewport from "./ReaderStackViewport";
 import CanvasBoundary from "./CanvasBoundary";
 const CanvasPane = lazy(() => import("./canvas/CanvasPane"));
 export default function Reader() {
@@ -49,7 +52,8 @@ function ReaderProject({ projectId }: { projectId: string }) {
   const [agentRunning, setAgentRunning] = useState(false);
   const [canvasStatusHost, setCanvasStatusHost] = useState<HTMLDivElement | null>(null);
   const chatToggle = useRef<HTMLButtonElement>(null);
-  const [params, setParams] = useSearchParams();
+  const reading = useReaderStack(projectId);
+  const { params, setParams } = reading;
   const routeLocation = useLocation();
   const navigate = useNavigate();
   const navigationType = useNavigationType();
@@ -61,9 +65,14 @@ function ReaderProject({ projectId }: { projectId: string }) {
   const [compact, setCompact] = useState(() => window.matchMedia("(max-width: 1000px)").matches);
   useEffect(() => {
     const media = window.matchMedia("(max-width: 1000px)");
-    const update = () => setCompact(media.matches);
+    const update = () => setCompact(window.innerWidth <= 1000);
     media.addEventListener("change", update);
-    return () => media.removeEventListener("change", update);
+    window.addEventListener("resize", update);
+    update();
+    return () => {
+      media.removeEventListener("change", update);
+      window.removeEventListener("resize", update);
+    };
   }, []);
   const browseToggle = useRef<HTMLButtonElement>(null);
   const [workspace, setWorkspace] = useWorkspace(projectId);
@@ -95,10 +104,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
     codeNavigation.navigate(location, readMapping);
     setMobileCode(true);
     setMenu(false);
-    if (readMapping) {
-      setMobileRead(true);
-      content.current?.scrollTo(0, 0);
-    }
+    if (readMapping) setMobileRead(true);
   };
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -106,7 +112,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
   const browsePane = useRef<HTMLElement>(null);
   const [searchHeight, setSearchHeight] = useState<number>();
   const [menu, setMenu] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState("");
   const browseVisible = compact ? menu : workspace.sidebar;
   const dockedChat = chatOpen && agentAttached && !compact;
   const travel = (direction: number) => {
@@ -143,7 +149,6 @@ function ReaderProject({ projectId }: { projectId: string }) {
   useEffect(() => {
     if (menu) search.current?.focus();
   }, [menu]);
-  const content = useRef<HTMLElement>(null);
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
       if (
@@ -173,16 +178,10 @@ function ReaderProject({ projectId }: { projectId: string }) {
     return () => window.removeEventListener("keydown", key, true);
   }, [params, setParams, codeNavigation.open]);
   const select = (id?: string) => {
-    const p = new URLSearchParams(params);
-    id ? p.set("item", id) : p.delete("item");
-    p.delete("selection");
-    p.delete("focus");
-    p.delete("shape");
+    reading.open(id ? { kind: "item", id } : { kind: "overview" });
     setMobileCode(false);
     setMobileRead(true);
-    setParams(p);
     setMenu(false);
-    content.current?.scrollTo(0, 0);
   };
   const selectGraph = (selection: GraphSelection) => {
     if (selection.kind === "item") {
@@ -209,7 +208,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
     setMobileRead(true);
     setMobileCode(false);
     setMenu(false);
-    content.current?.scrollTo(0, 0);
+
   };
   const itemLink = (id: string, label: string, relationship = false) => {
     const linked = model?.items.find((i) => i.id === id);
@@ -228,10 +227,8 @@ function ReaderProject({ projectId }: { projectId: string }) {
         onClick={(event) => {
           if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
             return;
-          setMenu(false);
-          setMobileRead(true);
-          setMobileCode(false);
-          content.current?.scrollTo(0, 0);
+          event.preventDefault();
+          select(id);
         }}
       >
         {linked ? <ObjectName type={linked.type} name={label} size={14}
@@ -257,7 +254,9 @@ function ReaderProject({ projectId }: { projectId: string }) {
       ? { kind: "mapping", id: codeNavigation.mapping.id }
       : { kind: "code", id: codeNavigation.targetId }
     : undefined;
-  const graphSelection =
+  const [canvasClearedAt, setCanvasClearedAt] = useState<string>();
+  useEffect(() => setCanvasClearedAt(undefined), [routeLocation.key]);
+  const graphSelection = canvasClearedAt === routeLocation.key ? undefined :
     params.get("focus") === "code" ? codeSelection : readerSelection;
   const graphAction = (
     action: "locate" | "expand",
@@ -275,10 +274,6 @@ function ReaderProject({ projectId }: { projectId: string }) {
   const contexts = model?.items.filter((i) => i.type === "context") || [];
   const relationships =
     model?.items.filter((i) => i.type === "relationship") || [];
-  const owner =
-    item?.type === "concept"
-      ? model?.items.find((i) => i.id === item.context)
-      : undefined;
   const matches = query.trim()
     ? model?.items.filter((i) =>
         [
@@ -304,250 +299,39 @@ function ReaderProject({ projectId }: { projectId: string }) {
         classification={i.type === "concept" ? i.classification : undefined} />
     </button>
   );
-  return (
-    <div
-      ref={readerSurface}
-      className={`reader ${chatOpen && agentAttached && !compact ? "agent-attached" : ""} ${codeNavigation.open ? "with-code" : ""} with-canvas ${!workspace.sidebar ? "without-sidebar" : ""} ${mobileRead ? "mobile-reading" : "mobile-canvas"} ${mobileCode ? "mobile-code" : ""}`}
-      style={{ "--chat-width": `${workspace.chatWidth}px` } as CSSProperties}
-    >
-      <a className="skip-link" href="#main-content">
-        Skip to the model
-      </a>
-      <header className="reader-header app-header">
-        <button ref={browseToggle} className="quiet icon-button pane-toggle browse-toggle"
-          aria-label="Toggle navigation" aria-pressed={browseVisible}
-          aria-controls="browse-pane" title={browseVisible ? "Hide Browse" : "Show Browse"}
-          onClick={() => compact ? setMenu((m) => !m) : setWorkspace((w) => ({ ...w, sidebar: !w.sidebar }))}>
-          <Icon name="browse" size={18} />
+  const titleForCard = (card: ReaderCard) => {
+    const item = card.kind === "item" ? model?.items.find(i => i.id === card.id) : undefined;
+    return item ? (item.type === "relationship"
+      ? [model?.items.find(i => i.id === item.from)?.name || item.from, item.name, model?.items.find(i => i.id === item.to)?.name || item.to].join(" ")
+      : item.name) : card.kind === "overview" ? model?.name || "Overview" : card.kind === "item" ? "Unavailable item" : card.kind === "mapping" ? "Code mapping" : "Connections";
+  };
+  const activeCard = reading.stack.cards.find(card => cardKey(card) === reading.stack.active);
+  const breadcrumbItem = activeCard?.kind === "item" ? model?.items.find(i => i.id === activeCard.id) : undefined;
+  const breadcrumbOwner = breadcrumbItem?.type === "concept" ? model?.items.find(i => i.id === breadcrumbItem.context) : undefined;
+  const renderCardHeader = (card: ReaderCard, collapsed = false, style?: CSSProperties) => {
+    const key = cardKey(card);
+    const item = card.kind === "item" ? model?.items.find(i => i.id === card.id) : undefined;
+    const title = titleForCard(card);
+    return (
+      <header className="reader-card-header" style={style}>
+        <button className="reader-card-title" aria-label={`${collapsed ? "Reveal card" : "Read card"}: ${title}`} onClick={() => reading.open(card)} title={`Read ${title}`}>
+          <h1>{item ? <ObjectName type={item.type} classification={item.type === "concept" ? item.classification : undefined} name={title} size={collapsed ? 14 : 18} /> : title}</h1>
         </button>
-        <Link to="/" className="brand" aria-label="Lexicon library">
-          <span className="brand-mark" aria-hidden="true" />
-          <span className="brand-text">lexicon</span>
-        </Link>
-        <span className="header-divider" />
-        <span className="project-name">{model?.name || "Opening project"}</span>
-        <div className="header-actions">
-          <div className="pane-toggles" role="group" aria-label="Pane visibility">
-          <button
-            ref={codeToggle}
-            className="quiet icon-button pane-toggle code-toggle"
-            title={codeNavigation.open && (!compact || mobileCode) ? "Hide Code" : "Show Code"}
-            aria-controls="code-pane"
-            aria-label="Toggle code workspace"
-            aria-pressed={codeNavigation.open && (!compact || mobileCode)}
-            onClick={() => {
-              if (
-                codeNavigation.open &&
-                (mobileCode ||
-                  !window.matchMedia("(max-width: 1000px)").matches)
-              )
-                closeCode();
-              else {
-                codeNavigation.visibility(true);
-                setMobileCode(true);
-              }
-            }}
-          >
-            <Icon name="panel-right" size={18} />
-          </button>
-          </div>
-          <div className="header-utilities" role="group" aria-label="App utilities">
-          <InstallApp />
-          <button className="quiet icon-button" title="Refresh model" aria-label={loading ? "Loading model" : "Refresh"} disabled={loading} onClick={refresh}>
-            <Icon name="refresh" />
-          </button>
-          <Theme />
-          </div>
-        </div>
+        <button className="quiet icon-button" data-close-card aria-label={`Close ${collapsed ? "collapsed " : ""}${title}`} onClick={() => reading.close(key)}><Icon name="close" /></button>
       </header>
-      <aside
-        className={`sidebar ${menu ? "open" : ""}`}
-        id="browse-pane"
-        ref={browsePane}
-        style={{ height: query.trim() ? searchHeight : undefined }}
-        aria-label="Model navigation"
-      >
-        <div className="search-wrap">
-          <Icon name="search" size={14} />
-          <input
-            ref={search}
-            aria-label="Search model"
-            placeholder="Find..."
-            value={query}
-            onChange={(e) => {
-              // Capture the unfiltered shelf before results change its contents.
-              if (!query.trim() && e.target.value.trim())
-                setSearchHeight(browsePane.current?.getBoundingClientRect().height);
-              setQuery(e.target.value);
-            }}
-          />
-          <kbd>/</kbd>
-        </div>
-        <div className="browse-items">
-          {query.trim() ? (
-            <>
-              <div className="eyebrow nav-heading">
-                {matches.length} {matches.length === 1 ? "result" : "results"}{" "}
-                <button className="quiet" onClick={() => setQuery("")}>
-                  Clear
-                </button>
-              </div>
-              {matches.map(itemButton)}
-              {!matches.length && (
-                <p className="hint">Try a domain name, code symbol, or phrase.</p>
-              )}
-            </>
-          ) : (
-            <>
-              <button
-                className={`nav-item overview-link ${!item && !params.get("item") ? "active" : ""}`}
-                onClick={() => select()}
-              >
-                <span className="nav-name"><Icon name="overview" size={14} />Overview</span>
-              </button>
-              <div className="eyebrow nav-heading">
-                Contexts <span>{contexts.length}</span>
-              </div>
-              {contexts.map((ctx) => (
-                <div className="nav-context" key={ctx.id}>
-                  {itemButton(ctx)}
-                  <div className="nav-concepts">
-                    {model?.items
-                      .filter((c) => c.type === "concept" && c.context === ctx.id)
-                      .map(itemButton)}
-                  </div>
-                </div>
-              ))}
-            </>
-          )}
-        </div>
-      </aside>
-      <div
-        className="pane-area"
-        ref={paneArea}
-        style={{ "--code-width": `${workspace.codeWidth}%` } as CSSProperties}
-      >
-        <div
-          className="reader-workspace"
-          ref={workArea}
-          style={{ "--canvas-width": `${workspace.width}%` } as CSSProperties}
-        >
-          {model && (
-            <div
-              className="canvas-slot"
-            >
-              <CanvasBoundary><Suspense fallback={<p className="empty">Opening canvas…</p>}>
-                <CanvasPane
-                  key={projectId}
-                  model={model}
-                  projectId={projectId}
-                  modelRevision={data?.modelRevision || ""}
-                  onModelChanged={refresh}
-                  projectKey={data?.project.root || projectId}
-                  statusHost={canvasStatusHost}
-                  visible={!compact || !(mobileRead || (mobileCode && codeNavigation.open))}
-                  workspace={workspace}
-                  setWorkspace={setWorkspace}
-                  selection={graphSelection}
-                  query={query}
-                  matches={matches.map((i) => i.id)}
-                  onSelect={selectGraph}
-                  onClearSelection={() => {
-                    const p = new URLSearchParams(params);
-                    for (const key of ["item", "selection", "focus"])
-                      p.delete(key);
-                    if (p.toString() !== params.toString()) setParams(p);
-                  }}
-                  command={canvasCommand}
-                />
-              </Suspense></CanvasBoundary>
-            </div>
-          )}
-          {model && (
-            <div
-              className="canvas-divider"
-              role="separator"
-              aria-label="Resize canvas and reader"
-              aria-orientation="vertical"
-              aria-valuemin={25}
-              aria-valuemax={75}
-              aria-valuenow={Math.round(workspace.width)}
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
-                  e.preventDefault();
-                  setWorkspace((w) => ({
-                    ...w,
-                    width: Math.max(
-                      25,
-                      Math.min(75, w.width + (e.key === "ArrowRight" ? 2 : -2)),
-                    ),
-                  }));
-                }
-              }}
-              onPointerDown={(e) => {
-                e.currentTarget.setPointerCapture(e.pointerId);
-              }}
-              onPointerMove={(e) => {
-                if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
-                const box = workArea.current?.getBoundingClientRect();
-                if (box)
-                  setWorkspace((w) => ({
-                    ...w,
-                    width: Math.max(
-                      25,
-                      Math.min(75, ((e.clientX - box.left) / box.width) * 100),
-                    ),
-                  }));
-              }}
-              onPointerUp={(e) => {
-                if (e.currentTarget.hasPointerCapture(e.pointerId))
-                  e.currentTarget.releasePointerCapture(e.pointerId);
-              }}
-            />
-          )}
-          <main className="reading-pane" ref={content} id="main-content">
-            {compact && (
-              <button className="quiet back-to-canvas" onClick={() => {
-                setMobileRead(false);
-                setMobileCode(false);
-              }}><Icon name="arrow-left" /> Back to canvas</button>
-            )}
-            <div className="reader-toolbar">
-              <div className="reader-history" role="group" aria-label="Navigation history">
-                <button className="quiet icon-button" aria-label="Go back" title="Back" disabled={historyIndex <= 0} onClick={() => travel(-1)}><Icon name="arrow-left" /></button>
-                <button className="quiet icon-button" aria-label="Go forward" title="Forward" disabled={historyIndex >= furthestHistory} onClick={() => travel(1)}><Icon name="arrow-right" /></button>
-              </div>
-              <nav aria-label="Breadcrumb">
-                <button onClick={() => select()}>Overview</button>
-                {owner && (
-                  <>
-                    <span className="breadcrumb-owner">/</span>
-                    <button className="breadcrumb-owner" onClick={() => select(owner.id)}>
-                      <ObjectName type={owner.type} name={owner.name} size={14} />
-                    </button>
-                  </>
-                )}
-                {specialSelection && (
-                  <>
-                    <span>/</span>
-                    <span>
-                      {specialSelection.kind === "code"
-                        ? "Code target"
-                        : specialSelection.kind === "mapping"
-                          ? "Code mapping"
-                          : "Connections"}
-                    </span>
-                  </>
-                )}
-                {item && (
-                  <>
-                    <span>/</span>
-                    <ObjectName type={item.type} classification={item.type === "concept" ? item.classification : undefined} name={item.name} size={14} />
-                  </>
-                )}
-              </nav>
-            </div>
+    );
+  };
+  const renderCardBody = (card: ReaderCard) => {
+    const key = cardKey(card);
+    const item = card.kind === "item" ? model?.items.find(i => i.id === card.id) : undefined;
+    const specialSelection = card.kind !== "item" && card.kind !== "overview" ? card : undefined;
+    const readerSelection = card.kind === "overview" ? undefined : card;
+    const params = new URLSearchParams();
+    if (card.kind === "item") params.set("item", card.id);
+    const owner = item?.type === "concept" ? model?.items.find(i => i.id === item.context) : undefined;
+    return (
+      <>
+        {owner && <nav className="reader-card-owner" aria-label="Owning context">{itemLink(owner.id, owner.name)}</nav>}
             {readerSelection && (
               <div className="reader-canvas-actions">
                 <button
@@ -570,7 +354,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
                 )}
               </div>
             )}
-            {error && <ErrorNotice message={error} />}
+
             {!model && loading && (
               <p className="empty" role="status">
                 Opening the model…
@@ -607,8 +391,6 @@ function ReaderProject({ projectId }: { projectId: string }) {
                   </details>
                 )}
                 {specialSelection &&
-                specialSelection.kind !== "item" &&
-                specialSelection.kind !== "code" &&
                 graphIndex ? (
                   <SelectionReading
                     selection={specialSelection}
@@ -617,25 +399,13 @@ function ReaderProject({ projectId }: { projectId: string }) {
                   />
                 ) : params.get("item") && !item ? (
                   <div className="empty">
-                    <h1>That item is unavailable.</h1>
-                    <p>
-                      The model may have changed. Browse a context or return to
-                      the overview.
-                    </p>
+                    <h2>That item is unavailable.</h2>
+                    <p>The model may have changed. Browse a context or return to the overview.</p>
                     <button onClick={() => select()}>Open overview</button>
                   </div>
                 ) : (
                   <>
                     {!item && <div className="eyebrow">The system at a glance</div>}
-                    <h1>
-                      {item ? (
-                        <ObjectName type={item.type} size={24}
-                          classification={item.type === "concept" ? item.classification : undefined}
-                          name={item.type === "relationship"
-                            ? [model.items.find((i) => i.id === item.from)?.name || item.from, item.name, model.items.find((i) => i.id === item.to)?.name || item.to].join(" ")
-                            : item.name} />
-                      ) : model.name}
-                    </h1>
                     {item?.type === "relationship" && (
                       <div className="relationship-endpoints">
                         {itemLink(item.from, model.items.find((i) => i.id === item.from)?.name || item.from)}
@@ -827,9 +597,16 @@ function ReaderProject({ projectId }: { projectId: string }) {
                         className="quiet"
                         onClick={async () => {
                           try {
-                            await navigator.clipboard.writeText(location.href);
-                            setCopied(true);
-                            setTimeout(() => setCopied(false), 1800);
+                            const url = new URL(window.location.href);
+                            url.searchParams.delete("item");
+                            url.searchParams.delete("selection");
+                            url.searchParams.delete("focus");
+                            url.searchParams.delete("shape");
+                            if (card.kind === "item") url.searchParams.set("item", card.id);
+                            else if (card.kind !== "overview") url.searchParams.set("selection", JSON.stringify(card));
+                            await navigator.clipboard.writeText(url.href);
+                            setCopied(key);
+                            setTimeout(() => setCopied(""), 1800);
                           } catch {
                             setError(
                               "Copy the address from your browser to share this view.",
@@ -837,14 +614,251 @@ function ReaderProject({ projectId }: { projectId: string }) {
                           }
                         }}
                       >
-                        <Icon name={copied ? "check" : "copy"} /> {copied ? "Copied" : "Copy link"}
+                        <Icon name={copied === key ? "check" : "copy"} /> {copied === key ? "Copied" : "Copy link"}
                       </button>
                     </div>
                   </>
                 )}
               </article>
             )}
-          </main>
+
+      </>
+    );
+  };
+  // Scroll geometry changes only the wrappers. Keep Markdown and model-derived
+  // content stable; refresh handlers whenever navigation or their inputs change.
+  const cardBodies = useMemo(() => new Map(reading.stack.cards.map(card => [cardKey(card), renderCardBody(card)])),
+    [reading.stack, routeLocation, model, loading, workspace.allCode, copied]);
+  return (
+    <div
+      ref={readerSurface}
+      className={`reader ${chatOpen && agentAttached && !compact ? "agent-attached" : ""} ${codeNavigation.open ? "with-code" : ""} with-canvas ${!workspace.sidebar ? "without-sidebar" : ""} ${mobileRead && reading.stack.visible ? "mobile-reading" : "mobile-canvas"} ${mobileCode ? "mobile-code" : ""}`}
+      style={{ "--chat-width": `${workspace.chatWidth}px` } as CSSProperties}
+    >
+      <a className="skip-link" href="#main-content">
+        Skip to the model
+      </a>
+      <header className="reader-header app-header">
+        <button ref={browseToggle} className="quiet icon-button pane-toggle browse-toggle"
+          aria-label="Toggle navigation" aria-pressed={browseVisible}
+          aria-controls="browse-pane" title={browseVisible ? "Hide Browse" : "Show Browse"}
+          onClick={() => compact ? setMenu((m) => !m) : setWorkspace((w) => ({ ...w, sidebar: !w.sidebar }))}>
+          <Icon name="browse" size={18} />
+        </button>
+        <div className="reader-history" role="group" aria-label="Navigation history">
+          <button className="quiet icon-button" aria-label="Go back" title="Back" disabled={historyIndex <= 0} onClick={() => travel(-1)}><Icon name="arrow-left" /></button>
+          <button className="quiet icon-button" aria-label="Go forward" title="Forward" disabled={historyIndex >= furthestHistory} onClick={() => travel(1)}><Icon name="arrow-right" /></button>
+        </div>
+        <Link to="/" className="brand" aria-label="Lexicon library">
+          <span className="brand-mark" aria-hidden="true" />
+          <span className="brand-text">lexicon</span>
+        </Link>
+        <span className="header-divider" />
+        <nav className="header-breadcrumb" aria-label="Reader breadcrumb">
+          <button onClick={() => select()} aria-current={!activeCard || activeCard.kind === "overview" ? "page" : undefined}
+            title={model?.name}><Icon name="overview" size={14} /><span>{model?.name || "Opening project"}</span></button>
+          {breadcrumbOwner && <>
+            <span aria-hidden="true">›</span>
+            <button onClick={() => select(breadcrumbOwner.id)} title={breadcrumbOwner.name} aria-label={breadcrumbOwner.name}>
+              <ObjectName type="context" name={breadcrumbOwner.name} size={14} />
+            </button>
+          </>}
+          {activeCard && activeCard.kind !== "overview" && <>
+            <span aria-hidden="true">›</span>
+            <button aria-current="page" aria-label={titleForCard(activeCard)} title={titleForCard(activeCard)} onClick={() => { reading.open(activeCard); setMobileRead(true); setMobileCode(false); }}>
+              {breadcrumbItem ? <ObjectName type={breadcrumbItem.type} classification={breadcrumbItem.type === "concept" ? breadcrumbItem.classification : undefined} name={titleForCard(activeCard)} size={14} />
+                : <><Icon name={activeCard.kind === "mapping" ? "code-link" : "relationship"} size={14} /><span>{titleForCard(activeCard)}</span></>}
+            </button>
+          </>}
+        </nav>
+        <div className="header-actions">
+          <div className="pane-toggles" role="group" aria-label="Pane visibility">
+          <button className="quiet icon-button pane-toggle" aria-label="Toggle reader" aria-controls="main-content"
+            aria-pressed={reading.stack.visible && (!compact || mobileRead)} title="Toggle reader"
+            onClick={() => {
+              if (compact && !mobileRead && reading.stack.visible) setMobileRead(true);
+              else { reading.toggle(); setMobileRead(true); }
+              setMobileCode(false);
+            }}><Icon name="overview" size={18} /></button>
+          <button
+            ref={codeToggle}
+            className="quiet icon-button pane-toggle code-toggle"
+            title={codeNavigation.open && (!compact || mobileCode) ? "Hide Code" : "Show Code"}
+            aria-controls="code-pane"
+            aria-label="Toggle code workspace"
+            aria-pressed={codeNavigation.open && (!compact || mobileCode)}
+            onClick={() => {
+              if (
+                codeNavigation.open &&
+                (mobileCode ||
+                  !window.matchMedia("(max-width: 1000px)").matches)
+              )
+                closeCode();
+              else {
+                codeNavigation.visibility(true);
+                setMobileCode(true);
+              }
+            }}
+          >
+            <Icon name="panel-right" size={18} />
+          </button>
+          </div>
+          <div className="header-utilities" role="group" aria-label="App utilities">
+          <InstallApp />
+          <button className="quiet icon-button" title="Refresh model" aria-label={loading ? "Loading model" : "Refresh"} disabled={loading} onClick={refresh}>
+            <Icon name="refresh" />
+          </button>
+          <Theme />
+          </div>
+        </div>
+      </header>
+      <aside
+        className={`sidebar ${menu ? "open" : ""}`}
+        id="browse-pane"
+        ref={browsePane}
+        style={{ height: query.trim() ? searchHeight : undefined }}
+        aria-label="Model navigation"
+      >
+        <div className="search-wrap">
+          <Icon name="search" size={14} />
+          <input
+            ref={search}
+            aria-label="Search model"
+            placeholder="Find..."
+            value={query}
+            onChange={(e) => {
+              // Capture the unfiltered shelf before results change its contents.
+              if (!query.trim() && e.target.value.trim())
+                setSearchHeight(browsePane.current?.getBoundingClientRect().height);
+              setQuery(e.target.value);
+            }}
+          />
+          <kbd>/</kbd>
+        </div>
+        <div className="browse-items">
+          {query.trim() ? (
+            <>
+              <div className="eyebrow nav-heading">
+                {matches.length} {matches.length === 1 ? "result" : "results"}{" "}
+                <button className="quiet" onClick={() => setQuery("")}>
+                  Clear
+                </button>
+              </div>
+              {matches.map(itemButton)}
+              {!matches.length && (
+                <p className="hint">Try a domain name, code symbol, or phrase.</p>
+              )}
+            </>
+          ) : (
+            <>
+              <button
+                className={`nav-item overview-link ${!item && !params.get("item") ? "active" : ""}`}
+                onClick={() => select()}
+              >
+                <span className="nav-name"><Icon name="overview" size={14} />Overview</span>
+              </button>
+              <div className="eyebrow nav-heading">
+                Contexts <span>{contexts.length}</span>
+              </div>
+              {contexts.map((ctx) => (
+                <div className="nav-context" key={ctx.id}>
+                  {itemButton(ctx)}
+                  <div className="nav-concepts">
+                    {model?.items
+                      .filter((c) => c.type === "concept" && c.context === ctx.id)
+                      .map(itemButton)}
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
+        </div>
+      </aside>
+      <div
+        className="pane-area"
+        ref={paneArea}
+        style={{ "--code-width": `${workspace.codeWidth}%` } as CSSProperties}
+      >
+        <div
+          className={`reader-workspace canvas-workspace ${!reading.stack.visible ? "reader-hidden" : ""}`}
+          ref={workArea}
+          style={{ "--reader-width": `${100 - workspace.width}%` } as CSSProperties}
+        >
+          {model && (
+            <div
+              className="canvas-slot"
+            >
+              <CanvasBoundary><Suspense fallback={<p className="empty">Opening canvas…</p>}>
+                <CanvasPane
+                  key={projectId}
+                  model={model}
+                  projectId={projectId}
+                  modelRevision={data?.modelRevision || ""}
+                  onModelChanged={refresh}
+                  projectKey={data?.project.root || projectId}
+                  statusHost={canvasStatusHost}
+                  visible={!compact || !((mobileRead && reading.stack.visible) || (mobileCode && codeNavigation.open))}
+                  workspace={workspace}
+                  setWorkspace={setWorkspace}
+                  selection={graphSelection}
+                  query={query}
+                  matches={matches.map((i) => i.id)}
+                  onSelect={selectGraph}
+                  onClearSelection={() => setCanvasClearedAt(routeLocation.key)}
+                  command={canvasCommand}
+                />
+              </Suspense></CanvasBoundary>
+            </div>
+          )}
+          {model && (
+            <div
+              className="canvas-divider"
+              role="separator"
+              aria-label="Resize canvas and reader"
+              aria-orientation="vertical"
+              aria-valuemin={25}
+              aria-valuemax={75}
+              aria-valuenow={Math.round(workspace.width)}
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+                  e.preventDefault();
+                  setWorkspace((w) => ({
+                    ...w,
+                    width: Math.max(
+                      25,
+                      Math.min(75, w.width + (e.key === "ArrowRight" ? 2 : -2)),
+                    ),
+                  }));
+                }
+              }}
+              onPointerDown={(e) => {
+                e.currentTarget.setPointerCapture(e.pointerId);
+              }}
+              onPointerMove={(e) => {
+                if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
+                const box = workArea.current?.getBoundingClientRect();
+                if (box)
+                  setWorkspace((w) => ({
+                    ...w,
+                    width: Math.max(
+                      25,
+                      Math.min(75, ((e.clientX - box.left) / box.width) * 100),
+                    ),
+                  }));
+              }}
+              onPointerUp={(e) => {
+                if (e.currentTarget.hasPointerCapture(e.pointerId))
+                  e.currentTarget.releasePointerCapture(e.pointerId);
+              }}
+            />
+          )}
+          <ReaderStackViewport reading={reading} model={model}
+            layoutKey={`${routeLocation.key}:${compact}:${mobileRead}:${mobileCode}`}
+            titleForCard={titleForCard} renderCardHeader={renderCardHeader}
+            renderBody={card => cardBodies.get(cardKey(card))}
+            notice={<>{error && <ErrorNotice message={error} />}
+              {!model && loading && <p className="empty" role="status">Opening the model…</p>}</>} />
         </div>
         {codeNavigation.open && (
           <div

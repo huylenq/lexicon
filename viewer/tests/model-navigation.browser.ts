@@ -17,7 +17,7 @@ test("object type tooltips work with hover, keyboard, and a zoomed canvas", asyn
   await expect(page.getByRole("tooltip")).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("tooltip")).toBeHidden();
-  await expect(page.locator("main h1")).toHaveText("Selected tooth");
+  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Selected tooth");
   await page.mouse.move(0, 0);
   await page.keyboard.press("Tab");
   await tooth.focus();
@@ -73,7 +73,7 @@ test("a registered model with parallel edges, self-links, stale links, and inval
     await page
       .getByRole("button", { name: "Read relationship: itself", exact: true })
       .click();
-    await expect(page.locator("main h1")).toHaveText("Alpha itself Alpha");
+    await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Alpha itself Alpha");
   } finally {
     if (id) await request.delete(`/api/projects/${id}`);
     await rm(root, { recursive: true, force: true });

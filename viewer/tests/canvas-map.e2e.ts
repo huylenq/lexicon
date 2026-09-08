@@ -84,14 +84,14 @@ test("Atlas road surfaces follow native selection and Diagram restores its conne
     return { x: screen.x, y: screen.y };
   });
   await page.mouse.click(point.x, point.y);
-  await expect(page.locator("main h1")).toContainText("rechecks");
+  await expect(page.locator("main [data-reader-card].active > header h1")).toContainText("rechecks");
   await expect(page.getByLabel("Path", { exact: true })).toBeVisible();
   await page.getByRole("radio", { name: "Diagram", exact: true }).check();
   await expect(road).toHaveCount(0);
   await expect(connector.locator(":scope > path").first()).toBeVisible();
   await page.getByRole("radio", { name: "Atlas", exact: true }).check();
   await expect(road).toBeVisible();
-  await expect(page.locator("main h1")).toContainText("rechecks");
+  await expect(page.locator("main [data-reader-card].active > header h1")).toContainText("rechecks");
 });
 
 test("roads meet visible landmarks after moves and reloads, and both modes fit their node content", async ({ page, request }, info) => {
@@ -140,7 +140,7 @@ test("roads meet visible landmarks after moves and reloads, and both modes fit t
   await expect.poll(checkDocking).toBeLessThan(1);
   await expect(card).toHaveAttribute("data-selected", "true");
   await page.setViewportSize({ width: 430, height: 932 });
-  await page.getByRole("button", { name: "Back to canvas", exact: true }).click();
+  await page.getByRole("button", { name: "Toggle reader", exact: true }).click();
   await page.getByRole("radio", { name: "Diagram", exact: true }).check();
   await expect(page.getByRole("button", { name: "concept: Canal index", exact: true })).toBeVisible();
   await page.getByRole("radio", { name: "Atlas", exact: true }).check();
@@ -226,7 +226,7 @@ test("a real model keeps its map aligned through pan and zoom, search, and dark 
   await page.getByRole("button", { name: "Fit model", exact: true }).click();
   // A road crosses this landmark's bounds: the landmark must win the native hit test.
   await page.getByRole("button", { name: "concept: Canal index", exact: true }).click();
-  await expect(page.locator("main h1")).toHaveText("Canal index");
+  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Canal index");
   await expect(page.locator('[data-model-id="item:canal-index"]')).toHaveAttribute("data-selected", "true");
   await page.screenshot({ path: info.outputPath("dentalml-map.png") });
   await page.getByRole("button", { name: "Toggle navigation", exact: true }).click();

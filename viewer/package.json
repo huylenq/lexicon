@@ -36,6 +36,7 @@
     "xast-util-from-xml": "^4.0.0"
   },
   "devDependencies": {
+    "@jridgewell/trace-mapping": "0.3.31",
     "@playwright/test": "1.63.0",
     "@types/bun": "latest",
     "@types/react": "^18.3.12",

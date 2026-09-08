@@ -48,7 +48,7 @@ test("conversation refines a selected concept, survives navigation and reload, a
     await expect(
       chat.getByText("Model updated", { exact: true }),
     ).toBeVisible();
-    await expect(page.locator("main h1")).toHaveText("Purchase");
+    await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Purchase");
     await expect(chat.locator(".chat-message-model")).toHaveText("test-deep · high · Fast");
     const tool = chat.locator(".chat-tool");
     await expect(tool).toContainText("cat order.ts");
@@ -73,7 +73,7 @@ test("conversation refines a selected concept, survives navigation and reload, a
       chat.getByText("Model updated", { exact: true }),
     ).toBeVisible();
     await chat.getByRole("button", { name: "Undo edit" }).click();
-    await expect(page.locator("main h1")).toHaveText("Order");
+    await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Order");
     expect(await readFile(join(root, "lexicon/model.xml"), "utf8")).toBe(xml);
     await chat
       .getByRole("textbox", { name: "Message the coding agent" })

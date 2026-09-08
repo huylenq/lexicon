@@ -45,7 +45,7 @@ test("install metadata, offline deep links, and uncached local API", async ({ pa
     }, icon.src)).toBe(icon.sizes);
   }
   await page.goto("/p/dentalml");
-  await expect(page.locator(".project-name")).toHaveText("Canal measurement");
+  await expect(page.getByRole("navigation", { name: "Reader breadcrumb" }).getByRole("button").first()).toHaveText("Canal measurement");
   expect(await page.evaluate(async () => {
     const keys = await caches.keys();
     const requests = (await Promise.all(keys.map(async (key) => (await caches.open(key)).keys()))).flat();

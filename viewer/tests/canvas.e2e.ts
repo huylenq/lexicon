@@ -74,7 +74,7 @@ test("native label gestures add and toggle selections, including relationship la
   // Keyboard activation still opens the explanation through the native selection.
   await line.focus();
   await line.press("Enter");
-  await expect(page.locator("main h1")).toHaveText("Order Line");
+  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Order Line");
   await expect.poll(() => selectedObjects(page)).toEqual(["item:order-line"]);
 });
 
@@ -199,7 +199,7 @@ test("clearing native selection survives projection changes and browser history 
   const group = (await card(page, "ordering").boundingBox())!;
   await page.mouse.click(group.x - 20, group.y + 80);
   await expect.poll(() => selectedObjects(page)).toEqual([]);
-  await expect(page).not.toHaveURL(/item=/);
+  await expect(page.locator("[data-reader-card].active")).toHaveAttribute("data-reader-card", "item:order");
   await page.getByRole("button", { name: "Show all code", exact: true }).click();
   await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
   await expect.poll(() => selectedObjects(page)).toEqual([]);
@@ -207,20 +207,22 @@ test("clearing native selection survives projection changes and browser history 
   await page.getByRole("button", { name: "Refresh", exact: true }).click();
   await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
   await expect.poll(() => selectedObjects(page)).toEqual([]);
+  // Clearing the canvas does not discard the reader or create a new reading step.
+  await page.getByRole("button", { name: "concept: Order Line", exact: true }).click();
   await page.goBack();
   await expect.poll(() => selectedObjects(page)).toEqual(["item:order"]);
   await page.goForward();
-  await expect.poll(() => selectedObjects(page)).toEqual([]);
+  await expect.poll(() => selectedObjects(page)).toEqual(["item:order-line"]);
   await page.getByRole("button", { name: "concept: Order", exact: true }).click();
-  await page.locator("main").getByRole("link", { name: "Open Order Line", exact: true }).click();
+  await page.locator("[data-reader-card].active").getByRole("link", { name: "Open Order Line", exact: true }).click();
   await expect.poll(() => selectedObjects(page)).toEqual(["item:order-line"]);
   // Returning to the previously clicked card still navigates after a reader link.
   await page.getByRole("button", { name: "concept: Order", exact: true }).click();
-  await expect(page.locator("main h1")).toHaveText("Order");
+  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Order");
   await page.getByRole("button", { name: "concept: Order Line", exact: true }).click();
   await page.keyboard.press("Escape");
   await expect.poll(() => selectedObjects(page)).toEqual([]);
-  await expect(page).not.toHaveURL(/item=/);
+  await expect(page.locator("[data-reader-card].active")).toHaveAttribute("data-reader-card", "item:order-line");
   await note(page, "This note has no stale attachment.");
   expect(records((await exportDocument(page)).data).filter((r) => r.type === "lexicon-note")).toHaveLength(0);
 });
@@ -260,7 +262,7 @@ test("project links open one tldraw canvas with Diagram and Atlas modes and a st
   for (const legacy of ["graph", "tldraw"]) {
     await page.goto(`/p/${projectId}?canvas=${legacy}&item=order`);
     await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
-    await expect(page.locator("main h1")).toHaveText("Order");
+    await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Order");
     await expect(page).toHaveURL(new RegExp(`/p/${projectId}\\?item=order$`));
   }
   await page.setViewportSize({ width: 1024, height: 900 });
@@ -270,7 +272,7 @@ test("project links open one tldraw canvas with Diagram and Atlas modes and a st
   expect(actionsBox.x + actionsBox.width).toBeLessThanOrEqual(paneBox.x + paneBox.width);
   await page.getByRole("button", { name: "Toggle code workspace", exact: true }).click();
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.getByRole("button", { name: "Back to canvas", exact: true }).click();
+  await page.getByRole("button", { name: "Toggle reader", exact: true }).click();
   await expect(toolbar.getByRole("button", { name: "Arrange", exact: true })).toBeVisible();
   await expect(page.getByRole("group", { name: "Canvas mode", exact: true })).toBeVisible();
   await page.getByRole("radio", { name: "Diagram", exact: true }).check();
@@ -293,9 +295,9 @@ test("model context actions toggle all code owned by a context and restore the c
   await page.getByRole("menuitem", { name: "Hide code", exact: true }).click();
   await expect(page.locator(".model-count")).toHaveText("3 concepts · 0 code");
   await page.getByRole("button", { name: "concept: Order", exact: true }).click();
-  await page.getByRole("button", { name: "Toggle code in canvas", exact: true }).click();
+  await page.locator("[data-reader-card].active").getByRole("button", { name: "Toggle code in canvas", exact: true }).click();
   await expect(page.locator(".model-count")).toHaveText("3 concepts · 1 code");
-  await page.getByRole("button", { name: "Toggle code in canvas", exact: true }).click();
+  await page.locator("[data-reader-card].active").getByRole("button", { name: "Toggle code in canvas", exact: true }).click();
   await expect(page.locator(".model-count")).toHaveText("3 concepts · 0 code");
   const area = (await page.locator(".canvas-stage").boundingBox())!;
   await page.getByRole("button", { name: /^Hand —/ }).click();
@@ -438,15 +440,15 @@ test("model references preserve context, relationship, code, history, and search
   page.on("pageerror", (error) => errors.push(error.message));
   await open(page);
   await page.getByRole("button", { name: "context: Ordering", exact: true }).click();
-  await expect(page.locator("main h1")).toHaveText("Ordering");
+  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Ordering");
   await page.getByRole("button", { name: "concept: Order", exact: true }).click();
-  await expect(page.locator("main h1")).toHaveText("Order");
+  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Order");
   await page.getByRole("button", { name: "Read relationship: contains", exact: true }).click();
-  await expect(page.locator("main h1")).toContainText("Order contains Order Line");
+  await expect(page.locator("main [data-reader-card].active > header h1")).toContainText("Order contains Order Line");
   await page.goBack();
-  await expect(page.locator("main h1")).toHaveText("Order");
+  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Order");
   await page.goForward();
-  await page.getByRole("button", { name: "Toggle code in canvas", exact: true }).click();
+  await page.locator("[data-reader-card].active").getByRole("button", { name: "Toggle code in canvas", exact: true }).click();
   await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
   await page.getByRole("button", { name: "Fit model", exact: true }).click();
   await page.getByRole("button", { name: "code: Order", exact: true }).click();
@@ -600,9 +602,9 @@ test("narrow screens, dark theme, and unavailable code remain usable", async ({ 
   await page.getByRole("button", { name: "Use dark theme" }).click();
   await expect(page.locator(".tl-container")).toHaveClass(/tl-theme__dark/);
   await page.getByRole("button", { name: "concept: Order", exact: true }).click();
-  await expect(page.locator("main h1")).toHaveText("Order");
+  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Order");
   await writeFile(join(root, "checkout.ts"), "// Declaration intentionally missing for error-state QA.");
-  await page.locator("main .code-links button").first().click();
+  await page.locator("main [data-reader-card].active .code-links button").first().click();
   await expect(page.locator("#code-pane")).toContainText(/not found|missing|could not/i);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
 });
@@ -628,7 +630,7 @@ test("parallel and self relationships remain distinct, and canvas undo cannot re
     .not.toBe(routes.find((r) => r.props.graphId === "relation:validates").props.path);
   expect(routes.find((r) => r.props.graphId === "relation:rechecks").props.points.every((p: any) => Number.isFinite(p.x) && Number.isFinite(p.y))).toBeTruthy();
   await page.getByRole("button", { name: "Read relationship: rechecks", exact: true }).click();
-  await expect(page.locator("main h1")).toContainText("Order rechecks Order");
+  await expect(page.locator("main [data-reader-card].active > header h1")).toContainText("Order rechecks Order");
   await page.getByRole("button", { name: "concept: Order", exact: true }).click();
   await page.getByRole("button", { name: /^Delete —/ }).click();
   await expect(page.getByRole("button", { name: "concept: Order", exact: true })).toBeVisible();
