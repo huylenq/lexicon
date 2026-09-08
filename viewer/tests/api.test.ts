@@ -18,7 +18,8 @@ const { db } = await import("../server/db");
 const { ChatService, buildPrompt } = await import("../server/chat/service");
 const { fingerprint } = await import("../server/chat/model-edit");
 const { parseModel } = await import("../server/model");
-import type { ChatState } from "../shared/chat";
+import type { ChatState, Provider } from "../shared/chat";
+import { providers } from "../shared/chat";
 import type { ProviderAdapter, TurnInput } from "../server/chat/providers";
 afterAll(async () => {
   db.close();
@@ -170,7 +171,7 @@ test("linked worktree reads shared artifacts but source from the selected implem
 
 function fakeChat(turn: (input: TurnInput) => Promise<string>) {
   const adapter = { turn, probe: async () => ({ id: "codex", installed: true, authenticated: true, detail: "Test" }) } as ProviderAdapter;
-  return new ChatService({ codex: adapter, grok: adapter, claude: adapter });
+  return new ChatService(Object.fromEntries(providers.map((p) => [p, adapter])) as Record<Provider, ProviderAdapter>);
 }
 async function untilChat(service: InstanceType<typeof ChatService>, id: string, check: (state: ChatState) => boolean) {
   let unsubscribe = () => {};

@@ -136,7 +136,7 @@ export class ChatService {
     )
       throw new Error("Enter a question of at most 20,000 characters.");
     if (!providers.includes(input.provider as Provider))
-      throw new Error("Choose Codex, Grok, or Claude.");
+      throw new Error("Choose an installed coding agent.");
     if (
       input.model !== undefined &&
       (typeof input.model !== "string" ||
@@ -160,7 +160,7 @@ export class ChatService {
       throw new Error("Choose a supported reasoning effort.");
     if (input.fast !== undefined && typeof input.fast !== "boolean")
       throw new Error("Fast mode must be on or off.");
-    if (input.fast && input.provider === "grok")
+    if (input.fast && !["codex", "claude"].includes(input.provider as string))
       throw new Error("This runtime does not advertise fast mode.");
     const root = await realpath(project.artifactRoot);
     if (this.active.has(project.id) || this.locks.has(root))

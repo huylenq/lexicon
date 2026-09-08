@@ -19,6 +19,9 @@ const names: Record<Provider, string> = {
   codex: "Codex",
   grok: "Grok",
   claude: "Claude",
+  pi: "pi",
+  omp: "Oh My Pi",
+  hermes: "Hermes",
 };
 export default function ChatPane({
   projectId,

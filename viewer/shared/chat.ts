@@ -1,6 +1,6 @@
 import type { CodeLink, ModelItem } from "./model";
 
-export const providers = ["codex", "grok", "claude"] as const;
+export const providers = ["codex", "grok", "claude", "pi", "omp", "hermes"] as const;
 export type Provider = (typeof providers)[number];
 export interface ModelChoice {
   id: string;
