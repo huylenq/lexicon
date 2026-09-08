@@ -3,7 +3,7 @@ import { providers, type ModelCatalog, type ModelChoice, type Provider } from ".
 import { request } from "./ui";
 
 export interface ChatSelection { provider: Provider; model: string; effort?: string; fast?: boolean }
-const names: Record<Provider, string> = { codex: "Codex", grok: "Grok", claude: "Claude" };
+const names: Record<Provider, string> = { codex: "Codex", grok: "Grok", claude: "Claude", pi: "pi", omp: "Oh My Pi", hermes: "Hermes" };
 function savedSelection(projectId: string, provider: Provider): Partial<ChatSelection> {
   try { return JSON.parse(localStorage.getItem(`lexicon.chat.model.${projectId}.${provider}`) || "{}"); } catch { return {}; }
 }
