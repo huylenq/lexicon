@@ -608,11 +608,13 @@ export async function listModels(provider: Provider): Promise<ModelCatalog> {
 export async function probeProviders(): Promise<ProviderStatus[]> {
   return Promise.all(
     providers.map(async (id) => {
-      const command = (
+      // Overrides may carry arguments ("agent.ts acp --acp-owner p-owned");
+      // probe the first token, passing any extras before --version.
+      const [command, ...extra] = (
         process.env[`LEXICON_${id.toUpperCase()}_BIN`] || id
-      ).split(" ")[0];
+      ).split(" ");
       try {
-        await exec(command, ["--version"], { timeout: 15_000 });
+        await exec(command, [...extra, "--version"], { timeout: 15_000 });
       } catch {
         return {
           id,
@@ -624,11 +626,14 @@ export async function probeProviders(): Promise<ProviderStatus[]> {
       try {
         return await adapters[id].probe();
       } catch (error) {
+        const message = (error as Error).message;
         return {
           id,
           installed: true,
           authenticated: null,
-          detail: (error as Error).message,
+          detail: /spawn .* ENOENT/i.test(message)
+            ? `Install ${id} and its ACP entry point, then sign in locally`
+            : message,
         };
       }
     }),

@@ -120,6 +120,19 @@ test("generic ACP adapters share one streaming path and refuse write permissions
       expect(resumed).toBe(answer);
     }
   }));
+test("the ACP adapter answers permission requests without granting writes", () =>
+  withFixtures(async () => {
+    const answer = await adapters.omp.turn({
+      cwd: import.meta.dir,
+      prompt: "Show permission request",
+      signal: new AbortController().signal,
+      onSession: () => {},
+      onText: () => {},
+      onActivity: () => {},
+      ask: async () => ({}),
+    });
+    expect(answer).toBe("Permissions: edit=cancelled, read=allow.");
+  }));
 test("Codex structured questions flow back through the native response", () =>
   withFixtures(async () => {
     const text = await adapters.codex.turn({
@@ -136,6 +149,21 @@ test("Codex structured questions flow back through the native response", () =>
     });
     expect(text).toBe("Selected Orders.");
   }));
+test("runtime catalogs include pagination and native model and effort choices", () => withFixtures(async () => {
+  const codex = await listModels("codex");
+  expect(codex.models.map((m) => m.id)).toEqual(["test-fast", "test-deep"]);
+  expect(codex.defaultModel).toBe("test-fast");
+  expect(codex.models[0].efforts).toEqual(["low", "high"]);
+  expect(codex.models[0].fastMode).toBeUndefined();
+  expect(codex.models[1].fastMode?.description).toContain("increased usage");
+  expect((await listModels("grok")).defaultModel).toBe("grok-test");
+  expect((await listModels("claude")).models.map((m) => m.id)).toContain("opus");
+  const acp = await listModels("pi");
+  expect(acp.defaultModel).toBe("acp-test");
+  expect(acp.models.map((m) => m.name)).toContain("ACP test");
+  expect(acp.models[0].efforts).toEqual(["low", "high"]);
+  expect(acp.models[0].defaultEffort).toBe("high");
+}));
 test("model changes reach each runtime on new and resumed turns", () =>
   withFixtures(async () => {
     for (const provider of ["codex", "grok", "claude", "pi"] as const) {
@@ -185,6 +213,25 @@ test("generic ACP adapters set models and effort through their advertised surfac
       expect(resumed).toBe(
         `Model acp-test, effort ${provider === "pi" ? "high" : "default"}.`,
       );
+    }
+  }));
+test("ACP authenticate falls back to an advertised method", () =>
+  withFixtures(async () => {
+    const saved = process.env.LEXICON_OMP_BIN;
+    process.env.LEXICON_OMP_BIN = `${fixture} acp --acp-owner omp-owned --only-auth other-id`;
+    try {
+      const answer = await adapters.omp.turn({
+        cwd: import.meta.dir,
+        prompt: "Report auth method",
+        signal: new AbortController().signal,
+        onSession: () => {},
+        onText: () => {},
+        onActivity: () => {},
+        ask: async () => ({}),
+      });
+      expect(answer).toBe("Auth other-id.");
+    } finally {
+      process.env.LEXICON_OMP_BIN = saved;
     }
   }));
 

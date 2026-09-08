@@ -15,6 +15,8 @@ const flagValue = (flag: string) => {
 let selectedModel = flagValue("--model");
 let selectedEffort = flagValue("--effort");
 let selectedSpeed = args.includes("--settings") && JSON.parse(args[args.indexOf("--settings") + 1]).fastMode ? "fast" : "standard";
+let selectedAuth = "";
+const onlyAuth = flagValue("--only-auth");
 if (args.includes("--version")) {
   console.log("Lexicon test agent 1.0");
   process.exit(0);
@@ -39,6 +41,7 @@ function reply(prompt: string) {
     );
   }
   if (text.includes("question")) return { question: true, text: "" };
+  if (text.includes("auth method")) return { text: `Auth ${selectedAuth}.` };
   if (text.includes("model selection")) return { text: `Model ${selectedModel}, effort ${selectedEffort || "default"}.` };
   if (text.includes("speed selection")) return { text: `Speed ${selectedSpeed}.` };
   if (text.includes("slow")) return { slow: true, text: "Working…" };
@@ -91,6 +94,7 @@ const acp = args.includes("acp") && !grok;
 const acpSessionId = (args[args.indexOf("--acp-owner") + 1] ||
   "acp-owned") as string;
 let activeId = 0;
+const permissions: Record<string, string> = {};
 const notification = (method: string, params: unknown) =>
   send({ method, params });
 function complete(text: string) {
@@ -127,6 +131,14 @@ function complete(text: string) {
 createInterface({ input: process.stdin }).on("line", (line) => {
   const message = JSON.parse(line),
     p = message.params || {};
+  if (message.id === "perm-edit" || message.id === "perm-read") {
+    const outcome = message.result?.outcome || {};
+    permissions[message.id === "perm-edit" ? "edit" : "read"] =
+      outcome.optionId || outcome.outcome;
+    if (permissions.edit && permissions.read)
+      complete(`Permissions: edit=${permissions.edit}, read=${permissions.read}.`);
+    return;
+  }
   if (message.id === "question") {
     complete(
       `Selected ${Object.values(message.result.answers)[0] && (Object.values(message.result.answers)[0] as any).answers[0]}.`,
@@ -142,6 +154,9 @@ createInterface({ input: process.stdin }).on("line", (line) => {
             agentCapabilities: args.includes("--no-load-session")
               ? {}
               : { loadSession: true },
+            authMethods: onlyAuth
+              ? [{ id: onlyAuth }]
+              : [{ id: "agent" }, { id: "pi_terminal_login" }],
           }
         : {},
     });
@@ -167,9 +182,10 @@ createInterface({ input: process.stdin }).on("line", (line) => {
       return;
     }
     send({ id: message.id, result: { thread: { id: "codex-owned" } } });
-  } else if (message.method === "authenticate")
+  } else if (message.method === "authenticate") {
+    selectedAuth = p.methodId;
     send({ id: message.id, result: {} });
-  else if (["session/new", "session/load"].includes(message.method)) {
+  } else if (["session/new", "session/load"].includes(message.method)) {
     if (acp)
       send({ id: message.id, result: {
         sessionId: acpSessionId,
@@ -205,6 +221,15 @@ createInterface({ input: process.stdin }).on("line", (line) => {
       send({ id: message.id, result: { turn: { id: "turn" } } });
     }
     const prompt = grok || acp ? p.prompt[0].text : p.input[0].text;
+    if (acp && prompt.includes("permission")) {
+      const options = [
+        { optionId: "allow", kind: "allow_once" },
+        { optionId: "deny", kind: "reject_once" },
+      ];
+      send({ id: "perm-edit", method: "session/request_permission", params: { toolCall: { toolCallId: "edit-1", kind: "edit" }, options } });
+      send({ id: "perm-read", method: "session/request_permission", params: { toolCall: { toolCallId: "read-1", kind: "read" }, options } });
+      return;
+    }
     if (prompt.includes("tools")) {
       if (grok || acp) {
         notification("session/update", { sessionId: acp ? acpSessionId : "grok-owned", update: { sessionUpdate: "tool_call", toolCallId: "read-1", title: "Read order.ts", kind: "read", status: "in_progress", rawInput: { path: "order.ts" } } });
