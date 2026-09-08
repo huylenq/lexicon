@@ -128,6 +128,33 @@ export function generateTerritory(seed: string, boxes: Bounds[], heading: { w: n
   }
   return { points, label };
 }
+
+/** Round the editable cage into a shared visible/hittable coast. Short quadratic
+ * arcs stay local to each corner; reduce rounding when a sculpted bay is tight. */
+export function roundTerritory(control: Territory, boxes: Bounds[], heading: { w: number; h: number }): Territory {
+  const protectedBoxes = [...boxes.map(b => inflate(b, 8)), { ...control.label, ...heading }];
+  const steps = Math.min(8, Math.floor(512 / control.points.length) - 1);
+  if (steps < 2) return control;
+  for (let radius = 36; radius >= 1; radius /= 2) {
+    const points = control.points.flatMap((p, i, ring) => {
+      const before = ring[(i + ring.length - 1) % ring.length], after = ring[(i + 1) % ring.length];
+      const incoming = Math.hypot(p.x - before.x, p.y - before.y), outgoing = Math.hypot(p.x - after.x, p.y - after.y);
+      const clearance = Math.min(...protectedBoxes.map(b => Math.hypot(
+        Math.max(b.x - p.x, 0, p.x - b.x - b.w), Math.max(b.y - p.y, 0, p.y - b.y - b.h))));
+      const reach = Math.min(radius, incoming * .35, outgoing * .35, clearance * .9);
+      if (reach < .1) return [p];
+      const a = mix(p, before, reach / (incoming || 1)), b = mix(p, after, reach / (outgoing || 1));
+      // Normal outlines use eight samples per arc; bound work for dense imported cages.
+      return Array.from({ length: steps + 1 }, (_, j) => {
+        const t = j / steps;
+        return { x: (1 - t) ** 2 * a.x + 2 * t * (1 - t) * p.x + t * t * b.x,
+          y: (1 - t) ** 2 * a.y + 2 * t * (1 - t) * p.y + t * t * b.y };
+      });
+    });
+    if (simplePolygon(points) && protectedBoxes.every(b => containsBox(points, b))) return { ...control, points };
+  }
+  return control;
+}
 const asPolygon = (points: Point[]): Polygon => [points.map(p => [p.x, p.y])];
 const toRegion = (polygons: MultiPolygon): TerritoryRegion => polygons.map(polygon =>
   polygon.map(ring => ring.map(([x, y]) => ({ x, y }))));

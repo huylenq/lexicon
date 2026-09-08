@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { applyTerritoryEdits, borderPort, containsBox, corners, fitContextFrame, generateTerritory, inflate,
-  migrateTerritory, moveBorderVertex, pointBounds, pointInPolygon, simplePolygon, territoryEdit } from "../client/src/canvas/territory";
+  migrateTerritory, moveBorderVertex, pointBounds, pointInPolygon, roundTerritory, simplePolygon, territoryEdit } from "../client/src/canvas/territory";
 import { distanceToSegment } from "../client/src/canvas/terrain/generate";
 import { uncoveredArea } from "./canvas-polygon-oracle";
 
@@ -10,6 +10,26 @@ const bay = [{ x: 0, y: 0 }, { x: 200, y: 0 }, { x: 200, y: 200 }, { x: 110, y: 
   { x: 110, y: 80 }, { x: 90, y: 80 }, { x: 90, y: 200 }, { x: 0, y: 200 }];
 
 describe("context territory geometry", () => {
+  test("rounded coasts preserve contents and translation while keeping the editable cage intact", () => {
+    const control = generateTerritory("rounded", boxes, heading), original = structuredClone(control);
+    const rounded = roundTerritory(control, boxes, heading);
+    expect(rounded.points.length).toBeGreaterThan(control.points.length);
+    expect(simplePolygon(rounded.points)).toBe(true);
+    for (const box of [...boxes.map(b => inflate(b, 8)), { ...control.label, ...heading }])
+      expect(uncoveredArea(rounded.points, box)).toBeLessThan(.001);
+    const translated = roundTerritory({ points: control.points.map(p => ({ x: p.x + 73, y: p.y - 39 })),
+      label: { x: control.label.x + 73, y: control.label.y - 39 } }, boxes.map(b => ({ ...b, x: b.x + 73, y: b.y - 39 })), heading);
+    expect(translated.points.length).toBe(rounded.points.length);
+    rounded.points.forEach((p, i) => {
+      expect(translated.points[i].x - 73).toBeCloseTo(p.x, 8);
+      expect(translated.points[i].y + 39).toBeCloseTo(p.y, 8);
+    });
+    expect(control).toEqual(original);
+    const tight = { points: bay, label: { x: 10, y: 10 } };
+    const safe = roundTerritory(tight, [{ x: 8, y: 80, w: 74, h: 110 }], { w: 30, h: 20 });
+    expect(simplePolygon(safe.points)).toBe(true);
+    expect(uncoveredArea(safe.points, { x: 0, y: 72, w: 90, h: 126 })).toBeLessThan(.001);
+  });
   test("Diagram fits every inner node in every direction, including negative placements and tall labels", () => {
     const contents = [...boxes, { x: -240, y: -170, w: 270, h: 190 }];
     const frame = fitContextFrame(contents, { w: 310, h: 70 });

@@ -32,6 +32,7 @@
 .canvas-territory-selection path { fill: none; stroke: none; }
 .canvas-object[data-context-boundary="territory"][data-selected="true"] { outline: none; }
 .canvas-object[data-selected="true"] .canvas-territory-selection path { stroke: var(--accent); stroke-width: 2; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+.canvas-object[data-selected="true"] .canvas-territory-selection .canvas-territory-cage { stroke-width: 1; stroke-dasharray: 3 5; opacity: .45; }
 .canvas-object small { position: absolute; bottom: 8px; left: 12px; right: 12px; font-size: 9px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
 .canvas-object[data-missing] { border-style: dashed; color: var(--muted); }
 :root { --canvas-relationship: #7a8997; }

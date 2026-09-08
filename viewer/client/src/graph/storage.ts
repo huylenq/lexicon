@@ -10,6 +10,7 @@ export type Workspace = GraphOptions & {
   codeWidth: number;
   chatWidth: number;
   map?: boolean;
+  atlasSkin?: "ink" | "village";
 };
 export const defaults = (): Workspace => ({
   expanded: [],
@@ -20,6 +21,7 @@ export const defaults = (): Workspace => ({
   codeWidth: 38,
   chatWidth: 400,
   map: true,
+  atlasSkin: "ink",
 });
 // Retain the existing key so canvas preferences and earlier saved positions migrate.
 export const storageKey = (projectId: string) =>
@@ -35,6 +37,8 @@ export function readWorkspace(key: string): Workspace {
       );
     for (const name of ["sidebar", "allCode", "map"] as const)
       if (typeof value[name] === "boolean") result[name] = value[name];
+    if (value.atlasSkin === "ink" || value.atlasSkin === "village")
+      result.atlasSkin = value.atlasSkin;
     if (Number.isFinite(value.width))
       result.width = Math.max(25, Math.min(75, value.width));
     if (Number.isFinite(value.codeWidth))

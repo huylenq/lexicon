@@ -7,6 +7,7 @@ import { isPrimary } from "./references";
 type ModelPresentation = {
   modelId: string;
   mapEnabled: boolean;
+  atlasSkin?: "ink" | "village";
   vertices: ReadonlyMap<string, GraphVertex>;
   connections: ReadonlyMap<string, GraphConnection>;
   matches: (id: string) => boolean;
@@ -37,13 +38,13 @@ export function setBorderEditing(editor: Editor, id?: TLShapeId) {
 
 /** Publish model changes without interrupting a valid border-editing session. */
 export function useSyncCanvasPresentation(editor: Editor | undefined, model: ModelPresentation) {
-  const { modelId, mapEnabled, vertices, connections, matches } = model;
+  const { modelId, mapEnabled, atlasSkin, vertices, connections, matches } = model;
   useLayoutEffect(() => {
     if (!editor) return;
     const state = canvasPresentation(editor), previous = state.get();
-    state.set({ modelId, mapEnabled, vertices, connections, matches,
+    state.set({ modelId, mapEnabled, atlasSkin, vertices, connections, matches,
       editingTerritory: previous.modelId === modelId && mapEnabled ? previous.editingTerritory : undefined });
-  }, [editor, modelId, mapEnabled, vertices, connections, matches]);
+  }, [editor, modelId, mapEnabled, atlasSkin, vertices, connections, matches]);
 
   useLayoutEffect(() => {
     if (!editor) return;

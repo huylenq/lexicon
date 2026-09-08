@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { inflate } from "../client/src/canvas/territory";
 import { uncoveredArea } from "./canvas-polygon-oracle";
-import { atlasEnclosesNodes, renderedTerritory, territoryScreenPoint } from "./canvas-territory-helpers";
+import { atlasEnclosesNodes, renderedTerritory, renderedTerritoryControls, territoryScreenPoint } from "./canvas-territory-helpers";
 import { distanceToSegment } from "../client/src/canvas/terrain/generate";
 
 let root: string, projectId: string, xml: string;
@@ -107,7 +107,7 @@ test("Atlas border handles and Reshape to contents preserve nodes, support undo,
   expect(changed.x).toBe(context.x); expect(changed.y).toBe(context.y);
   for (const id of ["order", "order-line", "order-total"]) expect(object(edited, id)).toEqual(object(before, id));
   await expect(card(page, "ordering")).toHaveCSS("outline-style", "none");
-  await expect(card(page, "ordering").locator(".canvas-territory-selection path")).not.toHaveCSS("stroke", "none");
+  await expect(card(page, "ordering").locator(".canvas-territory-selection path").first()).not.toHaveCSS("stroke", "none");
   await page.getByRole("button", { name: "Finish border editing", exact: true }).click();
   await page.getByRole("button", { name: "Reshape to contents", exact: true }).click();
   expect(object(await snapshot(page), "ordering").props.territory).toBeNull();
@@ -230,12 +230,12 @@ test("a preferred bay yields during native movement and returns after moving bac
   await expect(page.getByRole("button", { name: "Undo restore", exact: true, includeHidden: true })).toBeAttached();
   await page.getByRole("button", { name: "Fit model", exact: true }).click();
   const initial = await snapshot(page), context = object(initial, "ordering"), before = object(initial, "order");
-  const coast = await renderedTerritory(page);
+  await page.getByRole("button", { name: "context: Ordering", exact: true }).click();
+  await page.getByRole("button", { name: "Edit border", exact: true }).click();
+  const coast = await renderedTerritoryControls(page);
   const bay = coast.filter(p => p.x > context.x + 250 && p.x < context.x + 550 && p.y > context.y + 350)
     .sort((a, b) => b.y - a.y)[0];
   expect(bay).toBeTruthy();
-  await page.getByRole("button", { name: "context: Ordering", exact: true }).click();
-  await page.getByRole("button", { name: "Edit border", exact: true }).click();
   const start = await territoryScreenPoint(page, bay), end = await territoryScreenPoint(page, { x: bay.x, y: bay.y - 160 });
   await page.mouse.move(start.x, start.y); await page.mouse.down();
   await page.mouse.move(end.x, end.y, { steps: 14 }); await page.mouse.up();

@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { distanceToSegment, dockRoad, generateMap, inside, landmarkFor, landmarkPlacement, roadGeometry, type MapNode, type MapRoad } from "../client/src/canvas/terrain/generate";
+import { distanceToSegment, dockRoad, boundaryStructureFor, generateMap, inside, landmarkFor, landmarkPlacement, roadGeometry, type MapNode, type MapRoad } from "../client/src/canvas/terrain/generate";
+import { pointInPolygon } from "../client/src/canvas/territory";
 import { relationshipRoute } from "../client/src/canvas/routes";
 
 const context: MapNode = { id: "ordering", kind: "context", bounds: { x: 100, y: 200, w: 500, h: 450 },
@@ -145,4 +146,127 @@ describe("procedural map constraints", () => {
     expect(generateMap("shop", [], []).districts).toEqual([]);
     expect(generateMap("shop", [{ ...context, bounds: { ...context.bounds, x: NaN } }], []).districts).toEqual([]);
   });
+});
+
+describe("classic landscape", () => {
+  test("large and small features clear labels, buildings, notes, and road corridors", () => {
+    const road: MapRoad = { id: "crossing", points: [{ x: -300, y: 430 }, { x: 1000, y: 430 }], kind: "road" };
+    const note = { x: 380, y: 260, w: 100, h: 130 };
+    const scene = generateMap("landscape", nodes, [road], [note]);
+    const district = scene.districts[0];
+    expect(district.landscape.some(f => f.large)).toBe(true);
+    expect(new Set(district.landscape.map(f => f.kind)).size).toBeGreaterThan(5);
+    expect(new Set(district.ground.map(p => p.kind)).size).toBeGreaterThan(2);
+    for (const feature of district.landscape) {
+      const b = feature.bounds, center = { x: b.x + b.w / 2, y: b.y + b.h / 2 };
+      for (const obstacle of [context.label, order.bounds, note])
+        expect(b.x + b.w + 8 <= obstacle.x || b.x - 8 >= obstacle.x + obstacle.w || b.y + b.h + 8 <= obstacle.y || b.y - 8 >= obstacle.y + obstacle.h).toBe(true);
+      const points = scene.roads[0].geometry.points;
+      const distance = Math.min(...points.slice(1).map((p, i) => distanceToSegment(center, points[i], p)));
+      expect(distance).toBeGreaterThanOrEqual(Math.hypot(b.w, b.h) / 2 + 18);
+    }
+  });
+
+  test("habitats follow context translation and terrain choices while islands contain the entire artwork", () => {
+    const scene = generateMap("landscape", nodes, []);
+    const translated = generateMap("landscape", nodes.map(n => translate(n, 37, -19)), []);
+    const before = scene.districts[0].landscape, after = translated.districts[0].landscape;
+    expect(after.map(f => [f.id, f.kind, f.variant])).toEqual(before.map(f => [f.id, f.kind, f.variant]));
+    for (let i = 0; i < before.length; i++) {
+      expect(after[i].bounds.x - 37).toBeCloseTo(before[i].bounds.x, 8);
+      expect(after[i].bounds.y + 19).toBeCloseTo(before[i].bounds.y, 8);
+    }
+    const highlands = generateMap("landscape", [{ ...context, terrain: "highlands" }, order], []).districts[0];
+    expect(highlands.landscape.some(f => f.kind === "mountain")).toBe(true);
+    expect(highlands.landscape.some(f => f.kind === "pond" || f.kind === "spring")).toBe(false);
+    const wetland = generateMap("landscape", [{ ...context, terrain: "wetland" }, order], []).districts[0];
+    expect(wetland.landscape.some(f => f.kind === "spring")).toBe(true);
+    expect(wetland.landscape.some(f => f.kind === "mountain")).toBe(false);
+    const island = generateMap("landscape", [{ ...context, terrain: "island" }, order], []).districts[0];
+    for (const f of island.landscape) {
+      const b = f.bounds;
+      for (const p of [{ x: b.x, y: b.y }, { x: b.x + b.w, y: b.y }, { x: b.x, y: b.y + b.h }, { x: b.x + b.w, y: b.y + b.h }])
+        expect(pointInPolygon(p, island.boundary)).toBe(true);
+    }
+  });
+});
+
+
+describe("fortification structure", () => {
+  const boundary = [{ x: 0, y: 0 }, { x: 400, y: 0 }, { x: 400, y: 300 }, { x: 0, y: 300 }];
+  test("road crossings open the wall and towers leave the approach clear", () => {
+    const road: MapRoad = { id: "through", points: [{ x: -100, y: 170 }, { x: 600, y: 170 }], kind: "road" };
+    const roads = [{ ...road, geometry: roadGeometry("through", road.points, "road") }];
+    const fort = boundaryStructureFor("city", boundary, "village", roads, []);
+    expect(fort.gates.length).toBe(2);
+    expect(fort.walls.length).toBeGreaterThan(100);
+    for (const gate of fort.gates) {
+      expect(gate.roadIds).toEqual(["through"]);
+      expect(gate.main).toBe(false);
+      const path = roads[0].geometry.points;
+      expect(Math.min(...path.slice(1).map((p, i) => distanceToSegment(gate.at, path[i], p)))).toBeLessThan(.0001);
+      for (const wall of fort.walls)
+        expect(distanceToSegment(gate.at, wall.a, wall.b)).toBeGreaterThan(gate.span / 2 - 1);
+    }
+    for (const tower of fort.towers) {
+      const path = roads[0].geometry.points;
+      expect(Math.min(...path.slice(1).map((p, i) => distanceToSegment(tower.at, path[i], p)))).toBeGreaterThanOrEqual(tower.radius + 12);
+    }
+    const departing: MapRoad = { id: "departure", points: [{ x: 0, y: 80 }, { x: -120, y: 80 }], kind: "road" };
+    const departure = boundaryStructureFor("city", boundary, "village", [{ ...departing, geometry: roadGeometry("departure", departing.points, "road") }], []);
+    expect(departure.gates).toHaveLength(1);
+    expect(departure.gates[0].main).toBe(false);
+    expect(departure.gates[0].roadIds).toEqual(["departure"]);
+    expect(departure.gates[0].span).toBeLessThan(30);
+  });
+  test("an isolated context has a main gate, varied towers, and stable architecture under translation", () => {
+    const fort = boundaryStructureFor("city", boundary, "village", [], []);
+    expect(fort.gates.filter(g => g.main).length).toBe(1);
+    expect(new Set(fort.towers.map(t => t.kind)).size).toBe(4);
+    const moved = boundaryStructureFor("city", boundary.map(p => ({ x: p.x + 73, y: p.y - 39 })), "village", [], []);
+    expect(moved.towers.map(t => [t.id, t.kind, t.radius, t.height])).toEqual(fort.towers.map(t => [t.id, t.kind, t.radius, t.height]));
+    fort.towers.forEach((t, i) => {
+      expect(moved.towers[i].at.x - 73).toBeCloseTo(t.at.x, 8);
+      expect(moved.towers[i].at.y + 39).toBeCloseTo(t.at.y, 8);
+    });
+    const blocked = boundaryStructureFor("city", boundary, "village", [], [{ x: -30, y: -60, w: 460, h: 115 }]);
+    expect(blocked.towers.every(t => t.at.y - t.height - 16 > 55)).toBe(true);
+  });
+});
+
+
+test("terrain selects natural boundary structure and preserves crossing clearance", () => {
+  const boundary = [{ x: 0, y: 0 }, { x: 400, y: 0 }, { x: 400, y: 300 }, { x: 0, y: 300 }];
+  const points = [{ x: -100, y: 170 }, { x: 600, y: 170 }];
+  const road = { id: "cross", kind: "road" as const, points, geometry: roadGeometry("cross", points, "road") };
+  for (const terrain of ["woodland", "highlands", "island", "wetland"] as const) {
+    const edge = boundaryStructureFor("natural", boundary, terrain, [road], []);
+    expect(edge.walls).toHaveLength(0);
+    expect(edge.towers).toHaveLength(0);
+    expect(edge.reaches.length).toBeGreaterThan(10);
+    expect(edge.gates.every(g => !g.main)).toBe(true);
+    expect(edge.sprites.length).toBeGreaterThan(10);
+    for (const { bounds: b } of edge.sprites) {
+      const center = { x: b.x + b.w / 2, y: b.y + b.h / 2 };
+      expect(Math.min(...road.geometry.points.slice(1).map((q, i) => distanceToSegment(center, road.geometry.points[i], q))))
+        .toBeGreaterThanOrEqual(Math.hypot(b.w, b.h) / 2 + 12);
+    }
+    const obstacle = { x: -60, y: -70, w: 520, h: 100 };
+    const blocked = boundaryStructureFor("natural", boundary, terrain, [], [obstacle]);
+    expect(blocked.sprites.every(({ bounds: b }) => b.y >= 34)).toBe(true);
+    for (const r of edge.reaches) for (const p of r.points)
+      expect(Math.min(...road.geometry.points.slice(1).map((q, i) => distanceToSegment(p, road.geometry.points[i], q)))).toBeGreaterThanOrEqual(26);
+    const moved = boundaryStructureFor("natural", boundary.map(p => ({ x: p.x + 70, y: p.y - 40 })), terrain, [], []);
+    const original = boundaryStructureFor("natural", boundary, terrain, [], []);
+    expect(moved.reaches.map(r => [r.id, r.depth, r.variant])).toEqual(original.reaches.map(r => [r.id, r.depth, r.variant]));
+    expect(moved.sprites.map(s => [s.id, s.crop, s.mirror, s.bounds.w, s.bounds.h])).toEqual(original.sprites.map(s => [s.id, s.crop, s.mirror, s.bounds.w, s.bounds.h]));
+    moved.sprites.forEach((s, i) => {
+      expect(s.bounds.x - 70).toBeCloseTo(original.sprites[i].bounds.x, 8);
+      expect(s.bounds.y + 40).toBeCloseTo(original.sprites[i].bounds.y, 8);
+    });
+    moved.reaches.forEach((r, i) => r.points.forEach((p, j) => {
+      expect(p.x - 70).toBeCloseTo(original.reaches[i].points[j].x, 8);
+      expect(p.y + 40).toBeCloseTo(original.reaches[i].points[j].y, 8);
+    }));
+  }
 });

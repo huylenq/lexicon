@@ -3,7 +3,7 @@ import { useEditor, useValue } from "tldraw";
 import { setBorderEditing, useCanvasPresentation } from "../presentation";
 import { isPrimary } from "../references";
 import type { Bounds } from "../../../../shared/canvas-geometry";
-import { choice, generateMap, landmarks, paths, terrains, type MapNode, type MapRoad } from "./generate";
+import { choice, createMapGenerator, landmarks, paths, terrains, type MapNode, type MapRoad } from "./generate";
 import { InkDrawing } from "./InkDrawing";
 import { roadInput } from "./view";
 import { contextLabelFrame, contextTerritory, isContext } from "../contexts";
@@ -50,14 +50,15 @@ export function InkMapBackground() {
       } else obstacles.push(bounds);
     }
     return { nodes, roads, obstacles };
-  }, [editor, model.mapEnabled, model.vertices, model.connections]);
-  const scene = useMemo(() => generateMap(model.modelId, source.nodes, source.roads, source.obstacles), [model.modelId, source]);
+  }, [editor, model.mapEnabled, model.atlasSkin, model.vertices, model.connections]);
+  const generate = useMemo(() => createMapGenerator(), [editor]);
+  const scene = useMemo(() => generate(model.modelId, source.nodes, source.roads, source.obstacles), [generate, model.modelId, source]);
   const camera = useValue("Map camera", () => editor.getCamera(), [editor]);
   const detail = useValue("Map detail", () => editor.getZoomLevel() >= .4, [editor]);
   return <div className="tl-background">
     {model.mapEnabled && <svg className="canvas-map" aria-hidden="true" data-testid="procedural-map">
       <g transform={`scale(${camera.z}) translate(${camera.x},${camera.y})`} data-map-camera>
-        <InkDrawing scene={scene} detail={detail} matches={model.matches} />
+        <InkDrawing skin={model.atlasSkin ?? "ink"} scene={scene} detail={detail} matches={model.matches} />
       </g>
     </svg>}
   </div>;

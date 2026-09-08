@@ -1,5 +1,10 @@
 import { memo, useId } from "react";
-import { landmarkPlacement, pathFor, randomFor, type Landmark, type MapScene, type Ornament } from "./generate";
+import { VillageBuilding } from "./VillageSprites";
+import { VillageLandscape } from "./VillageLandscape";
+import { InkScenery } from "./InkScenery";
+import { BoundaryDrawing } from "./BoundaryDrawing";
+import { TerrainBoundary } from "./TerrainBoundary";
+import { landmarkPlacement, pathFor, type District, type Landmark, type MapScene } from "./generate";
 
 /** Original vector marks, procedurally placed. No generated bitmap or third-party artwork. */
 function Building({ kind, variant }: { kind: Landmark; variant: number }) {
@@ -34,40 +39,31 @@ function Building({ kind, variant }: { kind: Landmark; variant: number }) {
     <path d="M-4,18 l-2,9 h12 l-2,-9" className="map-doorstep" />
   </g>;
 }
-function Tree({ tree }: { tree: Ornament }) {
-  const rand = randomFor(tree.id), r = tree.radius;
-  const points = Array.from({ length: 20 }, (_, i) => {
-    const angle = i * Math.PI / 10, radius = r * (.77 + rand() * .38);
-    return { x: Math.cos(angle) * radius, y: Math.sin(angle) * radius };
-  });
-  return <g transform={`translate(${tree.x},${tree.y})`} data-ornament-id={tree.id}>
-    <ellipse cx="3" cy="4" rx={r} ry={r * .8} className="map-shadow" />
-    <path d={pathFor(points, true)} className="map-leaves" />
-    <path d={`M${-r * .55},0 q${r * .18},${-r * .75} ${r * .5},${-r * .4} m${r * .35},${r * .3} q${r * .25},${r * .3} 0,${r * .5}`} className="map-hatch-line" />
+const DistrictGround = memo(function DistrictGround({ district, detail, skin, prefix }: {
+  district: District; detail: boolean; skin: "ink" | "village"; prefix: string;
+}) {
+  return <g data-map-district={district.id} data-terrain={district.terrain}>
+    <TerrainBoundary district={district}
+      fill={skin === "village" ? `url(#${prefix}-${district.terrain === "woodland" ? "woodland" : "meadow"})` : undefined} />
+    {skin === "village" ? <VillageLandscape district={district} detail={detail} /> : <InkScenery district={district} detail={detail} />}
   </g>;
-}
+});
 
-export const InkDrawing = memo(function InkDrawing({ scene, detail, matches }: { scene: MapScene; detail: boolean; matches: (id: string) => boolean }) {
+export const InkDrawing = memo(function InkDrawing({ scene, detail, matches, skin }: { skin: "ink" | "village"; scene: MapScene; detail: boolean; matches: (id: string) => boolean }) {
   const prefix = useId().replace(/:/g, "");
   return <g className="map-drawing" data-detail={detail}>
     <defs>
-      <pattern id={`${prefix}-furrows`} width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(30)">
-        <path d="M1,0 V5" className="map-hatch-line" />
-      </pattern>
-    </defs>
-    {scene.districts.map(district => <g key={district.id} data-map-district={district.id} data-terrain={district.terrain}>
-      {district.terrain === "island" && <>
-        <path d={pathFor(district.boundary, true)} className="map-water-outer" />
-        <path d={pathFor(district.boundary, true)} className="map-water" />
+      {skin === "village" && <>
+        <linearGradient id={`${prefix}-meadow`} x2=".3" y2="1">
+          <stop stopColor="var(--village-grass-light)" /><stop offset="1" stopColor="var(--village-grass)" />
+        </linearGradient>
+        <linearGradient id={`${prefix}-woodland`} x2=".3" y2="1">
+          <stop stopColor="var(--village-grass)" /><stop offset="1" stopColor="var(--map-leaves)" />
+        </linearGradient>
       </>}
-      <path d={pathFor(district.boundary, true)} className={`map-district map-district-${district.terrain}`} />
-      {detail && <g className="map-ornaments">
-        {district.ornaments.map(o => o.kind === "tree" ? <Tree key={o.id} tree={o} /> :
-          <g key={o.id} data-ornament-id={o.id} transform={`translate(${o.x},${o.y}) rotate(${o.variant * 30 - 15})`}>
-            <path d="M-13,-12 L14,-10 L12,12 L-14,10 Z" fill={`url(#${prefix}-furrows)`} className="map-field" />
-          </g>)}
-      </g>}
-    </g>)}
+
+    </defs>
+    {scene.districts.map(district => <DistrictGround key={district.id} district={district} detail={detail} skin={skin} prefix={prefix} />)}
     {scene.roads.map(road => <g key={road.id} data-map-road={road.id} data-path-kind={road.kind} opacity={matches(road.id) ? 1 : .18}>
       <path d={pathFor(road.geometry.outline, true)} className="map-road-ground" />
       {road.geometry.banks.map((points, i) => <path key={i} d={pathFor(points)} className={`map-road-bank map-${road.kind}`} />)}
@@ -83,13 +79,14 @@ export const InkDrawing = memo(function InkDrawing({ scene, detail, matches }: {
       {[-14, -7, 0, 7, 14].map(x => <path key={x} d={`M${x},-7 V7`} className="map-hatch-line" />)}
       <path d="M-22,-9 H22 M-22,9 H22" />
     </g>)}
+    {scene.districts.map(district => <BoundaryDrawing key={district.id} district={district} skin={skin} detail={detail} />)}
     {scene.landmarks.filter(l => l.kind !== "none").map(landmark => {
       const { origin } = landmarkPlacement(landmark.bounds, landmark.kind);
       return <g key={landmark.id}
       data-map-landmark={landmark.id} data-landmark-kind={landmark.kind}
       opacity={matches(landmark.id) ? 1 : .18}
       transform={`translate(${origin.x},${origin.y})`}>
-      <Building kind={landmark.kind} variant={landmark.variant} />
+      {skin === "village" ? <VillageBuilding kind={landmark.kind} fallback={<Building kind={landmark.kind} variant={landmark.variant} />} /> : <Building kind={landmark.kind} variant={landmark.variant} />}
     </g>})}
   </g>;
 });

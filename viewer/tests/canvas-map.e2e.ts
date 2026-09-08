@@ -240,3 +240,200 @@ test("a real model keeps its map aligned through pan and zoom, search, and dark 
   await expect(page.getByTestId("procedural-map")).toHaveCSS("--map-ground", "#20241f");
   await page.screenshot({ path: info.outputPath("dentalml-map-dark.png") });
 });
+
+
+test("Village skin preserves the canvas and persists independently of the mode", async ({ page, request }, info) => {
+  await open(page);
+  await page.getByRole("button", { name: "concept: Order", exact: true }).click();
+  await expect(page.locator('[data-save-status="saved"]')).toBeVisible();
+  const saved = await (await request.get(`/api/projects/${projectId}/canvas`)).json();
+  const camera = await page.locator("[data-map-camera]").getAttribute("transform");
+  const position = await landmark(page, "order").getAttribute("transform");
+  const skin = page.getByRole("combobox", { name: "Atlas skin", exact: true });
+  await skin.selectOption("village");
+  await expect(landmark(page, "order").locator(".village-building")).toBeVisible();
+  const imageSize = await landmark(page, "order").locator("image").evaluate(async element => {
+    const image = new Image();
+    image.src = element.getAttribute("href")!;
+    await image.decode();
+    return image.naturalWidth;
+  });
+  expect(imageSize).toBeGreaterThan(1000);
+  await expect(page.locator("[data-map-camera]")).toHaveAttribute("transform", camera!);
+  await expect(landmark(page, "order")).toHaveAttribute("transform", position!);
+  await expect(page.locator('[data-model-id="item:order"]')).toHaveAttribute("data-selected", "true");
+  await page.screenshot({ path: info.outputPath("village-light.png") });
+  await page.getByRole("button", { name: "Use dark theme" }).click();
+  await expect(page.getByTestId("procedural-map")).toHaveCSS("--map-ground", "#272e24");
+  await page.screenshot({ path: info.outputPath("village-dark.png") });
+  await page.reload();
+  await expect(skin).toHaveValue("village");
+  await page.getByRole("radio", { name: "Diagram", exact: true }).check();
+  await expect(skin).toHaveCount(0);
+  await page.getByRole("radio", { name: "Atlas", exact: true }).check();
+  await expect(skin).toHaveValue("village");
+  expect(await (await request.get(`/api/projects/${projectId}/canvas`)).json()).toEqual(saved);
+  expect(await readFile(join(root, "lexicon/model.xml"), "utf8")).toBe(xml);
+  await page.setViewportSize({ width: 430, height: 932 });
+  await page.getByRole("button", { name: "Toggle reader", exact: true }).click();
+  await page.getByRole("button", { name: "Fit model", exact: true }).click();
+  await expect(skin).toBeVisible();
+  await skin.selectOption("ink");
+  await expect(page.locator(".village-building")).toHaveCount(0);
+  await expect(page.getByTestId("procedural-map")).toHaveCSS("--map-ground", "#20241f");
+  await skin.selectOption("village");
+  await page.screenshot({ path: info.outputPath("village-mobile.png") });
+});
+
+
+test("Village landmarks use readable sprite crops and recover from an unavailable sheet", async ({ page }, info) => {
+  await open(page);
+  await page.getByRole("combobox", { name: "Atlas skin", exact: true }).selectOption("village");
+  await page.getByRole("button", { name: "concept: Order", exact: true }).click();
+  for (const kind of ["house", "hall", "workshop", "archive", "tower", "garden"]) {
+    await page.getByLabel("Landmark", { exact: true }).selectOption(kind);
+    const sprite = landmark(page, "order").locator(`[data-village-sprite="${kind}"]`);
+    await expect(sprite).toBeVisible();
+    await sprite.locator("image").evaluate(async element => {
+      const image = new Image(); image.src = element.getAttribute("href")!; await image.decode();
+    });
+    await page.screenshot({ path: info.outputPath(`sprite-${kind}.png`) });
+  }
+  await page.getByLabel("Landmark", { exact: true }).selectOption("house");
+  await expect(page.locator('[data-save-status="saved"]')).toBeVisible();
+  await page.route("**/village-sprites*.png", route => route.abort());
+  await page.reload();
+  await expect(landmark(page, "order").locator(".map-roof").first()).toBeVisible();
+  await expect(landmark(page, "order").locator("image")).toHaveCount(0);
+  await page.getByRole("button", { name: "concept: Order", exact: true }).click();
+  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Order");
+});
+
+
+test("classic landscape has varied habitats, mountains and springs, and preserves them across reload", async ({ page }, info) => {
+  await open(page);
+  await page.getByRole("combobox", { name: "Atlas skin", exact: true }).selectOption("village");
+  await page.getByRole("button", { name: "context: Ordering", exact: true }).click();
+  const terrain = page.getByLabel("Terrain", { exact: true });
+  const features = page.locator("[data-landscape-kind]");
+  expect(new Set(await features.evaluateAll(elements => elements.map(e => e.getAttribute("data-landscape-kind")))).size).toBeGreaterThan(5);
+  await expect(page.locator("[data-ground-patch]").first()).toBeAttached();
+  await terrain.selectOption("highlands");
+  await expect(page.locator('[data-landscape-kind="mountain"]').first()).toBeVisible();
+  await page.locator('[data-landscape-kind="mountain"] image').first().evaluate(async element => {
+    const image = new Image(); image.src = element.getAttribute("href")!; await image.decode();
+  });
+  await page.screenshot({ path: info.outputPath("classic-highlands.png") });
+  await terrain.selectOption("wetland");
+  await expect(page.locator('[data-landscape-kind="spring"]').first()).toBeVisible();
+  await page.screenshot({ path: info.outputPath("classic-wetland.png") });
+  await terrain.selectOption("village");
+  const signature = () => features.evaluateAll(elements => elements.map(e => {
+    const svg = e.querySelector("svg")!;
+    return [e.getAttribute("data-landscape-id"), e.getAttribute("data-landscape-kind"), svg.getAttribute("x"), svg.getAttribute("y")];
+  }));
+  const before = await signature();
+  await expect(page.locator('[data-save-status="saved"]')).toBeVisible();
+  await page.reload();
+  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  expect(await signature()).toEqual(before);
+  await page.screenshot({ path: info.outputPath("classic-landscape.png") });
+  await page.getByRole("button", { name: "Use dark theme" }).click();
+  await page.screenshot({ path: info.outputPath("classic-landscape-dark.png") });
+});
+
+test("Ink varies vector scenery and keeps its sparse composition across skin switches and reload", async ({ page }, info) => {
+  await open(page);
+  const map = page.getByTestId("procedural-map");
+  const signature = () => page.locator(".ink-scenery").evaluateAll(elements => elements.map(e => e.innerHTML));
+  await expect(page.locator("[data-ink-landform]").first()).toBeVisible();
+  expect(new Set(await page.locator("[data-ink-foliage]").evaluateAll(elements => elements.map(e => e.getAttribute("data-ink-foliage")))).size).toBeGreaterThan(3);
+  await expect(map.locator("image")).toHaveCount(0);
+  const before = await signature();
+  await page.screenshot({ path: info.outputPath("ink-variety.png") });
+  const skin = page.getByRole("combobox", { name: "Atlas skin", exact: true });
+  await skin.selectOption("village");
+  await expect(page.locator(".ink-scenery")).toHaveCount(0);
+  await skin.selectOption("ink");
+  expect(await signature()).toEqual(before);
+  await expect(page.locator('[data-save-status="saved"]')).toBeVisible();
+  await page.reload();
+  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  expect(await signature()).toEqual(before);
+  await page.getByRole("button", { name: "context: Ordering", exact: true }).click();
+  await page.getByLabel("Terrain", { exact: true }).selectOption("wetland");
+  await expect(page.locator('[data-ink-landform="spring"]').first()).toBeVisible();
+  await page.screenshot({ path: info.outputPath("ink-wetland.png") });
+  await page.getByRole("button", { name: "Use dark theme" }).click();
+  await page.screenshot({ path: info.outputPath("ink-variety-dark.png") });
+  await page.setViewportSize({ width: 540, height: 800 });
+  await page.getByRole("button", { name: "Toggle reader", exact: true }).click();
+  await page.getByRole("button", { name: "Fit model", exact: true }).click();
+  await page.screenshot({ path: info.outputPath("ink-variety-mobile.png") });
+});
+
+test("terrain boundaries have distinct structures and Ink has its own drawing vocabulary", async ({ page }, info) => {
+  await open(page);
+  const skin = page.getByRole("combobox", { name: "Atlas skin", exact: true });
+  await page.getByRole("button", { name: "context: Ordering", exact: true }).click();
+  const coast = page.locator('[data-map-district="item:ordering"] .map-district');
+  const outline = await coast.getAttribute("d");
+  expect(outline!.split("L").length).toBeGreaterThan(40);
+  for (const renderer of ["ink", "village"]) {
+    await skin.selectOption(renderer);
+    for (const terrain of ["village", "woodland", "highlands", "wetland", "island"]) {
+      await page.getByLabel("Terrain", { exact: true }).selectOption(terrain);
+      await expect(coast).toHaveAttribute("d", outline!);
+      const edge = page.locator(`[data-map-boundary="${terrain}"]`);
+      const width = await edge.locator(".boundary-rim").evaluate(e => parseFloat(getComputedStyle(e).strokeWidth));
+      expect(width).toBeGreaterThanOrEqual(renderer === "ink" ? 7 : 12);
+      const kind = { village: "rampart", woodland: "treeline", highlands: "cliff", wetland: "marsh", island: "shore" }[terrain]!;
+      const boundary = page.locator(`[data-boundary-structure="${kind}"]`);
+      await expect(boundary).toHaveAttribute("data-boundary-renderer", renderer);
+      const fort = boundary.locator('[data-fortification="item:ordering"]');
+      if (terrain === "village" && renderer === "village") {
+        expect(await fort.locator("[data-wall-section]").count()).toBeGreaterThan(50);
+        expect(new Set(await fort.locator("[data-fort-tower]").evaluateAll(es => es.map(e => e.getAttribute("data-fort-tower")))).size).toBeGreaterThan(1);
+        await expect(fort.locator("[data-main-gate=true]")).toBeAttached();
+      } else {
+        await expect(fort).toHaveCount(0);
+        if (terrain === "village") await expect(boundary.locator("[data-ink-rampart]")).toBeAttached();
+        else expect(await boundary.locator(`[data-boundary-feature="${kind}"]`).count()).toBeGreaterThan(5);
+      }
+      if (renderer === "ink") await expect(boundary.locator(".fort-face, .fort-roof, .fort-tower-body, image")).toHaveCount(0);
+      else {
+        expect(await boundary.locator("image").count()).toBeGreaterThan(3);
+        await boundary.locator("image").first().evaluate(async element => {
+          const image = new Image(); image.src = element.getAttribute("href")!; await image.decode();
+        });
+      }
+      if (terrain === "island") await expect(edge.locator(".map-water")).toBeAttached();
+      await page.locator(".tl-container").press("Escape");
+      await expect(page.locator('[data-model-id="item:ordering"]')).not.toHaveAttribute("data-selected", "true");
+      await page.mouse.move(100, 850);
+      await page.screenshot({ path: info.outputPath(`${renderer}-${terrain}-boundary.png`) });
+      await page.getByRole("button", { name: "context: Ordering", exact: true }).focus();
+      await page.keyboard.press("Enter");
+    }
+  }
+  await page.getByRole("button", { name: "Use dark theme" }).click();
+  await page.screenshot({ path: info.outputPath("village-island-boundary-dark.png") });
+  await expect(page.locator('[data-save-status="saved"]')).toBeVisible();
+  await page.reload();
+  await expect(coast).toHaveAttribute("d", outline!);
+});
+
+
+test("Village raster boundaries retain a usable fallback when the atlas is unavailable", async ({ page }) => {
+  await page.route("**/boundary-sprites*.png", route => route.abort());
+  await open(page);
+  await page.getByRole("combobox", { name: "Atlas skin", exact: true }).selectOption("village");
+  await page.getByRole("button", { name: "context: Ordering", exact: true }).click();
+  await page.getByLabel("Terrain", { exact: true }).selectOption("woodland");
+  await expect(page.locator("[data-boundary-fallback]").first()).toBeVisible();
+  await expect(page.locator(".village-boundary-scenery image")).toHaveCount(0);
+  await page.getByLabel("Terrain", { exact: true }).selectOption("village");
+  await expect(page.locator(".fort-tower-body").first()).toBeVisible();
+  await page.getByRole("combobox", { name: "Atlas skin", exact: true }).selectOption("ink");
+  await expect(page.locator("[data-ink-rampart]")).toBeVisible();
+});

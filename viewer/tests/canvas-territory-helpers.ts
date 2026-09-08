@@ -13,6 +13,19 @@ export async function territoryScreenPoint(page: Page, point: { x: number; y: nu
     return { x: at.x, y: at.y };
   }, point);
 }
+/** Native edit handles sit on the visible control cage, not its rounded coast. */
+export async function renderedTerritoryControls(page: Page) {
+  return page.locator(".canvas-territory-cage").evaluate(element => {
+    const map = document.querySelector("[data-map-camera]") as SVGGraphicsElement;
+    const transform = map.getScreenCTM()!.inverse().multiply((element as SVGGraphicsElement).getScreenCTM()!);
+    const numbers = element.getAttribute("d")!.match(/-?\d+(?:\.\d+)?(?:e[+-]?\d+)?/gi)!.map(Number);
+    return numbers.flatMap((x, i) => {
+      if (i % 2) return [];
+      const p = new DOMPoint(x, numbers[i + 1]).matrixTransform(transform);
+      return [{ x: p.x, y: p.y }];
+    });
+  });
+}
 export async function atlasEnclosesNodes(page: Page, ids = ["order", "order-line", "order-total"], context = "ordering") {
   const points = await renderedTerritory(page, context);
   const boxes = await page.locator(`[data-map-district="item:${context}"] .map-district`).evaluate((element, ids) => {

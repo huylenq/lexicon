@@ -2,7 +2,7 @@ import type { Editor, TLShape } from "tldraw";
 import type { ObjectShape } from "../../../shared/canvas-schema";
 import type { Territory, TerritoryPreferences } from "../../../shared/canvas-geometry";
 import { objectSizes } from "./sizing";
-import { applyTerritoryEdits, fitContextFrame, generateTerritory, migrateTerritory, pointBounds } from "./territory";
+import { applyTerritoryEdits, fitContextFrame, generateTerritory, migrateTerritory, pointBounds, roundTerritory } from "./territory";
 
 type ContextShape = ObjectShape & { props: ObjectShape["props"] & { group: true; graphId: `item:${string}` } };
 export const isContext = (shape: TLShape): shape is ContextShape =>
@@ -23,7 +23,7 @@ export function contextHeading(editor: Editor, shape: ObjectShape) {
 export function diagramContextFrame(editor: Editor, shape: ObjectShape) {
   return fitContextFrame(contextContents(editor, shape), contextHeading(editor, shape));
 }
-type Derived = { key: string; territory: Territory; preferences: TerritoryPreferences | null };
+type Derived = { key: string; territory: Territory; control: Territory; preferences: TerritoryPreferences | null };
 const derived = new WeakMap<Editor, WeakMap<ObjectShape, Derived>>();
 function derive(editor: Editor, shape: ObjectShape): Derived {
   // Read children before consulting the cache so tldraw tracks their geometry.
@@ -35,12 +35,16 @@ function derive(editor: Editor, shape: ObjectShape): Derived {
   if (previous?.key === key) return previous;
   const automatic = generateTerritory(shape.props.graphId, boxes, heading);
   const preferences = migrateTerritory(shape.props.territory, automatic);
-  const result = { key, preferences, territory: applyTerritoryEdits(automatic, boxes, heading, preferences?.edits || []) };
+  const control = applyTerritoryEdits(automatic, boxes, heading, preferences?.edits || []);
+  const result = { key, preferences, control, territory: roundTerritory(control, boxes, heading) };
   cache.set(shape, result);
   return result;
 }
 export function contextTerritory(editor: Editor, shape: ObjectShape): Territory {
   return derive(editor, shape).territory;
+}
+export function contextControlTerritory(editor: Editor, shape: ObjectShape): Territory {
+  return derive(editor, shape).control;
 }
 export function contextPreferences(editor: Editor, shape: ObjectShape) {
   return derive(editor, shape).preferences;

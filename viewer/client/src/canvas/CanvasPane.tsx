@@ -520,7 +520,7 @@ export default function CanvasPane(props: CanvasPaneProps) {
       ) || !!edge?.relationships.some((item) => matchSet.has(item))
     );
   }, [props.query, vertices, connections, matchSet]);
-  useSyncCanvasPresentation(editor, { modelId: model.id, mapEnabled: workspace.map ?? true,
+  useSyncCanvasPresentation(editor, { modelId: model.id, mapEnabled: workspace.map ?? true, atlasSkin: workspace.atlasSkin ?? "ink",
     vertices, connections, matches });
 
   const saveLabel = {
@@ -560,10 +560,10 @@ export default function CanvasPane(props: CanvasPaneProps) {
         },
       }}
     >
-      <section className="canvas-pane" aria-label="Model canvas" data-map={workspace.map ?? true}>
+      <section className="canvas-pane" aria-label="Model canvas" data-map={workspace.map ?? true} data-atlas-skin={workspace.atlasSkin ?? "ink"}>
         <CanvasToolbar
           title="Canvas"
-          controls={
+          controls={<>
             <fieldset className="canvas-mode" aria-label="Canvas mode">
               {([false, true] as const).map((atlas) => (
                 <label key={String(atlas)} title={atlas ? "Explore the model as places and landmarks" : "Read the model as cards and connections"}>
@@ -577,7 +577,16 @@ export default function CanvasPane(props: CanvasPaneProps) {
                 </label>
               ))}
             </fieldset>
-          }
+            {(workspace.map ?? true) && <select className="atlas-skin" aria-label="Atlas skin"
+              title="Atlas skin" value={workspace.atlasSkin ?? "ink"}
+              onChange={event => {
+                const atlasSkin = event.target.value === "village" ? "village" : "ink";
+                setWorkspace(w => ({ ...w, atlasSkin }));
+              }}>
+              <option value="ink">Ink</option>
+              <option value="village">Village</option>
+            </select>}
+          </>}
           scope={
             (selectedShapes.length > 1
               ? `${selectedShapes.length} selected`

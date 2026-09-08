@@ -32,7 +32,7 @@ import { isPrimary } from "./references";
 import { choice, landmarkFor, paths, pathFor } from "./terrain/generate";
 import { roadCoveredAt, roadInput, shapeRoad, visibleObjectFrame } from "./terrain/view";
 import { canvasPresentation, useCanvasPresentation } from "./presentation";
-import { contextLabelFrame, contextPreferences, contextTerritory, isContext } from "./contexts";
+import { contextControlTerritory, contextLabelFrame, contextPreferences, contextTerritory, isContext } from "./contexts";
 import { moveBorderVertex, territoryEdit } from "./territory";
 
 function ObjectCard({ shape }: { shape: ObjectShape }) {
@@ -50,7 +50,8 @@ function ObjectCard({ shape }: { shape: ObjectShape }) {
   const boundary = useValue("Context boundary", () => isContext(shape) ? {
     label: contextLabelFrame(editor, shape, model.mapEnabled),
     points: model.mapEnabled ? contextTerritory(editor, shape).points : undefined,
-  } : undefined, [editor, shape, model.mapEnabled]);
+    control: model.mapEnabled && model.editingTerritory === shape.id ? contextControlTerritory(editor, shape).points : undefined,
+  } : undefined, [editor, shape, model.mapEnabled, model.editingTerritory]);
   return (
     <HTMLContainer
       style={{ left: frame.x, top: frame.y, width: frame.w, height: frame.h }}
@@ -63,6 +64,8 @@ function ObjectCard({ shape }: { shape: ObjectShape }) {
     >
       {boundary?.points && <svg className="canvas-territory-selection" aria-hidden="true">
         <path d={pathFor(boundary.points.map(p => ({ x: p.x - frame.x, y: p.y - frame.y })), true)} />
+        {boundary.control && <path className="canvas-territory-cage"
+          d={pathFor(boundary.control.map(p => ({ x: p.x - frame.x, y: p.y - frame.y })), true)} />}
       </svg>}
       <div className="canvas-object-heading" style={boundary ? {
         position: "absolute", left: boundary.label.x - frame.x, top: boundary.label.y - frame.y,
@@ -167,13 +170,13 @@ export class LexiconObjectUtil extends BaseBoxShapeUtil<ObjectShape> {
     const view = canvasPresentation(this.editor).get();
     if (!isContext(shape) || !view.mapEnabled || view.editingTerritory !== shape.id) return [];
     let index = ZERO_INDEX_KEY;
-    return contextTerritory(this.editor, shape).points.map((p, i) => ({
+    return contextControlTerritory(this.editor, shape).points.map((p, i) => ({
       ...p, id: `border:${i}`, index: index = getIndexAbove(index), type: "vertex", canSnap: false,
     }));
   }
   override onHandleDrag(shape: ObjectShape, { handle, initial = shape }: TLHandleDragInfo<ObjectShape>): TLShapePartial<ObjectShape> | void {
     if (!isContext(shape) || !handle.id.startsWith("border:")) return;
-    const before = contextTerritory(this.editor, initial);
+    const before = contextControlTerritory(this.editor, initial);
     const after = moveBorderVertex(before, Number(handle.id.slice(7)), handle);
     const edits = contextPreferences(this.editor, initial)?.edits || [];
     // The handle index exists only for this native gesture. Persist geographic

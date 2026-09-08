@@ -13,6 +13,32 @@
 .map-drawing { fill: none; stroke: var(--map-ink); stroke-width: 1.1; stroke-linecap: round; stroke-linejoin: round; }
 .map-district { fill: var(--map-ground); stroke-opacity: .35; stroke-width: 1.4; }
 .map-district-woodland { fill: var(--map-leaves); fill-opacity: .25; }
+/* The coast is the ground footprint; architecture rises above it. */
+.terrain-boundary { --boundary-width: 8px; }
+[data-atlas-skin="village"] .terrain-boundary { --boundary-width: 12px; }
+.boundary-shadow { fill: none; stroke: var(--map-shadow); stroke-width: 18; stroke-opacity: .15; }
+.boundary-bed { fill: none; stroke: var(--map-field); stroke-width: 14; stroke-opacity: .35; }
+.boundary-rim { fill: none; stroke: var(--map-field); stroke-width: var(--boundary-width); stroke-opacity: .3; }
+.boundary-ripple { fill: none; stroke: var(--map-ground); stroke-width: 1; stroke-dasharray: 18 10 4 15; transform: translate(0, 23px); stroke-opacity: .5; }
+.fortifications { --fort-stone: #d9d2c0; --fort-shade: #b6b09e; --fort-cap: #ede6d4; --fort-course: #b1a58a; --fort-roof: #c6bea8; stroke-width: .65; stroke: var(--map-ink); }
+[data-atlas-skin="village"] .fortifications { --fort-stone: #d6d4bb; --fort-shade: #9c9f8c; --fort-cap: #f0e5c8; --fort-course: #b9774e; --fort-roof: #eed044; stroke-width: .8; }
+[data-theme="dark"] .fortifications { --fort-stone: #59614f; --fort-shade: #394536; --fort-cap: #8a8b70; --fort-course: #8e7451; --fort-roof: #aa963e; }
+.fort-face { fill: var(--fort-stone); stroke: none; }
+.fort-face-shade { fill: var(--fort-shade); }
+.fort-plinth { fill: var(--fort-course); stroke: none; }
+.fort-walk, .fort-cap { fill: var(--fort-cap); stroke-width: .45; }
+.fort-tower-body, .fort-merlon, .fort-gate-arch { fill: var(--fort-stone); }
+.fort-tower-shade { fill: var(--fort-shade); }
+.fort-mortar { fill: none; stroke-width: .5; stroke-opacity: .4; }
+.fort-course { fill: none; stroke: var(--fort-course); stroke-width: 2.5; }
+.fort-slit { fill: none; stroke-width: 1.5; }
+.fort-roof { fill: var(--fort-roof); }
+.fort-pennant { fill: #a96749; stroke-width: .6; }
+[data-atlas-skin="village"] .fort-pennant { fill: #be4f31; }
+.fort-shadow { fill: var(--map-shadow); fill-opacity: .18; stroke: none; }
+.fort-access { fill: none; stroke: var(--map-road); stroke-width: 18; }
+.fort-arch-rim { fill: none; stroke: var(--fort-cap); stroke-width: 3; }
+.fort-gate-door { fill: none; stroke: var(--fort-course); stroke-width: 3; }
 .map-water-outer { fill: none; stroke: var(--map-water); stroke-width: 58; opacity: .45; }
 .map-water { fill: var(--map-water); stroke: var(--map-water); stroke-width: 36; }
 .map-ground, .map-stone { fill: var(--map-ground); }
@@ -21,6 +47,12 @@
 .map-shadow { fill: var(--map-shadow); fill-opacity: .16; stroke: none; }
 .map-field { stroke: var(--map-field); stroke-width: 1; }
 .map-hatch-line { stroke-opacity: .5; stroke-width: .7; fill: none; }
+.ink-scenery { stroke-width: .85; }
+.ink-open-crown { fill: none; stroke-opacity: .3; stroke-dasharray: 3 3; }
+.ink-ground-marks { fill: none; stroke-width: .65; stroke-opacity: .24; }
+.ink-landform { stroke-width: 1.1; stroke-opacity: .72; }
+.ink-pool { fill: var(--map-water); fill-opacity: .55; }
+.ink-water-line { stroke: var(--map-ink); stroke-opacity: .65; }
 .map-doorstep { fill: var(--map-road); stroke-opacity: .35; }
 .map-banner { fill: var(--map-roof); }
 .map-road-ground { fill: var(--map-road); stroke: none; }
@@ -45,3 +77,81 @@
 .map-style-panel small { font-size: 10px; color: var(--muted); }
 .map-style-panel button { padding: 6px; border: 1px solid var(--line); border-radius: 4px; background: var(--paper); color: var(--ink); font: inherit; cursor: pointer; }
 .map-style-panel button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+
+.atlas-skin { flex-shrink: 0; max-width: 90px; padding: 5px 4px; border: 1px solid var(--line); border-radius: 5px; color: var(--ink); background: var(--paper); font: 11px system-ui, sans-serif; }
+.atlas-skin:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.canvas-pane[data-map="true"][data-atlas-skin="village"] {
+  --map-ground: #dcebc6; --map-ink: #424432; --map-roof: #f5d343;
+  --map-leaves: #8ab95d; --map-water: #92d5e8; --map-field: #c5ad61;
+  --map-shadow: #53613d; --map-road: #e9e1bf;
+  --village-grass-light: #cee9b3; --village-grass: #c4e3a9;
+  --village-soil: #b3a67c; --village-fence: #777d54;
+}
+[data-theme="dark"] .canvas-pane[data-map="true"][data-atlas-skin="village"] {
+  --map-ground: #272e24; --map-ink: #c1bea2; --map-roof: #8d5d40;
+  --map-leaves: #344e37; --map-water: #35595e; --map-field: #706947;
+  --map-shadow: #0d170f; --map-road: #696344;
+  --village-grass-light: #435a37; --village-grass: #405735;
+  --village-soil: #6c6245; --village-fence: #9a916d;
+}
+[data-atlas-skin="village"] .map-drawing { stroke-width: .8; }
+[data-atlas-skin="village"] .map-district { stroke: var(--village-fence); stroke-opacity: .5; stroke-width: 1.2; }
+[data-atlas-skin="village"] .map-district-woodland { fill-opacity: 1; }
+[data-atlas-skin="village"] .map-shadow { fill-opacity: .12; }
+[data-atlas-skin="village"] .map-water-outer { opacity: .35; }
+[data-atlas-skin="village"] .map-road-bank { stroke: var(--village-fence); stroke-opacity: .65; }
+[data-atlas-skin="village"] .map-road-rut { stroke: var(--village-soil); stroke-opacity: .2; }
+[data-atlas-skin="village"] .map-road-grain { stroke: var(--village-soil); }
+[data-atlas-skin="village"] .map-field { stroke: var(--village-soil); stroke-width: 2; }
+.village-sprite { pointer-events: none; }
+[data-theme="dark"] .village-sprite { filter: brightness(.78) saturate(.85); }
+.landscape-ground { stroke: none; fill-opacity: .32; }
+.landscape-ground-grass { fill: #a9ce7a; }
+.landscape-ground-dry { fill: #e4dca5; }
+.landscape-ground-earth { fill: #d2be91; }
+.landscape-ground-shade { fill: #a0c286; }
+.landscape-texture { fill: none; stroke: #70944d; stroke-width: .65; stroke-opacity: .48; }
+.landscape-texture-dry, .landscape-texture-earth { stroke: #aa9568; }
+.landscape-fallback { fill: var(--map-field); stroke: var(--map-ink); stroke-opacity: .4; }
+[data-theme="dark"] .landscape-ground { fill-opacity: .09; }
+[data-theme="dark"] .landscape-texture { stroke: #91ab6a; stroke-opacity: .38; }
+
+/* Terrain structure and skin vocabulary are independent choices. */
+.terrain-boundary-woodland .boundary-rim { stroke: var(--map-leaves); stroke-opacity: .45; }
+.terrain-boundary-wetland .boundary-rim { stroke: var(--map-water); stroke-opacity: .14; stroke-width: 16; }
+.terrain-boundary-island .boundary-rim { stroke-opacity: .12; }
+.terrain-boundary-highlands .boundary-rim { stroke: var(--map-shadow); stroke-opacity: .12; }
+.boundary-drawing { stroke-width: .85; }
+.edge-rock-face { fill: var(--map-field); stroke: none; fill-opacity: .7; }
+.edge-crest, .edge-shoreline { fill: none; stroke-opacity: .6; }
+.edge-hatch { fill: none; stroke-width: .7; stroke-opacity: .5; }
+.edge-sand { fill: none; stroke: var(--map-road); stroke-width: 13; stroke-opacity: .8; }
+.edge-wave { fill: none; stroke: var(--map-ink); stroke-opacity: .25; stroke-width: .7; }
+.edge-channel { fill: none; stroke: var(--map-water); stroke-width: 16; stroke-opacity: .8; }
+.edge-reeds { fill: none; stroke: var(--map-ink); stroke-opacity: .7; stroke-width: .9; }
+.edge-pebbles { fill: var(--map-field); stroke-width: .6; stroke-opacity: .55; }
+.edge-undergrowth { fill: none; stroke: var(--map-leaves); stroke-width: 18; stroke-opacity: .45; }
+.edge-trunk { stroke-width: 1; stroke-opacity: .6; }
+.edge-crown { fill: var(--map-leaves); stroke-opacity: .65; }
+.boundary-ink { stroke-width: .8; }
+.boundary-ink .edge-rock-face { fill-opacity: .18; }
+.boundary-ink .edge-crown { fill-opacity: .65; stroke-width: .7; }
+.boundary-ink .edge-crown-open { fill: var(--map-ground); stroke-dasharray: 3 2; stroke-opacity: .4; }
+.boundary-ink .edge-undergrowth { stroke-opacity: .18; }
+.boundary-ink .edge-sand { stroke-width: 8; stroke-opacity: .4; }
+.boundary-ink .edge-channel { stroke-width: 12; stroke-opacity: .5; }
+.ink-rampart { stroke-width: .8; stroke-opacity: .7; }
+.ink-wall-bed { fill: var(--map-ground); stroke-width: .65; }
+
+.terrain-boundary:not(.terrain-boundary-village) .boundary-shadow { stroke-opacity: .05; }
+.terrain-boundary:not(.terrain-boundary-village) .boundary-bed { stroke-opacity: .12; }
+.terrain-boundary-woodland .boundary-rim { stroke-opacity: .18; }
+
+.village-boundary-scenery { stroke: none; }
+[data-atlas-skin="village"] .boundary-village .village-sprite { filter: none; }
+[data-theme="dark"] [data-atlas-skin="village"] .boundary-village .village-sprite { filter: brightness(.7) saturate(.8); }
+
+.raster-edge-bed { fill: none; stroke-linecap: round; stroke-opacity: .5; }
+.raster-edge-cliff { stroke: var(--map-field); }
+.raster-edge-marsh { stroke: var(--map-water); }
+.raster-edge-shore { stroke: var(--map-road); }

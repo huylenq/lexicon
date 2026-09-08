@@ -1,3 +1,4 @@
+import { villageLandmarkPlacement } from "./village";
 import type { Editor, VecLike } from "tldraw";
 import type { ConnectionShape, ObjectShape } from "../../../../shared/canvas-schema";
 import type { Bounds } from "../../../../shared/canvas-geometry";
@@ -31,7 +32,7 @@ export function roadInput(editor: Editor, shape: ConnectionShape) {
     const territory = isContext(object) ? contextTerritory(editor, object).points.map(p =>
       editor.getPointInShapeSpace(shape, editor.getShapePageTransform(object).applyToPoint(p))) : undefined;
     return { box: { x: bounds.x, y: bounds.y, width: bounds.w, height: bounds.h }, territory,
-      landmark: building === "none" ? undefined : landmarkPlacement(bounds, building) };
+      landmark: building === "none" ? undefined : (view.atlasSkin === "village" ? villageLandmarkPlacement : landmarkPlacement)(bounds, building) };
   };
   const source = endpoint(connection.source), target = endpoint(connection.target);
   if (!source || !target) return;
