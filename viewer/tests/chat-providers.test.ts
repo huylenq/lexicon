@@ -1,5 +1,7 @@
 import { expect, test } from "bun:test";
-import { resolve } from "node:path";
+import { join, resolve } from "node:path";
+import { mkdtemp, writeFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { adapters, probeProviders, listModels } from "../server/chat/providers";
 import { updateTool } from "../server/chat/activity";
 import type { ChatMessage } from "../shared/chat";
@@ -84,6 +86,35 @@ test("a runtime without loadSession degrades with a clear resume message", () =>
       process.env.LEXICON_OMP_BIN = saved;
     }
   }));
+test("a missing ACP entry point reports install guidance, not a raw spawn error", () =>
+  withFixtures(async () => {
+    // Real failure shape: pi answers --version but the pi-acp bridge is
+    // not on PATH. The probe must translate the spawn failure.
+    const savedBin = process.env.LEXICON_PI_BIN,
+      savedPath = process.env.PATH;
+    delete process.env.LEXICON_PI_BIN;
+    const dir = await mkdtemp(join(tmpdir(), "lexicon-path-"));
+    try {
+      const fake = join(dir, "pi");
+      await writeFile(
+        fake,
+        '#!/bin/sh\n[ "$1" = "--version" ] && { echo "pi 1.0"; exit 0; }\nexit 1\n',
+        { mode: 0o755 },
+      );
+      process.env.PATH = dir;
+      const status = (await probeProviders()).find((p) => p.id === "pi");
+      expect(status?.installed).toBe(true);
+      expect(status?.authenticated).toBeNull();
+      expect(status?.detail).toBe(
+        "Install pi and its ACP entry point, then sign in locally",
+      );
+    } finally {
+      process.env.PATH = savedPath;
+      if (savedBin === undefined) delete process.env.LEXICON_PI_BIN;
+      else process.env.LEXICON_PI_BIN = savedBin;
+      await rm(dir, { recursive: true, force: true });
+    }
+  }));
 test("generic ACP adapters share one streaming path and refuse write permissions", () =>
   withFixtures(async () => {
     for (const provider of ["pi", "omp", "hermes"] as const) {
@@ -163,6 +194,13 @@ test("runtime catalogs include pagination and native model and effort choices", 
   expect(acp.models.map((m) => m.name)).toContain("ACP test");
   expect(acp.models[0].efforts).toEqual(["low", "high"]);
   expect(acp.models[0].defaultEffort).toBe("high");
+  // omp and hermes do not forward effort; their catalogs must not offer it
+  // even when the session advertises a thought_level option.
+  for (const provider of ["omp", "hermes"] as const) {
+    const catalog = await listModels(provider);
+    expect(catalog.models[0].efforts).toBeUndefined();
+    expect(catalog.models[0].defaultEffort).toBeUndefined();
+  }
 }));
 test("model changes reach each runtime on new and resumed turns", () =>
   withFixtures(async () => {
