@@ -39,9 +39,8 @@
   .reader > .sidebar {
     border-color: var(--pane-edge);
     border-radius: 10px;
-    background: var(--pane-surface);
-    backdrop-filter: none;
-    box-shadow: none;
+    background: color-mix(in srgb, var(--pane-surface) 50%, transparent);
+    box-shadow: inset 0 1px 0 #ffffff0d, 0 8px 28px #00000026;
   }
 
   .reader .code-pane,
