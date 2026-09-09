@@ -46,6 +46,13 @@
 }
 .reader-card.active { --card-outline-width: 2px; --card-outline-color: var(--accent); }
 .reader-card-header {
+  --reader-card-color: var(--accent);
+  --reader-card-illumination: radial-gradient(
+    ellipse 90% 120% at 30% 0%,
+    color-mix(in srgb, var(--reader-card-color) 10%, transparent),
+    color-mix(in srgb, var(--reader-card-color) 3%, transparent) 42%,
+    transparent 78%
+  );
   position: relative;
   z-index: 1;
   display: flex;
@@ -55,6 +62,16 @@
   padding: 4px 12px;
   border-bottom: 1px solid var(--line);
 }
+.reader-card-header[data-tone="context"] { --reader-card-color: var(--type-context); }
+.reader-card-header[data-tone="concept"] { --reader-card-color: var(--type-concept); }
+.reader-card-header[data-tone="entity"] { --reader-card-color: var(--type-entity); }
+.reader-card-header[data-tone="value"] { --reader-card-color: var(--type-value); }
+.reader-card-header[data-tone="aggregate"] { --reader-card-color: var(--type-aggregate); }
+.reader-card-header[data-tone="service"] { --reader-card-color: var(--type-service); }
+.reader-card-header[data-tone="event"] { --reader-card-color: var(--type-event); }
+.reader-card-header[data-tone="relationship"] { --reader-card-color: var(--type-relationship); }
+.reader-card-header[data-tone="code-link"],
+.reader-card-header[data-tone="code"] { --reader-card-color: var(--type-code); }
 /* Paint glass on separate layers so the card never becomes a backdrop root
    that prevents its sticky header from blurring the scrolling body. */
 .reader-card::before,
@@ -67,8 +84,16 @@
   pointer-events: none;
 }
 .reader-card::before { mask-image: var(--card-glass-fade, none); }
-.reader-card-header::after { mask-image: var(--header-glass-fade, none); }
-.reader-collapsed-card .reader-card-header::after { content: none; }
+.reader .reader-card-header::after {
+  mask-image: var(--header-glass-fade, none);
+  background: var(--reader-card-illumination), var(--glass-background);
+}
+.reader-collapsed-card .reader-card-header::after {
+  content: "";
+  background: var(--reader-card-illumination);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
 .reader-card > .reader-card-body { mask-image: var(--body-fade, none); }
 
 /* Both parts of the outline share the same border geometry and active state. */

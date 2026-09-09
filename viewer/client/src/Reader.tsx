@@ -16,7 +16,7 @@ import CodePane from "./CodePane";
 import { useCodeNavigation, type CodeLocation } from "./codeNavigation";
 import InstallApp from "./InstallApp";
 import Icon from "./Icon";
-import ObjectName from "./ObjectName";
+import ObjectName, { objectTone } from "./ObjectName";
 import ChatPane from "./ChatPane";
 import SelectionReading from "./SelectionReading";
 import {
@@ -312,8 +312,11 @@ function ReaderProject({ projectId }: { projectId: string }) {
     const key = cardKey(card);
     const item = card.kind === "item" ? model?.items.find(i => i.id === card.id) : undefined;
     const title = titleForCard(card);
+    const tone = item
+      ? objectTone(item.type, item.type === "concept" ? item.classification : undefined)
+      : card.kind === "mapping" ? "code-link" : card.kind === "bundle" ? "relationship" : undefined;
     return (
-      <header className="reader-card-header" style={style}>
+      <header className="reader-card-header" data-tone={tone} style={style}>
         <button className="reader-card-title" aria-label={`${collapsed ? "Reveal card" : "Read card"}: ${title}`} onClick={() => reading.open(card)} title={`Read ${title}`}>
           <h1>{item ? <ObjectName type={item.type} classification={item.type === "concept" ? item.classification : undefined} name={title} size={collapsed ? 14 : 18} /> : title}</h1>
         </button>

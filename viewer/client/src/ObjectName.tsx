@@ -9,11 +9,17 @@ const classifications: Record<string, IconName> = {
   service: "service", event: "event",
 };
 
+export function objectTone(type: ObjectKind, classification?: string) {
+  const normalized = classification?.trim().toLowerCase().replace(/[\s_-]+/g, "-");
+  const tone = normalized === "value-object" ? "value" : normalized;
+  return type === "concept" && tone && classifications[tone] ? tone : type;
+}
+
 function appearance(type: ObjectKind, classification?: string) {
   const normalized = classification?.trim().toLowerCase().replace(/[\s_-]+/g, "-");
   const tone = normalized === "value-object" ? "value" : normalized;
   return {
-    tone: type === "concept" && tone && classifications[tone] ? tone : type,
+    tone: objectTone(type, classification),
     icon: type === "concept" && tone ? classifications[tone] || "concept" : type,
     label: type === "concept" && classification
       ? "Concept · " + classification
