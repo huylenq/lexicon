@@ -895,3 +895,120 @@ test("copy/paste and mixed deletion preserve the model, and removed relationship
   expect(missing.meta.lexiconMissing).toBe(true); expect(missing.meta.lexiconLabel).toBe("contains");
   expect(records(document).find((r) => r.type === "lexicon-note").toId).toBe(missing.id);
 });
+
+test("an unrelated concept dragged across a relationship reroutes it without moving endpoints", async ({ page }) => {
+  await open(page);
+  await page.getByRole("radio", { name: "Diagram", exact: true }).check();
+  const initial = (await exportDocument(page)).data;
+  Object.assign(object(initial, "order"), { x: 100, y: 100 });
+  Object.assign(object(initial, "order-line"), { x: 750, y: 100 });
+  Object.assign(object(initial, "order-total"), { x: 430, y: 400 });
+  await page.locator('input[aria-label="Restore canvas file"]').setInputFiles({ name: "canvas.json", mimeType: "application/json", buffer: Buffer.from(JSON.stringify(initial)) });
+  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  await page.getByRole("button", { name: "Fit model", exact: true }).click();
+  const before = (await exportDocument(page)).data;
+  const route = (data: any) => records(data).find(r => r.type === "lexicon-connection" && r.props.graphId === "relation:contains");
+  const a = (await card(page, "order").boundingBox())!;
+  const b = (await card(page, "order-line").boundingBox())!;
+  const c = (await page.getByRole("button", { name: "concept: Order Total", exact: true }).boundingBox())!;
+  await drag(page, { x: c.x + c.width / 2, y: c.y + c.height / 2 }, { x: (a.x + a.width + b.x) / 2, y: a.y + a.height / 2 });
+  const after = (await exportDocument(page)).data;
+  expect(object(after, "order")).toEqual(object(before, "order"));
+  expect(object(after, "order-line")).toEqual(object(before, "order-line"));
+  expect(route(after).props.points).not.toEqual(route(before).props.points);
+  const obstacle = object(after, "order-total");
+  let x = obstacle.x, y = obstacle.y, parent = records(after).find(r => r.id === obstacle.parentId);
+  while (parent?.typeName === "shape") { x += parent.x; y += parent.y; parent = records(after).find(r => r.id === parent.parentId); }
+  const visible = (await card(page, "order-total").boundingBox())!;
+  const zoom = await page.locator(".tl-html-layer").evaluate(el => new DOMMatrix(getComputedStyle(el).transform).a);
+  const width = visible.width / zoom, height = visible.height / zoom;
+  x += (obstacle.props.w - width) / 2; y += (obstacle.props.h - height) / 2;
+  const r = route(after), points = r.props.points.map((p: any) => ({ x: p.x + r.x, y: p.y + r.y }));
+  for (let i = 1; i < points.length; i++) {
+    const p = points[i - 1], q = points[i];
+    const intersects = p.x === q.x
+      ? p.x > x && p.x < x + width && Math.max(p.y, q.y) > y && Math.min(p.y, q.y) < y + height
+      : p.y > y && p.y < y + height && Math.max(p.x, q.x) > x && Math.min(p.x, q.x) < x + width;
+    expect(intersects).toBe(false);
+  }
+  await page.screenshot({ path: "../output/routing-obstacle-prototype.png" });
+  await page.getByRole("button", { name: /^Undo —/ }).click();
+  expect(route((await exportDocument(page)).data)).toEqual(route(before));
+});
+
+test("shared relationship corridors keep separate arrowheads through reload and drag undo", async ({ page }) => {
+  await writeFile(join(root, "lexicon/model.xml"), original.replace("</lexicon>", `
+    <relationship id="validates" from="order" to="order-line"><name>validates</name><description>Parallel lane fixture.</description></relationship>
+    <relationship id="confirms" from="order-line" to="order"><name>confirms</name><description>Opposing lane fixture.</description></relationship>
+  </lexicon>`));
+  await open(page);
+  await page.getByRole("radio", { name: "Diagram", exact: true }).check();
+  const initial = (await exportDocument(page)).data;
+  Object.assign(object(initial, "order"), { x: 100, y: 100 });
+  Object.assign(object(initial, "order-line"), { x: 750, y: 100 });
+  Object.assign(object(initial, "order-total"), { x: 430, y: 100 });
+  await page.locator('input[aria-label="Restore canvas file"]').setInputFiles({ name: "canvas.json", mimeType: "application/json", buffer: Buffer.from(JSON.stringify(initial)) });
+  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  await page.getByRole("button", { name: "Fit model", exact: true }).click();
+  const relationships = (data: any) => records(data).filter(r => r.type === "lexicon-connection" && r.props.graphId.startsWith("relation:")).sort((a, b) => a.id.localeCompare(b.id));
+  const before = relationships((await exportDocument(page)).data);
+  const peer = before.filter(r => ["relation:contains", "relation:validates", "relation:confirms"].includes(r.props.graphId));
+  const atOrder = peer.map(r => {
+    const p = r.props.graphId === "relation:confirms" ? r.props.points.at(-1) : r.props.points[0];
+    return `${r.x + p.x},${r.y + p.y}`;
+  });
+  expect(new Set(atOrder).size).toBe(3);
+  const runs = peer.map(r => r.props.points.slice(1).map((p: any, i: number) => ({ a: { x: r.x + r.props.points[i].x, y: r.y + r.props.points[i].y }, b: { x: r.x + p.x, y: r.y + p.y } })));
+  for (let i = 0; i < runs.length; i++) for (let j = 0; j < i; j++) for (const u of runs[i]) for (const v of runs[j]) {
+    if (u.a.y === u.b.y && v.a.y === v.b.y && Math.abs(u.a.y - v.a.y) < 0.01)
+      expect(Math.min(Math.max(u.a.x, u.b.x), Math.max(v.a.x, v.b.x)) - Math.max(Math.min(u.a.x, u.b.x), Math.min(v.a.x, v.b.x))).toBeLessThan(1);
+    if (u.a.x === u.b.x && v.a.x === v.b.x && Math.abs(u.a.x - v.a.x) < 0.01)
+      expect(Math.min(Math.max(u.a.y, u.b.y), Math.max(v.a.y, v.b.y)) - Math.max(Math.min(u.a.y, u.b.y), Math.min(v.a.y, v.b.y))).toBeLessThan(1);
+  }
+  for (const r of before) {
+    const box = { x: r.x + r.props.labelX - r.props.labelWidth / 2, y: r.y + r.props.labelY - 15, width: r.props.labelWidth, height: 30 };
+    for (const other of before) {
+      if (other.id === r.id) continue;
+      const label = { x: other.x + other.props.labelX - other.props.labelWidth / 2, y: other.y + other.props.labelY - 15, width: other.props.labelWidth, height: 30 };
+      expect(box.x < label.x + label.width && box.x + box.width > label.x && box.y < label.y + label.height && box.y + box.height > label.y).toBe(false);
+      for (let i = 1; i < other.props.points.length; i++) {
+        const p = { x: other.x + other.props.points[i - 1].x, y: other.y + other.props.points[i - 1].y };
+        const q = { x: other.x + other.props.points[i].x, y: other.y + other.props.points[i].y };
+        expect(p.x === q.x ? p.x > box.x && p.x < box.x + box.width && Math.max(p.y, q.y) > box.y && Math.min(p.y, q.y) < box.y + box.height
+          : p.y > box.y && p.y < box.y + box.height && Math.max(p.x, q.x) > box.x && Math.min(p.x, q.x) < box.x + box.width).toBe(false);
+      }
+    }
+  }
+  await page.screenshot({ path: "../output/routing-label-clearance.png" });
+  await saved(page);
+  await page.reload();
+  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  expect(relationships((await exportDocument(page)).data)).toEqual(before);
+  const c = (await page.getByRole("button", { name: "concept: Order Total", exact: true }).boundingBox())!;
+  await drag(page, { x: c.x + c.width / 2, y: c.y + c.height / 2 }, { x: c.x + c.width / 2, y: c.y + c.height / 2 + 60 });
+  await page.getByRole("button", { name: /^Undo —/ }).click();
+  expect(relationships((await exportDocument(page)).data)).toEqual(before);
+});
+
+test("dragging preserves a remote route and its label, including cancellation", async ({ page }) => {
+  await writeFile(join(root, "lexicon/model.xml"), original.replace("</lexicon>", `
+    <context id="archive"><name>Archive</name><description>Remote routing fixture.</description>
+      <concept id="receipt"><name>Receipt</name><description>A receipt.</description></concept>
+      <concept id="record"><name>Record</name><description>An archived record.</description></concept>
+    </context>
+    <relationship id="archived" from="receipt" to="record"><name>is archived as</name><description>Remote relationship.</description></relationship>
+  </lexicon>`));
+  await open(page);
+  await page.getByRole("radio", { name: "Diagram", exact: true }).check();
+  const remote = page.locator('svg.canvas-connection:has([data-connection-id="relation:archived"])');
+  const geometry = () => remote.evaluate(el => ({ path: el.querySelector('path')!.getAttribute('d'), x: el.querySelector('foreignObject')!.getAttribute('x'), y: el.querySelector('foreignObject')!.getAttribute('y') }));
+  const before = await geometry();
+  const c = (await page.getByRole("button", { name: "concept: Order Total", exact: true }).boundingBox())!;
+  await page.mouse.move(c.x + c.width / 2, c.y + c.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(c.x + c.width / 2 + 60, c.y + c.height / 2 + 30, { steps: 12 });
+  expect(await geometry()).toEqual(before);
+  await page.keyboard.press("Escape");
+  await page.mouse.up();
+  expect(await geometry()).toEqual(before);
+});

@@ -437,3 +437,56 @@ test("Village raster boundaries retain a usable fallback when the atlas is unava
   await page.getByRole("combobox", { name: "Atlas skin", exact: true }).selectOption("ink");
   await expect(page.locator("[data-ink-rampart]")).toBeVisible();
 });
+
+for (const skin of ["ink", "village"] as const) test(`${skin}: routed roads avoid a dragged landmark and preserve separate entrances`, async ({ page }, info) => {
+  await writeFile(join(root, "lexicon/model.xml"), xml.replace("</lexicon>", '<relationship id="validates" from="order" to="order-line"><name>validates</name><description>Parallel Atlas route.</description></relationship></lexicon>'));
+  await open(page);
+  await page.getByLabel("Atlas skin", { exact: true }).selectOption(skin);
+  const exportCanvas = async () => {
+    await page.locator('.canvas-file-menu summary').click();
+    const downloading = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Export canvas', exact: true }).click();
+    const data = JSON.parse(await readFile((await (await downloading).path())!, 'utf8'));
+    await page.locator('.canvas-file-menu summary').click();
+    return data;
+  };
+  const initial = await exportCanvas();
+  const records = (initial.snapshot ? Object.values(initial.snapshot.store) : initial.canvas.records) as any[];
+  for (const [id, x, y] of [["order", 100, 100], ["order-line", 750, 100], ["order-total", 430, 400]] as const)
+    Object.assign(records.find(r => r.type === 'lexicon-object' && r.props.graphId === `item:${id}`), { x, y });
+  await page.locator('input[aria-label="Restore canvas file"]').setInputFiles({ name: 'canvas.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(initial)) });
+  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  await page.getByRole('button', { name: 'Fit model', exact: true }).click();
+  const road = page.locator('[data-map-road="relation:contains"] .map-road-ground');
+  const before = await road.getAttribute('d');
+  const a = (await page.locator('[data-model-id="item:order"]').boundingBox())!;
+  const b = (await page.locator('[data-model-id="item:order-line"]').boundingBox())!;
+  const c = (await page.getByRole('button', { name: 'concept: Order Total', exact: true }).boundingBox())!;
+  await page.mouse.move(c.x + c.width / 2, c.y + c.height / 2); await page.mouse.down();
+  await page.mouse.move((a.x + a.width + b.x) / 2, a.y + a.height / 2, { steps: 12 }); await page.mouse.up();
+  await expect(road).not.toHaveAttribute('d', before!);
+  const inspect = () => page.locator('[data-map-road="relation:contains"]').evaluate(el => {
+    const box = document.querySelector('[data-model-id="item:order-total"]')!.getBoundingClientRect();
+    const paths = [...el.querySelectorAll<SVGPathElement>('.map-road-bank')];
+    let blocked = 0;
+    for (const path of paths) for (let i = 0; i <= 100; i++) {
+      const p = path.getPointAtLength(path.getTotalLength() * i / 100).matrixTransform(path.getScreenCTM()!);
+      if (p.x > box.left && p.x < box.right && p.y > box.top && p.y < box.bottom) blocked++;
+    }
+    return blocked;
+  });
+  await expect.poll(inspect).toBe(0);
+  const endpoints = await page.locator('[data-map-road="relation:contains"], [data-map-road="relation:validates"]').evaluateAll(es => es.map(el => {
+    const paths = [...el.querySelectorAll<SVGPathElement>('.map-road-bank')];
+    const ends = paths.map(p => p.getPointAtLength(p.getTotalLength()).matrixTransform(p.getScreenCTM()!));
+    return { x: (ends[0].x + ends[1].x) / 2, y: (ends[0].y + ends[1].y) / 2 };
+  }));
+  expect(Math.hypot(endpoints[0].x - endpoints[1].x, endpoints[0].y - endpoints[1].y)).toBeGreaterThan(2);
+  await page.screenshot({ path: `../output/atlas-routing-${skin}.png` });
+  await page.getByRole('button', { name: /^Undo —/ }).click();
+  await expect(road).toHaveAttribute('d', before!);
+  await expect(page.locator('[data-save-status="saved"]')).toBeVisible();
+  await page.reload();
+  await expect(road).toHaveAttribute('d', before!);
+  expect(await readFile(join(root, 'lexicon/model.xml'), 'utf8')).toContain('Parallel Atlas route.');
+});

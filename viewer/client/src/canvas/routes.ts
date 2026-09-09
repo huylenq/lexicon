@@ -1,7 +1,10 @@
 import type { Box, Point } from "../graph/layout";
+import { avoidObstacles, routeLabel, type Run } from "./obstacle-routing";
+
+export type RouteOptions = { preferred?: Point[]; ports?: [Point, Point]; runs?: Run[]; labels?: Box[]; barriers?: Box[]; spacing?: number; forceSearch?: boolean };
 
 /** Orthogonal canvas routes. Lanes separate parallel relations without moving nodes. */
-export function relationshipRoute(source: Box, target: Box, lane = 0, self = false) {
+export function relationshipRoute(source: Box, target: Box, lane = 0, self = false, obstacles?: Box[], labelWidth = 90, options: RouteOptions = {}) {
   const a = { x: source.x + source.width / 2, y: source.y + source.height / 2 };
   const b = { x: target.x + target.width / 2, y: target.y + target.height / 2 };
   const port = (size: number) => Math.tanh(lane / 2) * size * 0.3;
@@ -26,8 +29,28 @@ export function relationshipRoute(source: Box, target: Box, lane = 0, self = fal
     const middle = (start.y + end.y) / 2 + Math.tanh(lane / 2) * gapY * 0.3;
     points = [start, { x: start.x, y: middle }, { x: end.x, y: middle }, end];
   }
+  if (options.preferred) points = options.preferred.map(p => ({ ...p }));
+  if (options.ports) {
+    if (points.length === 2) {
+      const [a, b] = points;
+      const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+      points = [a, { ...mid }, { ...mid }, b];
+    }
+    const [start, end] = options.ports;
+    const last = points.length - 1;
+    const startHorizontal = points[0].y === points[1].y;
+    const endHorizontal = points[last].y === points[last - 1].y;
+    points[0] = start;
+    points[1] = startHorizontal ? { ...points[1], y: start.y } : { ...points[1], x: start.x };
+    points[last] = end;
+    points[last - 1] = endHorizontal ? { ...points[last - 1], y: end.y } : { ...points[last - 1], x: end.x };
+  }
   const label = { x: (points[1].x + points[2].x) / 2, y: (points[1].y + points[2].y) / 2 };
   // Zero-length segments confuse arrow direction and polyline hit testing.
   points = points.filter((point, i) => !i || point.x !== points[i - 1].x || point.y !== points[i - 1].y);
+  if (obstacles) {
+    points = avoidObstacles(points, source, target, obstacles, options.runs, options.barriers, options.spacing, options.forceSearch);
+    return { points, ...routeLabel(points, labelWidth, [...obstacles, source, target, ...(options.labels || [])], label) };
+  }
   return { points, ...label };
 }

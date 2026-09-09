@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { segmentBlocked } from "../client/src/canvas/obstacle-routing";
 import { relationshipRoute } from "../client/src/canvas/routes";
 
 const source = { x: 100, y: 100, width: 190, height: 70 };
@@ -39,5 +40,38 @@ describe("orthogonal relationship routes", () => {
         expect(route.points[0].y).not.toBe(route.points.at(-1)!.y);
       }
     }
+  });
+});
+
+describe("obstacle routing", () => {
+  const a = { x: 0, y: 100, width: 100, height: 60 };
+  const b = { ...a, x: 600 };
+  const obstacle = { x: 250, y: 50, width: 180, height: 180 };
+  test("detours around intervening cards with clear labels and stable boundary ports", () => {
+    const route = relationshipRoute(a, b, 0, false, [obstacle], 120);
+    const baseline = relationshipRoute(a, b);
+    expect(route.points[0]).toEqual(baseline.points[0]);
+    expect(route.points.at(-1)).toEqual(baseline.points.at(-1));
+    expect(route.points).not.toEqual(baseline.points);
+    for (let i = 1; i < route.points.length; i++) {
+      const p = route.points[i - 1], q = route.points[i];
+      expect((p.x === q.x) !== (p.y === q.y)).toBe(true);
+      expect(segmentBlocked(p, q, [obstacle, a, b])).toBe(false);
+    }
+    expect(route.y + 15 <= obstacle.y || route.y - 15 >= obstacle.y + obstacle.height || route.x + 60 <= obstacle.x || route.x - 60 >= obstacle.x + obstacle.width).toBe(true);
+    expect(relationshipRoute(a, b, 0, false, [obstacle], 120)).toEqual(route);
+  });
+  test("an unrelated card entering and leaving the corridor changes and restores the route", () => {
+    const clear = relationshipRoute(a, b, 0, false, [{ ...obstacle, y: 500 }]);
+    const blocked = relationshipRoute(a, b, 0, false, [obstacle]);
+    expect(blocked.points).not.toEqual(clear.points);
+    expect(relationshipRoute(a, b, 0, false, []).points).toEqual(clear.points);
+  });
+  test("self loops avoid obstacles and impossible overlapping endpoints remain finite", () => {
+    const block = { x: 150, y: 80, width: 100, height: 100 };
+    const loop = relationshipRoute(a, a, 0, true, [block]);
+    for (let i = 1; i < loop.points.length; i++) expect(segmentBlocked(loop.points[i - 1], loop.points[i], [block, a])).toBe(false);
+    const route = relationshipRoute(a, b, 0, false, [{ ...a, x: 50 }]);
+    expect(route.points.every(p => Number.isFinite(p.x) && Number.isFinite(p.y))).toBe(true);
   });
 });

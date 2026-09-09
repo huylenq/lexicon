@@ -18,8 +18,9 @@ import type {
 } from "../../../shared/canvas-schema";
 import { isModelShape, isPrimary, modelShapeId } from "./references";
 import { relationshipRoute } from "./routes";
+import { createRelationshipRouter, type RelationshipRoute } from "./scene-routing";
 import { objectFrame, objectSizes } from "./sizing";
-import { contextPreferences, diagramContextFrame, isContext } from "./contexts";
+import { contextPreferences, diagramContextFrame, contextLabelFrame, isContext } from "./contexts";
 
 /** Use exact orthogonal hit geometry for relationships; code mappings retain curves. */
 export function connectionGeometry(
@@ -29,9 +30,11 @@ export function connectionGeometry(
   self: boolean,
   label: string,
   orthogonal = true,
+  obstacles?: Box[],
+  routed?: RelationshipRoute,
 ) {
   if (orthogonal) {
-    const route = relationshipRoute(source, target, lane, self);
+    const route = routed || relationshipRoute(source, target, lane, self, obstacles, Math.min(320, Math.max(90, label.length * 7 + 24)));
     const x = Math.min(...route.points.map((p) => p.x));
     const y = Math.min(...route.points.map((p) => p.y));
     const points = route.points.map((p) => ({ x: p.x - x, y: p.y - y }));
@@ -88,6 +91,8 @@ export function createProjection(
   editor: Editor,
   legacyPositions: Positions = {},
 ) {
+  const relationshipRouter = createRelationshipRouter();
+  let settleRoutes = false;
   let writing = false;
   let generation = 0;
   let connections: GraphConnection[] = [];
@@ -97,6 +102,8 @@ export function createProjection(
   const dirty = new Set<string>();
   let layoutKey = "";
   const markConnections = (id: string) => {
+    // Even an isolated node is a routing obstacle.
+    dirty.add(id);
     for (const edge of adjacency.get(id) || []) {
       dirty.add(edge);
       for (const mapping of adjacency.get(anchorId(edge)) || [])
@@ -119,8 +126,19 @@ export function createProjection(
   };
   const hidden = (id: string) =>
     !visible.has(id) || (!!focus && !focus.has(id));
-  const syncConnections = (changed?: Set<string>) => {
+  const syncConnections = (incremental = false) => {
+    if (incremental) settleRoutes = true;
     const anchors = new Map<string, Box>();
+    // Scene bounds identify newly obstructed routes as well as incident edges.
+    const obstacles = [...vertices.keys()].flatMap(id => {
+      if (hidden(id)) return [];
+      const shape = editor.getShape<ObjectShape>(modelShapeId(id));
+      if (!shape || shape.type !== "lexicon-object") return [];
+      if (shape.props.group && !isContext(shape)) return [];
+      const frame = isContext(shape) ? contextLabelFrame(editor, shape, false) : objectFrame(editor, shape, vertices.get(id), false);
+      const point = editor.getShapePageTransform(shape).applyToPoint(frame);
+      return [{ id, ...point, width: frame.w, height: frame.h }];
+    });
     const bounds = (id: string) => {
       const shape = editor.getShape<ObjectShape>(modelShapeId(id));
       if (!shape || shape.type !== "lexicon-object") return;
@@ -128,8 +146,16 @@ export function createProjection(
       const point = editor.getShapePageTransform(shape).applyToPoint(frame);
       return { ...point, width: frame.w, height: frame.h };
     };
+    const routed = relationshipRouter.route(connections.flatMap(edge => {
+      if (edge.kind !== "relationship" || hidden(edge.id)) return [];
+      const source = bounds(edge.source), target = bounds(edge.target);
+      if (!source || !target) return [];
+      const lane = lanes.get(edge.id) || 0;
+      return [{ id: edge.id, sourceId: edge.source, targetId: edge.target, source, target,
+        lane: edge.source < edge.target ? lane : -lane,
+        labelWidth: Math.min(320, Math.max(90, edge.label.length * 7 + 24)) }];
+    }), obstacles, incremental);
     for (const edge of connections) {
-      if (changed && !changed.has(edge.id)) continue;
       if (edge.source.startsWith("anchor:")) {
         const relation = connections.find(
           (c) => anchorId(c.id) === edge.source,
@@ -158,6 +184,8 @@ export function createProjection(
         edge.source === edge.target,
         edge.label,
         edge.kind === "relationship",
+        obstacles.filter(o => o.id !== edge.source && o.id !== edge.target),
+        routed.get(edge.id),
       );
       const id = modelShapeId(edge.id);
       const shape = editor.getShape<ConnectionShape>(id);
@@ -297,12 +325,19 @@ export function createProjection(
     editor.sideEffects.registerAfterDeleteHandler("shape", shape => { if (!writing && shape.type === "lexicon-object") queueContext(shape); }),
     editor.sideEffects.registerOperationCompleteHandler(() => {
       if (!writing && dirty.size) {
-        const changed = new Set(dirty);
         dirty.clear();
-        write(() => syncConnections(changed));
+        write(() => syncConnections(editor.inputs.getIsDragging()));
       }
     }),
   ];
+
+  const settle = () => {
+    if (!settleRoutes || editor.inputs.getIsDragging()) return;
+    settleRoutes = false;
+    write(() => syncConnections());
+  };
+  editor.on("event", settle);
+  disposes.push(() => { editor.off("event", settle); });
 
   return {
     async update(
@@ -402,7 +437,7 @@ export function createProjection(
         }
       }
       for (const group of peers.values())
-        group.forEach((edge, i) =>
+        group.sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0).forEach((edge, i) =>
           lanes.set(edge.id, i - (group.length - 1) / 2),
         );
       visible = new Set([
