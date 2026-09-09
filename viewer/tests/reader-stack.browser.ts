@@ -237,7 +237,8 @@ test("bottom tiles reveal later cards and close only their own card", async ({ p
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/p/dentalml?item=selected-tooth");
   for (const name of ["Tooth input", "Canal index", "Measurement path", "Reference point"]) await browse(page, name);
-  await page.getByRole("button", { name: /^(Read|Reveal) card: Selected tooth$/ }).first().click();
+  await expect(page.locator("main")).not.toHaveAttribute("data-reader-travel", /./);
+  await page.locator(".reader-sticky-titles").getByRole("button", { name: /^(Read|Reveal) card: Selected tooth$/ }).click();
   const bottom = page.getByRole("group", { name: "Collapsed cards below" });
   await expect(bottom).toBeVisible();
   const bottomKeys = await bottom.locator("[data-bottom-card]").evaluateAll(es => es.map(el => el.getAttribute("data-bottom-card")));
@@ -317,13 +318,28 @@ test("a partly scrolled card retains its sticky header until its whole body pass
   await expect(page.locator('[data-collapsed-card="item:selected-tooth"]')).toHaveCount(0);
 });
 
+test("the active card header continues the accent border without a paper-colored corner seam", async ({ page }) => {
+  await page.goto("/p/dentalml?item=selected-tooth");
+  const styles = await card(page, "item:selected-tooth").evaluate(el => {
+    const header = el.querySelector<HTMLElement>(":scope > .reader-card-header")!;
+    return {
+      headerShadow: getComputedStyle(header).boxShadow,
+      headerSurface: getComputedStyle(header).backgroundColor,
+      cornerSurface: getComputedStyle(header, "::before").backgroundImage,
+    };
+  });
+  expect(styles.headerShadow).toContain("2px");
+  expect(styles.cornerSurface).toContain(styles.headerSurface);
+});
+
 test("header breadcrumb follows the active card and navigates without replacing the stack", async ({ page }) => {
   await page.goto("/p/dentalml?item=selected-tooth");
   const breadcrumb = page.getByRole("navigation", { name: "Reader breadcrumb" });
   await expect(breadcrumb.locator("button")).toHaveText(["Canal measurement", "Tooth selection", "Selected tooth"]);
   await breadcrumb.getByRole("button", { name: "Tooth selection", exact: true }).click();
   expect(await keys(page)).toEqual(["item:selected-tooth", "item:selection"]);
-  await page.getByRole("button", { name: /^(Read|Reveal) card: Selected tooth$/ }).first().click();
+  await expect(page.locator("main")).not.toHaveAttribute("data-reader-travel", /./);
+  await page.locator(".reader-sticky-titles").getByRole("button", { name: /^(Read|Reveal) card: Selected tooth$/ }).click();
   await expect(breadcrumb.locator('[aria-current="page"]')).toHaveText("Selected tooth");
   await breadcrumb.getByRole("button", { name: "Tooth selection", exact: true }).click();
   await expect(cards(page)).toHaveCount(2);
@@ -440,4 +456,56 @@ test("closing the last card hides the reader; unavailable items remain closable"
   await browse(page, "Selected tooth");
   await expect(cards(page)).toHaveCount(1);
   await expect(active(page)).toHaveAttribute("data-reader-card", "item:selected-tooth");
+});
+
+test("expanded bodies are clipped out of the transparent collapsed rail", async ({ page }) => {
+  await page.goto("/p/dentalml?item=selected-tooth");
+  for (const name of ["Tooth input", "Canal index", "Measurement path", "Reference point"]) await browse(page, name);
+  await card(page, "item:reference-point").evaluate(el => {
+    const main = el.closest("main")!;
+    main.scrollTop = (el as HTMLElement).offsetTop + 60;
+  });
+  const rail = page.locator(".reader-sticky-titles > .reader-sticky-list");
+  await expect(page.locator("[data-collapsed-card]").first()).toBeVisible();
+  await expect.poll(() => rail.evaluate(el => {
+    const box = el.getBoundingClientRect();
+    // The top padding and row gaps must expose the canvas, never body text.
+    for (let y = box.top + 1; y < box.bottom; y += 3) {
+      for (let x = box.left + 1; x < box.right; x += 17) {
+        if (document.elementsFromPoint(x, y).some(hit => hit.closest("[data-reader-card]"))) return false;
+      }
+    }
+    return true;
+  })).toBe(true);
+  await expect(rail).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+  // Simulate scrolling outrunning JS: no scroll handler can refresh geometry.
+  // The viewport must still clip bodies at every intermediate position.
+  const leaked = await page.evaluate(() => {
+    const main = document.querySelector("main")!;
+    const rail = document.querySelector(".reader-sticky-titles > .reader-sticky-list")!;
+    const box = rail.getBoundingClientRect();
+    const origin = main.scrollTop;
+    const stopScroll = (event: Event) => event.stopImmediatePropagation();
+    window.addEventListener("scroll", stopScroll, true);
+    try {
+      for (const offset of [500, -300, 900, -700, 120, -60, 0]) {
+        main.scrollTop = origin + offset;
+        for (let y = box.top + 1; y < box.bottom; y += 5) {
+          if (document.elementsFromPoint(box.left + box.width / 2, y)
+            .some(hit => hit.closest("[data-reader-card]"))) return true;
+        }
+      }
+      return false;
+    } finally {
+      main.scrollTop = origin;
+      window.removeEventListener("scroll", stopScroll, true);
+    }
+  });
+  expect(leaked).toBe(false);
+  const beforeWheel = await scroll(page);
+  await rail.hover();
+  await page.mouse.wheel(0, -180);
+  await expect.poll(() => scroll(page)).toBeLessThan(beforeWheel);
+  await page.getByRole("button", { name: "Use dark theme" }).click();
+  await page.screenshot({ path: "../output/reader-rail-clipping.png" });
 });

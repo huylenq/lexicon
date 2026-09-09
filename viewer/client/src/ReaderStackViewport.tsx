@@ -287,37 +287,14 @@ export default function ReaderStackViewport({ reading, model, layoutKey, notice,
     </section>;
   };
   return (
+    <>
           <main className="reading-pane reader-stack" ref={content} id="main-content"
+            style={{ clipPath: `inset(${Math.max(stickyTop, morphBoundary)}px 0 0)` }}
             onScroll={() => { reading.onScroll();
               if (navigationScroll.current === content.current?.scrollTop) return;
               navigationScroll.current = undefined;
               scheduleSettle(); updatePinned(); }}>
             {notice}
-            <div className="reader-sticky-titles" aria-label="Previous cards">
-              {morph && <div className="reader-morph-backdrop" style={{ height: morphBoundary }} aria-hidden="true" />}
-              {morph && (() => {
-                const card = reading.stack.cards.find(card => cardKey(card) === morph.key);
-                return card && <section data-morph-card={morph.key} className={`reader-card reader-morph ${reading.stack.active === morph.key ? "active" : ""}`}
-                  style={{ left: morph.x, top: morph.y, width: morph.width, "--morph-progress": morph.progress } as CSSProperties}>
-                  {renderCardHeader(card, true)}
-                  <div className="reader-morph-body" data-expanded={morph.progress === 0 || undefined}
-                    {...(morph.progress > 0 ? { inert: "" } : {})} style={{ height: morph.bodyHeight,
-                    "--body-scale-x": (morph.width - 2) / Number(morph.bodyStyle.width) } as CSSProperties}>
-                    {renderCard(card, true)}
-                  </div>
-                </section>;
-              })()}
-              <div className="reader-sticky-list">
-                {pinned.length > 0 && <div ref={collapsedGrid} className="reader-collapsed-grid" role="group" aria-label="Collapsed cards" style={{ maxHeight: collapsedHeight }}>
-                {pinned.map(key => {
-                const card = reading.stack.cards.find(c => cardKey(c) === key);
-                return card && <section key={key} data-collapsed-card={key} className={`reader-card reader-collapsed-card ${key === reading.stack.active ? "active" : ""}`}>
-                  {renderCardHeader(card, true)}
-                </section>;
-              })}
-                </div>}
-              </div>
-            </div>
             <div className="reader-cards">{reading.stack.cards.map(card => renderCard(card))}</div>
             <div className="reader-bottom-titles" aria-label="Cards below">
               {bottomMorph && (() => {
@@ -346,5 +323,37 @@ export default function ReaderStackViewport({ reading, model, layoutKey, notice,
               </div>}
             </div>
           </main>
+          <div className="reader-stack reader-top-overlay" onWheel={event => {
+            content.current?.dispatchEvent(new WheelEvent("wheel"));
+            const grid = collapsedGrid.current;
+            if (grid && grid.contains(event.target as Node) && grid.scrollHeight > grid.clientHeight) return;
+            if (content.current) content.current.scrollTop += event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? content.current.clientHeight : 1);
+          }}>
+            <div className="reader-sticky-titles" aria-label="Previous cards">
+              {morph && (() => {
+                const card = reading.stack.cards.find(card => cardKey(card) === morph.key);
+                return card && <section data-morph-card={morph.key} className={`reader-card reader-morph ${reading.stack.active === morph.key ? "active" : ""}`}
+                  style={{ left: morph.x, top: morph.y, width: morph.width, "--morph-progress": morph.progress } as CSSProperties}>
+                  {renderCardHeader(card, true)}
+                  <div className="reader-morph-body" data-expanded={morph.progress === 0 || undefined}
+                    {...(morph.progress > 0 ? { inert: "" } : {})} style={{ height: morph.bodyHeight,
+                    "--body-scale-x": (morph.width - 2) / Number(morph.bodyStyle.width) } as CSSProperties}>
+                    {renderCard(card, true)}
+                  </div>
+                </section>;
+              })()}
+              <div className="reader-sticky-list">
+                {pinned.length > 0 && <div ref={collapsedGrid} className="reader-collapsed-grid" role="group" aria-label="Collapsed cards" style={{ maxHeight: collapsedHeight }}>
+                {pinned.map(key => {
+                const card = reading.stack.cards.find(c => cardKey(c) === key);
+                return card && <section key={key} data-collapsed-card={key} className={`reader-card reader-collapsed-card ${key === reading.stack.active ? "active" : ""}`}>
+                  {renderCardHeader(card, true)}
+                </section>;
+              })}
+                </div>}
+              </div>
+            </div>
+          </div>
+    </>
   );
 }
