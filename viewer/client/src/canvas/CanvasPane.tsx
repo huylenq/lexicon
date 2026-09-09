@@ -300,11 +300,20 @@ export default function CanvasPane(props: CanvasPaneProps) {
       setEditor(instance);
       let lastSelected = "";
       let repeatSelection = false;
+      let draggedSelection = "";
       const beforeEvent = (event: TLEventInfo) => {
+        // A later gesture is a fresh interaction, so a drag's selection echo
+        // never suppresses an actual click that follows it.
+        if (event.name === "pointer_down") {
+          draggedSelection = "";
+          return;
+        }
         if (event.name !== "pointer_up") return;
         repeatSelection = event.button === 0 &&
           !event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey &&
           (instance.isIn("select.pointing_shape") || instance.isIn("select.pointing_selection"));
+        if (instance.isIn("select.translating"))
+          draggedSelection = instance.getSelectedShapeIds().join("|");
       };
       const afterEvent = (event: TLEventInfo) => {
         if (event.name !== "pointer_up" || !repeatSelection) return;
@@ -329,6 +338,13 @@ export default function CanvasPane(props: CanvasPaneProps) {
           return;
         }
         if (key === lastSelected) return;
+        // Ending a move leaves its shapes selected. That echo of the gesture
+        // is not a read; lastSelected keeps the reader-consistent key, so the
+        // selection's first real click still navigates.
+        if (draggedSelection && key === draggedSelection) {
+          draggedSelection = "";
+          return;
+        }
         lastSelected = key;
         if (!ids.length) {
           if (latest.current.selection) {
