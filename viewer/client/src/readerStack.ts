@@ -1,56 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createSearchParams, useLocation, useSearchParams, type SetURLSearchParams } from "react-router-dom";
-import { readSelection, type GraphSelection } from "./graph/model";
-
-export type ReaderCard = Exclude<GraphSelection, { kind: "code" }> | { kind: "overview" };
-export type ReaderStack = {
-  cards: ReaderCard[];
-  active: string | null;
-  visible: boolean;
-  scrollTop: number;
-  reveal?: string;
-};
-export const cardKey = (card: ReaderCard) => card.kind === "bundle"
-  ? JSON.stringify({ kind: card.kind, relationships: [...card.relationships].sort(), mappings: [...card.mappings].sort() })
-  : card.kind === "overview" ? "overview" : `${card.kind}:${card.id}`;
-export function routeCard(params: URLSearchParams): ReaderCard {
-  const selection = readSelection(params.get("selection"));
-  return selection && selection.kind !== "code" ? selection :
-    (params.get("item") ? { kind: "item", id: params.get("item")! } : { kind: "overview" });
-}
-export function appendCard(stack: ReaderStack, card: ReaderCard): ReaderStack {
-  const key = cardKey(card);
-  return { ...stack, cards: stack.cards.some(c => cardKey(c) === key) ? stack.cards : [...stack.cards, card],
-    active: key, visible: true, reveal: key };
-}
-export function removeCard(stack: ReaderStack, key: string): ReaderStack {
-  const index = stack.cards.findIndex(c => cardKey(c) === key);
-  if (index < 0) return stack;
-  const cards = stack.cards.filter(c => cardKey(c) !== key);
-  const active = stack.active === key ? (cards[Math.max(0, index - 1)] ? cardKey(cards[Math.max(0, index - 1)]) : null) : stack.active;
-  return { ...stack, cards, active, visible: cards.length > 0 && stack.visible, reveal: undefined };
-}
-function parseStack(value: unknown): ReaderStack | undefined {
-  if (!value || typeof value !== "object") return;
-  const v = value as ReaderStack;
-  if (!Array.isArray(v.cards)) return;
-  const cards: ReaderCard[] = [];
-  for (const c of v.cards) {
-    const card = c?.kind === "overview" ? { kind: "overview" } as const : readSelection(JSON.stringify(c));
-    if (card && card.kind !== "code" && !cards.some(existing => cardKey(existing) === cardKey(card))) cards.push(card);
-  }
-  const active = cards.some(c => cardKey(c) === v.active) ? v.active : cards.length ? cardKey(cards[cards.length - 1]) : null;
-  return { cards, active, visible: cards.length > 0 && v.visible !== false,
-    scrollTop: Number.isFinite(v.scrollTop) ? Math.max(0, v.scrollTop) : 0,
-    reveal: typeof v.reveal === "string" ? v.reveal : undefined };
-}
-function withCard(params: URLSearchParams, card?: ReaderCard) {
-  const p = new URLSearchParams(params);
-  for (const key of ["item", "selection", "focus", "shape"]) p.delete(key);
-  if (card?.kind === "item") p.set("item", card.id);
-  else if (card && card.kind !== "overview") p.set("selection", JSON.stringify(card));
-  return p;
-}
+import { readSelection } from "./graph/model";
+import { readerLayout, readerRailHeight } from "./readerGeometry";
+import { cardParams, routeCard, type ReaderSetParams } from "./readerNavigation";
+import { cardKey, openCard, removeCard, replaceActiveCard, parseStack, type ReaderCard, type ReaderOpenMode, type ReaderStack } from "./readerState";
 
 /** URL = shareable active object; history state = this browser's entire reading stack. */
 export function useReaderStack(projectId: string) {
@@ -66,9 +19,9 @@ export function useReaderStack(projectId: string) {
     if (params.has("item") || (params.has("selection") && readSelection(params.get("selection"))?.kind !== "code")) {
       const card = routeCard(params);
       // A reload of the current object keeps the stored scroll position.
-      return saved?.active === cardKey(card) ? saved : appendCard(base, card);
+      return saved?.active === cardKey(card) ? saved : openCard(base, card);
     }
-    return saved || appendCard(base, { kind: "overview" });
+    return saved || openCard(base, { kind: "overview" });
   });
   const current = useRef(stack);
   const scroller = useRef<HTMLElement>(null);
@@ -100,37 +53,35 @@ export function useReaderStack(projectId: string) {
     setStack(next);
     rawSetParams(p, { ...options, state: { ...location.state, ...options?.state, readerProject: projectId, readerStack: next } });
   };
-  const setParams: SetURLSearchParams = (input, options) => {
+  const setParams: ReaderSetParams = (input, options) => {
     const p = createSearchParams(typeof input === "function" ? input(params) : input);
     let next = snapshot();
     const card = routeCard(p);
-    if (cardKey(card) !== cardKey(routeCard(params))) {
+    if (cardKey(card) !== cardKey(routeCard(params)) || options?.readerMode) {
       if (options?.replace) {
-        // Legacy URL normalization upgrades the existing card in place.
-        const cards = next.cards.map(c => cardKey(c) === next.active ? card : c);
-        next = { ...next, cards: cards.filter((c, i) => cards.findIndex(other => cardKey(other) === cardKey(c)) === i), active: cardKey(card) };
-      } else next = appendCard(next, card);
+        next = replaceActiveCard(next, card);
+      } else next = openCard(next, card, options?.readerMode);
     }
     commit(next, p, options);
   };
-  const open = (card: ReaderCard, reveal = true) => {
+  const open = (card: ReaderCard, { reveal = true, mode = "preview" }: { reveal?: boolean; mode?: ReaderOpenMode } = {}) => {
     const base = snapshot();
     const key = cardKey(card);
-    if (!reveal && base.active === key && params.get("focus") !== "code") return;
-    const next = appendCard(base, card);
+    if (!reveal && base.active === key && params.get("focus") !== "code" && mode !== "pinned") return;
+    const next = openCard(base, card, mode);
     if (!reveal) next.reveal = undefined;
-    commit(next, withCard(params, card));
+    commit(next, cardParams(params, card));
   };
   const close = (key: string) => {
     const next = removeCard(snapshot(), key);
-    commit(next, withCard(params, next.cards.find(c => cardKey(c) === next.active)));
+    commit(next, cardParams(params, next.cards.find(c => cardKey(c) === next.active)));
   };
   const toggle = () => {
     let next = snapshot();
-    next = next.cards.length ? { ...next, visible: !next.visible, reveal: undefined } : appendCard(next, { kind: "overview" });
-    commit(next, withCard(params, next.cards.find(c => cardKey(c) === next.active)));
+    next = next.cards.length ? { ...next, visible: !next.visible, reveal: undefined } : openCard(next, { kind: "overview" });
+    commit(next, cardParams(params, next.cards.find(c => cardKey(c) === next.active)));
   };
-  // POP restores an exact snapshot. Links entering from elsewhere append to the project stack.
+  // POP restores an exact snapshot. Incoming links reuse the project's Preview.
   useLayoutEffect(() => {
     // React Strict Mode replays mount effects in the development viewer.
     if (handledLocation.current === location.key) return;
@@ -142,13 +93,13 @@ export function useReaderStack(projectId: string) {
       save(current.current);
       const active = current.current.cards.find(c => cardKey(c) === current.current.active);
       if (!params.has("item") && !params.has("selection") && active && active.kind !== "overview") {
-        rawSetParams(withCard(params, active), { replace: true, state: { ...location.state, readerProject: projectId, readerStack: current.current } });
+        rawSetParams(cardParams(params, active), { replace: true, state: { ...location.state, readerProject: projectId, readerStack: current.current } });
       }
       return;
     }
     const restored = location.state?.readerProject === projectId && parseStack(location.state.readerStack);
     const next = restored || (cardKey(routeCard(params)) === current.current.active
-      ? snapshot() : appendCard(current.current, routeCard(params)));
+      ? snapshot() : openCard(current.current, routeCard(params)));
     current.current = next;
     setStack(next);
   }, [location.key]);
@@ -163,9 +114,7 @@ export function useReaderStack(projectId: string) {
     const card = next.reveal && Array.from(element.querySelectorAll<HTMLElement>("[data-reader-card]"))
       .find(el => el.dataset.readerCard === next.reveal);
     const preceding = card ? Array.from(element.querySelectorAll<HTMLElement>("[data-reader-card]")).indexOf(card) : 0;
-    const columns = Math.max(1, Math.floor((element.clientWidth - 6 + 8) / 228));
-    const capacity = Math.max(1, Math.floor((element.clientHeight / 4 - 7) / 44));
-    const rail = preceding ? Math.min(Math.ceil(preceding / columns), capacity) * 44 + 7 : 0;
+    const rail = readerRailHeight(preceding, readerLayout(element.clientWidth, element.clientHeight));
     const destination = card ? Math.min(element.scrollHeight - element.clientHeight, Math.max(0, card.offsetTop - rail - 12)) : next.scrollTop;
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const startPosition = element.scrollTop;
@@ -174,7 +123,7 @@ export function useReaderStack(projectId: string) {
       cancelNavigation();
       save({ ...current.current, scrollTop: element.scrollTop, reveal: undefined });
       onArrival?.();
-      if (card && !reduced) {
+      if (card && !reduced && next.preview !== next.reveal) {
         const accent = getComputedStyle(card).getPropertyValue("--accent");
         card.animate([
           { boxShadow: `0 0 0 0 ${accent}` },

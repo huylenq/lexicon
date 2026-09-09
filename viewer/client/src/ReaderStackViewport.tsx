@@ -1,5 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { cardKey, type ReaderCard, type useReaderStack } from "./readerStack";
+import type { useReaderStack } from "./readerStack";
+import { cardKey, type ReaderCard } from "./readerState";
+import { readerLayout, readerRailHeight, readerTilePosition } from "./readerGeometry";
 import type { Model } from "../../shared/model";
 
 type Props = {
@@ -19,7 +21,7 @@ const bottomFade = (end: number) =>
 // graph, code pane, or stable model content.
 export default function ReaderStackViewport({ reading, model, layoutKey, notice, titleForCard, renderBody, renderCardHeader }: Props) {
   const content = reading.scroller;
-  const [pinned, setPinned] = useState<string[]>([]);
+  const [above, setAbove] = useState<string[]>([]);
   const [below, setBelow] = useState<string[]>([]);
   const [bottomColumns, setBottomColumns] = useState(1);
   const [collapsedHeight, setCollapsedHeight] = useState(36);
@@ -144,13 +146,13 @@ export default function ReaderStackViewport({ reading, model, layoutKey, notice,
     const observer = new ResizeObserver(animateLayout);
     observer.observe(grid);
     return () => observer.disconnect();
-  }, [pinned, collapsedHeight]);
+  }, [above, collapsedHeight]);
   const navigationScroll = useRef<number>();
   const settleTimer = useRef<ReturnType<typeof setTimeout>>();
   const settleFrame = useRef<number>();
   const settling = useRef(false);
   const morphMotion = useRef<Record<string, { key: string; value: number; raw: number; scroll: number; target: number }>>({});
-  const updatePinned = (navigation = false) => {
+  const updateLayout = (navigation = false) => {
     const element = content.current;
     if (!element) return;
     if (navigation) navigationScroll.current = element.scrollTop;
@@ -193,12 +195,13 @@ export default function ReaderStackViewport({ reading, model, layoutKey, notice,
     const upcoming = cards.filter(card => bounds.get(card)!.top >= edge + element.clientHeight)
       .map(card => card.dataset.readerCard!).reverse();
     setBelow(previous => previous.join("\n") === upcoming.join("\n") ? previous : upcoming);
-    const capacity = Math.max(1, Math.floor((element.clientHeight / 4 - 7) / 44));
-    setCollapsedHeight(Math.max(36, capacity * 44 - 8));
-    setPinned(previous => previous.join("\n") === keys.join("\n") ? previous : keys);
+    const layout = readerLayout(element.clientWidth, element.clientHeight);
+    const { columns, tileWidth } = layout;
+    setCollapsedHeight(layout.collapsedHeight);
+    setAbove(previous => previous.join("\n") === keys.join("\n") ? previous : keys);
     const candidate = cards.find(card => bounds.get(card)!.bottom > edge);
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const railHeight = keys.length ? Math.min(Math.ceil(keys.length / Math.max(1, Math.floor((element.clientWidth - 6 + 8) / 228))) * 44 - 8, capacity * 44 - 8) + 15 : 0;
+    const railHeight = readerRailHeight(keys.length, layout);
     const remaining = candidate ? bounds.get(candidate)!.bottom - edge : Infinity;
     if (candidate && !reducedMotion && bounds.get(candidate)!.top < edge && remaining < railHeight + 160) {
       const progress = Math.max(0, Math.min(1, 1 - remaining / (railHeight + 160)));
@@ -206,10 +209,7 @@ export default function ReaderStackViewport({ reading, model, layoutKey, notice,
       const cardArea = element.querySelector<HTMLElement>(".reader-cards")!;
       const padding = parseFloat(getComputedStyle(cardArea).paddingLeft);
       const width = element.clientWidth - padding * 2;
-      const columns = Math.max(1, Math.floor((element.clientWidth - 6 + 8) / 228));
-      const tileWidth = (element.clientWidth - 6 - (columns - 1) * 8) / columns;
-      const targetX = 3 + (keys.length % columns) * (tileWidth + 8);
-      const targetY = 3 + Math.min(Math.floor(keys.length / columns), capacity - 1) * 44;
+      const { x: targetX, rowOffset: targetY } = readerTilePosition(keys.length, layout, "top");
       morphKey.current = candidate.dataset.readerCard!;
       const x = padding + (targetX - padding) * eased;
       const y = railHeight + (targetY - railHeight) * eased;
@@ -219,18 +219,15 @@ export default function ReaderStackViewport({ reading, model, layoutKey, notice,
     } else { delete morphMotion.current.top; setMorph(previous => previous ? undefined : previous); }
     const bottomEdge = edge + element.clientHeight;
     const bottomCandidate = [...cards].reverse().find(card => bounds.get(card)!.top < bottomEdge);
-    const columns = Math.max(1, Math.floor((element.clientWidth - 6 + 8) / 228));
     setBottomColumns(columns);
-    const bottomRail = upcoming.length ? Math.min(Math.ceil(upcoming.length / columns), capacity) * 44 + 7 : 0;
+    const bottomRail = readerRailHeight(upcoming.length, layout);
     const visible = bottomCandidate ? bottomEdge - bounds.get(bottomCandidate)!.top : Infinity;
     if (bottomCandidate && !reducedMotion && bounds.get(bottomCandidate)!.bottom > bottomEdge && bounds.get(bottomCandidate)!.top >= edge && visible < bottomRail + 160) {
       const progress = Math.max(0, Math.min(1, 1 - visible / (bottomRail + 160)));
       const eased = motionProgress("bottom", bottomCandidate.dataset.readerCard!, progress * progress * (3 - 2 * progress), visible - bottomRail - 46 > 72);
       const padding = parseFloat(getComputedStyle(element.querySelector<HTMLElement>(".reader-cards")!).paddingLeft);
       const width = element.clientWidth - padding * 2;
-      const tileWidth = (element.clientWidth - 6 - (columns - 1) * 8) / columns;
-      const targetBottom = 3 + Math.min(Math.floor(upcoming.length / columns), capacity - 1) * 44;
-      const targetX = 3 + (columns - 1 - upcoming.length % columns) * (tileWidth + 8);
+      const { x: targetX, rowOffset: targetBottom } = readerTilePosition(upcoming.length, layout, "bottom");
       bottomMorphKey.current = bottomCandidate.dataset.readerCard!;
       const x = padding + (targetX - padding) * eased;
       const bottom = Math.max(targetBottom, (visible - 46) + (targetBottom - (visible - 46)) * eased);
@@ -260,7 +257,7 @@ export default function ReaderStackViewport({ reading, model, layoutKey, notice,
         for (const [side, motion] of Object.entries(morphMotion.current)) {
           motion.value = (starts[side] ?? motion.value) + (motion.target - (starts[side] ?? motion.value)) * eased;
         }
-        updatePinned();
+        updateLayout();
         if (t < 1) settleFrame.current = requestAnimationFrame(tick);
         else settling.current = false;
       };
@@ -273,33 +270,35 @@ export default function ReaderStackViewport({ reading, model, layoutKey, notice,
   }, []);
   useLayoutEffect(() => {
     if (model) {
-      const navigation = reading.restoreScroll(() => { updatePinned(true); scheduleSettle(); });
-      updatePinned(navigation);
+      const navigation = reading.restoreScroll(() => { updateLayout(true); scheduleSettle(); });
+      updateLayout(navigation);
       if (!navigation) scheduleSettle();
     }
   }, [layoutKey, reading.stack, model]);
   useEffect(() => {
     if (!content.current) return;
-    const observer = new ResizeObserver(() => updatePinned());
+    const observer = new ResizeObserver(() => updateLayout());
     observer.observe(content.current);
     return () => observer.disconnect();
   }, []);
   // Position headers directly: an inherited reader-wide variable would make
   // every retained card body participate in style recalculation on each frame.
   const morphBoundary = morph ? morph.y + 46 - 10 * morph.progress + morph.bodyHeight + 12 : 0;
+  // Key surfaces by mode so promotion resets their temporary styling after a resize.
+  const cardMode = (key: string) => reading.stack.preview === key ? "preview" : "pinned";
   const renderCard = (card: ReaderCard, bodyOnly = false) => {
     const key = cardKey(card);
     const title = titleForCard(card);
     const cardMorph = morph?.key === key ? morph : bottomMorph?.key === key ? bottomMorph : undefined;
     const body = <div className="reader-card-body" style={bodyOnly ? cardMorph?.bodyStyle : undefined}>{renderBody(card)}</div>;
     if (bodyOnly) return body;
-    return <section className={`reader-card ${reading.stack.active === key ? "active" : ""} ${cardMorph ? "reader-card-morphing" : ""}`} key={key}
-      data-reader-card={key} aria-label={title}
+    return <section className={`reader-card ${reading.stack.active === key ? "active" : ""} ${cardMorph ? "reader-card-morphing" : ""}`} key={`${key}:${cardMode(key)}`}
+      data-reader-card={key} data-reader-mode={cardMode(key)} aria-label={title}
       onPointerDownCapture={event => {
-        if (!(event.target as Element).closest("[data-close-card]")) reading.open(card, false);
+        if (event.button === 0 && !(event.target as Element).closest("[data-reader-link], [data-close-card], [data-pin-card]")) reading.open(card, { reveal: false });
       }}
       onFocusCapture={event => {
-        if (!(event.target as Element).closest("[data-close-card]")) reading.open(card, false);
+        if (!(event.target as Element).closest("[data-reader-link], [data-close-card], [data-pin-card]")) reading.open(card, { reveal: false });
       }}>
       {renderCardHeader(card, false, { top: Math.max(stickyTop, morphBoundary) })}
       {body}
@@ -314,13 +313,13 @@ export default function ReaderStackViewport({ reading, model, layoutKey, notice,
             onScroll={() => { reading.onScroll();
               if (navigationScroll.current === content.current?.scrollTop) return;
               navigationScroll.current = undefined;
-              scheduleSettle(); updatePinned(); }}>
+              scheduleSettle(); updateLayout(); }}>
             {notice}
             <div className="reader-cards">{reading.stack.cards.map(card => renderCard(card))}</div>
             <div className="reader-bottom-titles" aria-label="Cards below">
               {bottomMorph && (() => {
                 const card = reading.stack.cards.find(card => cardKey(card) === bottomMorph.key);
-                return card && <section data-bottom-morph-card={bottomMorph.key} className={`reader-card reader-morph ${reading.stack.active === bottomMorph.key ? "active" : ""}`}
+                return card && <section key={`${bottomMorph.key}:${cardMode(bottomMorph.key)}`} data-bottom-morph-card={bottomMorph.key} data-reader-mode={cardMode(bottomMorph.key)} className={`reader-card reader-morph ${reading.stack.active === bottomMorph.key ? "active" : ""}`}
                   style={{ left: bottomMorph.x, bottom: bottomMorph.bottom - bottomMorph.bodyHeight, width: bottomMorph.width, "--morph-progress": bottomMorph.progress } as CSSProperties}>
                   {renderCardHeader(card, true)}
                   <div className="reader-morph-body" data-expanded={bottomMorph.progress === 0 || undefined}
@@ -334,7 +333,7 @@ export default function ReaderStackViewport({ reading, model, layoutKey, notice,
                 <div ref={bottomGrid} className="reader-collapsed-grid" role="group" aria-label="Collapsed cards below" style={{ maxHeight: collapsedHeight }}>
                   {below.map((key, index) => {
                     const card = reading.stack.cards.find(card => cardKey(card) === key);
-                    return card && <section key={key} data-bottom-card={key} className={`reader-card reader-collapsed-card ${reading.stack.active === key ? "active" : ""}`}
+                    return card && <section key={`${key}:${cardMode(key)}`} data-bottom-card={key} data-reader-mode={cardMode(key)} className={`reader-card reader-collapsed-card ${reading.stack.active === key ? "active" : ""}`}
                       style={{ gridColumn: index % bottomColumns + 1, gridRow: Math.ceil((below.length + (bottomMorph ? 1 : 0)) / bottomColumns) - Math.floor(index / bottomColumns) }}>
                       {renderCardHeader(card, true)}
                     </section>;
@@ -353,7 +352,7 @@ export default function ReaderStackViewport({ reading, model, layoutKey, notice,
             <div className="reader-sticky-titles" aria-label="Previous cards">
               {morph && (() => {
                 const card = reading.stack.cards.find(card => cardKey(card) === morph.key);
-                return card && <section data-morph-card={morph.key} className={`reader-card reader-morph ${reading.stack.active === morph.key ? "active" : ""}`}
+                return card && <section key={`${morph.key}:${cardMode(morph.key)}`} data-morph-card={morph.key} data-reader-mode={cardMode(morph.key)} className={`reader-card reader-morph ${reading.stack.active === morph.key ? "active" : ""}`}
                   style={{ left: morph.x, top: morph.y, width: morph.width, "--morph-progress": morph.progress } as CSSProperties}>
                   {renderCardHeader(card, true)}
                   <div className="reader-morph-body" data-expanded={morph.progress === 0 || undefined}
@@ -364,10 +363,10 @@ export default function ReaderStackViewport({ reading, model, layoutKey, notice,
                 </section>;
               })()}
               <div className="reader-sticky-list">
-                {pinned.length > 0 && <div ref={collapsedGrid} className="reader-collapsed-grid" role="group" aria-label="Collapsed cards" style={{ maxHeight: collapsedHeight }}>
-                {pinned.map(key => {
+                {above.length > 0 && <div ref={collapsedGrid} className="reader-collapsed-grid" role="group" aria-label="Collapsed cards" style={{ maxHeight: collapsedHeight }}>
+                {above.map(key => {
                 const card = reading.stack.cards.find(c => cardKey(c) === key);
-                return card && <section key={key} data-collapsed-card={key} className={`reader-card reader-collapsed-card ${key === reading.stack.active ? "active" : ""}`}>
+                return card && <section key={`${key}:${cardMode(key)}`} data-collapsed-card={key} data-reader-mode={cardMode(key)} className={`reader-card reader-collapsed-card ${key === reading.stack.active ? "active" : ""}`}>
                   {renderCardHeader(card, true)}
                 </section>;
               })}

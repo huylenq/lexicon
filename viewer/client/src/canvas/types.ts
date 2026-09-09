@@ -2,6 +2,7 @@ import type { Dispatch, SetStateAction } from "react";
 import type { Model } from "../../../shared/model";
 import type { GraphSelection } from "../graph/model";
 import type { Workspace } from "../graph/storage";
+import type { ReaderOpenMode } from "../readerState";
 
 export type CanvasCommand = {
   sequence: number;
@@ -22,7 +23,7 @@ export type CanvasPaneProps = {
   selection?: GraphSelection;
   query: string;
   matches: string[];
-  onSelect: (selection: GraphSelection) => void;
+  onSelect: (selection: GraphSelection, mode?: ReaderOpenMode) => void;
   onClearSelection: () => void;
   command?: CanvasCommand;
 };

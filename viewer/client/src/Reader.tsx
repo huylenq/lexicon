@@ -10,15 +10,16 @@ import {
 } from "react";
 import { Link, useLocation, useNavigate, useNavigationType, useParams } from "react-router-dom";
 import type { Model, ModelItem, Project } from "../../shared/model";
-import { related } from "../../shared/model";
-import { request, Theme, ErrorNotice, Paragraph } from "./ui";
+import { request, Theme, ErrorNotice } from "./ui";
 import CodePane from "./CodePane";
 import { useCodeNavigation, type CodeLocation } from "./codeNavigation";
 import InstallApp from "./InstallApp";
 import Icon from "./Icon";
-import ObjectName, { objectTone } from "./ObjectName";
+import ObjectName from "./ObjectName";
 import ChatPane from "./ChatPane";
-import SelectionReading from "./SelectionReading";
+import ReaderCardBody from "./ReaderCardBody";
+import ReaderCardHeader from "./ReaderCardHeader";
+import PaneSeparator from "./PaneSeparator";
 import {
   indexModel,
   mappingId,
@@ -30,7 +31,10 @@ import type { CanvasCommand } from "./canvas/types";
 import "./styles/workspace.css";
 import "./styles/code.css";
 import "./styles/status.css";
-import { useReaderStack, cardKey, type ReaderCard } from "./readerStack";
+import { useReaderStack } from "./readerStack";
+import { cardKey, type ReaderCard } from "./readerState";
+import { cardParams, readerLink } from "./readerNavigation";
+import type { ReaderOpenMode } from "./readerState";
 import "./styles/reader-stack.css";
 import ReaderStackViewport from "./ReaderStackViewport";
 import CanvasBoundary from "./CanvasBoundary";
@@ -100,8 +104,8 @@ function ReaderProject({ projectId }: { projectId: string }) {
     setMobileCode(false);
     codeToggle.current?.focus();
   };
-  const openCode = (location: CodeLocation, readMapping = false) => {
-    codeNavigation.navigate(location, readMapping);
+  const openCode = (location: CodeLocation, readMapping = false, mode: ReaderOpenMode = "preview") => {
+    codeNavigation.navigate(location, readMapping, mode);
     setMobileCode(true);
     setMenu(false);
     if (readMapping) setMobileRead(true);
@@ -177,15 +181,15 @@ function ReaderProject({ projectId }: { projectId: string }) {
     window.addEventListener("keydown", key, true);
     return () => window.removeEventListener("keydown", key, true);
   }, [params, setParams, codeNavigation.open]);
-  const select = (id?: string) => {
-    reading.open(id ? { kind: "item", id } : { kind: "overview" });
+  const select = (id?: string, mode: ReaderOpenMode = "preview") => {
+    reading.open(id ? { kind: "item", id } : { kind: "overview" }, { mode });
     setMobileCode(false);
     setMobileRead(true);
     setMenu(false);
   };
-  const selectGraph = (selection: GraphSelection) => {
+  const selectGraph = (selection: GraphSelection, mode: ReaderOpenMode = "preview") => {
     if (selection.kind === "item") {
-      select(selection.id);
+      select(selection.id, mode);
       return;
     }
     if (selection.kind === "code") {
@@ -195,46 +199,15 @@ function ReaderProject({ projectId }: { projectId: string }) {
     if (selection.kind === "mapping") {
       const mapping = graphIndex?.mappings.get(selection.id);
       if (mapping) {
-        openCode({ target: mapping.target, mapping: mapping.id }, true);
+        openCode({ target: mapping.target, mapping: mapping.id }, true, mode);
         return;
       }
     }
-    const p = new URLSearchParams(params);
-    p.set("selection", JSON.stringify(selection));
-    p.delete("item");
-    p.delete("focus");
-    p.delete("shape");
-    setParams(p);
+    reading.open(selection, { mode });
     setMobileRead(true);
     setMobileCode(false);
     setMenu(false);
 
-  };
-  const itemLink = (id: string, label: string, relationship = false) => {
-    const linked = model?.items.find((i) => i.id === id);
-    const p = new URLSearchParams(params);
-    p.set("item", id);
-    p.delete("selection");
-    p.delete("focus");
-    p.delete("shape");
-    return (
-      <Link
-        to={`?${p}`}
-        className={relationship ? "relation-name" : "relation-entity"}
-        aria-label={
-          relationship ? `Read relationship: ${label}` : `Open ${label}`
-        }
-        onClick={(event) => {
-          if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
-            return;
-          event.preventDefault();
-          select(id);
-        }}
-      >
-        {linked ? <ObjectName type={linked.type} name={label} size={14}
-          classification={linked.type === "concept" ? linked.classification : undefined} /> : label}
-      </Link>
-    );
   };
   const code = (id: string, index: number) => {
     const mapping = graphIndex?.mappings.get(graphIndex.legacyMappings.get(mappingId(id, index)) || "");
@@ -272,8 +245,6 @@ function ReaderProject({ projectId }: { projectId: string }) {
   };
   const item = model?.items.find((i) => i.id === params.get("item"));
   const contexts = model?.items.filter((i) => i.type === "context") || [];
-  const relationships =
-    model?.items.filter((i) => i.type === "relationship") || [];
   const matches = query.trim()
     ? model?.items.filter((i) =>
         [
@@ -292,7 +263,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
     <button
       key={i.id}
       className={`nav-item ${item?.id === i.id ? "active" : ""}`}
-      onClick={() => select(i.id)}
+      {...readerLink(mode => select(i.id, mode))}
       aria-current={item?.id === i.id ? "page" : undefined}
     >
       <ObjectName type={i.type} name={i.name}
@@ -308,329 +279,29 @@ function ReaderProject({ projectId }: { projectId: string }) {
   const activeCard = reading.stack.cards.find(card => cardKey(card) === reading.stack.active);
   const breadcrumbItem = activeCard?.kind === "item" ? model?.items.find(i => i.id === activeCard.id) : undefined;
   const breadcrumbOwner = breadcrumbItem?.type === "concept" ? model?.items.find(i => i.id === breadcrumbItem.context) : undefined;
-  const renderCardHeader = (card: ReaderCard, collapsed = false, style?: CSSProperties) => {
-    const key = cardKey(card);
-    const item = card.kind === "item" ? model?.items.find(i => i.id === card.id) : undefined;
-    const title = titleForCard(card);
-    const tone = item
-      ? objectTone(item.type, item.type === "concept" ? item.classification : undefined)
-      : card.kind === "mapping" ? "code-link" : card.kind === "bundle" ? "relationship" : undefined;
-    return (
-      <header className="reader-card-header" data-tone={tone} style={style}>
-        <button className="reader-card-title" aria-label={`${collapsed ? "Reveal card" : "Read card"}: ${title}`} onClick={() => reading.open(card)} title={`Read ${title}`}>
-          <h1>{item ? <ObjectName type={item.type} classification={item.type === "concept" ? item.classification : undefined} name={title} size={collapsed ? 14 : 18} /> : title}</h1>
-        </button>
-        <button className="quiet icon-button" data-close-card aria-label={`Close ${collapsed ? "collapsed " : ""}${title}`} onClick={() => reading.close(key)}><Icon name="close" /></button>
-      </header>
-    );
-  };
-  const renderCardBody = (card: ReaderCard) => {
-    const key = cardKey(card);
-    const item = card.kind === "item" ? model?.items.find(i => i.id === card.id) : undefined;
-    const specialSelection = card.kind !== "item" && card.kind !== "overview" ? card : undefined;
-    const readerSelection = card.kind === "overview" ? undefined : card;
-    const params = new URLSearchParams();
-    if (card.kind === "item") params.set("item", card.id);
-    const owner = item?.type === "concept" ? model?.items.find(i => i.id === item.context) : undefined;
-    return (
-      <>
-        {owner && <nav className="reader-card-owner" aria-label="Owning context">{itemLink(owner.id, owner.name)}</nav>}
-            {readerSelection && (
-              <div className="reader-canvas-actions">
-                <button
-                  className="quiet"
-                  onClick={() => graphAction("locate", readerSelection)}
-                >
-                  Locate in canvas
-                </button>
-                {item && (
-                  <button
-                    className="quiet"
-                    disabled={workspace.allCode}
-                    title={workspace.allCode ? "Turn off Show all code to change individual expansions" : undefined}
-                    onClick={() =>
-                      graphAction("expand", { kind: "item", id: item.id })
-                    }
-                  >
-                    Toggle code in canvas
-                  </button>
-                )}
-              </div>
-            )}
-
-            {!model && loading && (
-              <p className="empty" role="status">
-                Opening the model…
-              </p>
-            )}
-            {model && (
-              <article>
-                {model.items.length === 0 && <div className="empty-model-start">
-                  <h2>Start with a question.</h2>
-                  <p>This project has no modeled concepts yet. Ask about an area of the implementation, then shape the model together.</p>
-                  <button className="primary" onClick={() => setChatOpen(true)}>Open Chat</button>
-                </div>}
-                {model.issues.length > 0 && (
-                  <details className="issues">
-                    <summary>
-                      {model.source === "legacy"
-                        ? "Earlier model imported for reading"
-                        : "Model needs attention"}{" "}
-                      · {model.issues.length} notices
-                    </summary>
-                    <ul>
-                      {model.issues.map((i, index) => (
-                        <li key={index}>
-                          <strong>{i.severity}</strong>{" "}
-                          {i.item && (
-                            <button onClick={() => select(i.item)}>
-                              {i.item}
-                            </button>
-                          )}{" "}
-                          {i.message}
-                        </li>
-                      ))}
-                    </ul>
-                  </details>
-                )}
-                {specialSelection &&
-                graphIndex ? (
-                  <SelectionReading
-                    selection={specialSelection}
-                    index={graphIndex}
-                    onSelect={selectGraph}
-                  />
-                ) : params.get("item") && !item ? (
-                  <div className="empty">
-                    <h2>That item is unavailable.</h2>
-                    <p>The model may have changed. Browse a context or return to the overview.</p>
-                    <button onClick={() => select()}>Open overview</button>
-                  </div>
-                ) : (
-                  <>
-                    {!item && <div className="eyebrow">The system at a glance</div>}
-                    {item?.type === "relationship" && (
-                      <div className="relationship-endpoints">
-                        {itemLink(item.from, model.items.find((i) => i.id === item.from)?.name || item.from)}
-                        <Icon name="arrow-right" />
-                        {itemLink(item.to, model.items.find((i) => i.id === item.to)?.name || item.to)}
-                      </div>
-                    )}
-                    <Paragraph text={item?.description || model.description} />
-                    {!item && (
-                      <>
-                        <div className="stats">
-                          <span>
-                            <b>{contexts.length}</b> contexts
-                          </span>
-                          <span>
-                            <b>
-                              {
-                                model.items.filter((i) => i.type === "concept")
-                                  .length
-                              }
-                            </b>{" "}
-                            concepts
-                          </span>
-                          <span>
-                            <b>{relationships.length}</b> relationships
-                          </span>
-                        </div>
-                        <div className="section-heading">
-                          <h2>Understand it by context</h2>
-                        </div>
-                        <div className="context-grid">
-                          {contexts.map((ctx) => (
-                            <button
-                              className="context-card"
-                              onClick={() => select(ctx.id)}
-                              key={ctx.id}
-                            >
-                              <h3><ObjectName type="context" name={ctx.name} /></h3>
-                              <p>{ctx.description}</p>
-                              <span className="card-link">
-                                {
-                                  model.items.filter(
-                                    (i) =>
-                                      i.type === "concept" &&
-                                      i.context === ctx.id,
-                                  ).length
-                                }{" "}
-                                concepts <Icon name="arrow-right" />
-                              </span>
-                            </button>
-                          ))}
-                        </div>
-                      </>
-                    )}
-                    {item?.type === "context" && (
-                      <section>
-                        <h2>Concepts in this context</h2>
-                        <div className="concept-list">
-                          {model.items
-                            .filter(
-                              (i) =>
-                                i.type === "concept" && i.context === item.id,
-                            )
-                            .map((i) => (
-                              <button key={i.id} onClick={() => select(i.id)}>
-                                <h3>
-                                  <ObjectName type={i.type} name={i.name}
-                                    classification={i.type === "concept" ? i.classification : undefined} />
-                                  <Icon name="open" />
-                                </h3>
-                                <p>{i.description}</p>
-                              </button>
-                            ))}
-                        </div>
-                        {!model.items.some(
-                          (i) => i.type === "concept" && i.context === item.id,
-                        ) && (
-                          <p className="empty">
-                            This context has its explanation; concepts can be
-                            added as questions emerge.
-                          </p>
-                        )}
-                      </section>
-                    )}
-                    {item && (
-                      <>
-                        {item.annotations.length > 0 && (
-                          <section>
-                            <h2>What matters here</h2>
-                            {item.annotations.map((a, index) => (
-                              <div className="annotation" key={index}>
-                                <div className="annotation-label">
-                                  <span className="object-label"><Icon name="annotation" size={14} />{a.kind}</span>
-                                  {a.evidence && (
-                                    <span className={`evidence ${a.evidence}`}>
-                                      {a.evidence}
-                                    </span>
-                                  )}
-                                </div>
-                                <Paragraph text={a.text} />
-                              </div>
-                            ))}
-                          </section>
-                        )}
-                        {item.type !== "relationship" && (
-                          <section>
-                            <div className="section-heading">
-                              <h2 className="object-label"><Icon name="relationship" />Relationships</h2>
-                              <span className="muted">
-                                {related(model, item.id).length} connections
-                              </span>
-                            </div>
-                            <div className="relation-list">
-                              {related(model, item.id).map((r) => (
-                                <div className="relation-row" key={r.id}>
-                                  <span className="relation-direction">
-                                    {r.from === item.id
-                                      ? "OUTGOING"
-                                      : "INCOMING"}
-                                  </span>
-                                  <span className="relation-sentence">
-                                    {itemLink(
-                                      r.from,
-                                      model.items.find((i) => i.id === r.from)
-                                        ?.name || r.from,
-                                    )}{" "}
-                                    {itemLink(r.id, r.name, true)}{" "}
-                                    {itemLink(
-                                      r.to,
-                                      model.items.find((i) => i.id === r.to)
-                                        ?.name || r.to,
-                                    )}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                            {!related(model, item.id).length && (
-                              <p className="empty">
-                                Relationships can be added when they help
-                                explain this concept.
-                              </p>
-                            )}
-                          </section>
-                        )}
-                        {item.codeLinks.length > 0 && (
-                          <section>
-                            <div className="section-heading">
-                              <h2 className="object-label"><Icon name="code-link" />In the implementation</h2>
-                              <span className="muted">
-                                {item.codeLinks.length} code links
-                              </span>
-                            </div>
-                            <div className="code-links">
-                              {item.codeLinks.map((l, index) => (
-                                <button
-                                  key={index}
-                                  onClick={() => code(item.id, index)}
-                                  className={
-                                    codeNavigation.target?.mappings.some(
-                                      (m) =>
-                                        m.owner.id === item.id &&
-                                        m.index === index,
-                                    )
-                                      ? "selected"
-                                      : ""
-                                  }
-                                >
-                                  <span className="code-role">
-                                    <span>{l.role}</span> <Icon name="open" size={14} />
-                                  </span>
-                                  <strong>
-                                    <ObjectName type="code-link" name={l.symbol || l.file.split("/").pop() || l.file} size={14} />
-                                  </strong>
-                                  <code>
-                                    {l.file}
-                                    {l.line ? `:${l.line}` : ""}
-                                  </code>
-                                  <p>{l.description}</p>
-                                </button>
-                              ))}
-                            </div>
-                          </section>
-                        )}
-                      </>
-                    )}
-                    <div className="item-footer">
-                      <code>{item?.id || model.id}</code>
-                      <button
-                        className="quiet"
-                        onClick={async () => {
-                          try {
-                            const url = new URL(window.location.href);
-                            url.searchParams.delete("item");
-                            url.searchParams.delete("selection");
-                            url.searchParams.delete("focus");
-                            url.searchParams.delete("shape");
-                            if (card.kind === "item") url.searchParams.set("item", card.id);
-                            else if (card.kind !== "overview") url.searchParams.set("selection", JSON.stringify(card));
-                            await navigator.clipboard.writeText(url.href);
-                            setCopied(key);
-                            setTimeout(() => setCopied(""), 1800);
-                          } catch {
-                            setError(
-                              "Copy the address from your browser to share this view.",
-                            );
-                          }
-                        }}
-                      >
-                        <Icon name={copied === key ? "check" : "copy"} /> {copied === key ? "Copied" : "Copy link"}
-                      </button>
-                    </div>
-                  </>
-                )}
-              </article>
-            )}
-
-      </>
-    );
+  const renderCardHeader = (card: ReaderCard, collapsed = false, style?: CSSProperties) => (
+    <ReaderCardHeader card={card} item={card.kind === "item" ? graphIndex?.items.get(card.id) : undefined}
+      title={titleForCard(card)} preview={reading.stack.preview === cardKey(card)} collapsed={collapsed} style={style}
+      onOpen={(mode, reveal = true) => reading.open(card, { mode, reveal })}
+      onClose={() => reading.close(cardKey(card))} />
+  );
+  const copyCardLink = async (card: ReaderCard) => {
+    try {
+      const url = new URL(window.location.href);
+      url.search = cardParams(url.searchParams, card).toString();
+      await navigator.clipboard.writeText(url.href);
+      setCopied(cardKey(card));
+      setTimeout(() => setCopied(""), 1800);
+    } catch {
+      setError("Copy the address from your browser to share this view.");
+    }
   };
   // Scroll geometry changes only the wrappers. Keep Markdown and model-derived
   // content stable; refresh handlers whenever navigation or their inputs change.
-  const cardBodies = useMemo(() => new Map(reading.stack.cards.map(card => [cardKey(card), renderCardBody(card)])),
+  const cardBodies = useMemo(() => new Map(reading.stack.cards.map(card => [cardKey(card), <ReaderCardBody card={card} model={model} graphIndex={graphIndex} params={params}
+      loading={loading} allCode={workspace.allCode} codeTarget={codeNavigation.target} copied={copied === cardKey(card)}
+      onSelect={select} onSelectGraph={selectGraph} onCanvasAction={graphAction} onCode={code}
+      onOpenChat={() => setChatOpen(true)} onCopy={copyCardLink} />])),
     [reading.stack, routeLocation, model, loading, workspace.allCode, copied]);
   return (
     <div
@@ -658,17 +329,17 @@ function ReaderProject({ projectId }: { projectId: string }) {
         </Link>
         <span className="header-divider" />
         <nav className="header-breadcrumb" aria-label="Reader breadcrumb">
-          <button onClick={() => select()} aria-current={!activeCard || activeCard.kind === "overview" ? "page" : undefined}
+          <button {...readerLink(mode => select(undefined, mode))} aria-current={!activeCard || activeCard.kind === "overview" ? "page" : undefined}
             title={model?.name}><Icon name="overview" size={14} /><span>{model?.name || "Opening project"}</span></button>
           {breadcrumbOwner && <>
             <span aria-hidden="true">›</span>
-            <button onClick={() => select(breadcrumbOwner.id)} title={breadcrumbOwner.name} aria-label={breadcrumbOwner.name}>
+            <button {...readerLink(mode => select(breadcrumbOwner.id, mode))} title={breadcrumbOwner.name} aria-label={breadcrumbOwner.name}>
               <ObjectName type="context" name={breadcrumbOwner.name} size={14} />
             </button>
           </>}
           {activeCard && activeCard.kind !== "overview" && <>
             <span aria-hidden="true">›</span>
-            <button aria-current="page" aria-label={titleForCard(activeCard)} title={titleForCard(activeCard)} onClick={() => { reading.open(activeCard); setMobileRead(true); setMobileCode(false); }}>
+            <button aria-current="page" aria-label={titleForCard(activeCard)} title={titleForCard(activeCard)} {...readerLink(mode => { reading.open(activeCard, { mode }); setMobileRead(true); setMobileCode(false); })}>
               {breadcrumbItem ? <ObjectName type={breadcrumbItem.type} classification={breadcrumbItem.type === "concept" ? breadcrumbItem.classification : undefined} name={titleForCard(activeCard)} size={14} />
                 : <><Icon name={activeCard.kind === "mapping" ? "code-link" : "relationship"} size={14} /><span>{titleForCard(activeCard)}</span></>}
             </button>
@@ -756,7 +427,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
             <>
               <button
                 className={`nav-item overview-link ${!item && !params.get("item") ? "active" : ""}`}
-                onClick={() => select()}
+                {...readerLink(mode => select(undefined, mode))}
               >
                 <span className="nav-name"><Icon name="overview" size={14} />Overview</span>
               </button>
@@ -814,47 +485,9 @@ function ReaderProject({ projectId }: { projectId: string }) {
             </div>
           )}
           {model && (
-            <div
-              className="canvas-divider"
-              role="separator"
-              aria-label="Resize canvas and reader"
-              aria-orientation="vertical"
-              aria-valuemin={25}
-              aria-valuemax={75}
-              aria-valuenow={Math.round(workspace.width)}
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
-                  e.preventDefault();
-                  setWorkspace((w) => ({
-                    ...w,
-                    width: Math.max(
-                      25,
-                      Math.min(75, w.width + (e.key === "ArrowRight" ? 2 : -2)),
-                    ),
-                  }));
-                }
-              }}
-              onPointerDown={(e) => {
-                e.currentTarget.setPointerCapture(e.pointerId);
-              }}
-              onPointerMove={(e) => {
-                if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
-                const box = workArea.current?.getBoundingClientRect();
-                if (box)
-                  setWorkspace((w) => ({
-                    ...w,
-                    width: Math.max(
-                      25,
-                      Math.min(75, ((e.clientX - box.left) / box.width) * 100),
-                    ),
-                  }));
-              }}
-              onPointerUp={(e) => {
-                if (e.currentTarget.hasPointerCapture(e.pointerId))
-                  e.currentTarget.releasePointerCapture(e.pointerId);
-              }}
-            />
+            <PaneSeparator className="canvas-divider" label="Resize canvas and reader"
+              container={workArea} edge="left" unit="percent" min={25} max={75} step={2}
+              value={workspace.width} onChange={update => setWorkspace(w => ({ ...w, width: update(w.width) }))} />
           )}
           <ReaderStackViewport reading={reading} model={model}
             layoutKey={`${routeLocation.key}:${compact}:${mobileRead}:${mobileCode}`}
@@ -864,50 +497,9 @@ function ReaderProject({ projectId }: { projectId: string }) {
               {!model && loading && <p className="empty" role="status">Opening the model…</p>}</>} />
         </div>
         {codeNavigation.open && (
-          <div
-            className="code-divider"
-            role="separator"
-            aria-label="Resize code workspace"
-            aria-orientation="vertical"
-            aria-valuemin={25}
-            aria-valuemax={60}
-            aria-valuenow={Math.round(workspace.codeWidth)}
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
-                e.preventDefault();
-                setWorkspace((w) => ({
-                  ...w,
-                  codeWidth: Math.max(
-                    25,
-                    Math.min(
-                      60,
-                      w.codeWidth + (e.key === "ArrowLeft" ? 2 : -2),
-                    ),
-                  ),
-                }));
-              }
-            }}
-            onPointerDown={(e) =>
-              e.currentTarget.setPointerCapture(e.pointerId)
-            }
-            onPointerMove={(e) => {
-              if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
-              const box = paneArea.current?.getBoundingClientRect();
-              if (box)
-                setWorkspace((w) => ({
-                  ...w,
-                  codeWidth: Math.max(
-                    25,
-                    Math.min(60, ((box.right - e.clientX) / box.width) * 100),
-                  ),
-                }));
-            }}
-            onPointerUp={(e) => {
-              if (e.currentTarget.hasPointerCapture(e.pointerId))
-                e.currentTarget.releasePointerCapture(e.pointerId);
-            }}
-          />
+          <PaneSeparator className="code-divider" label="Resize code workspace"
+            container={paneArea} edge="right" unit="percent" min={25} max={60} step={2}
+            value={workspace.codeWidth} onChange={update => setWorkspace(w => ({ ...w, codeWidth: update(w.codeWidth) }))} />
         )}
         {model && (
           <CodePane
@@ -918,8 +510,8 @@ function ReaderProject({ projectId }: { projectId: string }) {
             open={codeNavigation.open}
             onClose={closeCode}
             onOwner={select}
-            onMapping={(m) =>
-              openCode({ target: m.target, mapping: m.id }, true)
+            onMapping={(m, mode) =>
+              openCode({ target: m.target, mapping: m.id }, true, mode)
             }
             onLocate={() =>
               codeSelection && graphAction("locate", codeSelection)
@@ -936,44 +528,9 @@ function ReaderProject({ projectId }: { projectId: string }) {
         )}
       </div>
       {dockedChat && (
-        <div
-          className="chat-divider"
-          role="separator"
-          aria-label="Resize Agent and reader"
-          aria-orientation="vertical"
-          aria-valuemin={280}
-          aria-valuemax={720}
-          aria-valuenow={Math.round(workspace.chatWidth)}
-          tabIndex={0}
-          onKeyDown={(e) => {
-            if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
-              e.preventDefault();
-              setWorkspace((w) => ({
-                ...w,
-                chatWidth: Math.max(
-                  280,
-                  Math.min(720, w.chatWidth + (e.key === "ArrowLeft" ? 16 : -16)),
-                ),
-              }));
-            }
-          }}
-          onPointerDown={(e) => {
-            e.currentTarget.setPointerCapture(e.pointerId);
-          }}
-          onPointerMove={(e) => {
-            if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
-            const box = readerSurface.current?.getBoundingClientRect();
-            if (box)
-              setWorkspace((w) => ({
-                ...w,
-                chatWidth: Math.max(280, Math.min(720, box.right - e.clientX)),
-              }));
-          }}
-          onPointerUp={(e) => {
-            if (e.currentTarget.hasPointerCapture(e.pointerId))
-              e.currentTarget.releasePointerCapture(e.pointerId);
-          }}
-        />
+        <PaneSeparator className="chat-divider" label="Resize Agent and reader"
+          container={readerSurface} edge="right" unit="px" min={280} max={720} step={16}
+          value={workspace.chatWidth} onChange={update => setWorkspace(w => ({ ...w, chatWidth: update(w.chatWidth) }))} />
       )}
       <div className="workspace-status-bar" role="region" aria-label="Workspace status">
         <div className="workspace-canvas-status" ref={setCanvasStatusHost} />

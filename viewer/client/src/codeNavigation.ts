@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import type { SetURLSearchParams } from "react-router-dom";
+import type { ReaderSetParams } from "./readerNavigation";
+import type { ReaderOpenMode } from "./readerState";
 import { mappingId, readSelection, type GraphIndex } from "./graph/model";
 
 export type CodeLocation = { target: string; mapping?: string };
@@ -68,7 +69,7 @@ const same = (a?: CodeLocation, b?: CodeLocation) =>
 
 export function useCodeNavigation(
   params: URLSearchParams,
-  setParams: SetURLSearchParams,
+  setParams: ReaderSetParams,
   index?: GraphIndex,
 ) {
   const normalized = index ? normalizeNavigation(params, index) : params;
@@ -107,7 +108,7 @@ export function useCodeNavigation(
     });
   }, [targetId, mappingId, index]);
 
-  const navigate = (next: CodeLocation, readMapping = false) => {
+  const navigate = (next: CodeLocation, readMapping = false, mode: ReaderOpenMode = "preview") => {
     const p = codeParams(normalized, next);
     if (readMapping && next.mapping) {
       p.set("selection", JSON.stringify({ kind: "mapping", id: next.mapping }));
@@ -121,7 +122,7 @@ export function useCodeNavigation(
             cursor: h.cursor + 1,
           },
     );
-    setParams(p);
+    setParams(p, { readerMode: readMapping && next.mapping ? mode : undefined });
   };
   const move = (delta: number) => {
     const cursor = history.cursor + delta;

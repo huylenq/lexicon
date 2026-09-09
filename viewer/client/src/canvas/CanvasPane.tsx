@@ -317,13 +317,23 @@ export default function CanvasPane(props: CanvasPaneProps) {
       let lastSelected = "";
       let repeatSelection = false;
       let draggedSelection = "";
+      let pinGesture: { selection: GraphSelection; shapeId: TLShape["id"]; x: number; y: number; moved: boolean } | undefined;
       const beforeEvent = (event: TLEventInfo) => {
         // A later gesture is a fresh interaction, so a drag's selection echo
         // never suppresses an actual click that follows it.
         if (event.name === "pointer_down") {
           draggedSelection = "";
+          pinGesture = undefined;
+          if (instance.isIn("select.idle") && !event.shiftKey && !event.altKey &&
+            (event.button === 1 || (event.button === 0 && (event.metaKey || event.ctrlKey)))) {
+            const shape = event.target === "shape" ? event.shape : instance.getShapeAtPoint(instance.screenToPage(event.point), { hitInside: true, hitLabels: true });
+            const chosen = shapeSelection(shape);
+            if (chosen && shape) pinGesture = { selection: chosen, shapeId: shape.id, x: event.point.x, y: event.point.y, moved: false };
+          }
           return;
         }
+        if (pinGesture && (event.name === "pointer_move" || event.name === "pointer_up") &&
+          Math.hypot(event.point.x - pinGesture.x, event.point.y - pinGesture.y) > 4) pinGesture.moved = true;
         if (event.name !== "pointer_up") return;
         repeatSelection = event.button === 0 &&
           !event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey &&
@@ -332,6 +342,19 @@ export default function CanvasPane(props: CanvasPaneProps) {
           draggedSelection = instance.getSelectedShapeIds().join("|");
       };
       const afterEvent = (event: TLEventInfo) => {
+        // tldraw renames middle-button events after its native pan handling.
+        if ((event.name === "pointer_up" || (event.name === "middle_click" && !instance.inputs.getIsPointing())) && pinGesture) {
+          const gesture = pinGesture;
+          pinGesture = undefined;
+          lastSelected = instance.getSelectedShapeIds().join("|");
+          // Middle-drag keeps native pan; modifier drags never open a card.
+          if (!gesture.moved) {
+            lastSelected = gesture.shapeId;
+            instance.select(gesture.shapeId);
+            latest.current.onSelect(gesture.selection, "pinned");
+          }
+          return;
+        }
         if (event.name !== "pointer_up" || !repeatSelection) return;
         repeatSelection = false;
         if (!instance.isIn("select.idle")) return;
@@ -348,6 +371,7 @@ export default function CanvasPane(props: CanvasPaneProps) {
         // Brushing and pointing can pass through a single selection. Only
         // completed gestures navigate, so URL echoes cannot interrupt a drag.
         if (!instance.isIn("select.idle")) return;
+        if (pinGesture) return;
         const key = ids.join("|");
         if (syncing.current || appliedNavigation.current === undefined) {
           lastSelected = key;

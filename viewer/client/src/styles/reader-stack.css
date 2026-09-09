@@ -44,7 +44,7 @@
   overflow: clip;
   overflow-clip-margin: border-box;
 }
-.reader-card.active { --card-outline-width: 2px; --card-outline-color: var(--accent); }
+.reader-card.active { --card-outline-color: var(--accent); }
 .reader-card-header {
   --reader-card-color: var(--accent);
   --reader-card-illumination: radial-gradient(
@@ -136,6 +136,19 @@
 .reader-card-title { flex: 1; min-width: 0; text-align: left; background: none; border: 0; padding: 4px 0; color: var(--ink); }
 .reader-card-title h1 { margin: 0; font-size: 14px !important; line-height: 1.45; font-weight: 600; }
 .reader-card-title .object-name-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.reader-preview-badge {
+  flex-shrink: 0;
+  padding: 3px 5px;
+  border: 0;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+  color: var(--ink);
+  font-size: 9px;
+  font-weight: 650;
+  line-height: 1;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
 .reader-card-owner { padding: 12px 24px 0; font-size: 12px; }
 .reader-stack .reader-card article { padding: 20px 24px 28px; }
 .reader-stack .reader-canvas-actions { padding: 8px 24px; }

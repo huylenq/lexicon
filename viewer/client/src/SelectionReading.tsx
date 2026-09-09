@@ -2,6 +2,8 @@ import type { GraphIndex, GraphSelection, Mapping } from "./graph/model";
 import { Paragraph } from "./ui";
 import Icon from "./Icon";
 import ObjectName from "./ObjectName";
+import { readerLink } from "./readerNavigation";
+import type { ReaderOpenMode } from "./readerState";
 
 export default function SelectionReading({
   selection,
@@ -10,7 +12,7 @@ export default function SelectionReading({
 }: {
   selection: Extract<GraphSelection, { kind: "mapping" | "bundle" }>;
   index: GraphIndex;
-  onSelect: (s: GraphSelection) => void;
+  onSelect: (s: GraphSelection, mode?: ReaderOpenMode) => void;
 }) {
   const mapping =
     selection.kind === "mapping" ? index.mappings.get(selection.id) : undefined;
@@ -35,7 +37,7 @@ export default function SelectionReading({
       </span>
       <button
         className="mapping-owner"
-        onClick={() => onSelect({ kind: "item", id: m.owner.id })}
+        {...readerLink(mode => onSelect({ kind: "item", id: m.owner.id }, mode))}
       >
         <ObjectName type={m.owner.type} name={m.owner.name}
           classification={m.owner.type === "concept" ? m.owner.classification : undefined} />
@@ -43,7 +45,7 @@ export default function SelectionReading({
       <Paragraph text={m.link.description} />
       <button
         className="mapping-target"
-        onClick={() => onSelect({ kind: "mapping", id: m.id })}
+        {...readerLink(mode => onSelect({ kind: "mapping", id: m.id }, mode))}
       >
         <ObjectName type="code-link" name={m.link.symbol || m.link.file} size={14} />
         {m.link.line && !m.link.symbol ? `:${m.link.line}` : ""} <Icon name="open" size={14} />
@@ -85,7 +87,7 @@ export default function SelectionReading({
             <div className="mapping-card" key={r.id}>
               <button
                 className="mapping-owner"
-                onClick={() => onSelect({ kind: "item", id: r.id })}
+                {...readerLink(mode => onSelect({ kind: "item", id: r.id }, mode))}
               >
                 {index.items.get(r.from)?.name || r.from} → {r.name} →{" "}
                 {index.items.get(r.to)?.name || r.to}

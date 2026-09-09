@@ -4,6 +4,8 @@ import type { Mapping, Target } from "./graph/model";
 import { request, ErrorNotice } from "./ui";
 import Icon from "./Icon";
 import ObjectName from "./ObjectName";
+import { readerLink } from "./readerNavigation";
+import type { ReaderOpenMode } from "./readerState";
 export default function CodePane({
   projectId,
   target,
@@ -26,8 +28,8 @@ export default function CodePane({
   mapping?: Mapping;
   open: boolean;
   onClose: () => void;
-  onOwner: (id: string) => void;
-  onMapping: (mapping: Mapping) => void;
+  onOwner: (id: string, mode?: ReaderOpenMode) => void;
+  onMapping: (mapping: Mapping, mode?: ReaderOpenMode) => void;
   onLocate: () => void;
   onBackToReader: () => void;
   onBack: () => void;
@@ -136,7 +138,7 @@ export default function CodePane({
             <div className="code-explanation">
               <span className="code-role">
                 {mapping.link.role} ·{" "}
-                <button onClick={() => onOwner(mapping.owner.id)}>
+                <button {...readerLink(mode => onOwner(mapping.owner.id, mode))}>
                   <ObjectName type={mapping.owner.type} name={mapping.owner.name} size={14}
                     classification={mapping.owner.type === "concept" ? mapping.owner.classification : undefined} />
                 </button>
@@ -151,7 +153,7 @@ export default function CodePane({
                 <div className="code-mapping" key={m.id}>
                   <button
                     className="mapping-owner"
-                    onClick={() => onOwner(m.owner.id)}
+                    {...readerLink(mode => onOwner(m.owner.id, mode))}
                   >
                     <ObjectName type={m.owner.type} name={m.owner.name} size={14}
                       classification={m.owner.type === "concept" ? m.owner.classification : undefined} />
@@ -159,7 +161,7 @@ export default function CodePane({
                   <button
                     className="quiet"
                     aria-current={m.id === mapping?.id ? "true" : undefined}
-                    onClick={() => onMapping(m)}
+                    {...readerLink(mode => onMapping(m, mode))}
                   >
                     Read {m.link.role} mapping
                   </button>

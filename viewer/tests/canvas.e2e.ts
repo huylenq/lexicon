@@ -61,7 +61,7 @@ test("native label gestures add and toggle selections, including relationship la
   await open(page);
   const order = page.getByRole("button", { name: "concept: Order", exact: true });
   const line = page.getByRole("button", { name: "concept: Order Line", exact: true });
-  for (const modifier of ["Shift", "Meta"] as const) {
+  for (const modifier of ["Shift"] as const) {
     await order.click();
     await line.click({ modifiers: [modifier] });
     await expect.poll(() => selectedObjects(page)).toEqual(["item:order", "item:order-line"]);

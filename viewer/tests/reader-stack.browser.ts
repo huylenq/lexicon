@@ -4,14 +4,18 @@ const cards = (page: Page) => page.locator("[data-reader-card]");
 const keys = (page: Page) => cards(page).evaluateAll(es => es.map(e => e.getAttribute("data-reader-card")));
 const card = (page: Page, id: string) => page.locator(`[data-reader-card="${id}"]`);
 const browse = async (page: Page, name: string) => {
-  await page.locator(".sidebar .nav-item").filter({ hasText: new RegExp(`^${name}$`) }).click();
+  await page.locator(".sidebar .nav-item").filter({ hasText: new RegExp(`^${name}$`) }).click({ modifiers: ["Meta"] });
   await expect(page.locator("main")).not.toHaveAttribute("data-reader-travel", /./);
 };
 const active = (page: Page) => page.locator("[data-reader-card].active");
+const openPinned = async (page: Page, id: string) => {
+  await page.goto(`/p/dentalml?item=${id}`);
+  await active(page).locator("[data-pin-card]").click();
+};
 const scroll = (page: Page) => page.locator("main").evaluate(el => el.scrollTop);
 
 test("Back interrupts reader travel without overwriting the restored position", async ({ page }) => {
-  await page.goto("/p/dentalml?item=selected-tooth");
+  await openPinned(page, "selected-tooth");
   for (const name of ["Tooth input", "Canal index", "Measurement path", "Reference point"]) await browse(page, name);
   const position = await scroll(page);
   await page.locator(".sidebar .nav-item").filter({ hasText: /^Selected tooth$/ }).click();
@@ -25,7 +29,7 @@ test("Back interrupts reader travel without overwriting the restored position", 
 });
 
 test("expanded settled morph controls remain interactive", async ({ page }) => {
-  await page.goto("/p/dentalml?item=selected-tooth");
+  await openPinned(page, "selected-tooth");
   for (const name of ["Tooth input", "Canal index", "Measurement path"]) await browse(page, name);
   await page.setViewportSize({ width: 1600, height: 700 });
   await card(page, "item:tooth-input").evaluate(el => {
@@ -43,7 +47,7 @@ test("expanded settled morph controls remain interactive", async ({ page }) => {
 });
 
 test("a scroll pause away from morph boundaries does not start a settling loop", async ({ page }) => {
-  await page.goto("/p/dentalml?item=selected-tooth");
+  await openPinned(page, "selected-tooth");
   await expect(card(page, "item:selected-tooth")).toBeVisible();
   await page.waitForTimeout(600);
   const reads = await page.locator("main").evaluate(async main => {
@@ -62,7 +66,7 @@ test("a scroll pause away from morph boundaries does not start a settling loop",
 });
 
 test("reader navigation scrolls at any distance without fading and yields to scrolling", async ({ page }) => {
-  await page.goto("/p/dentalml?item=selected-tooth");
+  await openPinned(page, "selected-tooth");
   await browse(page, "Tooth input");
   const main = page.locator("main");
   const origin = await scroll(page);
@@ -96,7 +100,7 @@ test("reader navigation scrolls at any distance without fading and yields to scr
 });
 
 test("pause settling finishes both edge morphs without scrolling the reading text", async ({ page }) => {
-  await page.goto("/p/dentalml?item=selected-tooth");
+  await openPinned(page, "selected-tooth");
   for (const name of ["Tooth input", "Canal index", "Measurement path"]) await browse(page, name);
   await page.setViewportSize({ width: 1600, height: 700 });
   for (const [side, pixels, target] of [["top", 80, 1], ["top", 150, 0], ["bottom", 110, 1], ["bottom", 190, 0]] as const) {
@@ -118,7 +122,7 @@ test("pause settling finishes both edge morphs without scrolling the reading tex
 });
 
 test("Browse navigation lands on the expanded card with the preceding edge settled", async ({ page }) => {
-  await page.goto("/p/dentalml?item=selected-tooth");
+  await openPinned(page, "selected-tooth");
   for (const name of ["Tooth input", "Canal index", "Measurement path"]) await browse(page, name);
   await expect(active(page)).toHaveAttribute("data-reader-card", "item:measurement-path");
   await expect(active(page)).not.toHaveClass(/reader-card-morphing/);
@@ -130,7 +134,7 @@ test("Browse navigation lands on the expanded card with the preceding edge settl
 });
 
 test("bottom row handoff keeps existing tiles still when a new row forms", async ({ page }) => {
-  await page.goto("/p/dentalml?item=selected-tooth");
+  await openPinned(page, "selected-tooth");
   for (const name of ["Tooth input", "Canal index", "Measurement path", "Reference point"]) await browse(page, name);
   await page.setViewportSize({ width: 1600, height: 700 });
   const setVisible = (visible: number) => card(page, "item:tooth-input").evaluate((el, visible) => {
@@ -157,7 +161,7 @@ test("bottom row handoff keeps existing tiles still when a new row forms", async
 });
 
 test("bottom morph keeps its whole surface above the occupied rows", async ({ page }) => {
-  await page.goto("/p/dentalml?item=selected-tooth");
+  await openPinned(page, "selected-tooth");
   for (const name of ["Tooth input", "Canal index", "Measurement path", "Reference point"]) await browse(page, name);
   await page.setViewportSize({ width: 1600, height: 700 });
   const forming = page.locator('[data-bottom-morph-card="item:tooth-input"]');
@@ -177,7 +181,7 @@ test("bottom morph keeps its whole surface above the occupied rows", async ({ pa
 
 test("overflowing card fades over 24 pixels above the bottom tile gap", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.goto("/p/dentalml?item=selected-tooth");
+  await openPinned(page, "selected-tooth");
   for (const name of ["Tooth input", "Canal index", "Measurement path"]) await browse(page, name);
   await page.locator("main").evaluate(el => { el.scrollTop = 0; });
   await expect(page.locator("[data-clipped-bottom]")).toHaveCount(1);
@@ -198,7 +202,7 @@ test("overflowing card fades over 24 pixels above the bottom tile gap", async ({
 });
 
 test("bottom morph follows reverse scrolling and hands off to the bottom tile", async ({ page }) => {
-  await page.goto("/p/dentalml?item=selected-tooth");
+  await openPinned(page, "selected-tooth");
   await browse(page, "Tooth input");
   const second = card(page, "item:tooth-input");
   const show = (pixels: number) => second.evaluate((el, pixels) => {
@@ -236,7 +240,7 @@ test("bottom morph follows reverse scrolling and hands off to the bottom tile", 
 
 test("bottom tiles reveal later cards and close only their own card", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.goto("/p/dentalml?item=selected-tooth");
+  await openPinned(page, "selected-tooth");
   for (const name of ["Tooth input", "Canal index", "Measurement path", "Reference point"]) await browse(page, name);
   await expect(page.locator("main")).not.toHaveAttribute("data-reader-travel", /./);
   await page.locator(".reader-sticky-titles").getByRole("button", { name: /^(Read|Reveal) card: Selected tooth$/ }).click();
@@ -262,7 +266,7 @@ test("bottom tiles reveal later cards and close only their own card", async ({ p
 });
 
 test("header morph follows scroll progress and reverses before becoming a tile", async ({ page }) => {
-  await page.goto("/p/dentalml?item=selected-tooth");
+  await openPinned(page, "selected-tooth");
   await browse(page, "Tooth input");
   const first = card(page, "item:selected-tooth");
   const remaining = (pixels: number) => first.evaluate((el, pixels) => {
@@ -306,7 +310,7 @@ test("header morph follows scroll progress and reverses before becoming a tile",
 });
 
 test("a partly scrolled card retains its sticky header until its whole body passes", async ({ page }) => {
-  await page.goto("/p/dentalml?item=selected-tooth");
+  await openPinned(page, "selected-tooth");
   await browse(page, "Tooth input");
   const first = card(page, "item:selected-tooth");
   await page.locator("main").evaluate(el => { el.scrollTop = 180; });
@@ -320,7 +324,7 @@ test("a partly scrolled card retains its sticky header until its whole body pass
 });
 
 test("selection border stays attached when native scrolling outruns scroll handlers", async ({ page }) => {
-  await page.goto("/p/dentalml?item=selected-tooth");
+  await openPinned(page, "selected-tooth");
   const selected = card(page, "item:selected-tooth");
   const result = await selected.evaluate(el => {
     const main = el.closest("main")!;
@@ -337,16 +341,16 @@ test("selection border stays attached when native scrolling outruns scroll handl
       });
     } finally { window.removeEventListener("scroll", stop, true); }
   });
-  for (const edge of result) expect(edge).toEqual({ position: "sticky", top: "-1px", width: "2px", radius: "10px", shadow: "none" });
+  for (const edge of result) expect(edge).toEqual({ position: "sticky", top: "-1px", width: "1px", radius: "10px", shadow: "none" });
   await selected.evaluate(el => { el.closest("main")!.scrollTop = (el as HTMLElement).offsetTop + 140; });
   await page.screenshot({ path: test.info().outputPath("reader-native-border.png") });
 });
 
-test("header breadcrumb follows the active card and navigates without replacing the stack", async ({ page }) => {
-  await page.goto("/p/dentalml?item=selected-tooth");
+test("header breadcrumb follows the active card and pins without replacing the stack", async ({ page }) => {
+  await openPinned(page, "selected-tooth");
   const breadcrumb = page.getByRole("navigation", { name: "Reader breadcrumb" });
   await expect(breadcrumb.locator("button")).toHaveText(["Canal measurement", "Tooth selection", "Selected tooth"]);
-  await breadcrumb.getByRole("button", { name: "Tooth selection", exact: true }).click();
+  await breadcrumb.getByRole("button", { name: "Tooth selection", exact: true }).click({ modifiers: ["Meta"] });
   expect(await keys(page)).toEqual(["item:selected-tooth", "item:selection"]);
   await expect(page.locator("main")).not.toHaveAttribute("data-reader-travel", /./);
   await page.locator(".reader-sticky-titles").getByRole("button", { name: /^(Read|Reveal) card: Selected tooth$/ }).click();
@@ -360,15 +364,15 @@ test("header breadcrumb follows the active card and navigates without replacing 
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
-test("one stack appends from old cards, reveals duplicates, closes individually and restores history", async ({ page }) => {
-  await page.goto("/p/dentalml?item=selection");
+test("one stack pins from old cards, reveals duplicates, closes individually and restores history", async ({ page }) => {
+  await openPinned(page, "selection");
   await browse(page, "Selected tooth");
   await browse(page, "Tooth input");
   await page.getByRole("button", { name: "Read card: Tooth selection", exact: true }).click();
   await card(page, "item:selection").getByRole("button", { name: /Selected tooth/ }).click();
   await expect(active(page)).toHaveAttribute("data-reader-card", "item:selected-tooth");
   expect(await keys(page)).toEqual(["item:selection", "item:selected-tooth", "item:tooth-input"]);
-  await card(page, "item:selected-tooth").getByRole("link", { name: "Read relationship: selects", exact: true }).click();
+  await card(page, "item:selected-tooth").getByRole("link", { name: "Read relationship: selects", exact: true }).click({ modifiers: ["Meta"] });
   expect(await keys(page)).toEqual(["item:selection", "item:selected-tooth", "item:tooth-input", "item:selects-input"]);
   await page.getByRole("button", { name: "Close Selected tooth", exact: true }).click();
   expect(await keys(page)).toEqual(["item:selection", "item:tooth-input", "item:selects-input"]);
@@ -385,7 +389,7 @@ test("one stack appends from old cards, reveals duplicates, closes individually 
 });
 
 test("scroll, project return, overlay resizing and hiding preserve the stack and active context", async ({ page }) => {
-  await page.goto("/p/dentalml?item=selected-tooth");
+  await openPinned(page, "selected-tooth");
   await browse(page, "Tooth input");
   await browse(page, "Reference point");
   await page.locator("main").evaluate(el => { el.scrollTop = 360; });
@@ -416,7 +420,7 @@ test("scroll, project return, overlay resizing and hiding preserve the stack and
 
 test("sticky titles stay bounded, links keep source independent, and narrow screens retain cards", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.goto("/p/dentalml?item=selected-tooth");
+  await openPinned(page, "selected-tooth");
   for (const name of ["Tooth input", "Canal index", "Measurement path", "Reference point", "Length result", "Displayed path"]) await browse(page, name);
   await page.locator("main").evaluate(el => { el.scrollTop = el.scrollHeight; });
   const titles = page.locator(".reader-sticky-list");
@@ -469,7 +473,7 @@ test("closing the last card hides the reader; unavailable items remain closable"
 });
 
 test("expanded bodies are clipped out of the transparent collapsed rail", async ({ page }) => {
-  await page.goto("/p/dentalml?item=selected-tooth");
+  await openPinned(page, "selected-tooth");
   for (const name of ["Tooth input", "Canal index", "Measurement path", "Reference point"]) await browse(page, name);
   await card(page, "item:reference-point").evaluate(el => {
     const main = el.closest("main")!;
@@ -522,7 +526,7 @@ test("expanded bodies are clipped out of the transparent collapsed rail", async 
 
 
 test("scrolling body remains behind the glass sticky header", async ({ page }) => {
-  await page.goto("/p/dentalml?item=selected-tooth");
+  await openPinned(page, "selected-tooth");
   const selected = card(page, "item:selected-tooth");
   await selected.evaluate(el => {
     el.closest("main")!.scrollTop = (el as HTMLElement).offsetTop + 140;
@@ -589,6 +593,8 @@ test("tall cards and sticky headers blur their backdrop while the bottom fades",
   }
   await page.evaluate(stripes => {
     (document.querySelector("[data-reader-card] > .reader-card-body") as HTMLElement).style.background = stripes;
+    // Measure the blur independently of the header's decorative color gradient.
+    (document.querySelector("[data-reader-card] > .reader-card-header") as HTMLElement).style.setProperty("--reader-card-illumination", "none");
     document.querySelector("main")!.scrollTop = 150;
   }, stripes);
   const headerGlass = await samples("[data-reader-card] > .reader-card-header");

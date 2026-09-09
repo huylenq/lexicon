@@ -9,6 +9,8 @@ import {
 import { request } from "./ui";
 import Icon from "./Icon";
 import ObjectName from "./ObjectName";
+import { readerLink } from "./readerNavigation";
+import type { ReaderOpenMode } from "./readerState";
 import ChatModelPicker, { type ChatSelection } from "./ChatModelPicker";
 import ChatActivity from "./ChatActivity";
 import Markdown from "react-markdown";
@@ -48,7 +50,7 @@ export default function ChatPane({
   onClose: () => void;
   onRunningChange: (running: boolean) => void;
   onModelChanged: () => void;
-  onSelect: (id: string) => void;
+  onSelect: (id: string, mode?: ReaderOpenMode) => void;
 }) {
   const [state, setState] = useState<ChatState>();
   const [initialProvider] = useState<Provider>(() => {
@@ -291,7 +293,7 @@ export default function ChatPane({
                 </summary>
                 <button
                   className="quiet"
-                  onClick={() => onSelect(message.context!.id)}
+                  {...readerLink(mode => onSelect(message.context!.id, mode))}
                 >
                   Open {message.context.name}
                 </button>
