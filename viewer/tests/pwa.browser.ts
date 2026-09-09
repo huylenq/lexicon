@@ -53,7 +53,7 @@ test("install metadata, offline deep links, and uncached local API", async ({ pa
   })).toBe(false);
   await context.setOffline(true);
   await page.reload();
-  await expect(page.locator(".reader-header")).toBeVisible();
+  await expect(page.locator(".app-header")).toBeVisible();
   await expect(page.getByRole("alert")).toContainText("local server is unavailable");
   const api = await page.evaluate(async () => {
     const response = await fetch("/api/projects");
@@ -85,4 +85,24 @@ test("inline header remains usable across themes and narrow screens", async ({ p
   await expect(page.getByRole("button", { name: "Use dark theme" })).toBeInViewport();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: test.info().outputPath("reader-mobile.png") });
+});
+
+test("window-control spacing takes precedence over responsive header padding", async ({ page }) => {
+  await page.goto("/p/dentalml");
+  // Headless Chromium has no installed-app titlebar. Activate the real overlay
+  // stylesheet branch and use its 12px fallback to exercise the CSS cascade.
+  await page.evaluate(() => {
+    for (const sheet of document.styleSheets) {
+      for (const rule of sheet.cssRules) {
+        if (rule instanceof CSSMediaRule && rule.conditionText === "(display-mode: window-controls-overlay)")
+          rule.media.mediaText = "all";
+      }
+    }
+  });
+  for (const width of [1440, 700, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    await expect(page.locator(".app-header")).toHaveCSS("padding-left", "12px");
+    await expect(page.locator(".app-header")).toHaveCSS("padding-right", "12px");
+    await expect(page.getByRole("button", { name: /Use .* theme/ })).toBeInViewport();
+  }
 });

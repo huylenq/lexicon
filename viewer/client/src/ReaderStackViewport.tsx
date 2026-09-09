@@ -12,6 +12,9 @@ type Props = {
   renderCardHeader: (card: ReaderCard, collapsed?: boolean, style?: CSSProperties) => ReactNode;
 };
 
+const bottomFade = (end: number) =>
+  `linear-gradient(to bottom, black ${Math.max(0, end - 24)}px, transparent ${Math.max(0, end)}px)`;
+
 // Own scroll-driven geometry here so animation does not rerender the workspace,
 // graph, code pane, or stable model content.
 export default function ReaderStackViewport({ reading, model, layoutKey, notice, titleForCard, renderBody, renderCardHeader }: Props) {
@@ -36,18 +39,34 @@ export default function ReaderStackViewport({ reading, model, layoutKey, notice,
     const tray = element.querySelector<HTMLElement>(".reader-bottom-titles > .reader-sticky-list");
     const cutoff = Math.min(viewportBottom - 12, tray?.getBoundingClientRect().top ?? viewportBottom);
     // Read geometry before changing styles; only clipped cards need a mask.
-    const bounds = Array.from(element.querySelectorAll<HTMLElement>("[data-reader-card]"),
-      card => ({ card, box: card.getBoundingClientRect() }));
-    for (const { card, box } of bounds) {
+    const bounds = Array.from(element.querySelectorAll<HTMLElement>("[data-reader-card]"), card => {
+      const box = card.getBoundingClientRect();
+      const border = card.clientTop;
+      const headerTop = card.querySelector(":scope > .reader-card-header")!.getBoundingClientRect().top;
+      const bodyTop = card.querySelector(":scope > .reader-card-body")!.getBoundingClientRect().top;
+      // Mask each painted layer, never their common ancestor: a mask on the
+      // card traps descendant backdrop filters and exposes a sharp canvas.
+      const layers = [
+        ["--card-glass-fade", box.top + border],
+        ["--card-outline-fade", box.top],
+        ["--header-glass-fade", headerTop],
+        ["--header-outline-fade", headerTop - border],
+        ["--body-fade", bodyTop],
+      ] as const;
+      return { card, box, layers };
+    });
+    for (const { card, box, layers } of bounds) {
       const clipped = box.top < cutoff && box.bottom > cutoff;
       if (clipped) {
         const end = Math.max(0, cutoff - box.top);
-        const mask = `linear-gradient(to bottom, black ${Math.max(0, end - 24)}px, transparent ${end}px)`;
-        if (card.style.maskImage !== mask) card.style.maskImage = mask;
+        for (const [name, top] of layers) {
+          const mask = bottomFade(cutoff - top);
+          if (card.style.getPropertyValue(name) !== mask) card.style.setProperty(name, mask);
+        }
         card.style.setProperty("--bottom-fade-end", `${end}px`);
         if (!card.hasAttribute("data-clipped-bottom")) card.setAttribute("data-clipped-bottom", "");
       } else if (card.hasAttribute("data-clipped-bottom")) {
-        card.style.maskImage = "";
+        for (const [name] of layers) card.style.removeProperty(name);
         card.style.removeProperty("--bottom-fade-end");
         card.removeAttribute("data-clipped-bottom");
       }
@@ -289,7 +308,9 @@ export default function ReaderStackViewport({ reading, model, layoutKey, notice,
   return (
     <>
           <main className="reading-pane reader-stack" ref={content} id="main-content"
-            style={{ clipPath: `inset(${Math.max(stickyTop, morphBoundary)}px 0 0)` }}
+            // A clip-path creates a backdrop root, trapping card blur above the canvas.
+            // Rectangular clipping preserves the rail boundary without isolating its backdrop.
+            style={{ clip: `rect(${Math.max(stickyTop, morphBoundary)}px, auto, auto, 0)` }}
             onScroll={() => { reading.onScroll();
               if (navigationScroll.current === content.current?.scrollTop) return;
               navigationScroll.current = undefined;

@@ -399,7 +399,7 @@ footer {
   height: 100dvh;
   overflow: hidden;
 }
-.reader-header {
+.reader > .app-header {
   min-width: 0;
   grid-column: 1/-1;
   display: flex;
@@ -428,7 +428,7 @@ footer {
   gap: 4px;
   flex-shrink: 0;
 }
-.reader-header .quiet:not(.install-app) {
+.reader > .app-header .quiet:not(.install-app) {
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -444,10 +444,6 @@ footer {
   padding: 10px 0;
   border: 1px solid var(--line);
   border-radius: 12px;
-  background: color-mix(in srgb, var(--panel) 54%, transparent);
-  -webkit-backdrop-filter: blur(24px) saturate(140%);
-  backdrop-filter: blur(24px) saturate(140%);
-  box-shadow: inset 0 1px 0 #ffffff30, 0 4px 20px #00000014, 0 1px 3px #0000000a;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -893,7 +889,7 @@ article section {
   .reader {
     grid-template-columns: 1fr;
   }
-  .reader-header {
+  .reader > .app-header {
     padding: 0 16px;
     gap: 14px;
   }
@@ -902,7 +898,7 @@ article section {
   .theme-label {
     display: none;
   }
-  .reader-header .control-label {
+  .reader > .app-header .control-label {
     display: none;
   }
   .header-actions {
@@ -1052,15 +1048,15 @@ h1 .object-name { gap: 10px; }
   padding: 0;
   flex-shrink: 0;
 }
-.reader-header .icon-button { width: 30px; height: 30px; padding: 0; }
+.reader > .app-header .icon-button { width: 30px; height: 30px; padding: 0; }
 .pane-toggles, .header-utilities, .reader-history {
   display: flex;
   align-items: center;
   gap: 2px;
 }
 .header-utilities { border-left: 1px solid var(--line); margin-left: 6px; padding-left: 8px; }
-.reader-header .theme-label { display: none; }
-.reader-header .pane-toggle[aria-pressed="true"] { background: var(--soft); color: var(--ink); }
+.reader > .app-header .theme-label { display: none; }
+.reader > .app-header .pane-toggle[aria-pressed="true"] { background: var(--soft); color: var(--ink); }
 .pane-title { font-size: 12px; font-weight: 600; color: var(--ink); }
 .pane-close { color: var(--muted); }
 .reader-toolbar { justify-content: flex-start; }

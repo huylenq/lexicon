@@ -182,7 +182,8 @@ test("overflowing card fades over 24 pixels above the bottom tile gap", async ({
   await page.locator("main").evaluate(el => { el.scrollTop = 0; });
   await expect(page.locator("[data-clipped-bottom]")).toHaveCount(1);
   const clipped = page.locator("[data-clipped-bottom]");
-  await expect(clipped).toHaveCSS("mask-image", /^linear-gradient\(/);
+  await expect(clipped).toHaveCSS("mask-image", "none");
+  await expect(clipped.locator(":scope > .reader-card-body")).toHaveCSS("mask-image", /^linear-gradient\(/);
   await expect(clipped).toHaveCSS("clip-path", "none");
   await expect(page.locator(".reader-bottom-titles .reader-collapsed-grid")).toBeVisible();
   const gap = await clipped.evaluate(el => {
@@ -192,7 +193,7 @@ test("overflowing card fades over 24 pixels above the bottom tile gap", async ({
     return grid.getBoundingClientRect().top - edge;
   });
   expect(gap).toBeCloseTo(12, 0);
-  const stops = await clipped.evaluate(el => getComputedStyle(el).maskImage.match(/[\d.]+px/g)!.map(parseFloat));
+  const stops = await clipped.evaluate(el => getComputedStyle(el, "::before").maskImage.match(/[\d.]+px/g)!.map(parseFloat));
   expect(stops[1] - stops[0]).toBeCloseTo(24, 2);
 });
 
@@ -318,18 +319,27 @@ test("a partly scrolled card retains its sticky header until its whole body pass
   await expect(page.locator('[data-collapsed-card="item:selected-tooth"]')).toHaveCount(0);
 });
 
-test("the active card header continues the accent border without a paper-colored corner seam", async ({ page }) => {
+test("selection border stays attached when native scrolling outruns scroll handlers", async ({ page }) => {
   await page.goto("/p/dentalml?item=selected-tooth");
-  const styles = await card(page, "item:selected-tooth").evaluate(el => {
-    const header = el.querySelector<HTMLElement>(":scope > .reader-card-header")!;
-    return {
-      headerShadow: getComputedStyle(header).boxShadow,
-      headerSurface: getComputedStyle(header).backgroundColor,
-      cornerSurface: getComputedStyle(header, "::before").backgroundImage,
-    };
+  const selected = card(page, "item:selected-tooth");
+  const result = await selected.evaluate(el => {
+    const main = el.closest("main")!;
+    const header = el.querySelector(".reader-card-header")!;
+    const stop = (event: Event) => event.stopImmediatePropagation();
+    window.addEventListener("scroll", stop, true);
+    try {
+      return [0, 140, 60, 0].map(amount => {
+        main.scrollTop = (el as HTMLElement).offsetTop + amount;
+        const edge = getComputedStyle(header, "::before");
+        return { position: getComputedStyle(header).position, top: edge.top,
+          width: edge.borderTopWidth, radius: edge.borderTopLeftRadius,
+          shadow: getComputedStyle(header).boxShadow };
+      });
+    } finally { window.removeEventListener("scroll", stop, true); }
   });
-  expect(styles.headerShadow).toContain("2px");
-  expect(styles.cornerSurface).toContain(styles.headerSurface);
+  for (const edge of result) expect(edge).toEqual({ position: "sticky", top: "-1px", width: "2px", radius: "10px", shadow: "none" });
+  await selected.evaluate(el => { el.closest("main")!.scrollTop = (el as HTMLElement).offsetTop + 140; });
+  await page.screenshot({ path: test.info().outputPath("reader-native-border.png") });
 });
 
 test("header breadcrumb follows the active card and navigates without replacing the stack", async ({ page }) => {
@@ -507,5 +517,81 @@ test("expanded bodies are clipped out of the transparent collapsed rail", async 
   await page.mouse.wheel(0, -180);
   await expect.poll(() => scroll(page)).toBeLessThan(beforeWheel);
   await page.getByRole("button", { name: "Use dark theme" }).click();
-  await page.screenshot({ path: "../output/reader-rail-clipping.png" });
+  await page.screenshot({ path: test.info().outputPath("reader-rail-clipping.png") });
+});
+
+
+test("scrolling body remains behind the glass sticky header", async ({ page }) => {
+  await page.goto("/p/dentalml?item=selected-tooth");
+  const selected = card(page, "item:selected-tooth");
+  await selected.evaluate(el => {
+    el.closest("main")!.scrollTop = (el as HTMLElement).offsetTop + 140;
+  });
+  await expect.poll(() => selected.evaluate(el => {
+    const header = el.querySelector(".reader-card-header")!;
+    const rect = header.getBoundingClientRect();
+    return document.elementsFromPoint(rect.right - 90, rect.bottom - 8)
+      .some(hit => hit.closest(".reader-card-body"));
+  })).toBe(true);
+  await expect(selected.locator(".reader-card-body")).toHaveCSS("clip-path", "none");
+  expect(await selected.locator(".reader-card-header").evaluate(el => getComputedStyle(el, "::after").backdropFilter))
+    .toBe(await page.locator(".sidebar").evaluate(el => getComputedStyle(el).backdropFilter));
+  await page.evaluate(() => { document.documentElement.dataset.theme = "dark"; });
+  await page.screenshot({ path: test.info().outputPath("sticky-header-translucent.png") });
+});
+
+test("tall cards and sticky headers blur their backdrop while the bottom fades", async ({ page }) => {
+  await page.setViewportSize({ width: 1400, height: 800 });
+  await page.goto("/p/dentalml");
+  await page.locator(".canvas-stage").waitFor();
+  await expect(page.locator("[data-clipped-bottom]")).toHaveCount(1);
+  const stripes = "repeating-linear-gradient(90deg, #e699c0 0 10px, #528cae 10px 20px)";
+  await page.evaluate(stripes => {
+    (document.querySelector(".canvas-stage") as HTMLElement).style.background = stripes;
+  }, stripes);
+  await page.addStyleTag({ content: ".canvas-stage > *, .sidebar > *, .reader-card-body > * { visibility: hidden !important; }" });
+  const samples = async (selector: string, nearTop = false) => {
+    const box = (await page.locator(selector).first().boundingBox())!;
+    // Capture the viewport before sampling: a tightly cropped screenshot can
+    // change Chromium's backdrop-filter rendering outside the captured strip.
+    const png = await page.screenshot();
+    return page.evaluate(async ({ base64, x, y }) => {
+      const image = new Image();
+      image.src = `data:image/png;base64,${base64}`;
+      await image.decode();
+      const canvas = document.createElement("canvas");
+      canvas.width = image.width;
+      canvas.height = image.height;
+      const context = canvas.getContext("2d")!;
+      context.drawImage(image, 0, 0);
+      const pixels = context.getImageData(x, y, 100, 1).data;
+      return [0, 1, 2].map(channel => {
+        const values = Array.from({ length: 100 }, (_, x) => pixels[x * 4 + channel]);
+        return { range: Math.max(...values) - Math.min(...values), mean: values.reduce((a, b) => a + b) / values.length };
+      });
+    }, {
+      base64: png.toString("base64"),
+      x: Math.floor(box.x + box.width / 2 - 50),
+      y: Math.floor(box.y + (nearTop ? 12 : box.height / 2)),
+    });
+  };
+  for (const theme of ["light", "dark"]) {
+    await page.evaluate(theme => { document.documentElement.dataset.theme = theme; document.querySelector("main")!.scrollTop = 0; }, theme);
+    const browseGlass = await samples(".sidebar");
+    const cardGlass = await samples("[data-reader-card] > .reader-card-body", true);
+    const toolbarGlass = await samples(".toolbar");
+    for (let channel = 0; channel < 3; channel++) {
+      expect(toolbarGlass[channel].range).toBeLessThan(4);
+      expect(Math.abs(toolbarGlass[channel].mean - browseGlass[channel].mean)).toBeLessThan(4);
+      expect(cardGlass[channel].range).toBeLessThan(4);
+      expect(Math.abs(cardGlass[channel].mean - browseGlass[channel].mean)).toBeLessThan(4);
+    }
+  }
+  await page.evaluate(stripes => {
+    (document.querySelector("[data-reader-card] > .reader-card-body") as HTMLElement).style.background = stripes;
+    document.querySelector("main")!.scrollTop = 150;
+  }, stripes);
+  const headerGlass = await samples("[data-reader-card] > .reader-card-header");
+  for (const channel of headerGlass) expect(channel.range).toBeLessThan(4);
+  await page.screenshot({ path: test.info().outputPath("frosted-scrolled-header.png") });
 });

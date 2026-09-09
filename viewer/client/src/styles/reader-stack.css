@@ -2,7 +2,7 @@
 .reader-workspace > .canvas-slot { width: 100%; flex: 1; min-width: 0; }
 .reader-workspace > .reader-stack {
   position: absolute;
-  inset: calc(var(--toolbar-height) + 12px) 12px 12px auto;
+  inset: calc(var(--canvas-top-inset, var(--toolbar-height)) + 12px) 12px 12px auto;
   width: clamp(300px, var(--reader-width), 900px);
   max-width: calc(100% - 24px);
   z-index: 5;
@@ -17,7 +17,7 @@
 }
 .reader-workspace > .canvas-divider {
   position: absolute;
-  top: calc(var(--toolbar-height) + 20px);
+  top: calc(var(--canvas-top-inset, var(--toolbar-height)) + 20px);
   bottom: 20px;
   right: calc(clamp(300px, var(--reader-width), 900px) + 10px);
   width: 7px;
@@ -32,45 +32,82 @@
 .reader-workspace.reader-hidden > .canvas-divider { display: none; }
 .reader-cards { display: flex; flex-direction: column; gap: 18px; padding: 3px 3px 50vh; }
 .reader-card {
+  --card-radius: 10px;
+  --card-border-width: 1px;
+  --card-outline-width: 1px;
+  --card-outline-color: var(--line);
   position: relative;
+  z-index: 0;
   flex-shrink: 0;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  box-shadow: 0 3px 10px #0002;
+  border: var(--card-border-width) solid transparent;
+  border-radius: var(--card-radius);
   overflow: clip;
   overflow-clip-margin: border-box;
 }
-.reader-cards > .reader-card > .reader-card-header { position: sticky; top: 0; z-index: 2; border-radius: 9px 9px 0 0; }
-/* Cover the scrolled card surface behind the sticky header's rounded corners. */
-.reader-cards > .reader-card > .reader-card-header::before {
-  --sticky-edge: var(--line);
-  --sticky-edge-width: 1px;
-  content: "";
-  position: absolute;
-  top: 0;
-  left: -1px;
-  right: -1px;
-  height: 10px;
-  pointer-events: none;
-  background:
-    radial-gradient(circle at 10px 10px, transparent calc(10px - var(--sticky-edge-width)), var(--sticky-edge) calc(10px - var(--sticky-edge-width)) 10px, var(--panel) 10px) top left / 10px 10px no-repeat,
-    radial-gradient(circle at 0 10px, transparent calc(10px - var(--sticky-edge-width)), var(--sticky-edge) calc(10px - var(--sticky-edge-width)) 10px, var(--panel) 10px) top right / 10px 10px no-repeat,
-    linear-gradient(var(--sticky-edge), var(--sticky-edge)) top center / calc(100% - 20px) var(--sticky-edge-width) no-repeat;
-}
-.reader-cards > .reader-card.active > .reader-card-header::before { --sticky-edge: var(--accent); --sticky-edge-width: 2px; }
-.reader-cards > .reader-card.active > .reader-card-header { box-shadow: inset 2px 0 var(--accent), inset -2px 0 var(--accent); }
+.reader-card.active { --card-outline-width: 2px; --card-outline-color: var(--accent); }
 .reader-card-header {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   gap: 6px;
   min-height: 44px;
   padding: 4px 12px;
-  background: var(--panel);
   border-bottom: 1px solid var(--line);
 }
-/* One foreground edge keeps the active outline uniform over both the header and body. */
-.reader-card.active::after { content: ""; position: absolute; inset: 0; z-index: 3; border: 2px solid var(--accent); border-radius: inherit; pointer-events: none; }
+/* Paint glass on separate layers so the card never becomes a backdrop root
+   that prevents its sticky header from blurring the scrolling body. */
+.reader-card::before,
+.reader-card-header::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+}
+.reader-card::before { mask-image: var(--card-glass-fade, none); }
+.reader-card-header::after { mask-image: var(--header-glass-fade, none); }
+.reader-collapsed-card .reader-card-header::after { content: none; }
+.reader-card > .reader-card-body { mask-image: var(--body-fade, none); }
+
+/* Both parts of the outline share the same border geometry and active state. */
+.reader-card::after,
+.reader-cards > .reader-card > .reader-card-header::before {
+  content: "";
+  position: absolute;
+  border: var(--card-outline-width) solid var(--card-outline-color);
+  pointer-events: none;
+}
+/* Collapsed and morphing cards use a full outline. */
+.reader-card::after {
+  inset: calc(-1 * var(--card-border-width));
+  z-index: 3;
+  border-radius: inherit;
+  mask-image: var(--card-outline-fade, none);
+}
+/* Expanded cards keep the top and sides attached to the native sticky header.
+   Extend through the visible scrollport; the card clips them at its bottom.
+   Only the bottom curve remains on the card, using identical border geometry. */
+.reader-cards > .reader-card::after {
+  clip-path: inset(calc(100% - var(--card-radius)) 0 0);
+}
+.reader-cards > .reader-card > .reader-card-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  border-radius: calc(var(--card-radius) - var(--card-border-width)) calc(var(--card-radius) - var(--card-border-width)) 0 0;
+}
+.reader-cards > .reader-card > .reader-card-header::before {
+  top: calc(-1 * var(--card-border-width));
+  left: calc(-1 * var(--card-border-width));
+  right: calc(-1 * var(--card-border-width));
+  height: 100dvh;
+  border-bottom: 0;
+  border-radius: var(--card-radius) var(--card-radius) 0 0;
+  mask-image: var(--header-outline-fade, none);
+}
+
 .reader-card-title { flex: 1; min-width: 0; text-align: left; background: none; border: 0; padding: 4px 0; color: var(--ink); }
 .reader-card-title h1 { margin: 0; font-size: 14px !important; line-height: 1.45; font-weight: 600; }
 .reader-card-title .object-name-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -113,7 +150,7 @@
 /* Measure the full canvas workspace; let its menus layer above the reader. */
 .reader-workspace { container-type: inline-size; }
 .reader-workspace .canvas-pane { container-type: normal; }
-.reader-workspace .canvas-toolbar { z-index: 600; }
+.reader-workspace .toolbar { z-index: 600; }
 .reader-workspace .canvas-stage { isolation: auto; }
 .reader-workspace .canvas-stage > .tl-container { isolation: isolate; z-index: 0; }
 @media (min-width: 1001px) {
@@ -121,7 +158,7 @@
 }
 
 
-.reader-header > .reader-history { flex-shrink: 0; gap: 2px; }
+.reader > .app-header > .reader-history { flex-shrink: 0; gap: 2px; }
 .header-breadcrumb { display: flex; align-items: center; gap: 8px; min-width: 0; overflow-x: auto; white-space: nowrap; font-size: 13px; scrollbar-width: none; }
 .header-breadcrumb::-webkit-scrollbar { display: none; }
 .header-breadcrumb > span { color: var(--muted); }
@@ -136,8 +173,8 @@
   .header-breadcrumb > button { flex-shrink: 1; }
 }
 @media (max-width: 480px) {
-  .reader-header > .reader-history .icon-button { width: 26px; min-width: 26px; padding: 4px; }
-  .reader-header > .brand { display: none; }
+  .reader > .app-header > .reader-history .icon-button { width: 26px; min-width: 26px; padding: 4px; }
+  .reader > .app-header > .brand { display: none; }
 }
 
 /* Clip the scrollport itself, so compositor scrolling cannot expose bodies

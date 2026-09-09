@@ -101,19 +101,19 @@ test("Canvas stays present despite an older saved hidden state and its title and
   await expect(page.locator(".canvas-card[data-model-id^='item:']")).toHaveCount(8);
   await expect(page.getByRole("button", { name: "Switch to Graph", exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Close Canvas pane" })).toHaveCount(0);
-  const titleLeft = await page.locator(".canvas-toolbar .pane-title").evaluate(el => el.getBoundingClientRect().left);
-  const selectionLeft = await page.locator(".canvas-toolbar .canvas-scope").evaluate(el => el.getBoundingClientRect().left);
+  const titleLeft = await page.locator(".toolbar .pane-title").evaluate(el => el.getBoundingClientRect().left);
+  const selectionLeft = await page.locator(".toolbar .canvas-scope").evaluate(el => el.getBoundingClientRect().left);
   expect(titleLeft).toBe(16);
   expect(selectionLeft).toBeGreaterThan(titleLeft);
-  const toolbar = page.locator(".canvas-toolbar");
+  const toolbar = page.locator(".toolbar");
   const toolbarHeight = (await toolbar.boundingBox())!.height;
   await page.getByRole("radio", { name: "Diagram", exact: true }).check();
   await page.getByRole("button", { name: "Concept · entity Selected tooth", exact: true }).click();
   expect((await toolbar.boundingBox())!.height).toBe(toolbarHeight);
   expect(await page.locator(".canvas-stage").evaluate(el => el.getBoundingClientRect().top))
-    .toBe(await toolbar.evaluate(el => el.getBoundingClientRect().bottom));
+    .toBe(await toolbar.evaluate(el => el.getBoundingClientRect().top));
   await page.getByRole("button", { name: "Toggle navigation", exact: true }).click();
-  expect(await page.locator(".canvas-toolbar .pane-title").evaluate(el => el.getBoundingClientRect().left)).toBe(titleLeft);
+  expect(await page.locator(".toolbar .pane-title").evaluate(el => el.getBoundingClientRect().left)).toBe(titleLeft);
 });
 
 test("native canvas navigation remains reachable beside Browse on short and narrow screens", async ({ page }) => {
@@ -176,7 +176,7 @@ test("one shared status bar follows model counts and keeps Agent reachable acros
   }
   await expect(bar.getByText("Relationship", { exact: true })).toBeVisible();
   await expect(page.locator(".model-legend")).toHaveCount(1);
-  await expect(page.locator(".reader-header").getByRole("button", { name: "Agent", exact: true })).toHaveCount(0);
+  await expect(page.locator(".app-header").getByRole("button", { name: "Agent", exact: true })).toHaveCount(0);
   const viewport = page.viewportSize()!;
   const bounds = (await bar.boundingBox())!;
   expect(bounds.x).toBe(0);
@@ -201,4 +201,45 @@ test("one shared status bar follows model counts and keeps Agent reachable acros
   await chat.getByRole("button", { name: "Minimize Chat" }).click();
   await expect(chat).toBeHidden();
   await expect(agent).toBeFocused();
+});
+
+test("canvas extends behind the Toolbar while native controls clear its measured height", async ({ page }) => {
+  await page.goto("/p/dentalml");
+  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  const menu = page.getByTestId("main-menu.button");
+  const toolbar = page.locator(".toolbar");
+  for (const size of [{ width: 1600, height: 1000 }, { width: 1600, height: 420 }, { width: 390, height: 844 }]) {
+    await page.setViewportSize(size);
+    await expect.poll(() => page.locator(".canvas-stage").evaluate(el => {
+      const stage = el.getBoundingClientRect();
+      const pane = el.closest(".canvas-pane")!.getBoundingClientRect();
+      const toolbar = document.querySelector(".toolbar")!.getBoundingClientRect();
+      return Math.max(Math.abs(stage.top - toolbar.top), Math.abs(stage.bottom - pane.bottom));
+    })).toBeLessThan(1);
+    await expect.poll(async () => {
+      const controls = (await menu.boundingBox())!;
+      const top = (await page.locator(".canvas-top").boundingBox())!;
+      return controls.y - (top.y + top.height);
+    }).toBeGreaterThanOrEqual(0);
+    await expect(menu).toBeInViewport();
+    await menu.click();
+    await expect(page.getByRole("menu").first()).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(toolbar.getByRole("button", { name: "Fit model", exact: true })).toBeInViewport();
+  }
+  expect((await toolbar.boundingBox())!.height).toBeGreaterThan(48);
+  // Exercise the same resize path used when a save/error notice appears.
+  await page.locator(".canvas-top").evaluate(el => {
+    const notice = document.createElement("div");
+    notice.className = "canvas-save-state";
+    notice.dataset.testNotice = "true";
+    notice.textContent = "Canvas changes need attention.";
+    el.append(notice);
+  });
+  await expect.poll(async () => {
+    const controls = (await menu.boundingBox())!;
+    const notice = (await page.locator('[data-test-notice="true"]').boundingBox())!;
+    return controls.y - (notice.y + notice.height);
+  }).toBeGreaterThanOrEqual(0);
+  await page.locator('[data-test-notice="true"]').evaluate(el => el.remove());
 });

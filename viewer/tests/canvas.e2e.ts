@@ -258,7 +258,7 @@ test("project links open one tldraw canvas with Diagram and Atlas modes and a st
   expect(new URL(page.url()).searchParams.has("canvas")).toBe(false);
   const stage = page.locator(".canvas-stage");
   const before = await stage.boundingBox();
-  const toolbar = page.locator(".canvas-toolbar");
+  const toolbar = page.locator(".toolbar");
   for (const [label, icon] of [["Fit model", "fit"], ["Locate", "locate"], ["Show all code", "code"], ["Arrange", "graph"]]) {
     await expect(toolbar.getByRole("button", { name: label, exact: true }).locator("use")).toHaveAttribute("href", `/icons.svg#${icon}`);
   }
@@ -294,7 +294,7 @@ test("project links open one tldraw canvas with Diagram and Atlas modes and a st
   await page.setViewportSize({ width: 1024, height: 900 });
   await page.getByRole("button", { name: "Toggle code workspace", exact: true }).click();
   const paneBox = (await toolbar.boundingBox())!;
-  const actionsBox = (await toolbar.locator(".canvas-toolbar-actions").boundingBox())!;
+  const actionsBox = (await toolbar.locator(".toolbar-actions").boundingBox())!;
   expect(actionsBox.x + actionsBox.width).toBeLessThanOrEqual(paneBox.x + paneBox.width);
   await page.getByRole("button", { name: "Toggle code workspace", exact: true }).click();
   await page.setViewportSize({ width: 390, height: 844 });

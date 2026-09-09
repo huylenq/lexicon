@@ -1,6 +1,7 @@
-.canvas-toolbar { position: relative; z-index: 5; }
-.canvas-toolbar .canvas-toolbar-actions { flex-shrink: 0; }
-.canvas-toolbar button[aria-pressed="true"], .canvas-toolbar button[aria-expanded="true"] { background: var(--accent-soft); color: var(--accent); }
+.canvas-top { position: relative; z-index: 600; flex-shrink: 0; }
+.toolbar { position: relative; z-index: 5; }
+.toolbar .toolbar-actions { flex-shrink: 0; }
+.toolbar button[aria-pressed="true"], .toolbar button[aria-expanded="true"] { background: var(--accent-soft); color: var(--accent); }
 .canvas-mode { display: inline-flex; flex-shrink: 0; gap: 2px; margin: 0; padding: 2px; border: 1px solid var(--line); border-radius: 6px; background: var(--soft); }
 .canvas-mode label { position: relative; cursor: pointer; }
 .canvas-mode input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
@@ -14,11 +15,12 @@
 .canvas-file-menu > summary::-webkit-details-marker { display: none; }
 .canvas-file-menu > div { position: absolute; top: 100%; right: 0; min-width: 160px; padding: 5px; display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--line); box-shadow: var(--shadow); border-radius: 6px; }
 .canvas-file-menu button { text-align: left; padding: 8px; border: 0; background: transparent; color: var(--ink); }
-.canvas-stage { position: relative; flex: 1; min-height: 0; isolation: isolate; }
+.canvas-stage { position: absolute; inset: 0; min-height: 0; isolation: isolate; }
 .canvas-stage > .tl-container { position: absolute; inset: 0; --tl-color-selected: var(--accent); --tl-color-selected-contrast: var(--paper); }
 .canvas-stage .tl-background { background: var(--paper); }
 .canvas-stage .tlui-layout { font-family: var(--tl-font-sans); }
-.canvas-loading { position: absolute; top: 60px; left: 50%; transform: translateX(-50%); padding: 9px 12px; background: var(--panel); box-shadow: var(--shadow); border-radius: 6px; z-index: 500; font-size: 12px; pointer-events: none; }
+.canvas-stage .tlui-layout__top { padding-top: var(--canvas-top-inset, var(--toolbar-height)); }
+.canvas-loading { position: absolute; top: calc(var(--canvas-top-inset, var(--toolbar-height)) + 60px); left: 50%; transform: translateX(-50%); padding: 9px 12px; background: var(--panel); box-shadow: var(--shadow); border-radius: 6px; z-index: 500; font-size: 12px; pointer-events: none; }
 .canvas-object { color: var(--ink); width: 100%; height: 100%; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); font-family: system-ui, sans-serif; }
 .canvas-object .canvas-object-heading { height: 100%; display: flex; align-items: center; justify-content: center; gap: 5px; padding: 10px; }
 .canvas-object.canvas-group { background: color-mix(in srgb, var(--soft) 65%, transparent); border-color: color-mix(in srgb, var(--muted) 45%, transparent); }
@@ -47,20 +49,20 @@
 .canvas-error button { margin-left: 8px; }
 .canvas-save-indicator { flex-shrink: 0; color: var(--muted); font-size: 10px; }
 .canvas-save-indicator[data-save-status="local"], .canvas-save-indicator[data-save-status="conflict"], .canvas-save-indicator[data-save-status="error"] { color: var(--accent); }
-@container (max-width: 420px) { .canvas-toolbar { padding-inline: 8px; gap: 4px; } .canvas-toolbar .canvas-scope { display: none; } .canvas-toolbar .canvas-toolbar-actions { gap: 1px; } }
-@container (max-width: 600px) { .canvas-toolbar { flex-wrap: wrap; gap: 4px; } .canvas-toolbar .canvas-toolbar-heading { width: 100%; } .canvas-toolbar .canvas-toolbar-actions { width: 100%; justify-content: flex-end; } }
-@container (max-width: 350px) { .canvas-toolbar .canvas-toolbar-heading > .pane-title { display: none; } .canvas-toolbar .canvas-toolbar-actions { justify-content: space-between; } }
+@container (max-width: 420px) { .toolbar { padding-inline: 8px; gap: 4px; } .toolbar .canvas-scope { display: none; } .toolbar .toolbar-actions { gap: 1px; } }
+@container (max-width: 600px) { .toolbar { flex-wrap: wrap; gap: 4px; } .toolbar .toolbar-heading { width: 100%; } .toolbar .toolbar-actions { width: 100%; justify-content: flex-end; } }
+@container (max-width: 350px) { .toolbar .toolbar-heading > .pane-title { display: none; } .toolbar .toolbar-actions { justify-content: space-between; } }
 .workspace-status-bar .model-legend > .canvas-save-indicator { display: inline; }
 
 
-.canvas-save-state { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 11px; padding: 5px 12px; border-bottom: 1px solid var(--line); color: var(--muted); }
+.canvas-save-state { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 11px; padding: 5px 12px; border-bottom: 1px solid var(--line); color: var(--muted); background: var(--panel); }
 .canvas-save-state > span:first-child { color: var(--ink); white-space: nowrap; }
 .canvas-save-state[data-attention-status="conflict"], .canvas-save-state[data-attention-status="local"] { background: var(--soft); }
 .canvas-save-state button, .canvas-review button { padding: 4px 8px; background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 4px; font: inherit; }
-.canvas-review { padding: 12px; border-bottom: 1px solid var(--line); max-height: 35vh; overflow: auto; font-size: 12px; }
+.canvas-review { padding: 12px; border-bottom: 1px solid var(--line); max-height: 35vh; overflow: auto; font-size: 12px; background: var(--panel); }
 .canvas-review button { margin: 4px; }
 
-.canvas-inspector { position: absolute; top: 8px; right: 8px; z-index: 500; width: min(420px, calc(100% - 16px)); max-height: calc(100% - 24px); overflow: auto; font-size: 11px; background: var(--panel); border: 1px solid var(--line); border-radius: 7px; box-shadow: var(--shadow); }
+.canvas-inspector { position: absolute; top: calc(var(--canvas-top-inset, var(--toolbar-height)) + 8px); right: 8px; z-index: 500; width: min(420px, calc(100% - 16px)); max-height: calc(100% - var(--canvas-top-inset, var(--toolbar-height)) - 24px); overflow: auto; font-size: 11px; background: var(--panel); border: 1px solid var(--line); border-radius: 7px; box-shadow: var(--shadow); }
 .canvas-context-tools { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 4px 12px; border-bottom: 1px solid var(--line); }
 .canvas-inspector button, .canvas-inspector input, .canvas-inspector select { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 4px 7px; }
 .canvas-inspector label { display: inline-flex; align-items: center; gap: 5px; }

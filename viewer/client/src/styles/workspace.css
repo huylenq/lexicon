@@ -53,6 +53,7 @@
 .canvas-divider:focus-visible::after { background: var(--accent); }
 
 .canvas-pane {
+  position: relative;
   container-type: inline-size;
   height: 100%;
   display: flex;
@@ -60,14 +61,13 @@
   overflow: hidden;
   background: var(--paper);
 }
-.canvas-toolbar {
+.toolbar {
   padding: 8px 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
   border-bottom: 1px solid var(--line);
-  background: var(--panel);
   min-height: var(--toolbar-height);
   flex-shrink: 0;
 }
@@ -78,8 +78,8 @@
   color: var(--muted);
   line-height: 1.35;
 }
-.canvas-toolbar .eyebrow { line-height: 1.2; }
-.canvas-toolbar-actions {
+.toolbar .eyebrow { line-height: 1.2; }
+.toolbar-actions {
   display: flex;
   align-items: center;
   gap: 3px;
@@ -210,7 +210,7 @@
   .with-canvas .back-to-canvas {
     display: block;
   }
-  .reader-header {
+  .reader > .app-header {
     gap: 12px;
   }
   .header-actions {
@@ -222,27 +222,27 @@
   }
 }
 @media (max-width: 600px) {
-  .reader-header {
+  .reader > .app-header {
     padding: 0 10px;
     gap: 6px;
   }
-  .reader-header .brand-text,
-  .reader-header .header-divider,
-  .reader-header .theme-label {
+  .reader > .app-header .brand-text,
+  .reader > .app-header .header-divider,
+  .reader > .app-header .theme-label {
     display: none;
   }
-  .reader-header .project-name {
+  .reader > .app-header .project-name {
     flex: 1;
     font-size: 11px;
   }
-  .reader-header .header-actions {
+  .reader > .app-header .header-actions {
     flex-shrink: 0;
   }
-  .reader-header .header-actions .quiet {
+  .reader > .app-header .header-actions .quiet {
     font-size: 10px;
     padding: 6px 4px;
   }
-  .canvas-toolbar {
+  .toolbar {
     padding: 8px 16px;
   }
   .model-legend {
@@ -258,9 +258,9 @@
 }
 
 
-.canvas-toolbar-heading { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.canvas-toolbar .canvas-scope { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.canvas-toolbar-actions { flex-shrink: 0; }
+.toolbar-heading { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.toolbar .canvas-scope { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.toolbar-actions { flex-shrink: 0; }
 
 /* Canvas continues behind the shelf; reading keeps its own space. */
 @media (min-width: 1001px) {
@@ -270,10 +270,10 @@
 }
 
 
-.canvas-toolbar .pane-title { flex-shrink: 0; }
-.canvas-toolbar .canvas-scope::before { content: "/"; margin-right: 8px; }
+.toolbar .pane-title { flex-shrink: 0; }
+.toolbar .canvas-scope::before { content: "/"; margin-right: 8px; }
 @container (max-width: 520px) {
-  .canvas-toolbar { padding-inline: 12px; }
+  .toolbar { padding-inline: 12px; }
 }
 
 

@@ -3,7 +3,8 @@
   :root {
     --app-header-height: max(40px, env(titlebar-area-height, 40px));
   }
-  .app-header {
+  .app-header,
+  .reader > .app-header {
     padding-left: calc(env(titlebar-area-x, 0px) + 12px);
     padding-right: calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw) + 12px);
     padding-top: env(titlebar-area-y, 0px);
@@ -39,5 +40,5 @@
 }
 
 @media (max-width: 700px) {
-  .reader-header .install-app { display: none; }
+  .reader > .app-header .install-app { display: none; }
 }

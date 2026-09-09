@@ -23,7 +23,7 @@ import type { CanvasState } from "../../../shared/canvas";
 import type { CanvasPaneProps } from "./types";
 import Icon from "../Icon";
 import ModelLegend from "../ModelLegend";
-import { CanvasToolbar, CanvasButton } from "./CanvasToolbar";
+import { Toolbar, CanvasButton } from "./Toolbar";
 import { codeOwners, selectionName } from "../graph/actions";
 import { CanvasActions, CanvasContextMenu } from "./CanvasContextMenu";
 import {
@@ -116,6 +116,21 @@ export default function CanvasPane(props: CanvasPaneProps) {
   const storageRef = useRef(storage);
   storageRef.current = storage;
   const fileInput = useRef<HTMLInputElement>(null);
+  const canvasTop = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const top = canvasTop.current;
+    if (!top) return;
+    const host = top.closest<HTMLElement>(".reader-workspace") ?? top.parentElement!;
+    const measure = () => {
+      const height = top.getBoundingClientRect().height;
+      // Hidden mobile panes report zero; retain their inset until shown again.
+      if (height > 0) host.style.setProperty("--canvas-top-inset", `${height}px`);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(top);
+    return () => { observer.disconnect(); host.style.removeProperty("--canvas-top-inset"); };
+  }, []);
   const projection = useRef<ReturnType<typeof createProjection>>();
   const latest = useRef(props);
   latest.current = props;
@@ -214,8 +229,9 @@ export default function CanvasPane(props: CanvasPaneProps) {
     const overlay = document.getElementById("main-content");
     const right = window.innerWidth > 1000 && overlay?.getClientRects().length
       ? Math.max(30, screen.x + screen.w - overlay.getBoundingClientRect().left + 20) : 30;
+    const top = parseFloat(getComputedStyle(editor.getContainer()).getPropertyValue("--canvas-top-inset")) || 0;
     const width = Math.max(150, screen.w - left - right),
-      height = Math.max(150, screen.h - 160);
+      height = Math.max(150, screen.h - top - 160);
     const zoom = Math.min(
       1,
       width / Math.max(1, box.w),
@@ -223,7 +239,7 @@ export default function CanvasPane(props: CanvasPaneProps) {
     );
     editor.setCamera({
       x: -box.center.x + (left + width / 2) / zoom,
-      y: -box.center.y + (screen.h / 2 - 25) / zoom,
+      y: -box.center.y + ((screen.h + top) / 2 - 25) / zoom,
       z: zoom,
     });
   };
@@ -577,7 +593,8 @@ export default function CanvasPane(props: CanvasPaneProps) {
       }}
     >
       <section className="canvas-pane" aria-label="Model canvas" data-map={workspace.map ?? true} data-atlas-skin={workspace.atlasSkin ?? "ink"}>
-        <CanvasToolbar
+        <div ref={canvasTop} className="canvas-top">
+        <Toolbar
           title="Canvas"
           controls={<>
             <fieldset className="canvas-mode" aria-label="Canvas mode">
@@ -699,7 +716,7 @@ export default function CanvasPane(props: CanvasPaneProps) {
             hidden
             onChange={(e) => importCanvas(e.target.files?.[0])}
           />
-        </CanvasToolbar>
+        </Toolbar>
         {!!needsAttention && (
           <div
             className="canvas-save-state"
@@ -840,6 +857,7 @@ export default function CanvasPane(props: CanvasPaneProps) {
             </button>
           </div>
         )}
+        </div>
         <div className="canvas-stage" data-ready={!loading && !importing}
           // Native bounds updates are throttled; refresh before the first tap
           // after a mobile pane has been shown again.

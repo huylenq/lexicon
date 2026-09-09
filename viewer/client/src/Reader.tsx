@@ -638,7 +638,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
       <a className="skip-link" href="#main-content">
         Skip to the model
       </a>
-      <header className="reader-header app-header">
+      <header className="app-header">
         <button ref={browseToggle} className="quiet icon-button pane-toggle browse-toggle"
           aria-label="Toggle navigation" aria-pressed={browseVisible}
           aria-controls="browse-pane" title={browseVisible ? "Hide Browse" : "Show Browse"}

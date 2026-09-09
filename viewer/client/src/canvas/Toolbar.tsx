@@ -1,7 +1,7 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import Icon, { type IconName } from "../Icon";
 
-export function CanvasToolbar({
+export function Toolbar({
   title,
   scope,
   controls,
@@ -13,15 +13,15 @@ export function CanvasToolbar({
   children: ReactNode;
 }) {
   return (
-    <div className="canvas-toolbar">
-      <div className="canvas-toolbar-heading">
+    <div className="toolbar">
+      <div className="toolbar-heading">
         <span className="pane-title">{title}</span>
         {controls}
         <span className="canvas-scope" title={scope}>
           {scope}
         </span>
       </div>
-      <div className="canvas-toolbar-actions">{children}</div>
+      <div className="toolbar-actions">{children}</div>
     </div>
   );
 }

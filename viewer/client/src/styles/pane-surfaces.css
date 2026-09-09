@@ -7,7 +7,7 @@
     background: #0a0a0a;
   }
 
-  .reader > .reader-header,
+  .reader > .app-header,
   .reader > .workspace-status-bar {
     border-color: transparent;
   }
@@ -28,7 +28,6 @@
     border-radius: 10px;
   }
 
-  .reader .canvas-toolbar,
   .reader .code-pane-heading,
   .reader .chat-heading,
   .reader .code-controls {
@@ -36,11 +35,13 @@
     background: var(--pane-surface);
   }
 
+  .reader .toolbar {
+    border-color: var(--pane-rule);
+  }
+
   .reader > .sidebar {
     border-color: var(--pane-edge);
     border-radius: 10px;
-    background: color-mix(in srgb, var(--pane-surface) 50%, transparent);
-    box-shadow: inset 0 1px 0 #ffffff0d, 0 8px 28px #00000026;
   }
 
   .reader .code-pane,
@@ -68,10 +69,6 @@
   .reader .reader-stack {
     --panel: #181818;
     --line: var(--pane-edge);
-  }
-
-  .reader .reader-card {
-    box-shadow: none;
   }
 
   .reader .reader-card-header {

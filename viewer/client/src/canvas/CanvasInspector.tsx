@@ -16,7 +16,7 @@ import { canvasApi } from "./api";
 import { exportCanvasSelection } from "./files";
 import { isModelShape, modelShapeId } from "./references";
 import { indexModel, projectGraph } from "../graph/model";
-import { CanvasButton } from "./CanvasToolbar";
+import { CanvasButton } from "./Toolbar";
 
 export const noteText = (editor: Editor, shape: TLShape) =>
   shape.type === "note" || shape.type === "text"
