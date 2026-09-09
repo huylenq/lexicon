@@ -107,6 +107,32 @@ test("node and context labels drag with native undo and Space panning", async ({
   expect(await readFile(join(root, "lexicon/model.xml"), "utf8")).toBe(original);
 });
 
+test("dragging an item or relationship label moves it without opening the reader", async ({ page }) => {
+  await open(page);
+  // Drag Order, then click it while it is still the selection: only the click reads.
+  const order = page.getByRole("button", { name: "concept: Order", exact: true });
+  const label = (await order.boundingBox())!;
+  const start = { x: label.x + label.width / 2, y: label.y + label.height / 2 };
+  await drag(page, start, { x: start.x + 25, y: start.y + 25 });
+  await expect(card(page, "order")).toHaveAttribute("data-selected", "true");
+  await expect(page.locator("main [data-reader-card].active > header h1")).not.toHaveText("Order");
+  await order.click();
+  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Order");
+
+  // Dragging the relationship keeps Order's explanation open and selects no object.
+  const relation = page.getByRole("button", { name: "Read relationship: contains", exact: true });
+  const relLabel = (await relation.boundingBox())!;
+  const relStart = { x: relLabel.x + relLabel.width / 2, y: relLabel.y + relLabel.height / 2 };
+  await drag(page, relStart, { x: relStart.x - 30, y: relStart.y + 20 });
+  expect(new URL(page.url()).searchParams.get("item")).toBe("order");
+  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Order");
+  await expect.poll(() => selectedObjects(page)).toEqual([]);
+
+  // A deliberate click on the just-dragged relationship still opens its explanation.
+  await relation.click();
+  await expect(page.locator("main [data-reader-card].active > header h1")).toContainText("Order contains Order Line");
+});
+
 test("mouse wheel zooms the canvas instead of panning vertically", async ({ page }) => {
   await open(page);
   const layer = page.locator(".tl-html-layer");
