@@ -20,6 +20,7 @@ import { MAX_CANVAS_BYTES, MAX_ASSET_BYTES } from "../shared/canvas";
 
 const exec = promisify(execFile);
 const repository = resolve(import.meta.dir, "../..");
+const examplesRoot = process.env.LEXICON_EXAMPLES_ROOT || resolve(import.meta.dir, "../examples");
 const examples = [
   ...((process.env.LEXICON_CANVAS_WORKSHOP || process.env.LEXICON_CANVAS_PROTOTYPE) === "1" ? [{
     id: "canvas-workshop",
@@ -32,7 +33,7 @@ const examples = [
     id: "dentalml",
     name: "DentalML · Canal measurement",
     root: resolve(repository, "../dentalml"),
-    artifactRoot: resolve(import.meta.dir, "../examples/dentalml"),
+    artifactRoot: resolve(examplesRoot, "dentalml"),
     example: true,
   },
 ];
@@ -84,6 +85,9 @@ function project(id: string) {
 }
 export const app = new Hono();
 app.use("/api/*", async (c, next) => {
+  const desktopToken = process.env.LEXICON_DESKTOP_TOKEN;
+  if (desktopToken && c.req.header("x-lexicon-desktop-token") !== desktopToken)
+    return c.json({ error: "Desktop session required." }, 403);
   const local = (host: string) =>
     ["localhost", "127.0.0.1", "[::1]"].includes(host);
   if (!local(new URL(c.req.url).hostname))

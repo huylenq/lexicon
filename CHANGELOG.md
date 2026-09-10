@@ -2,6 +2,13 @@
 
 ## Unreleased — Project canvas
 
+- Integrate macOS traffic lights into the desktop header with draggable space and room for controls at narrow widths.
+
+- Keep the desktop server available when unsaved edits cancel quitting, and reopen copied view links through macOS.
+
+- Add desktop development hot reload: React/CSS update live, while shell/backend changes restart automatically after pending canvas saves.
+- Add unsigned macOS desktop packaging with bundled Bun, a native project-folder picker, persistent app data, and clickable GitHub release notices. Updates are downloaded and installed manually.
+
 - Use tldraw as the sole canvas, with custom model references and relationships, attached notes, sketches, media, and selection export. Remove the ReactFlow renderer, dependency, and header switch; earlier renderer links retain their selections and open the canvas.
 - Add **Diagram / Atlas** modes on the same canvas. Atlas generates ink districts, landmarks, and winding dirt roads from model identities and current positions, with saved appearance choices and native undo. Roads remain selectable along their bends, and selected nodes use one outline in both modes.
 - Fit node frames to their artwork and labels in Atlas and to their text in Diagram. Roads narrow into landmark entrances, stay connected through moves and appearance changes, and leave nameplates clear. Renaming a fitted node preserves its center and attached notes.

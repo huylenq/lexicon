@@ -20,7 +20,7 @@ export default function InstallApp() {
       window.removeEventListener("appinstalled", installed);
     };
   }, []);
-  if (!prompt) return null;
+  if (window.lexiconDesktop || !prompt) return null;
   return <button className="quiet install-app" onClick={async () => {
     setPrompt(null);
     try { await prompt.prompt(); } catch { /* Browser install menu stays available. */ }

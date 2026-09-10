@@ -12,6 +12,8 @@ bun start
 
 Open http://127.0.0.1:5374. Development uses `mise run viewer` from the repository root, with Vite on http://127.0.0.1:5373.
 
+For a self-contained macOS application, see the [desktop installation and release guide](desktop/README.md). The desktop app includes Bun and offers clickable update notices.
+
 The production build is installable as a PWA. Open port 5374 and use **Install app** when offered, or the browser's install menu. Supporting desktop browsers can place the inline header alongside native window controls through Window Controls Overlay. Other browsers retain their standard app title bar. The header's empty space drags the window; its links and buttons remain clickable.
 
 Keep `bun start` running to read projects and source. The service worker caches only the built app shell, including the canvas assets. If the server is unavailable, the app opens with a reconnect message; model data, source code, and library changes are never cached. Updates activate after all existing app windows and tabs close. PWA caching is enabled only in production builds, so Vite development stays live.
