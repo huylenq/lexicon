@@ -8,6 +8,7 @@ import {
   useState,
   type CSSProperties,
 } from "react";
+import { createPortal } from "react-dom";
 import { Link, useLocation, useNavigate, useNavigationType, useParams } from "react-router-dom";
 import type { ModelItem, ProjectModel } from "../../shared/model";
 import { parentOf, isArchitecture } from "../../shared/model";
@@ -18,6 +19,7 @@ import InstallApp from "./InstallApp";
 import Icon from "./Icon";
 import ObjectName from "./ObjectName";
 import ChatPane from "./ChatPane";
+import useAssistantWindow from "./useAssistantWindow";
 import ReaderCardBody from "./ReaderCardBody";
 import ReaderCardHeader from "./ReaderCardHeader";
 import PaneSeparator from "./PaneSeparator";
@@ -46,6 +48,17 @@ export default function Reader() {
 }
 function ReaderProject({ projectId }: { projectId: string }) {
   const [chatOpen, setChatOpen] = useState(false);
+  const [assistantHost, setAssistantHost] = useState<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const key = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.code === "Backslash") {
+        event.preventDefault();
+        setChatOpen(open => !open);
+      }
+    };
+    window.addEventListener("keydown", key);
+    return () => window.removeEventListener("keydown", key);
+  }, []);
   const [agentAttached, setAgentAttached] = useState(() => {
     try { return localStorage.getItem(`lexicon.chat.attached.${projectId}`) === "true"; }
     catch { return false; }
@@ -68,6 +81,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
     setFurthestHistory((last) => navigationType === "PUSH" ? historyIndex : Math.max(last, historyIndex));
   }, [routeLocation.key, navigationType, historyIndex]);
   const [compact, setCompact] = useState(() => window.matchMedia("(max-width: 1000px)").matches);
+  const assistantWindow = useAssistantWindow(() => setChatOpen(open => !open), chatOpen, compact ? null : assistantHost);
   useEffect(() => {
     const media = window.matchMedia("(max-width: 1000px)");
     const update = () => setCompact(window.innerWidth <= 1000);
@@ -315,10 +329,20 @@ function ReaderProject({ projectId }: { projectId: string }) {
       onSelect={select} onSelectGraph={selectGraph} onCanvasAction={graphAction} onCode={code}
       onOpenChat={() => setChatOpen(true)} onCopy={copyCardLink} />])),
     [reading.stack, routeLocation, model, loading, workspace.allCode, copied]);
+  const launcher = (
+    <button ref={chatToggle} className={`quiet agent-toggle assistant-launcher${assistantWindow.docked ? " assistant-docked" : ""}${assistantWindow.dragging ? " dragging" : ""}`} style={assistantWindow.launcherStyle} {...assistantWindow.handlers("launcher")} aria-label="Agent" aria-controls="chat-pane" aria-pressed={chatOpen}
+          title={chatOpen ? "Minimize Agent" : agentRunning ? "Open Agent · Working" : "Open Agent"}
+          disabled={!data} onClick={event => { if (event.detail === 0) setChatOpen(open => !open); }}>
+          <svg className="icon" width={19} height={19} viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
+            <path d="M5.8 3.9 19.4 9c1.4.5 1.4 2.3-.1 2.7l-5.6 1.6c-.5.1-.9.5-1.1 1l-2.7 5.8c-.6 1.3-2.4 1.1-2.7-.3L3.8 6c-.4-1.5.5-2.7 2-2.1Z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          {agentRunning && <span className="agent-working" role="status" aria-label="Agent is working" />}
+        </button>
+  );
   return (
     <div
       ref={readerSurface}
-      className={`reader ${chatOpen && agentAttached && !compact ? "agent-attached" : ""} ${model && codeNavigation.open ? "with-code" : ""} with-canvas ${!workspace.sidebar ? "without-sidebar" : ""} ${mobileRead && reading.stack.visible ? "mobile-reading" : "mobile-canvas"} ${model && mobileCode ? "mobile-code" : ""}`}
+      className={`reader ${assistantWindow.dockTarget ? "assistant-dock-target" : ""} ${chatOpen && agentAttached && !compact ? "agent-attached" : ""} ${model && codeNavigation.open ? "with-code" : ""} with-canvas ${!workspace.sidebar ? "without-sidebar" : ""} ${mobileRead && reading.stack.visible ? "mobile-reading" : "mobile-canvas"} ${model && mobileCode ? "mobile-code" : ""}`}
       style={{ "--chat-width": `${workspace.chatWidth}px` } as CSSProperties}
     >
       <a className="skip-link" href="#main-content">
@@ -491,6 +515,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
                   onModelChanged={refresh}
                   projectKey={data?.project.root || projectId}
                   statusHost={canvasStatusHost}
+                  assistantHost={setAssistantHost}
                   visible={!compact || !((mobileRead && reading.stack.visible) || (mobileCode && codeNavigation.open))}
                   workspace={workspace}
                   setWorkspace={setWorkspace}
@@ -563,14 +588,9 @@ function ReaderProject({ projectId }: { projectId: string }) {
       )}
       <div className="workspace-status-bar" role="region" aria-label="Workspace status">
         <div className="workspace-canvas-status" ref={setCanvasStatusHost} />
-        <button ref={chatToggle} className="quiet agent-toggle" aria-label="Agent" aria-controls="chat-pane" aria-pressed={chatOpen}
-          title={chatOpen ? "Minimize Agent" : agentRunning ? "Open Agent · Working" : "Open Agent"}
-          disabled={!data} onClick={() => setChatOpen(open => !open)}>
-          <Icon name="annotation" size={18} /><span>Agent</span>
-          {agentRunning && <span className="agent-working" role="status" aria-label="Agent is working" />}
-        </button>
       </div>
-      {data && <ChatPane projectId={projectId} open={chatOpen} selected={item} modelRevision={data.modelRevision}
+      {assistantWindow.docked && assistantHost ? createPortal(launcher, assistantHost) : launcher}
+      {data && <ChatPane projectId={projectId} open={chatOpen} window={assistantWindow} selected={item} modelRevision={data.modelRevision}
         attached={agentAttached && !compact} onToggleAttachment={() => setAgentAttached(value => !value)}
         onRunningChange={setAgentRunning}
         empty={data.model?.items.length === 0} problem={data.problem} example={data.project.example}

@@ -128,7 +128,8 @@ test("chat switches between floating and attached layouts while preserving draft
     await expect(chat.getByText("Reasoning", { exact: true })).toHaveCount(0);
     expect(await graph.boundingBox()).toEqual(graphBounds);
     const dockBounds = await chat.boundingBox();
-    expect(dockBounds!.x + dockBounds!.width).toBe(1264);
+    const launcherBounds = (await page.getByRole("button", { name: "Agent", exact: true }).boundingBox())!;
+    expect(dockBounds!.x + dockBounds!.width + 10).toBe(launcherBounds.x);
     expect(dockBounds!.y + dockBounds!.height).toBe(802);
     await input.fill("A draft to refine Order");
     await chat.getByRole("button", { name: "Attach Agent to right side", exact: true }).click();

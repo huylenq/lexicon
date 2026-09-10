@@ -162,10 +162,10 @@ test("Browse search preserves shelf height and input position as results change"
 });
 
 
-test("one shared status bar follows model counts and keeps Agent reachable across workspace views", async ({ page }) => {
+test("one shared status bar follows model counts and the floating Agent stays reachable across workspace views", async ({ page }) => {
   await page.goto("/p/dentalml");
   const bar = page.getByRole("region", { name: "Workspace status", exact: true });
-  const agent = bar.getByRole("button", { name: "Agent", exact: true });
+  const agent = page.getByRole("button", { name: "Agent", exact: true });
   await expect(bar.locator(".model-count")).toHaveText("8 concepts · 0 code");
   const objectLegend = bar.getByLabel("Object icon legend", { exact: true });
   await expect(objectLegend).toBeVisible();

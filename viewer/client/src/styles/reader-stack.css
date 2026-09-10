@@ -47,12 +47,6 @@
 .reader-card.active { --card-outline-color: var(--accent); }
 .reader-card-header {
   --reader-card-color: var(--accent);
-  --reader-card-illumination: radial-gradient(
-    ellipse 90% 120% at 30% 0%,
-    color-mix(in srgb, var(--reader-card-color) 10%, transparent),
-    color-mix(in srgb, var(--reader-card-color) 3%, transparent) 42%,
-    transparent 78%
-  );
   position: relative;
   z-index: 1;
   display: flex;
@@ -86,11 +80,11 @@
 .reader-card::before { mask-image: var(--card-glass-fade, none); }
 .reader .reader-card-header::after {
   mask-image: var(--header-glass-fade, none);
-  background: var(--reader-card-illumination), var(--glass-background);
+  background: var(--glass-illumination), var(--glass-background);
 }
 .reader-collapsed-card .reader-card-header::after {
   content: "";
-  background: var(--reader-card-illumination);
+  background: var(--glass-illumination);
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }

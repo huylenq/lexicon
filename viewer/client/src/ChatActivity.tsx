@@ -14,8 +14,7 @@ export default function ChatActivity({ message, activity }: { message: ChatMessa
     return () => clearInterval(timer);
   }, [message.status]);
   const tools = message.tools || [];
-  return <>
-    {tools.length > 0 && <div className="chat-tools" aria-label="Tool calls">
+  const toolList = tools.length > 0 && <div className="chat-tools" aria-label="Tool calls">
       {tools.map((tool) => <details key={tool.id} className={`chat-tool tool-${tool.status}`}>
         <summary>
           <span className={`chat-status-dot ${tool.status}`} aria-hidden="true" />
@@ -29,7 +28,15 @@ export default function ChatActivity({ message, activity }: { message: ChatMessa
           <small>{tool.kind} · {duration(tool.startedAt, tool.finishedAt ? Date.parse(tool.finishedAt) : now)}</small>
         </div>
       </details>)}
-    </div>}
+    </div>;
+  return <>
+    {tools.length > 1 ? <details className="chat-tool-group">
+      <summary><span className={`chat-status-dot ${message.status}`} aria-hidden="true" />
+        <span>{message.status === "running" ? tools.find(tool => tool.status === "running")?.title || "Working" : "Tool activity"}</span>
+        <small>{tools.length} tools</small>
+      </summary>
+      {toolList}
+    </details> : toolList}
     <div className={`chat-turn-status turn-${message.status}`} role={message.status === "running" ? "status" : undefined}>
       {message.status === "running" && <span className="chat-status-dot running" aria-hidden="true" />}
       <span>{message.status === "running" ? activity || "Working…" : labels[message.status]}</span>
