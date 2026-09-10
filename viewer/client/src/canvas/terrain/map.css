@@ -155,3 +155,47 @@
 .raster-edge-cliff { stroke: var(--map-field); }
 .raster-edge-marsh { stroke: var(--map-water); }
 .raster-edge-shore { stroke: var(--map-road); }
+
+/* Names are part of the terrain. Skins own the lettering, not the interaction. */
+.canvas-pane[data-map="true"] {
+  --atlas-label-font: Georgia, 'Times New Roman', serif;
+  --atlas-region-weight: 500;
+  --atlas-region-spacing: 1.5px;
+  --atlas-label-halo: var(--map-ground);
+}
+.canvas-pane[data-map="true"][data-atlas-skin="village"] {
+  --atlas-label-font: Palatino, 'Palatino Linotype', 'Book Antiqua', Georgia, serif;
+  --atlas-region-weight: 600;
+  --atlas-region-spacing: 1px;
+}
+.canvas-pane[data-map="true"] .canvas-object[data-atlas-label="concept"],
+.canvas-pane[data-map="true"] .canvas-object[data-atlas-label="context"] {
+  background: transparent; border-color: transparent; border-radius: 0; color: var(--map-ink);
+}
+.canvas-pane[data-map="true"] .canvas-object[data-atlas-label] .canvas-object-heading,
+.canvas-pane[data-map="true"] .canvas-object[data-atlas-label] .canvas-object-title {
+  background: transparent; border-radius: 0;
+}
+.atlas-concept-name {
+  display: block; max-width: 220px; text-align: center;
+  font: 500 13px/1.35 var(--atlas-label-font);
+  text-shadow: -1px -1px 1px var(--atlas-label-halo), 1px -1px 1px var(--atlas-label-halo),
+    -1px 1px 1px var(--atlas-label-halo), 1px 1px 1px var(--atlas-label-halo);
+}
+[data-atlas-skin="village"] .atlas-concept-name { font-weight: 600; }
+.canvas-object .atlas-context-name { display: block; width: 100%; height: 100%; pointer-events: none; }
+.atlas-context-name svg { display: block; overflow: visible; }
+.atlas-name-hit { fill: none; stroke: transparent; stroke-width: 44px; pointer-events: stroke; cursor: grab; }
+.atlas-region-text {
+  fill: currentColor; stroke: var(--atlas-label-halo); stroke-width: 3px; stroke-linejoin: round;
+  paint-order: stroke fill; font: var(--atlas-region-weight) 18px var(--atlas-label-font);
+  letter-spacing: var(--atlas-region-spacing); pointer-events: auto; cursor: grab;
+}
+.atlas-context-name:active .atlas-name-hit, .atlas-context-name:active .atlas-region-text { cursor: grabbing; }
+.canvas-object .atlas-context-name:focus-visible { outline: none; }
+.atlas-context-name:is(:hover, :focus-visible) .atlas-region-text,
+.canvas-object[data-selected="true"] .atlas-region-text { fill: var(--accent); }
+.canvas-object:has(.atlas-context-name:is(:hover, :focus-visible)) .canvas-territory-selection > path:first-child {
+  stroke: var(--accent); stroke-width: 1; stroke-opacity: .6; vector-effect: non-scaling-stroke;
+}
+.canvas-object-title:is(:hover, :focus-visible) .atlas-concept-name { text-decoration: underline; text-underline-offset: 3px; }

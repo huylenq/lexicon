@@ -363,6 +363,20 @@ export default function CanvasPane(props: CanvasPaneProps) {
         }
         if (event.name !== "pointer_up" || !repeatSelection) return;
         repeatSelection = false;
+        // Native label clicks can remain in pointing_shape when a selected
+        // label cannot be edited. Finish the tap so it still opens the reader.
+        if (instance.isIn("select.pointing_shape")) {
+          const selected = instance.getSelectedShapes();
+          const chosen = selected.length === 1 && shapeSelection(selected[0]);
+          const selectedId = selected[0]?.id;
+          if (chosen && selectedId && !instance.canEditShape(selected[0])) {
+            lastSelected = selectedId;
+            instance.complete();
+            echo.current = selectionKey(chosen);
+            latest.current.onSelect(chosen);
+            return;
+          }
+        }
         if (!instance.isIn("select.idle")) return;
         const ids = instance.getSelectedShapeIds();
         const chosen = ids.length === 1 && shapeSelection(instance.getShape(ids[0]));

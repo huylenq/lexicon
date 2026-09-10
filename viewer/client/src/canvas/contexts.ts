@@ -1,6 +1,7 @@
 import type { Editor, TLShape } from "tldraw";
 import type { ObjectShape } from "../../../shared/canvas-schema";
 import type { Bounds, Territory, TerritoryPreferences } from "../../../shared/canvas-geometry";
+import { landLabelCurve } from "./terrain/labels";
 import { objectSizes } from "./sizing";
 import { applyTerritoryEdits, fitContextFrame, generateTerritory, migrateTerritory, pointBounds, roundTerritory } from "./territory";
 
@@ -24,11 +25,27 @@ export function contextHeading(editor: Editor, shape: ObjectShape) {
 export function diagramContextFrame(editor: Editor, shape: ObjectShape): Bounds {
   return fitContextFrame(contextContents(editor, shape), contextHeading(editor, shape));
 }
+const atlasHeadings = new WeakMap<Editor, Map<string, { w: number; h: number }>>();
+function atlasContextHeading(editor: Editor, shape: ObjectShape) {
+  const title = String(shape.meta.lexiconLabel || "Context");
+  let cache = atlasHeadings.get(editor);
+  if (!cache) atlasHeadings.set(editor, cache = new Map());
+  const cached = cache.get(title);
+  if (cached) return cached;
+  const measured = editor.textMeasure.measureText(title, {
+    fontFamily: "Georgia, serif", fontSize: 18, fontWeight: "600", fontStyle: "normal",
+    lineHeight: 1.4, maxWidth: 10000, padding: "0px",
+  });
+  // Reserve the same space for both skins, including tracking and a touch-friendly curve.
+  const size = { w: Math.max(160, Math.ceil(measured.w + title.length * 1.5 + 36)), h: 72 };
+  cache.set(title, size);
+  return size;
+}
 type Derived = { key: string; territory: Territory; control: Territory; preferences: TerritoryPreferences | null };
 const derived = new WeakMap<Editor, WeakMap<ObjectShape, Derived>>();
 function derive(editor: Editor, shape: ObjectShape): Derived {
   // Read children before consulting the cache so tldraw tracks their geometry.
-  const boxes = contextContents(editor, shape), heading = contextHeading(editor, shape);
+  const boxes = contextContents(editor, shape), heading = atlasContextHeading(editor, shape);
   const key = JSON.stringify([boxes, heading]);
   let cache = derived.get(editor);
   if (!cache) derived.set(editor, cache = new WeakMap());
@@ -54,6 +71,10 @@ export function contextFrame(editor: Editor, shape: ObjectShape, atlas: boolean)
   return atlas ? pointBounds(contextTerritory(editor, shape).points) : diagramContextFrame(editor, shape);
 }
 export function contextLabelFrame(editor: Editor, shape: ObjectShape, atlas: boolean) {
-  const heading = contextHeading(editor, shape), frame = diagramContextFrame(editor, shape);
+  const heading = atlas ? atlasContextHeading(editor, shape) : contextHeading(editor, shape), frame = diagramContextFrame(editor, shape);
   return { ...(atlas ? contextTerritory(editor, shape).label : { x: frame.x + 12, y: frame.y + 6 }), ...heading };
+}
+
+export function contextNameCurve(editor: Editor, shape: ObjectShape) {
+  return landLabelCurve(contextTerritory(editor, shape).points, contextLabelFrame(editor, shape, true));
 }

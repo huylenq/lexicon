@@ -95,8 +95,8 @@ test("Atlas border handles and Reshape to contents preserve nodes, support undo,
   await open(page);
   await page.getByRole("button", { name: "context: Ordering", exact: true }).click();
   const before = await snapshot(page), context = object(before, "ordering"), territory = await renderedTerritory(page);
-  const point = territory.reduce((a, b) => a.x > b.x ? a : b);
   await page.getByRole("button", { name: "Edit border", exact: true }).click();
+  const point = (await renderedTerritoryControls(page)).reduce((a, b) => a.x > b.x ? a : b);
   const start = await territoryScreenPoint(page, point);
   await page.mouse.move(start.x, start.y); await page.mouse.down();
   await page.mouse.move(start.x + 90, start.y + 30, { steps: 10 }); await page.mouse.up();

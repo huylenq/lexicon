@@ -1,3 +1,4 @@
+import { useId } from "react";
 import {
   BaseBoxShapeUtil,
   BindingUtil,
@@ -34,10 +35,11 @@ import { isPrimary } from "./references";
 import { choice, landmarkFor, paths, pathFor } from "./terrain/generate";
 import { roadCoveredAt, roadInput, shapeRoad, visibleObjectFrame } from "./terrain/view";
 import { canvasPresentation, useCanvasPresentation } from "./presentation";
-import { contextControlTerritory, contextLabelFrame, contextPreferences, contextTerritory, isContext } from "./contexts";
+import { contextControlTerritory, contextNameCurve, contextLabelFrame, contextPreferences, contextTerritory, isContext } from "./contexts";
 import { moveBorderVertex, territoryEdit } from "./territory";
 
 function ObjectCard({ shape }: { shape: ObjectShape }) {
+  const namePathId = `land-name-${useId().replace(/:/g, "")}`;
   const editor = useEditor();
   const model = useCanvasPresentation(editor);
   const selected = useValue(
@@ -51,6 +53,7 @@ function ObjectCard({ shape }: { shape: ObjectShape }) {
   const frame = useValue("Visible model bounds", () => visibleObjectFrame(editor, shape), [editor, shape]);
   const boundary = useValue("Context boundary", () => isContext(shape) ? {
     label: contextLabelFrame(editor, shape, model.mapEnabled),
+    curve: model.mapEnabled ? contextNameCurve(editor, shape) : undefined,
     points: model.mapEnabled ? contextTerritory(editor, shape).points : undefined,
     control: model.mapEnabled && model.editingTerritory === shape.id ? contextControlTerritory(editor, shape).points : undefined,
   } : undefined, [editor, shape, model.mapEnabled, model.editingTerritory]);
@@ -59,6 +62,7 @@ function ObjectCard({ shape }: { shape: ObjectShape }) {
       style={{ left: frame.x, top: frame.y, width: frame.w, height: frame.h }}
       className={`canvas-object ${shape.props.group ? "canvas-group" : "canvas-card"} ${!model.matches(shape.props.graphId) ? "canvas-dimmed" : ""}`}
       data-model-id={shape.props.graphId}
+      data-atlas-label={model.mapEnabled && vertex ? vertex.kind : undefined}
       data-context-boundary={boundary ? model.mapEnabled ? "territory" : "rectangle" : undefined}
       data-map-building={primary && vertex?.kind === "concept" && landmarkFor({ classification: vertex.subtitle, landmark: shape.meta.lexiconLandmark }) !== "none" ? "true" : undefined}
       data-missing={missing || undefined}
@@ -71,10 +75,10 @@ function ObjectCard({ shape }: { shape: ObjectShape }) {
       </svg>}
       <div className="canvas-object-heading" style={boundary ? {
         position: "absolute", left: boundary.label.x - frame.x, top: boundary.label.y - frame.y,
-        width: boundary.label.w, height: boundary.label.h, padding: "6px 8px",
+        width: boundary.label.w, height: boundary.label.h, padding: boundary.curve ? 0 : "6px 8px",
       } : undefined}>
         <button
-          className="canvas-object-title"
+          className={`canvas-object-title ${boundary?.curve ? "atlas-context-name" : ""}`}
           aria-label={`${vertex?.kind || "Missing object"}: ${vertex?.title || shape.props.graphId}`}
           onClick={(event) => {
             // Pointer gestures belong to tldraw; retain keyboard activation.
@@ -82,7 +86,18 @@ function ObjectCard({ shape }: { shape: ObjectShape }) {
               editor.setCurrentTool("select").select(shape.id).focus();
           }}
         >
-          {vertex ? (
+          {boundary?.curve && vertex ? (
+            <svg viewBox={`${boundary.label.x} ${boundary.label.y} ${boundary.label.w} ${boundary.label.h}`}
+              width={boundary.label.w} height={boundary.label.h} aria-hidden="true">
+              <defs><path id={namePathId} d={boundary.curve.path} /></defs>
+              <path className="atlas-name-hit" d={boundary.curve.path} transform="translate(0,-8)" />
+              <text className="atlas-region-text" textAnchor="middle">
+                <textPath href={`#${namePathId}`} startOffset="50%">{vertex.title}</textPath>
+              </text>
+            </svg>
+          ) : model.mapEnabled && vertex?.kind === "concept" ? (
+            <span className="atlas-concept-name object-name-text">{vertex.title}</span>
+          ) : vertex ? (
             <ObjectName
               type={
                 vertex.kind === "file" || vertex.kind === "code"
@@ -152,11 +167,17 @@ export class LexiconObjectUtil extends BaseBoxShapeUtil<ObjectShape> {
       x: frame.x, y: frame.y, width: frame.w, height: frame.h,
       isFilled: !shape.props.group,
     });
+    const landName = isContext(shape) && atlas ? new Polygon2d({
+      points: contextNameCurve(this.editor, shape).hit.map(p => new Vec(p.x, p.y)),
+      isFilled: true, isLabel: true,
+    }) : undefined;
+    // Frame label picking normally uses a rectangle; follow the curved ribbon instead.
+    if (landName) landName.isPointInBounds = (point, margin = 0) => landName.hitTestPoint(point, margin);
     return shape.props.group
       ? new Group2d({
           children: [
             outline,
-            new Rectangle2d({
+            landName ?? new Rectangle2d({
               ...(isContext(shape) ? (() => {
                 const b = contextLabelFrame(this.editor, shape, atlas);
                 return { x: b.x, y: b.y, width: b.w, height: b.h };

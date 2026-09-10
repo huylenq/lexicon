@@ -90,8 +90,12 @@ test("node and context labels drag with native undo and Space panning", async ({
   expect(object(moved, "order").y - object(initial, "order").y).toBeCloseTo(20, 1);
   await page.getByRole("button", { name: /^Undo —/ }).click();
   expect(object((await exportDocument(page)).data, "order")).toEqual(object(initial, "order"));
-  const heading = (await page.getByRole("button", { name: "context: Ordering", exact: true }).boundingBox())!;
-  await drag(page, { x: heading.x + 20, y: heading.y + 10 }, { x: heading.x + 50, y: heading.y + 30 });
+  const heading = await page.getByRole("button", { name: "context: Ordering", exact: true }).locator(".atlas-name-hit").evaluate(element => {
+    const path = element as SVGPathElement;
+    const p = path.getPointAtLength(path.getTotalLength() / 2).matrixTransform(path.getScreenCTM()!);
+    return { x: p.x, y: p.y };
+  });
+  await drag(page, heading, { x: heading.x + 30, y: heading.y + 20 });
   const groupMoved = (await exportDocument(page)).data;
   expect(object(groupMoved, "ordering").x - object(initial, "ordering").x).toBeCloseTo(30, 1);
   expect(object(groupMoved, "order")).toEqual(object(initial, "order"));
