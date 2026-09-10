@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { roundedRoute, cornerRadius, connectionDrawing } from "../client/src/canvas/rounded-route";
+import { roundedRoute, cornerRadius, connectionDrawing, edgeCornerRadius, setEdgeCornerRadius } from "../client/src/canvas/rounded-route";
 import { relationshipRoute } from "../client/src/canvas/routes";
 import type { ConnectionShape } from "../shared/canvas-schema";
 
@@ -15,7 +15,7 @@ test("rounding retains endpoints and clamps neighboring bends on short segments"
   expect(roundedRoute(points, 0).path).not.toContain("Q");
   expect(cornerRadius(Infinity)).toBe(0);
   expect(cornerRadius(-1)).toBe(0);
-  expect(cornerRadius(500)).toBe(24);
+  expect(cornerRadius(500)).toBe(128);
 });
 
 test("straight, duplicate, and reversed segments remain finite; mappings keep their curves", () => {
@@ -29,7 +29,7 @@ test("maximum rounding clears routed obstacles and self-loop endpoints", () => {
   const a = { x: 0, y: 100, width: 120, height: 100 }, b = { ...a, x: 700 };
   const obstacle = { x: 300, y: 60, width: 160, height: 200 };
   for (const [source, target] of [[a, b], [b, a], [a, a]]) {
-    const route = roundedRoute(relationshipRoute(source, target, 0, source === target, [obstacle]).points, 24);
+    const route = roundedRoute(relationshipRoute(source, target, 0, source === target, [obstacle]).points, 128);
     expect(route.path).toContain("Q");
     for (const p of route.points) for (const box of [source, target, obstacle])
       expect(p.x > box.x && p.x < box.x + box.width && p.y > box.y && p.y < box.y + box.height).toBe(false);
@@ -48,4 +48,21 @@ test("rounding preserves label clearance in every bend orientation", () => {
     const distant = { ...box, x: box.x + 1000 };
     expect(roundedRoute(points, 24, [distant])).toEqual(roundedRoute(points, 24));
   }
+});
+
+test("one visual preference overrides old per-edge metadata without changing shapes", () => {
+  const points = [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }];
+  const shapes = [0, 8, 24].map(radius => ({
+    props: { path: "M 0 0 L 100 0 L 100 100", points },
+    meta: { lexiconCornerRadius: radius },
+  }) as unknown as ConnectionShape);
+  const original = structuredClone(shapes), previous = edgeCornerRadius.get();
+  try {
+    setEdgeCornerRadius(16);
+    for (const shape of shapes) expect(connectionDrawing(shape).path).toContain("Q");
+    expect(new Set(shapes.map(shape => connectionDrawing(shape).path)).size).toBe(1);
+    setEdgeCornerRadius(0);
+    for (const shape of shapes) expect(connectionDrawing(shape).path).toBe(shape.props.path);
+    expect(shapes).toEqual(original);
+  } finally { setEdgeCornerRadius(previous); }
 });

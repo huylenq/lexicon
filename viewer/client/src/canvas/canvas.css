@@ -95,3 +95,26 @@
 .canvas-inspector select { max-width: 170px; }
 
 .canvas-pane .model-view { max-width: 130px; width: 130px; }
+
+.edge-appearance { position: relative; }
+.edge-appearance > summary { list-style: none; cursor: pointer; }
+.edge-appearance > summary::-webkit-details-marker { display: none; }
+.edge-appearance[open] > summary { color: var(--accent); background: var(--accent-soft); }
+.edge-appearance-popover { position: absolute; top: calc(100% + 10px); right: 0; width: 264px; max-width: calc(100vw - 24px); padding: 18px; border: 1px solid var(--line); border-radius: 16px; background: var(--panel); box-shadow: 0 12px 40px #0002; color: var(--ink); }
+.edge-appearance-heading { display: flex; flex-direction: column; gap: 4px; }
+.edge-appearance-heading strong { font-size: 13px; font-weight: 600; }
+.edge-appearance-heading > span { font-size: 11px; color: var(--muted); }
+.edge-preview { margin: 16px 0; border: 1px solid var(--line); border-radius: 10px; background-color: var(--soft); background-image: radial-gradient(var(--line) 1px, transparent 1px); background-size: 12px 12px; }
+.edge-preview svg { display: block; width: 100%; height: 104px; color: var(--accent); }
+.edge-preview path { fill: none; }
+.edge-preview-guide { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 5; opacity: .3; }
+.edge-preview-line { stroke: currentColor; stroke-width: 2.5; }
+.edge-preview circle { fill: var(--panel); stroke: currentColor; stroke-width: 2; }
+.edge-radius-label { display: flex; align-items: baseline; justify-content: space-between; font-size: 12px; }
+.edge-radius-label output { color: var(--accent); font-variant-numeric: tabular-nums; font-weight: 600; }
+.edge-radius-label output span { color: var(--muted); font-weight: 400; font-size: 11px; }
+
+.edge-preview[role="slider"] { cursor: ew-resize; touch-action: none; user-select: none; }
+.edge-preview[role="slider"]:hover { border-color: var(--accent); }
+.edge-preview[role="slider"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.edge-preview[role="slider"] svg { pointer-events: none; }

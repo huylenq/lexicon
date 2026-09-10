@@ -46,7 +46,7 @@ import { useProjectCanvas } from "./useProjectCanvas";
 import { CanvasInspector, noteText } from "./CanvasInspector";
 import { canvasThemes, syncCanvasTheme } from "./theme";
 import { InkMapBackground, MapStylePanel } from "./terrain/InkMap";
-import { ConnectionStylePanel } from "./ConnectionStylePanel";
+import { EdgeAppearance } from "./EdgeAppearance";
 import { useSyncCanvasPresentation } from "./presentation";
 import "tldraw/tldraw.css";
 import "./canvas.css";
@@ -75,7 +75,7 @@ function CanvasStylePanel() {
       editor.getSelectedShapes().some((shape) => !isModelShape(shape)),
     [editor],
   );
-  return shown ? <DefaultStylePanel /> : <><ConnectionStylePanel /><MapStylePanel /></>;
+  return shown ? <DefaultStylePanel /> : <MapStylePanel />;
 }
 const components = {
   PageMenu: null,
@@ -734,11 +734,12 @@ export default function CanvasPane(props: CanvasPaneProps) {
             onClick={addNote}
           />
           <span className="canvas-inspector-toggles" ref={setInspectorHost} />
+          {!mapEnabled && <EdgeAppearance />}
           <details className="canvas-file-menu">
             <summary
               className="quiet icon-button"
-              aria-label="Canvas file"
-              title="Canvas file"
+              aria-label="Canvas options"
+              title="Canvas options"
             >
               <Icon name="open" />
             </summary>

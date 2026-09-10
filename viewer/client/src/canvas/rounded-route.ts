@@ -1,12 +1,26 @@
 import type { ConnectionShape } from "../../../shared/canvas-schema";
-import type { Editor } from "tldraw";
+import { atom, type Editor } from "tldraw";
 import { labelBox } from "./route-labels";
 import type { Box, Point } from "../graph/layout";
 
-export const maxCornerRadius = 24;
+export const maxCornerRadius = 128;
 export function cornerRadius(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.min(maxCornerRadius, value)) : 0;
 }
+
+const preferenceKey = "lexicon.edgeCornerRadius";
+function savedCornerRadius() {
+  try { return cornerRadius(Number(localStorage.getItem(preferenceKey))); } catch { return 0; }
+}
+export const edgeCornerRadius = atom("Edge corner radius preference", savedCornerRadius());
+export function setEdgeCornerRadius(value: number) {
+  const radius = cornerRadius(value);
+  edgeCornerRadius.set(radius);
+  try { localStorage.setItem(preferenceKey, String(radius)); } catch { /* Works without storage. */ }
+}
+if (typeof window !== "undefined") window.addEventListener("storage", event => {
+  if (event.key === preferenceKey || event.key === null) edgeCornerRadius.set(savedCornerRadius());
+});
 
 /** Small presentation-only bends; retain the router's endpoints and straight approaches. */
 export function roundedRoute(points: Point[], radius: number, obstacles: Box[] = []) {
@@ -51,7 +65,7 @@ export function roundedRoute(points: Point[], radius: number, obstacles: Box[] =
 }
 
 export function connectionDrawing(shape: ConnectionShape, editor?: Editor) {
-  const radius = cornerRadius(shape.meta.lexiconCornerRadius);
+  const radius = edgeCornerRadius.get();
   const obstacles: Box[] = [];
   if (radius && editor) for (const other of editor.getCurrentPageShapes()) {
     if (other.type !== "lexicon-connection" || editor.isShapeHidden(other)) continue;
