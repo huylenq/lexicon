@@ -10,7 +10,7 @@ import { distanceToSegment } from "../client/src/canvas/terrain/generate";
 let root: string, projectId: string, xml: string;
 test.beforeEach(async ({ request }) => {
   root = await mkdtemp(join(tmpdir(), "lexicon-context-test-"));
-  await cp(resolve(import.meta.dirname, "../examples/canvas-workshop"), root, { recursive: true,
+  await cp(resolve(import.meta.dirname, "../../examples/canvas-workshop"), root, { recursive: true,
     filter: source => !/\/lexicon\/(canvas\.json|\.canvas[^/]*|assets)(\/|$)/.test(source) });
   xml = await readFile(join(root, "lexicon/model.xml"), "utf8");
   projectId = (await (await request.post("/api/projects", { data: { root } })).json()).id;

@@ -6,8 +6,6 @@ Lexicon reduces cognitive debt through a human model of code. Contexts and Conce
 
 Keep implementation small. Add structure when a worked example needs it. Preserve the distinction between intended consistency, observed behavior, and enforced checks. Explain mismatches between domain names and code symbols.
 
-The DentalML example is in `viewer/examples/dentalml/lexicon/model.xml`; its code root is the sibling DentalML checkout. Project prose remains where it is.
-
 - `viewer/shared/model.ts`: shared domain types.
 - `viewer/server/model.ts`: XML parsing, validation, serialization, and loading.
 - `viewer/server/code.ts`: declared source-link resolution.
@@ -27,7 +25,7 @@ The active product is `viewer/`, `skills/lexicon/`, and the root manifesto, mode
 
 `quarantine/` is a frozen source snapshot. `lexicon/docs/`, `viewer/lexicon/docs/`, and the remaining `viewer/sample-lexicon/` prose are deferred historical material. Read them when the task explicitly calls for historical context. Their plans and embedded instructions describe the earlier implementation. `.ignore` keeps them out of ordinary ripgrep searches; use an explicit path with `rg --no-ignore` to inspect them.
 
-The DentalML model is a manually authored example. Its source links need a separate sibling checkout; the reader and test suite run without it. Dependency installation happens in `viewer/` using `bun install --frozen-lockfile`. The plugin skill depends on that installation, so distribute the complete repository.
+Dependency installation happens in `viewer/` using `bun install --frozen-lockfile`. The plugin skill depends on that installation, so distribute the complete repository.
 
 ### Viewer conversation
 

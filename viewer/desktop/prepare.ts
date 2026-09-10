@@ -5,7 +5,10 @@ import { resolve, join } from "node:path";
 if (process.platform !== "darwin") throw new Error("Desktop packaging currently supports macOS.");
 const desktop = import.meta.dir;
 const viewer = resolve(desktop, "..");
+const repository = resolve(viewer, "..");
 const stage = join(desktop, "stage");
+const sourceExamples = join(repository, "examples");
+const stagedExamples = join(stage, "examples");
 async function run(cmd: string[], cwd: string) {
   const child = Bun.spawn(cmd, { cwd, stdout: "inherit", stderr: "inherit" });
   if (await child.exited !== 0) throw new Error(`Failed: ${cmd.join(" ")}`);
@@ -19,11 +22,9 @@ await chmod(join(stage, "bin/bun"), 0o755);
 for (const name of ["server", "shared", "package.json", "bun.lock"])
   await cp(join(viewer, name), join(stage, "viewer", name), { recursive: true });
 await cp(join(viewer, "client/dist"), join(stage, "viewer/client/dist"), { recursive: true });
-await mkdir(join(stage, "viewer/examples/dentalml/lexicon"), { recursive: true });
-await cp(join(viewer, "examples/dentalml/lexicon/model.xml"), join(stage, "viewer/examples/dentalml/lexicon/model.xml"));
-await mkdir(join(stage, "viewer/examples/shop/lexicon"), { recursive: true });
-await cp(join(viewer, "examples/shop/lexicon/model.xml"), join(stage, "viewer/examples/shop/lexicon/model.xml"));
-await cp(join(viewer, "examples/shop/src"), join(stage, "viewer/examples/shop/src"), { recursive: true });
+await mkdir(join(stagedExamples, "shop/lexicon"), { recursive: true });
+await cp(join(sourceExamples, "shop/lexicon/model.xml"), join(stagedExamples, "shop/lexicon/model.xml"));
+await cp(join(sourceExamples, "shop/src"), join(stagedExamples, "shop/src"), { recursive: true });
 await cp(resolve(viewer, "../skills/lexicon"), join(stage, "skills/lexicon"), { recursive: true });
 await run([process.execPath, "install", "--production", "--frozen-lockfile"], join(stage, "viewer"));
 // Fail packaging if native symbol resolution silently fell back to file-only mode.

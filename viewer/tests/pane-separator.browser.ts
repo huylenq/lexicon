@@ -8,7 +8,7 @@ for (const pane of [
   { label: "Resize Agent and reader", container: ".reader", edge: "right", min: 280, max: 720, step: 16 },
 ] as const) {
   test(`${pane.label} preserves pointer limits and keyboard direction`, async ({ page }) => {
-    await page.goto("/p/dentalml?item=selected-tooth");
+    await page.goto("/p/shop?item=order");
     await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
     if (pane.label === "Resize code workspace") {
       await page.locator("[data-reader-card].active .code-links button").first().click();

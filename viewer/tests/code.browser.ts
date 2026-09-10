@@ -12,18 +12,18 @@ test("Browse and Canvas share one persistent, independently resizable Code works
 }) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
-  await page.goto("/p/dentalml");
+  await page.goto("/p/shop");
   await toggle(page).click();
   await expect(codePane(page)).toContainText("Explore the implementation");
-  await browse(page, "Selected tooth");
+  await browse(page, "Order");
   await page.locator("main [data-reader-card].active .code-links button").first().click();
   await expect(page.locator(".code-scroll")).toBeVisible();
-  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Selected tooth");
+  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Order");
   const target = new URL(page.url()).searchParams.get("code");
   expect(target).toMatch(/^code:/);
   const path = (await page.locator(".code-breadcrumb").textContent())!;
-  await browse(page, "Reference point");
-  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Reference point");
+  await browse(page, "Shop API");
+  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Shop API");
   await expect(page.locator(".code-breadcrumb")).toHaveText(path);
   await expect(
     page.getByRole("region", { name: "Model canvas" }),
@@ -34,9 +34,9 @@ test("Browse and Canvas share one persistent, independently resizable Code works
   const readerBox = (await page.locator("main").boundingBox())!;
   const codeBox = (await codePane(page).boundingBox())!;
   expect(codeBox.x).toBeGreaterThanOrEqual(readerBox.x + readerBox.width);
-  await browse(page, "Selected tooth");
+  await browse(page, "Order");
   await page.locator("main [data-reader-card].active .code-links button").first().click();
-  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Selected tooth");
+  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Order");
   expect(new URL(page.url()).searchParams.get("code")).toBe(target);
   await expect(page.locator(".code-pane")).toHaveCount(1);
   await expect(page.locator("main .code-pane")).toHaveCount(0);
@@ -66,8 +66,9 @@ test("Browse and Canvas share one persistent, independently resizable Code works
   await page
     .getByRole("button", { name: "Show entire file", exact: true })
     .click();
-  await page.locator(".code-scroll").evaluate((el) => {
+  const scrollTop = await page.locator(".code-scroll").evaluate((el) => {
     el.scrollTop = 200;
+    return el.scrollTop;
   });
   await toggle(page).click();
   await toggle(page).click();
@@ -76,9 +77,9 @@ test("Browse and Canvas share one persistent, independently resizable Code works
   ).toBeVisible();
   expect(
     await page.locator(".code-scroll").evaluate((el) => el.scrollTop),
-  ).toBe(200);
+  ).toBe(scrollTop);
   await expect(codePane(page)).toBeVisible();
-  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Selected tooth");
+  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Order");
   await page.reload();
   await expect(page.locator(".code-breadcrumb")).toHaveText(path);
   expect(errors).toEqual([]);
@@ -87,43 +88,45 @@ test("Browse and Canvas share one persistent, independently resizable Code works
 test("code nodes preserve the reader; mapping edges open explanation and the same Code pane", async ({
   page,
 }) => {
-  await page.goto("/p/dentalml?item=selected-tooth");
-  await expect(page.locator(".canvas-card[data-model-id^='item:']")).toHaveCount(8);
+  await page.goto("/p/shop?item=order");
+  await expect(page.locator(".canvas-card[data-model-id^='item:']")).toHaveCount(5);
   await page.getByRole("button", { name: "Fit model", exact: true }).click();
-  await page.getByRole("button", { name: "concept: Selected tooth", exact: true }).click({ button: "right" });
+  await page.getByRole("button", { name: "concept: Order", exact: true }).click({ button: "right" });
   await page.getByRole("menuitem", { name: "Expand code", exact: true }).click();
   await expect(page.locator(".canvas-card[data-model-id^='code:']")).toHaveCount(1);
   await page.getByRole("button", { name: "Fit model", exact: true }).click();
-  await page.locator(".canvas-card[data-model-id^='code:'] .canvas-object-title").click();
-  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Selected tooth");
+  const codeObject = page.locator(".canvas-card[data-model-id^='code:'] .canvas-object-title");
+  await codeObject.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Order");
   await expect(codePane(page)).toContainText("Mapped from");
   await expect(page.locator(".code-scroll")).toBeVisible();
   await page.getByRole("button", { name: "Fit model", exact: true }).click();
   await page
-    .getByRole("button", { name: "Read code mapping: implementation", exact: true })
+    .getByRole("button", { name: "Read code mapping: definition", exact: true })
     .click();
   await expect(page.locator("main")).toContainText("Mapping explanation");
-  await expect(codePane(page)).toContainText("Selected tooth");
+  await expect(codePane(page)).toContainText("Order");
   await expect(page.locator("main")).toContainText("Mapping explanation");
   await expect(codePane(page)).toBeVisible();
   await page.locator(".code-explanation button").click();
-  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Selected tooth");
+  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Order");
   await expect(codePane(page)).toBeVisible();
 });
 
 test("Code history changes source independently of domain navigation and survives hide/show", async ({
   page,
 }) => {
-  await page.goto("/p/dentalml?item=selected-tooth");
+  await page.goto("/p/shop?item=order");
   await page.locator("main [data-reader-card].active .code-links button").first().click();
   const first = new URL(page.url()).searchParams.get("code");
-  await browse(page, "Reference point");
+  await browse(page, "Shop API");
   await page.locator("main [data-reader-card].active .code-links button").first().click();
   const second = new URL(page.url()).searchParams.get("code");
   expect(second).not.toBe(first);
   await page.getByRole("button", { name: "Previous code location" }).click();
   expect(new URL(page.url()).searchParams.get("code")).toBe(first);
-  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Reference point");
+  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Shop API");
   await toggle(page).click();
   await toggle(page).click();
   await page.getByRole("button", { name: "Next code location" }).click();
@@ -137,7 +140,7 @@ test("Code history changes source independently of domain navigation and survive
 test("earlier shared links resolve to Code; missing targets stay dismissible", async ({
   page,
 }) => {
-  await page.goto("/p/dentalml?item=selected-tooth&code=selected-tooth&link=0&canvas=graph");
+  await page.goto("/p/shop?item=order&code=order&link=0&canvas=graph");
   await expect(page.locator(".code-scroll")).toBeVisible();
   const target = new URL(page.url()).searchParams.get("code");
   expect(target).toMatch(/^code:/);
@@ -145,19 +148,19 @@ test("earlier shared links resolve to Code; missing targets stay dismissible", a
   await expect(
     page.getByRole("button", { name: "Previous code location" }),
   ).toBeDisabled();
-  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Selected tooth");
+  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Order");
   await page.goto(
-    `/p/dentalml?selection=${encodeURIComponent(JSON.stringify({ kind: "mapping", id: JSON.stringify(["selected-tooth", 0]) }))}`,
+    `/p/shop?selection=${encodeURIComponent(JSON.stringify({ kind: "mapping", id: JSON.stringify(["order", 0]) }))}`,
   );
   await expect(page.locator("main")).toContainText("Mapping explanation");
   await expect(page.locator(".code-scroll")).toBeVisible();
   expect(new URL(page.url()).searchParams.get("code")).toBe(target);
   await page.goto(
-    `/p/dentalml?selection=${encodeURIComponent(JSON.stringify({ kind: "code", id: target }))}`,
+    `/p/shop?selection=${encodeURIComponent(JSON.stringify({ kind: "code", id: target }))}`,
   );
   await expect(page.locator(".code-scroll")).toBeVisible();
   await expect(page.locator("main .code-pane")).toHaveCount(0);
-  await page.goto("/p/dentalml?code=code:missing");
+  await page.goto("/p/shop?code=code:missing");
   await expect(codePane(page)).toContainText("Code target unavailable");
   await page.getByRole("button", { name: "Close code pane" }).click();
   await expect(codePane(page)).toBeHidden();
@@ -167,7 +170,7 @@ test("on narrow screens Code has its own full-screen surface and returns to the 
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/p/dentalml?item=selected-tooth");
+  await page.goto("/p/shop?item=order");
   await page.locator("main [data-reader-card].active .code-links button").first().click();
   await expect(codePane(page)).toBeVisible();
   await expect(page.locator("main")).toBeHidden();
@@ -175,12 +178,12 @@ test("on narrow screens Code has its own full-screen surface and returns to the 
   await page
     .getByRole("button", { name: "Back to reader", exact: true })
     .click();
-  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Selected tooth");
+  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Order");
   await expect(codePane(page)).toBeHidden();
   await toggle(page).click();
   await expect(codePane(page)).toBeVisible();
   await page.getByRole("button", { name: "Close code pane" }).click();
-  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Selected tooth");
+  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Order");
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,

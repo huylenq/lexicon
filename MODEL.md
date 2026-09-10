@@ -51,7 +51,7 @@ A Flow has ordinary item fields plus one or more ordered steps. Each `<step id="
 
 A sequence diagram derives one lifeline per referenced element and one message per step. Order means interaction order, without duration, completion, reply pairing, concurrency, branching, or instance aliases. Use annotations for preconditions, outcomes, and evidence; author a separate scenario for an alternate path. Structural validation cannot establish that a relationship is an actual runtime interaction. Inspect the entrypoint and connecting code.
 
-This approach follows [C4 dynamic diagrams](https://c4model.com/diagrams/dynamic) and [ordered relationship occurrences](https://docs.structurizr.com/dsl/cookbook/dynamic-view/). The combined DDD/C4/Flow language is Lexicon's design. See [flow authoring](skills/lexicon/flows.md) and the [Shop example](viewer/examples/shop/README.md).
+This approach follows [C4 dynamic diagrams](https://c4model.com/diagrams/dynamic) and [ordered relationship occurrences](https://docs.structurizr.com/dsl/cookbook/dynamic-view/). The combined DDD/C4/Flow language is Lexicon's design. See [flow authoring](skills/lexicon/flows.md) and the [Shop example](examples/shop/README.md).
 
 ## Model and presentation
 
@@ -95,7 +95,7 @@ Use two-space indentation and normal XML escaping. Descriptions and annotations 
 
 Keep a project model in its chosen artifact root. The viewer first reads the registered folder; when it lacks a model, it checks the primary Git worktree. CLI callers specify roots explicitly. Source inspection stays rooted in the selected code checkout.
 
-The shared TypeScript contract and executable validation are maintained together in `viewer/shared/model.ts` and `viewer/server/model.ts`. The [DentalML example](viewer/examples/dentalml/lexicon/model.xml) shows the format applied to canal measurement.
+The shared TypeScript contract and executable validation are maintained together in `viewer/shared/model.ts` and `viewer/server/model.ts`. The [Shop example](examples/shop/lexicon/model.xml) shows the format applied across domain meaning, software structure, and ordered flows.
 
 Structural and code-link checks establish that the model is well formed and its declared targets resolve. Semantic review asks whether those targets support the explanations. For an integration relationship, inspect the mechanism connecting both endpoints; finding each endpoint is insufficient. For an enforced rule, inspect the check and retain its conditions and failure outcome.
 

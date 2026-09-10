@@ -8,7 +8,7 @@ import { atlasEnclosesNodes, renderedTerritory } from "./canvas-territory-helper
 let root: string, projectId: string, original: string;
 test.beforeEach(async ({ request }) => {
   root = await mkdtemp(join(tmpdir(), "lexicon-canvas-test-"));
-  await cp(resolve(import.meta.dirname, "../examples/canvas-workshop"), root, { recursive: true,
+  await cp(resolve(import.meta.dirname, "../../examples/canvas-workshop"), root, { recursive: true,
     filter: (source) => !/\/lexicon\/(canvas\.json|\.canvas[^/]*|assets)(\/|$)/.test(source),
   });
   original = await readFile(join(root, "lexicon/model.xml"), "utf8");

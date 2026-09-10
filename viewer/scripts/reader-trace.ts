@@ -9,7 +9,7 @@ const baseURL = process.argv[2] || "http://localhost:5388";
 const output = process.argv[3] || "/tmp/reader-canvas";
 const browser = await chromium.launch();
 let root: string | undefined;
-let projectId = "dentalml";
+let projectId = "shop";
 let unregister: (() => Promise<unknown>) | undefined;
 try {
   const page = await browser.newPage({ viewport: { width: 1600, height: 900 } });

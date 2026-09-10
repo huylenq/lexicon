@@ -17,7 +17,7 @@ const request = async (path: string, data?: unknown, method = data === undefined
 };
 const started = Date.now();
 try {
-  await cp(resolve(import.meta.dir, "../examples/shop"), root, { recursive: true });
+  await cp(resolve(import.meta.dir, "../../examples/shop"), root, { recursive: true });
   if (flowTrial) {
     const model = parseModel(await readFile(join(root, "lexicon/model.xml"), "utf8"));
     model.items = model.items.filter(item => item.type !== "flow");

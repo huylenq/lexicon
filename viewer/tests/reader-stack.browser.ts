@@ -9,19 +9,19 @@ const browse = async (page: Page, name: string) => {
 };
 const active = (page: Page) => page.locator("[data-reader-card].active");
 const openPinned = async (page: Page, id: string) => {
-  await page.goto(`/p/dentalml?item=${id}`);
+  await page.goto(`/p/shop?item=${id}`);
   await active(page).locator("[data-pin-card]").click();
 };
 const scroll = (page: Page) => page.locator("main").evaluate(el => el.scrollTop);
 
 test("Back interrupts reader travel without overwriting the restored position", async ({ page }) => {
-  await openPinned(page, "selected-tooth");
-  for (const name of ["Tooth input", "Canal index", "Measurement path", "Reference point"]) await browse(page, name);
+  await openPinned(page, "order");
+  for (const name of ["Order Line", "Customer", "Shop", "Shop API"]) await browse(page, name);
   const position = await scroll(page);
-  await page.locator(".sidebar .nav-item").filter({ hasText: /^Selected tooth$/ }).click();
+  await page.locator(".sidebar .nav-item").filter({ hasText: /^Order$/ }).click();
   await expect(page.locator("main")).toHaveAttribute("data-reader-travel", "scroll");
   await page.goBack();
-  await expect(active(page)).toHaveAttribute("data-reader-card", "item:reference-point");
+  await expect(active(page)).toHaveAttribute("data-reader-card", "item:api");
   await expect(page.locator("main")).not.toHaveAttribute("data-reader-travel", /./);
   await page.waitForTimeout(800);
   expect(await scroll(page)).toBe(position);
@@ -29,26 +29,26 @@ test("Back interrupts reader travel without overwriting the restored position", 
 });
 
 test("expanded settled morph controls remain interactive", async ({ page }) => {
-  await openPinned(page, "selected-tooth");
-  for (const name of ["Tooth input", "Canal index", "Measurement path"]) await browse(page, name);
+  await openPinned(page, "order");
+  for (const name of ["Order Line", "Customer", "Shop"]) await browse(page, name);
   await page.setViewportSize({ width: 1600, height: 700 });
-  await card(page, "item:tooth-input").evaluate(el => {
+  await card(page, "item:order-line").evaluate(el => {
     const main = el.closest("main")!;
     main.scrollTop = (el as HTMLElement).offsetTop - main.clientHeight + 190;
   });
-  const morph = page.locator('[data-bottom-morph-card="item:tooth-input"]');
+  const morph = page.locator('[data-bottom-morph-card="item:order-line"]');
   await expect(morph.locator(".reader-morph-body")).toHaveAttribute("data-expanded", "true");
   const locate = morph.getByRole("button", { name: "Locate in canvas", exact: true });
   await expect(locate).toHaveCSS("pointer-events", "auto");
   const camera = await page.locator(".tl-html-layer").getAttribute("style");
   await locate.click();
   await expect(page.locator(".tl-html-layer")).not.toHaveAttribute("style", camera!);
-  await expect(page.locator('[data-model-id="item:tooth-input"]')).toBeInViewport();
+  await expect(page.locator('[data-model-id="item:order-line"]')).toBeInViewport();
 });
 
 test("a scroll pause away from morph boundaries does not start a settling loop", async ({ page }) => {
-  await openPinned(page, "selected-tooth");
-  await expect(card(page, "item:selected-tooth")).toBeVisible();
+  await openPinned(page, "order");
+  await expect(card(page, "item:order")).toBeVisible();
   await page.waitForTimeout(600);
   const reads = await page.locator("main").evaluate(async main => {
     main.scrollTop = 20;
@@ -66,11 +66,11 @@ test("a scroll pause away from morph boundaries does not start a settling loop",
 });
 
 test("reader navigation scrolls at any distance without fading and yields to scrolling", async ({ page }) => {
-  await openPinned(page, "selected-tooth");
-  await browse(page, "Tooth input");
+  await openPinned(page, "order");
+  await browse(page, "Order Line");
   const main = page.locator("main");
   const origin = await scroll(page);
-  await page.locator(".sidebar .nav-item").filter({ hasText: /^Selected tooth$/ }).click();
+  await page.locator(".sidebar .nav-item").filter({ hasText: /^Order$/ }).click();
   await expect(main).toHaveAttribute("data-reader-travel", "scroll");
   await expect.poll(() => scroll(page)).toBeLessThan(origin);
   await main.dispatchEvent("wheel", { deltaY: 1 });
@@ -78,8 +78,8 @@ test("reader navigation scrolls at any distance without fading and yields to scr
   const interrupted = await scroll(page);
   await page.waitForTimeout(500);
   expect(await scroll(page)).toBe(interrupted);
-  for (const name of ["Canal index", "Measurement path", "Reference point"]) await browse(page, name);
-  await page.locator(".sidebar .nav-item").filter({ hasText: /^Selected tooth$/ }).click();
+  for (const name of ["Customer", "Shop", "Shop API"]) await browse(page, name);
+  await page.locator(".sidebar .nav-item").filter({ hasText: /^Order$/ }).click();
   await expect(main).toHaveAttribute("data-reader-travel", "scroll");
   const opacities = await main.evaluate(async el => {
     const values: string[] = [];
@@ -93,18 +93,18 @@ test("reader navigation scrolls at any distance without fading and yields to scr
   expect(opacities.every(value => value === "1")).toBe(true);
   await expect(main).not.toHaveAttribute("data-reader-travel", /./);
   await expect(main).toHaveCSS("opacity", "1");
-  await expect(card(page, "item:selected-tooth").locator(":scope > header")).toBeInViewport();
+  await expect(card(page, "item:order").locator(":scope > header")).toBeInViewport();
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await browse(page, "Reference point");
+  await browse(page, "Shop API");
   await expect(main).not.toHaveAttribute("data-reader-travel", /./);
 });
 
 test("pause settling finishes both edge morphs without scrolling the reading text", async ({ page }) => {
-  await openPinned(page, "selected-tooth");
-  for (const name of ["Tooth input", "Canal index", "Measurement path"]) await browse(page, name);
+  await openPinned(page, "order");
+  for (const name of ["Order Line", "Customer", "Shop"]) await browse(page, name);
   await page.setViewportSize({ width: 1600, height: 700 });
   for (const [side, pixels, target] of [["top", 80, 1], ["top", 150, 0], ["bottom", 110, 1], ["bottom", 190, 0]] as const) {
-    const key = side === "top" ? "item:selected-tooth" : "item:tooth-input";
+    const key = side === "top" ? "item:order" : "item:order-line";
     await card(page, key).evaluate((el, { side, pixels }) => {
       const main = el.closest("main")!;
       main.scrollTop = side === "top" ? (el as HTMLElement).offsetTop + (el as HTMLElement).offsetHeight - pixels
@@ -113,7 +113,7 @@ test("pause settling finishes both edge morphs without scrolling the reading tex
     const morph = page.locator(side === "top" ? `[data-morph-card="${key}"]` : `[data-bottom-morph-card="${key}"]`);
     await expect(morph).toBeVisible();
     const position = await scroll(page);
-    const readingBody = card(page, side === "top" ? "item:tooth-input" : "item:selected-tooth").locator(".reader-card-body");
+    const readingBody = card(page, side === "top" ? "item:order-line" : "item:order").locator(".reader-card-body");
     const y = (await readingBody.boundingBox())!.y;
     await expect.poll(() => morph.evaluate(el => Number((el as HTMLElement).style.getPropertyValue("--morph-progress")))).toBe(target);
     expect(await scroll(page)).toBe(position);
@@ -122,9 +122,9 @@ test("pause settling finishes both edge morphs without scrolling the reading tex
 });
 
 test("Browse navigation lands on the expanded card with the preceding edge settled", async ({ page }) => {
-  await openPinned(page, "selected-tooth");
-  for (const name of ["Tooth input", "Canal index", "Measurement path"]) await browse(page, name);
-  await expect(active(page)).toHaveAttribute("data-reader-card", "item:measurement-path");
+  await openPinned(page, "order");
+  for (const name of ["Order Line", "Customer", "Shop"]) await browse(page, name);
+  await expect(active(page)).toHaveAttribute("data-reader-card", "item:shop");
   await expect(active(page)).not.toHaveClass(/reader-card-morphing/);
   await expect(active(page).locator(":scope > header")).toBeInViewport();
   const top = page.locator("[data-morph-card]");
@@ -134,15 +134,15 @@ test("Browse navigation lands on the expanded card with the preceding edge settl
 });
 
 test("bottom row handoff keeps existing tiles still when a new row forms", async ({ page }) => {
-  await openPinned(page, "selected-tooth");
-  for (const name of ["Tooth input", "Canal index", "Measurement path", "Reference point"]) await browse(page, name);
+  await openPinned(page, "order");
+  for (const name of ["Order Line", "Customer", "Shop", "Shop API"]) await browse(page, name);
   await page.setViewportSize({ width: 1600, height: 700 });
-  const setVisible = (visible: number) => card(page, "item:tooth-input").evaluate((el, visible) => {
+  const setVisible = (visible: number) => card(page, "item:order-line").evaluate((el, visible) => {
     const main = el.closest("main")!;
     main.scrollTop = (el as HTMLElement).offsetTop - main.clientHeight + visible;
   }, visible);
   await setVisible(220);
-  const tile = page.locator('[data-bottom-card="item:reference-point"]');
+  const tile = page.locator('[data-bottom-card="item:api"]');
   await expect(tile).toBeVisible();
   await tile.evaluate(async el => { await Promise.all(el.getAnimations().map(a => a.finished)); });
   const initialY = (await tile.boundingBox())!.y;
@@ -161,12 +161,12 @@ test("bottom row handoff keeps existing tiles still when a new row forms", async
 });
 
 test("bottom morph keeps its whole surface above the occupied rows", async ({ page }) => {
-  await openPinned(page, "selected-tooth");
-  for (const name of ["Tooth input", "Canal index", "Measurement path", "Reference point"]) await browse(page, name);
+  await openPinned(page, "order");
+  for (const name of ["Order Line", "Customer", "Shop", "Shop API"]) await browse(page, name);
   await page.setViewportSize({ width: 1600, height: 700 });
-  const forming = page.locator('[data-bottom-morph-card="item:tooth-input"]');
+  const forming = page.locator('[data-bottom-morph-card="item:order-line"]');
   for (const visible of [190, 160, 120, 80, 30, 80, 160, 190]) {
-    await card(page, "item:tooth-input").evaluate((el, pixels) => {
+    await card(page, "item:order-line").evaluate((el, pixels) => {
       const main = el.closest("main")!;
       main.scrollTop = (el as HTMLElement).offsetTop - main.clientHeight + pixels;
     }, visible);
@@ -181,8 +181,8 @@ test("bottom morph keeps its whole surface above the occupied rows", async ({ pa
 
 test("overflowing card fades over 24 pixels above the bottom tile gap", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await openPinned(page, "selected-tooth");
-  for (const name of ["Tooth input", "Canal index", "Measurement path"]) await browse(page, name);
+  await openPinned(page, "order");
+  for (const name of ["Order Line", "Customer", "Shop"]) await browse(page, name);
   await page.locator("main").evaluate(el => { el.scrollTop = 0; });
   await expect(page.locator("[data-clipped-bottom]")).toHaveCount(1);
   const clipped = page.locator("[data-clipped-bottom]");
@@ -202,16 +202,16 @@ test("overflowing card fades over 24 pixels above the bottom tile gap", async ({
 });
 
 test("bottom morph follows reverse scrolling and hands off to the bottom tile", async ({ page }) => {
-  await openPinned(page, "selected-tooth");
-  await browse(page, "Tooth input");
-  const second = card(page, "item:tooth-input");
+  await openPinned(page, "order");
+  await browse(page, "Order Line");
+  const second = card(page, "item:order-line");
   const show = (pixels: number) => second.evaluate((el, pixels) => {
     const main = el.closest("main")!;
     main.scrollTop = (el as HTMLElement).offsetTop - main.clientHeight + pixels;
   }, pixels);
   // Use a shorter viewport so the second card can be entirely below it.
   await page.setViewportSize({ width: 1600, height: 700 });
-  const morph = page.locator('[data-bottom-morph-card="item:tooth-input"]');
+  const morph = page.locator('[data-bottom-morph-card="item:order-line"]');
   await show(120);
   await expect(morph).toBeVisible();
   const width = (await morph.boundingBox())!.width;
@@ -232,7 +232,7 @@ test("bottom morph follows reverse scrolling and hands off to the bottom tile", 
   await expect.poll(async () => (await morph.locator(".reader-morph-body").boundingBox())!.height).toBeGreaterThanOrEqual(initialBodyHeight - 1);
   await show(-1);
   await expect(morph).toHaveCount(0);
-  await expect(page.locator('[data-bottom-card="item:tooth-input"]')).toBeVisible();
+  await expect(page.locator('[data-bottom-card="item:order-line"]')).toBeVisible();
   await page.emulateMedia({ reducedMotion: "reduce" });
   await show(80);
   await expect(morph).toHaveCount(0);
@@ -240,15 +240,15 @@ test("bottom morph follows reverse scrolling and hands off to the bottom tile", 
 
 test("bottom tiles reveal later cards and close only their own card", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await openPinned(page, "selected-tooth");
-  for (const name of ["Tooth input", "Canal index", "Measurement path", "Reference point"]) await browse(page, name);
+  await openPinned(page, "order");
+  for (const name of ["Order Line", "Customer", "Shop", "Shop API"]) await browse(page, name);
   await expect(page.locator("main")).not.toHaveAttribute("data-reader-travel", /./);
-  await page.locator(".reader-sticky-titles").getByRole("button", { name: /^(Read|Reveal) card: Selected tooth$/ }).click();
+  await page.locator(".reader-sticky-titles").getByRole("button", { name: /^(Read|Reveal) card: Order$/ }).click();
   const bottom = page.getByRole("group", { name: "Collapsed cards below" });
   await expect(bottom).toBeVisible();
   const bottomKeys = await bottom.locator("[data-bottom-card]").evaluateAll(es => es.map(el => el.getAttribute("data-bottom-card")));
-  expect(bottomKeys[0]).toBe("item:reference-point");
-  expect(bottomKeys[1]).toBe("item:measurement-path");
+  expect(bottomKeys[0]).toBe("item:api");
+  expect(bottomKeys[1]).toBe("item:shop");
   const positions = await bottom.locator("[data-bottom-card]").evaluateAll(es => es.map(el => ({ x: el.getBoundingClientRect().x, y: el.getBoundingClientRect().y })));
   for (let index = 1; index < positions.length; index++) {
     const previous = positions[index - 1], current = positions[index];
@@ -257,22 +257,22 @@ test("bottom tiles reveal later cards and close only their own card", async ({ p
   }
   expect((await bottom.boundingBox())!.height).toBeLessThanOrEqual((await page.locator("main").boundingBox())!.height / 4);
   await expect(bottom).toBeInViewport();
-  await bottom.getByRole("button", { name: "Close collapsed Reference point", exact: true }).click();
+  await bottom.getByRole("button", { name: "Close collapsed Shop API", exact: true }).click();
   await expect(cards(page)).toHaveCount(4);
-  await bottom.getByRole("button", { name: "Reveal card: Measurement path", exact: true }).click();
-  await expect(active(page)).toHaveAttribute("data-reader-card", "item:measurement-path");
+  await bottom.getByRole("button", { name: "Reveal card: Shop", exact: true }).click();
+  await expect(active(page)).toHaveAttribute("data-reader-card", "item:shop");
   await expect(active(page).locator(":scope > header")).toBeInViewport();
-  await expect(page.locator('[data-bottom-card="item:measurement-path"]')).toHaveCount(0);
+  await expect(page.locator('[data-bottom-card="item:shop"]')).toHaveCount(0);
 });
 
 test("header morph follows scroll progress and reverses before becoming a tile", async ({ page }) => {
-  await openPinned(page, "selected-tooth");
-  await browse(page, "Tooth input");
-  const first = card(page, "item:selected-tooth");
+  await openPinned(page, "order");
+  await browse(page, "Order Line");
+  const first = card(page, "item:order");
   const remaining = (pixels: number) => first.evaluate((el, pixels) => {
     el.closest("main")!.scrollTop = (el as HTMLElement).offsetTop + (el as HTMLElement).offsetHeight - pixels;
   }, pixels);
-  const morph = page.locator('[data-morph-card="item:selected-tooth"]');
+  const morph = page.locator('[data-morph-card="item:order"]');
   await remaining(120);
   await expect(morph).toBeVisible();
   const opacity = () => morph.locator(".reader-card-body").evaluate(el => Number(getComputedStyle(el).opacity));
@@ -292,17 +292,17 @@ test("header morph follows scroll progress and reverses before becoming a tile",
   await expect.poll(opacity).toBeLessThan(0.15);
   await expect.poll(async () => {
     const forming = (await morph.boundingBox())!;
-    const following = (await card(page, "item:tooth-input").locator(":scope > header").boundingBox())!;
+    const following = (await card(page, "item:order-line").locator(":scope > header").boundingBox())!;
     return following.y - forming.y - forming.height;
   }).toBeGreaterThanOrEqual(11);
-  await expect(page.locator('[data-collapsed-card="item:selected-tooth"]')).toHaveCount(0);
+  await expect(page.locator('[data-collapsed-card="item:order"]')).toHaveCount(0);
   await remaining(120);
   await expect.poll(async () => (await morph.boundingBox())!.width).toBeGreaterThanOrEqual(initialWidth - 1);
   await expect.poll(async () => (await morph.locator(".reader-morph-body").boundingBox())!.height).toBeGreaterThanOrEqual(initialBodyHeight - 1);
   await expect.poll(opacity).toBeGreaterThanOrEqual(initialOpacity - 0.01);
   await remaining(-1);
   await expect(morph).toHaveCount(0);
-  await expect(page.locator('[data-collapsed-card="item:selected-tooth"]')).toBeVisible();
+  await expect(page.locator('[data-collapsed-card="item:order"]')).toBeVisible();
   await page.emulateMedia({ reducedMotion: "reduce" });
   await remaining(80);
   await expect(morph).toHaveCount(0);
@@ -310,22 +310,22 @@ test("header morph follows scroll progress and reverses before becoming a tile",
 });
 
 test("a partly scrolled card retains its sticky header until its whole body passes", async ({ page }) => {
-  await openPinned(page, "selected-tooth");
-  await browse(page, "Tooth input");
-  const first = card(page, "item:selected-tooth");
+  await openPinned(page, "order");
+  await browse(page, "Order Line");
+  const first = card(page, "item:order");
   await page.locator("main").evaluate(el => { el.scrollTop = 180; });
-  await expect(page.locator('[data-collapsed-card="item:selected-tooth"]')).toHaveCount(0);
+  await expect(page.locator('[data-collapsed-card="item:order"]')).toHaveCount(0);
   await expect.poll(async () => Math.abs((await first.locator(":scope > header").boundingBox())!.y - (await page.locator("main").boundingBox())!.y)).toBeLessThan(2);
   await first.evaluate(el => { el.closest("main")!.scrollTop = (el as HTMLElement).offsetTop + (el as HTMLElement).offsetHeight + 1; });
-  await expect(page.locator('[data-collapsed-card="item:selected-tooth"]')).toBeVisible();
+  await expect(page.locator('[data-collapsed-card="item:order"]')).toBeVisible();
   await expect(page.locator(".reader-sticky-list").first()).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
   await page.locator("main").evaluate(el => { el.scrollTop = 180; });
-  await expect(page.locator('[data-collapsed-card="item:selected-tooth"]')).toHaveCount(0);
+  await expect(page.locator('[data-collapsed-card="item:order"]')).toHaveCount(0);
 });
 
 test("selection border stays attached when native scrolling outruns scroll handlers", async ({ page }) => {
-  await openPinned(page, "selected-tooth");
-  const selected = card(page, "item:selected-tooth");
+  await openPinned(page, "order");
+  const selected = card(page, "item:order");
   const result = await selected.evaluate(el => {
     const main = el.closest("main")!;
     const header = el.querySelector(".reader-card-header")!;
@@ -347,54 +347,54 @@ test("selection border stays attached when native scrolling outruns scroll handl
 });
 
 test("header breadcrumb follows the active card and pins without replacing the stack", async ({ page }) => {
-  await openPinned(page, "selected-tooth");
+  await openPinned(page, "order");
   const breadcrumb = page.getByRole("navigation", { name: "Reader breadcrumb" });
-  await expect(breadcrumb.locator("button")).toHaveText(["Canal measurement", "Tooth selection", "Selected tooth"]);
-  await breadcrumb.getByRole("button", { name: "Tooth selection", exact: true }).click({ modifiers: ["Meta"] });
-  expect(await keys(page)).toEqual(["item:selected-tooth", "item:selection"]);
+  await expect(breadcrumb.locator("button")).toHaveText(["Shop", "Ordering", "Order"]);
+  await breadcrumb.getByRole("button", { name: "Ordering", exact: true }).click({ modifiers: ["Meta"] });
+  expect(await keys(page)).toEqual(["item:order", "item:ordering"]);
   await expect(page.locator("main")).not.toHaveAttribute("data-reader-travel", /./);
-  await page.locator(".reader-sticky-titles").getByRole("button", { name: /^(Read|Reveal) card: Selected tooth$/ }).click();
-  await expect(breadcrumb.locator('[aria-current="page"]')).toHaveText("Selected tooth");
-  await breadcrumb.getByRole("button", { name: "Tooth selection", exact: true }).click();
+  await page.locator(".reader-sticky-titles").getByRole("button", { name: /^(Read|Reveal) card: Order$/ }).click();
+  await expect(breadcrumb.locator('[aria-current="page"]')).toHaveText("Order");
+  await breadcrumb.getByRole("button", { name: "Ordering", exact: true }).click();
   await expect(cards(page)).toHaveCount(2);
   await page.goBack();
-  await expect(breadcrumb.locator('[aria-current="page"]')).toHaveText("Selected tooth");
+  await expect(breadcrumb.locator('[aria-current="page"]')).toHaveText("Order");
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(breadcrumb.locator('[aria-current="page"]')).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
 test("one stack pins from old cards, reveals duplicates, closes individually and restores history", async ({ page }) => {
-  await openPinned(page, "selection");
-  await browse(page, "Selected tooth");
-  await browse(page, "Tooth input");
-  await page.getByRole("button", { name: "Read card: Tooth selection", exact: true }).click();
-  await card(page, "item:selection").getByRole("button", { name: /Selected tooth/ }).click();
-  await expect(active(page)).toHaveAttribute("data-reader-card", "item:selected-tooth");
-  expect(await keys(page)).toEqual(["item:selection", "item:selected-tooth", "item:tooth-input"]);
-  await card(page, "item:selected-tooth").getByRole("link", { name: "Read relationship: selects", exact: true }).click({ modifiers: ["Meta"] });
-  expect(await keys(page)).toEqual(["item:selection", "item:selected-tooth", "item:tooth-input", "item:selects-input"]);
-  await page.getByRole("button", { name: "Close Selected tooth", exact: true }).click();
-  expect(await keys(page)).toEqual(["item:selection", "item:tooth-input", "item:selects-input"]);
-  await expect(active(page)).toHaveAttribute("data-reader-card", "item:selects-input");
+  await openPinned(page, "order");
+  await browse(page, "Order");
+  await browse(page, "Order Line");
+  await browse(page, "Ordering");
+  await card(page, "item:ordering").getByRole("button", { name: /^Concept · entity Order / }).click();
+  await expect(active(page)).toHaveAttribute("data-reader-card", "item:order");
+  expect(await keys(page)).toEqual(["item:order", "item:order-line", "item:ordering"]);
+  await card(page, "item:order").getByRole("link", { name: "Read relationship: contains", exact: true }).click({ modifiers: ["Meta"] });
+  expect(await keys(page)).toEqual(["item:order", "item:order-line", "item:ordering", "item:order-lines"]);
+  await page.getByRole("button", { name: "Close Order", exact: true }).click();
+  expect(await keys(page)).toEqual(["item:order-line", "item:ordering", "item:order-lines"]);
+  await expect(active(page)).toHaveAttribute("data-reader-card", "item:order-lines");
   await page.goBack();
   await expect(cards(page)).toHaveCount(4);
   await page.goForward();
   await expect(cards(page)).toHaveCount(3);
-  await page.getByRole("button", { name: "Close Selected tooth selects Tooth input", exact: true }).click();
-  await expect(active(page)).toHaveAttribute("data-reader-card", "item:tooth-input");
+  await page.getByRole("button", { name: "Close Order contains Order Line", exact: true }).click();
+  await expect(active(page)).toHaveAttribute("data-reader-card", "item:ordering");
   await page.reload();
   await expect(cards(page)).toHaveCount(2);
-  await expect(active(page)).toHaveAttribute("data-reader-card", "item:tooth-input");
+  await expect(active(page)).toHaveAttribute("data-reader-card", "item:ordering");
 });
 
 test("scroll, project return, overlay resizing and hiding preserve the stack and active context", async ({ page }) => {
-  await openPinned(page, "selected-tooth");
-  await browse(page, "Tooth input");
-  await browse(page, "Reference point");
+  await openPinned(page, "order");
+  await browse(page, "Order Line");
+  await browse(page, "Shop API");
   await page.locator("main").evaluate(el => { el.scrollTop = 360; });
   await expect.poll(() => scroll(page)).toBe(360);
-  await expect(active(page)).toHaveAttribute("data-reader-card", "item:reference-point");
+  await expect(active(page)).toHaveAttribute("data-reader-card", "item:api");
   await page.reload();
   await expect(cards(page)).toHaveCount(3);
   await expect.poll(() => scroll(page)).toBe(360);
@@ -412,16 +412,16 @@ test("scroll, project return, overlay resizing and hiding preserve the stack and
   await page.getByRole("button", { name: "Toggle reader", exact: true }).click();
   await expect.poll(() => scroll(page)).toBe(360);
   await page.getByRole("link", { name: "Lexicon library" }).click();
-  await page.goto("/p/dentalml");
+  await page.goto("/p/shop");
   await expect(cards(page)).toHaveCount(3);
-  await expect(active(page)).toHaveAttribute("data-reader-card", "item:reference-point");
+  await expect(active(page)).toHaveAttribute("data-reader-card", "item:api");
   await expect.poll(() => scroll(page)).toBe(360);
 });
 
 test("sticky titles stay bounded, links keep source independent, and narrow screens retain cards", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await openPinned(page, "selected-tooth");
-  for (const name of ["Tooth input", "Canal index", "Measurement path", "Reference point", "Length result", "Displayed path"]) await browse(page, name);
+  await openPinned(page, "order");
+  for (const name of ["Order Line", "Customer", "Shop", "Shop API", "Order Handling", "Order Repository"]) await browse(page, name);
   await page.locator("main").evaluate(el => { el.scrollTop = el.scrollHeight; });
   const titles = page.locator(".reader-sticky-list");
   const overflow = page.getByRole("group", { name: "Collapsed cards" });
@@ -447,7 +447,7 @@ test("sticky titles stay bounded, links keep source independent, and narrow scre
   await titles.locator("button").first().click();
   await expect(active(page).locator(":scope > header h1")).toHaveText(pinnedTitle!);
   await expect(active(page).locator(":scope > header")).toBeInViewport();
-  await browse(page, "Selected tooth");
+  await browse(page, "Order");
   await active(page).locator(".code-links button").first().click();
   await expect(page.locator(".code-pane")).toBeVisible();
   await expect(cards(page)).toHaveCount(7);
@@ -463,19 +463,19 @@ test("sticky titles stay bounded, links keep source independent, and narrow scre
 });
 
 test("closing the last card hides the reader; unavailable items remain closable", async ({ page }) => {
-  await page.goto("/p/dentalml?item=missing-object");
+  await page.goto("/p/shop?item=missing-object");
   await expect(active(page)).toContainText("That item is unavailable.");
   await page.getByRole("button", { name: "Close Unavailable item", exact: true }).click();
   await expect(page.locator("main")).toBeHidden();
-  await browse(page, "Selected tooth");
+  await browse(page, "Order");
   await expect(cards(page)).toHaveCount(1);
-  await expect(active(page)).toHaveAttribute("data-reader-card", "item:selected-tooth");
+  await expect(active(page)).toHaveAttribute("data-reader-card", "item:order");
 });
 
 test("expanded bodies are clipped out of the transparent collapsed rail", async ({ page }) => {
-  await openPinned(page, "selected-tooth");
-  for (const name of ["Tooth input", "Canal index", "Measurement path", "Reference point"]) await browse(page, name);
-  await card(page, "item:reference-point").evaluate(el => {
+  await openPinned(page, "order");
+  for (const name of ["Order Line", "Customer", "Shop", "Shop API"]) await browse(page, name);
+  await card(page, "item:api").evaluate(el => {
     const main = el.closest("main")!;
     main.scrollTop = (el as HTMLElement).offsetTop + 60;
   });
@@ -526,8 +526,8 @@ test("expanded bodies are clipped out of the transparent collapsed rail", async 
 
 
 test("scrolling body remains behind the glass sticky header", async ({ page }) => {
-  await openPinned(page, "selected-tooth");
-  const selected = card(page, "item:selected-tooth");
+  await openPinned(page, "order");
+  const selected = card(page, "item:order");
   await selected.evaluate(el => {
     el.closest("main")!.scrollTop = (el as HTMLElement).offsetTop + 140;
   });
@@ -546,7 +546,7 @@ test("scrolling body remains behind the glass sticky header", async ({ page }) =
 
 test("tall cards and sticky headers blur their backdrop while the bottom fades", async ({ page }) => {
   await page.setViewportSize({ width: 1400, height: 800 });
-  await page.goto("/p/dentalml");
+  await page.goto("/p/shop");
   await page.locator(".canvas-stage").waitFor();
   await expect(page.locator("[data-clipped-bottom]")).toHaveCount(1);
   const stripes = "repeating-linear-gradient(90deg, #e699c0 0 10px, #528cae 10px 20px)";

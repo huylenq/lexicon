@@ -68,14 +68,14 @@ async function launchPath() {
 async function startBackend() {
   const data = app.getPath('userData');
   const examples = join(data, 'examples');
-  for (const name of ['dentalml', 'shop']) {
+  for (const name of ['shop']) {
     const model = join(examples, name, 'lexicon/model.xml');
     await mkdir(join(examples, name, 'lexicon'), { recursive: true });
     try { await access(model); } catch {
-      await copyFile(join(viewer, 'examples', name, 'lexicon/model.xml'), model);
+      await copyFile(join(root, 'examples', name, 'lexicon/model.xml'), model);
     }
   }
-  await cp(join(viewer, 'examples/shop/src'), join(examples, 'shop/src'), { recursive: true, force: false });
+  await cp(join(root, 'examples/shop/src'), join(examples, 'shop/src'), { recursive: true, force: false });
   backend = spawn(bun, ['run', join(viewer, 'server/desktop.ts')], {
     cwd: viewer,
     env: { ...process.env, PATH: await launchPath(), LEXICON_VIEWER_DB: join(data, 'lexicon-viewer.db'),

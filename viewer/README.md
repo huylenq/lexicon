@@ -18,7 +18,7 @@ The production build is installable as a PWA. Open port 5374 and use **Install a
 
 Keep `bun start` running to read projects and source. The service worker caches only the built app shell, including the canvas assets. If the server is unavailable, the app opens with a reconnect message; model data, source code, and library changes are never cached. Updates activate after all existing app windows and tabs close. PWA caching is enabled only in production builds, so Vite development stays live.
 
-The library includes DentalML and a self-contained Shop example plus your registered projects. DentalML source links use a sibling `dentalml` checkout. Add a project by its absolute folder path. Removal affects its library registration only.
+The library includes a self-contained Shop example plus your registered projects. Add a project by its absolute folder path. Removal affects its library registration only.
 
 - **Read:** a vertical stack of context, concept, relationship, and mapping explanations overlays the right side of Canvas. Left click opens or replaces a single **Preview** card. Middle click or Command-click (Ctrl-click on Windows/Linux) opens a **Pinned** card at the end of the stack; pinning the current Preview keeps it in place. Clicking the Preview label also keeps it. Opening or returning to a Pinned card dismisses any other Preview. Reopening an existing card reveals it without duplicates. Close removes only that card. Resize the overlay at its left edge, or use the Reader toggle in the App header to hide it without clearing your cards.
 - **Relationships:** select either endpoint to open that context or concept, or select the relationship name to read its explanation. Each is a separate link that also supports opening in a new tab.
@@ -80,20 +80,19 @@ bun run build:client
 bunx playwright install chromium
 bun run test:browser
 bun run test:canvas
-bun run check examples/dentalml --code-root /path/to/dentalml
+bun run check ../examples/shop --code-root ../examples/shop
 ```
 
 The API binds to `127.0.0.1`. `LEXICON_VIEWER_API_PORT` changes port 5374. `LEXICON_VIEWER_DB` chooses a separate SQLite registry for tests; the default preserves `lexicon-viewer.db`. API source requests identify a declared file/symbol or file/line target independently of its domain mappings; earlier owner/index requests remain supported. The server accepts only targets declared in the model and confines the resolved file to the code root.
 
 Browser checks build and serve the client on port 5384 with a separate in-memory registry. Reader, code-navigation, and conversation checks use the tldraw canvas. `bun run test:canvas` exercises Canvas through `bun run start` on port 5395 with temporary projects and its own in-memory registry. To use an installed Chrome instead of Playwright's Chromium, run `PLAYWRIGHT_CHANNEL=chrome bun run test:browser`.
 
-For reader frame-time measurements, build the client, start an isolated server with `LEXICON_VIEWER_API_PORT=5388 LEXICON_VIEWER_DB=:memory: bun run start`, then run `bun scripts/reader-performance.ts http://localhost:5388` in another terminal. The script scrolls 5-card and full DentalML stacks down and back three times in Chromium at 1600×900 with 4× CPU throttling. It reports animation-frame intervals and CDP script/layout/task time; these are comparative measurements, not portable performance thresholds. Keep other builds and tests idle during comparison runs. Stop the isolated server afterward.
+For reader frame-time measurements, build the client, start an isolated server with `LEXICON_VIEWER_API_PORT=5388 LEXICON_VIEWER_DB=:memory: bun run start`, then run `bun scripts/reader-performance.ts http://localhost:5388` in another terminal. The script scrolls 5-card and full Shop stacks down and back three times in Chromium at 1600×900 with 4× CPU throttling. It reports animation-frame intervals and CDP script/layout/task time; these are comparative measurements, not portable performance thresholds. Keep other builds and tests idle during comparison runs. Stop the isolated server afterward.
 
 For a detailed Canvas trace, build with `bun run build:client --sourcemap`, use the isolated server above, and run `bun scripts/reader-trace.ts http://localhost:5388 /tmp/reader-canvas /absolute/path/to/lexicon/model.xml`. The optional model is copied to a temporary project; the original is untouched. The script exercises both morph directions, tile-row changes, settling, and distant navigation with up to 24 concept cards. It writes a Chrome `.trace.json`, `.cpuprofile`, screenshot, and summary beside the output prefix. Import the trace in Chrome DevTools Performance. Tracing adds overhead, and nested event durations must not be added together as total runtime.
 
 ## Model migration acceptance
 
-Run `LEXICON_TRIAL_MODEL=<available-model> bun scripts/migration-agent.ts` against the model workshop API to check a live migration and two flow additions using temporary copies of DentalML source. The script preserves existing meaning, checks that an exploratory question makes no edit, undoes both changes exactly, and removes its own registration. It requires the sibling DentalML checkout or DENTALML_CODE_ROOT. Runtime settings remain local to the trial.
 
 
-For browser checks in another worktree, choose an unused port with `LEXICON_TEST_PORT=5398 bun run test:browser`. Source-link browser checks for the DentalML example require the DentalML checkout beside that worktree.
+For browser checks in another worktree, choose an unused port with `LEXICON_TEST_PORT=5398 bun run test:browser`.

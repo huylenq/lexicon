@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { resolve } from "node:path";
-import { loadModel, parseModel } from "../server/model";
+import { parseModel } from "../server/model";
 import {
   anchorId,
   domainId,
@@ -159,18 +158,6 @@ describe("layout and worked example", () => {
     );
     expect(connectionPath(box, box, 0, true).path).not.toContain("NaN");
     expect(connectionPath(box, box, 0, true).x).toBeGreaterThan(box.width);
-  });
-  test("DentalML shares six code targets while flow links stay outside the structural graph", async () => {
-    const dental = indexModel(
-      await loadModel(resolve(import.meta.dir, "../examples/dentalml")),
-    );
-    const graph = projectGraph(dental, { ...options, allCode: true });
-    expect(graph.omitted).toBe(0);
-    expect(dental.mappings.size).toBe(22);
-    expect(graph.nodes.filter((n) => n.kind === "code")).toHaveLength(6);
-    expect(graph.connections.filter((e) => e.kind === "mapping")).toHaveLength(
-      19, // Three additional flow links remain accessible through the reader.
-    );
   });
 });
 

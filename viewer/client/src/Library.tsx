@@ -56,10 +56,10 @@ export default function Library() {
                   <div className="card-number">
                     0{index + 1} <span>WORKED MODEL</span>
                   </div>
-                  <h3>Measuring a root canal</h3>
+                  <h3>{p.name}</h3>
                   <p>
-                    Why a displayed path can differ from the path being measured.
-                    A DentalML domain example.
+                    Explore this worked model from domain meaning through its
+                    implementation.
                   </p>
                   <div className="card-link">
                     Explore the workflow <Icon name="open" />

@@ -21,7 +21,7 @@ bun run build:client
 bun start
 ```
 
-Open **http://127.0.0.1:5374**. The library includes DentalML canal measurement and a self-contained Shop example with domain, C4, and sequence views. DentalML code links use a sibling `../dentalml` checkout; its domain explanation is readable independently.
+Open **http://127.0.0.1:5374**. The repository's worked examples live in `examples/`. The library includes a self-contained Shop example with domain, C4, and sequence views.
 
 For development, run `mise run viewer` from this repository, then open **http://127.0.0.1:5373**.
 

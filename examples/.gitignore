@@ -1,0 +1,7 @@
+# Upstream checkout; recreate using README.md.
+/django-oscar/
+
+# Personal canvas state for bundled examples.
+*/lexicon/canvas.json
+*/lexicon/assets/
+**/lexicon/.canvas.previous.json

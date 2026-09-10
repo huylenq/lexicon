@@ -7,7 +7,7 @@ import { parseModel, serializeModel } from "../server/model";
 let root: string, id: string, xml: string;
 test.beforeEach(async ({ request }) => {
   root = await mkdtemp(join(tmpdir(), "lexicon-model-browser-"));
-  await cp(resolve(import.meta.dirname, "../examples/shop"), root, { recursive: true });
+  await cp(resolve(import.meta.dirname, "../../examples/shop"), root, { recursive: true });
   xml = await readFile(join(root, "lexicon/model.xml"), "utf8");
   const response = await request.post("/api/projects", { data: { root } });
   expect(response.ok()).toBe(true);

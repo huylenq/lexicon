@@ -16,7 +16,7 @@ In `schema="3.0"`, add a root-level flow with the usual name, description, annot
 </flow>
 ```
 
-Those relationship IDs must already exist or be added in the same edit. Each supplies the endpoints. Step text names the action in this scenario; it may differ from the relationship's broader name. The example's supporting source and annotations are in `viewer/examples/shop/lexicon/model.xml`.
+Those relationship IDs must already exist or be added in the same edit. Each supplies the endpoints. Step text names the action in this scenario; it may differ from the relationship's broader name. The example's supporting source and annotations are in `examples/shop/lexicon/model.xml`.
 
 Flow IDs are project-wide. Step IDs are unique within their flow and survive reordering. The XML step order supplies interaction order; do not add an order field to relationships. The same relationship can occur several times with distinct step IDs. Steps belong to their flow; participants retain their structural parents.
 

@@ -49,16 +49,16 @@ test("chat uses the installed workflow texts and keeps initialization out of exi
 
 test("library serves the domain example and rejects unknown projects and links", async () => {
   const list = await (await req("/api/projects")).json();
-  expect(list.map((p: { id: string }) => p.id)).toEqual(["shop", "dentalml"]);
-  const model = await (await req("/api/projects/dentalml/model")).json();
+  expect(list.map((p: { id: string }) => p.id)).toEqual(["shop"]);
+  const model = await (await req("/api/projects/shop/model")).json();
   expect(model.model.issues).toEqual([]);
   expect(
     model.model.items.some(
-      (item: { id: string }) => item.id === "renders-path",
+      (item: { id: string }) => item.id === "order",
     ),
   ).toBe(true);
   expect(
-    (await req("/api/projects/dentalml/code?owner=absent&index=0")).status,
+    (await req("/api/projects/shop/code?owner=absent&index=0")).status,
   ).toBe(404);
   expect((await req("/api/projects/lexicon/model")).status).toBe(404);
   expect((await req("/api/projects/absent/model")).status).toBe(404);
@@ -116,12 +116,12 @@ test("local API rejects foreign origins, arbitrary hosts, and undeclared source 
     403,
   );
   expect(
-    (await req("/api/projects/dentalml/code?path=/etc/passwd")).status,
+    (await req("/api/projects/shop/code?path=/etc/passwd")).status,
   ).toBe(404);
   expect(
     (
       await req(
-        `/api/projects/dentalml/code?target=${encodeURIComponent('code:["/etc/passwd","file",""]')}`,
+        `/api/projects/shop/code?target=${encodeURIComponent('code:["/etc/passwd","file",""]')}`,
       )
     ).status,
   ).toBe(404);
@@ -278,7 +278,7 @@ test("canvas model commands share validated model edits, exact undo, and stale-w
   expect((await req(`/api/projects/${project.id}/chat/undo`, json({ changeId: receipt.changeId }))).status).toBe(200);
   expect(await readFile(join(root, "lexicon/model.xml"), "utf8")).toBe(xml);
   expect(await readFile(join(root, "thing.ts"), "utf8")).toBe("export interface Thing { name: string }");
-  expect((await req("/api/projects/dentalml/canvas/model-command", json({ revision, command }))).status).toBe(400);
+  expect((await req("/api/projects/shop/canvas/model-command", json({ revision, command }))).status).toBe(400);
 });
 
 const migration = (candidate: string) => `Preserved the model.\n\`\`\`lexicon-migration\n${candidate}\n\`\`\``;

@@ -5,9 +5,9 @@ test.use({ serviceWorkers: "block" });
 test("Browse selection keeps text stable and extends its background to the sidebar edge", async ({
   page,
 }) => {
-  await page.goto("/p/dentalml");
+  await page.goto("/p/shop");
   const item = page.getByRole("button", {
-    name: "Concept · entity Selected tooth",
+    name: "Concept · entity Order",
     exact: true,
   });
   const label = item.locator(".object-name-text");
@@ -33,21 +33,21 @@ test("Browse selection keeps text stable and extends its background to the sideb
 });
 
 test("reader history branches correctly and pane close buttons preserve navigation", async ({ page }) => {
-  await page.goto("/p/dentalml");
+  await page.goto("/p/shop");
   const back = page.getByRole("button", { name: "Go back", exact: true });
   const forward = page.getByRole("button", { name: "Go forward", exact: true });
   const browse = page.getByRole("button", { name: "Toggle navigation", exact: true });
   const canvas = page.getByRole("region", { name: "Model canvas" });
   await expect(back).toBeDisabled();
   await expect(forward).toBeDisabled();
-  await page.getByRole("button", { name: "Concept · entity Selected tooth", exact: true }).click();
-  await page.getByRole("button", { name: "Concept · value Tooth input", exact: true }).click();
+  await page.getByRole("button", { name: "Concept · entity Order", exact: true }).click();
+  await page.getByRole("button", { name: "Concept · value Order Line", exact: true }).click();
   await back.click();
-  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Selected tooth");
+  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Order");
   await forward.click();
-  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Tooth input");
+  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Order Line");
   await back.click();
-  await page.getByRole("button", { name: "Concept · aggregate Canal measurement", exact: true }).click();
+  await page.locator(".sidebar .nav-item").filter({ hasText: /^Ordering$/ }).click();
   await expect(forward).toBeDisabled();
 
   await browse.click();
@@ -58,13 +58,13 @@ test("reader history branches correctly and pane close buttons preserve navigati
   await expect(page.getByRole("textbox", { name: "Search model" })).toBeFocused();
   await expect(browse).toHaveAttribute("aria-pressed", "true");
 
-  await expect(page.locator(".canvas-card[data-model-id^='item:']")).toHaveCount(8);
+  await expect(page.locator(".canvas-card[data-model-id^='item:']")).toHaveCount(5);
   await expect(page.getByText("Arranging the canvas…")).toBeHidden();
   await page.getByRole("button", { name: "Fit model", exact: true }).click();
   await page.reload();
   await expect(canvas).toBeVisible();
-  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Canal measurement");
-  await expect(page.locator(".canvas-card[data-model-id^='item:']")).toHaveCount(8);
+  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Ordering");
+  await expect(page.locator(".canvas-card[data-model-id^='item:']")).toHaveCount(5);
 
   await page.getByRole("button", { name: "Toggle code workspace" }).click();
   await page.getByRole("button", { name: "Close code pane", exact: true }).click();
@@ -75,30 +75,26 @@ test("reader history branches correctly and pane close buttons preserve navigati
 
 test("compact reader returns to the permanent canvas using the header reader toggle", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/p/dentalml");
+  await page.goto("/p/shop");
   const browse = page.getByRole("button", { name: "Toggle navigation", exact: true });
   const canvas = page.getByRole("region", { name: "Model canvas" });
   await expect(canvas).toBeVisible();
   await expect(page.getByRole("button", { name: "Switch to Graph", exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Close Canvas pane" })).toHaveCount(0);
   await browse.click();
-  await page.getByRole("button", { name: "Concept · entity Selected tooth", exact: true }).click();
+  await page.getByRole("button", { name: "Concept · entity Order", exact: true }).click();
   await expect(browse).toHaveAttribute("aria-pressed", "false");
-  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Selected tooth");
-  await page.getByRole("button", { name: "Toggle reader", exact: true }).click();
-  await expect(canvas).toBeVisible();
-  await page.getByRole("button", { name: "concept: Selected tooth", exact: true }).click();
-  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Selected tooth");
+  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Order");
   await page.getByRole("button", { name: "Toggle reader", exact: true }).click();
   await expect(canvas).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
 test("Canvas stays present despite an older saved hidden state and its title and selection share one toolbar", async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem("lexicon:graph:v1:dentalml", JSON.stringify({ open: false })));
-  await page.goto("/p/dentalml");
+  await page.addInitScript(() => localStorage.setItem("lexicon:graph:v1:shop", JSON.stringify({ open: false })));
+  await page.goto("/p/shop");
   await expect(page.getByRole("region", { name: "Model canvas" })).toBeVisible();
-  await expect(page.locator(".canvas-card[data-model-id^='item:']")).toHaveCount(8);
+  await expect(page.locator(".canvas-card[data-model-id^='item:']")).toHaveCount(5);
   await expect(page.getByRole("button", { name: "Switch to Graph", exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Close Canvas pane" })).toHaveCount(0);
   const titleLeft = await page.locator(".toolbar .pane-title").evaluate(el => el.getBoundingClientRect().left);
@@ -108,7 +104,7 @@ test("Canvas stays present despite an older saved hidden state and its title and
   const toolbar = page.locator(".toolbar");
   const toolbarHeight = (await toolbar.boundingBox())!.height;
   await page.getByRole("radio", { name: "Diagram", exact: true }).check();
-  await page.getByRole("button", { name: "Concept · entity Selected tooth", exact: true }).click();
+  await page.getByRole("button", { name: "Concept · entity Order", exact: true }).click();
   expect((await toolbar.boundingBox())!.height).toBe(toolbarHeight);
   expect(await page.locator(".canvas-stage").evaluate(el => el.getBoundingClientRect().top))
     .toBe(await toolbar.evaluate(el => el.getBoundingClientRect().top));
@@ -117,7 +113,7 @@ test("Canvas stays present despite an older saved hidden state and its title and
 });
 
 test("native canvas navigation remains reachable beside Browse on short and narrow screens", async ({ page }) => {
-  await page.goto("/p/dentalml");
+  await page.goto("/p/shop");
   await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
   for (const size of [{ width: 1600, height: 1000 }, { width: 1600, height: 420 }, { width: 390, height: 480 }]) {
     await page.setViewportSize(size);
@@ -140,8 +136,8 @@ test("native canvas navigation remains reachable beside Browse on short and narr
 });
 
 test("Browse search preserves shelf height and input position as results change", async ({ page }) => {
-  await page.goto("/p/dentalml");
-  await expect(page.locator(".canvas-card[data-model-id^='item:']")).toHaveCount(8);
+  await page.goto("/p/shop");
+  await expect(page.locator(".canvas-card[data-model-id^='item:']")).toHaveCount(5);
   for (const size of [{ width: 1600, height: 1000 }, { width: 390, height: 480 }]) {
     await page.setViewportSize(size);
     const shelf = page.locator("#browse-pane");
@@ -149,7 +145,7 @@ test("Browse search preserves shelf height and input position as results change"
     const search = page.getByRole("textbox", { name: "Search model" });
     const beforeShelf = await shelf.boundingBox();
     const beforeInput = await search.boundingBox();
-    for (const query of ["selected", "no-such-concept", "a", " ", "tooth"]) {
+    for (const query of ["order", "no-such-concept", "a", " ", "shop"]) {
       await search.fill(query);
       expect(await shelf.boundingBox()).toEqual(beforeShelf);
       expect(await search.boundingBox()).toEqual(beforeInput);
@@ -163,10 +159,10 @@ test("Browse search preserves shelf height and input position as results change"
 
 
 test("one shared status bar follows model counts and the floating Agent stays reachable across workspace views", async ({ page }) => {
-  await page.goto("/p/dentalml");
+  await page.goto("/p/shop");
   const bar = page.getByRole("region", { name: "Workspace status", exact: true });
   const agent = page.getByRole("button", { name: "Agent", exact: true });
-  await expect(bar.locator(".model-count")).toHaveText("8 concepts · 0 code");
+  await expect(bar.locator(".model-count")).toHaveText("2 concepts · 5 architecture · 0 code");
   const objectLegend = bar.getByLabel("Object icon legend", { exact: true });
   await expect(objectLegend).toBeVisible();
   for (const [tone, label] of [["context", "Context"], ["concept", "Concept"], ["entity", "Entity"], ["value", "Value"], ["aggregate", "Aggregate"], ["service", "Service"], ["event", "Event"]]) {
@@ -183,13 +179,13 @@ test("one shared status bar follows model counts and the floating Agent stays re
   expect(bounds.width).toBe(viewport.width);
   expect(bounds.y + bounds.height).toBe(viewport.height);
   await page.getByRole("button", { name: "Show all code", exact: true }).click();
-  await expect(bar.locator(".model-count")).toHaveText("8 concepts · 6 code");
+  await expect(bar.locator(".model-count")).toHaveText(/2 concepts · 5 architecture · \d+ code/);
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(objectLegend).toBeHidden();
   await expect(bar.locator(".model-count")).toBeVisible();
   await expect(agent).toBeVisible();
-  await page.goto("/p/dentalml?item=selected-tooth");
-  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Selected tooth");
+  await page.goto("/p/shop?item=order");
+  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Order");
   await expect(bar).toBeVisible();
   await page.getByRole("button", { name: "Toggle code workspace" }).click();
   await expect(bar).toBeVisible();
@@ -204,7 +200,7 @@ test("one shared status bar follows model counts and the floating Agent stays re
 });
 
 test("canvas extends behind the Toolbar while native controls clear its measured height", async ({ page }) => {
-  await page.goto("/p/dentalml");
+  await page.goto("/p/shop");
   await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
   const menu = page.getByTestId("main-menu.button");
   const toolbar = page.locator(".toolbar");

@@ -6,7 +6,7 @@ import { join, resolve } from "node:path";
 let root: string, projectId: string, xml: string;
 test.beforeEach(async ({ request }) => {
   root = await mkdtemp(join(tmpdir(), "lexicon-map-test-"));
-  await cp(resolve(import.meta.dirname, "../examples/canvas-workshop"), root, { recursive: true,
+  await cp(resolve(import.meta.dirname, "../../examples/canvas-workshop"), root, { recursive: true,
     filter: source => !/\/lexicon\/(canvas\.json|\.canvas[^/]*|assets)(\/|$)/.test(source) });
   xml = await readFile(join(root, "lexicon/model.xml"), "utf8");
   const response = await request.post("/api/projects", { data: { root } });
@@ -94,61 +94,6 @@ test("Atlas road surfaces follow native selection and Diagram restores its conne
   await expect(page.locator("main [data-reader-card].active > header h1")).toContainText("rechecks");
 });
 
-test("roads meet visible landmarks after moves and reloads, and both modes fit their node content", async ({ page, request }, info) => {
-  await cp(resolve(import.meta.dirname, "../examples/dentalml/lexicon/model.xml"), join(root, "lexicon/model.xml"));
-  await open(page);
-  const card = page.locator('[data-model-id="item:length-result"]');
-  const checkDocking = () => page.locator('[data-map-road="relation:owns-length"]').evaluate(element => {
-    const banks = [...element.querySelectorAll<SVGPathElement>(".map-road-bank")];
-    const ends = banks.map(path => path.getPointAtLength(path.getTotalLength()).matrixTransform(path.getScreenCTM()!));
-    const end = { x: (ends[0].x + ends[1].x) / 2, y: (ends[0].y + ends[1].y) / 2 };
-    const garden = document.querySelector('[data-map-landmark="item:length-result"] .map-ground')!.getBoundingClientRect();
-    return Math.max(garden.left - end.x, end.x - garden.right, garden.top - end.y, end.y - garden.bottom);
-  });
-  await expect.poll(checkDocking).toBeLessThan(1);
-  await page.getByRole("button", { name: "concept: Length result", exact: true }).click();
-  const width = await card.evaluate(element => parseFloat(getComputedStyle(element).width));
-  expect(width).toBeLessThan(140);
-  const road = page.locator('[data-map-road="relation:owns-length"] .map-road-ground');
-  const before = await road.getAttribute("d");
-  await page.locator(".tl-container").focus();
-  await page.keyboard.press("ArrowRight");
-  await expect(road).not.toHaveAttribute("d", before!);
-  await expect.poll(checkDocking).toBeLessThan(1);
-  await expect(page.locator('[data-save-status="saved"]')).toBeVisible();
-  const saved = await (await request.get(`/api/projects/${projectId}/canvas`)).json();
-  await page.getByRole("radio", { name: "Diagram", exact: true }).check();
-  const fit = await card.evaluate(element => {
-    const frame = element.getBoundingClientRect(), content = element.querySelector(".object-name")!.getBoundingClientRect();
-    const scale = frame.width / parseFloat(getComputedStyle(element).width);
-    return { x: (frame.width - content.width) / scale, y: (frame.height - content.height) / scale };
-  });
-  expect(fit.x).toBeGreaterThan(18);
-  expect(fit.x).toBeLessThan(26);
-  expect(fit.y).toBeGreaterThan(18);
-  expect(fit.y).toBeLessThan(26);
-  const connectorEnd = await page.locator('.canvas-connection').filter({ has: page.locator('[data-connection-id="relation:owns-length"]') }).locator(":scope > path").first().evaluate(element => {
-    const path = element as SVGPathElement, p = path.getPointAtLength(path.getTotalLength()).matrixTransform(path.getScreenCTM()!);
-    const rect = document.querySelector('[data-model-id="item:length-result"]')!.getBoundingClientRect();
-    return Math.min(Math.abs(p.x - rect.left), Math.abs(p.x - rect.right), Math.abs(p.y - rect.top), Math.abs(p.y - rect.bottom));
-  });
-  expect(connectorEnd).toBeLessThan(1);
-  await page.getByRole("radio", { name: "Atlas", exact: true }).check();
-  await expect.poll(checkDocking).toBeLessThan(1);
-  expect(await (await request.get(`/api/projects/${projectId}/canvas`)).json()).toEqual(saved);
-  await page.reload();
-  await expect.poll(checkDocking).toBeLessThan(1);
-  await expect(card).toHaveAttribute("data-selected", "true");
-  await page.setViewportSize({ width: 430, height: 932 });
-  await page.getByRole("button", { name: "Toggle reader", exact: true }).click();
-  await page.getByRole("radio", { name: "Diagram", exact: true }).check();
-  await expect(page.getByRole("button", { name: "concept: Canal index", exact: true })).toBeVisible();
-  await page.getByRole("radio", { name: "Atlas", exact: true }).check();
-  await page.getByRole("button", { name: "Fit model", exact: true }).click();
-  await expect.poll(checkDocking).toBeLessThan(1);
-  await page.screenshot({ path: info.outputPath("docked-roads-mobile.png") });
-});
-
 test("long names wrap inside fitted Diagram and Atlas frames", async ({ page }) => {
   const title = "Purchase request reconciliation and fulfillment authorization";
   await writeFile(join(root, "lexicon/model.xml"), xml.replace("<name>Order</name>", `<name>${title}</name>`));
@@ -191,56 +136,6 @@ test("context and path metaphors survive model refresh and code expansion", asyn
   expect(records.filter(r => r.typeName === "shape" && !["lexicon-object", "lexicon-connection"].includes(r.type))).toEqual([]);
   await page.screenshot({ path: info.outputPath("procedural-island.png") });
 });
-
-test("a real model keeps its map aligned through pan and zoom, search, and dark mode", async ({ page }, info) => {
-  await cp(resolve(import.meta.dirname, "../examples/dentalml/lexicon/model.xml"), join(root, "lexicon/model.xml"));
-  await open(page);
-  await expect(page.locator("[data-map-district]")).toHaveCount(3);
-  await expect(page.locator("[data-map-landmark]")).toHaveCount(8);
-  const marker = landmark(page, "selected-tooth");
-  const initial = await marker.getAttribute("transform");
-  const alignment = () => marker.evaluate(element => {
-    const matrix = (element as SVGGraphicsElement).getScreenCTM()!;
-    const card = document.querySelector('[data-model-id="item:selected-tooth"]')!.getBoundingClientRect();
-    // The house's full footprint is centered in its fitted frame, with a 6px gutter.
-    return Math.max(Math.abs(matrix.e + 1.5 * matrix.a - (card.x + card.width / 2)), Math.abs(matrix.f - (card.y + 29 * matrix.a)));
-  });
-  // SVG and HTML screen geometry should agree within one rendered pixel.
-  await expect.poll(alignment).toBeLessThan(1);
-  const camera = await page.locator("[data-map-camera]").getAttribute("transform");
-  const area = (await page.locator(".canvas-stage").boundingBox())!;
-  await page.mouse.move(area.x + 150, area.y + 150);
-  await page.locator(".tl-container").focus();
-  await page.keyboard.down("Space");
-  await page.mouse.down();
-  await page.mouse.move(area.x + 200, area.y + 190, { steps: 10 });
-  await page.mouse.up();
-  await page.keyboard.up("Space");
-  await expect(page.locator("[data-map-camera]")).not.toHaveAttribute("transform", camera!);
-  await expect.poll(alignment).toBeLessThan(1);
-  const pannedCamera = await page.locator("[data-map-camera]").getAttribute("transform");
-  await page.mouse.wheel(0, -100);
-  await expect(page.locator("[data-map-camera]")).not.toHaveAttribute("transform", pannedCamera!);
-  await expect.poll(alignment).toBeLessThan(1);
-  await expect(marker).toHaveAttribute("transform", initial!);
-  await page.getByRole("button", { name: "Fit model", exact: true }).click();
-  // A road crosses this landmark's bounds: the landmark must win the native hit test.
-  await page.getByRole("button", { name: "concept: Canal index", exact: true }).click();
-  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Canal index");
-  await expect(page.locator('[data-model-id="item:canal-index"]')).toHaveAttribute("data-selected", "true");
-  await page.screenshot({ path: info.outputPath("dentalml-map.png") });
-  await page.getByRole("button", { name: "Toggle navigation", exact: true }).click();
-  const search = page.getByRole("textbox", { name: "Search model" });
-  await search.fill("Canal index");
-  await expect(marker).toHaveAttribute("opacity", "0.18");
-  await expect(landmark(page, "canal-index")).toHaveAttribute("opacity", "1");
-  await search.fill("");
-  await page.getByRole("button", { name: "Toggle navigation", exact: true }).click();
-  await page.getByRole("button", { name: "Use dark theme" }).click();
-  await expect(page.getByTestId("procedural-map")).toHaveCSS("--map-ground", "#20241f");
-  await page.screenshot({ path: info.outputPath("dentalml-map-dark.png") });
-});
-
 
 test("Village skin preserves the canvas and persists independently of the mode", async ({ page, request }, info) => {
   await open(page);

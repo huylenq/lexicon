@@ -8,13 +8,13 @@ const browser = await chromium.launch();
 try {
   for (const count of [5, undefined]) {
     const page = await browser.newPage({ viewport: { width: 1600, height: 900 } });
-    const response = await page.request.get(`${baseURL}/api/projects/dentalml/model`);
+    const response = await page.request.get(`${baseURL}/api/projects/shop/model`);
     const { model } = await response.json();
     const ids = model.items.slice(0, count).map((item: { id: string }) => item.id);
-    await page.addInitScript(ids => localStorage.setItem("lexicon:reader:v1:dentalml", JSON.stringify({
+    await page.addInitScript(ids => localStorage.setItem("lexicon:reader:v1:shop", JSON.stringify({
       cards: ids.map(id => ({ kind: "item", id })), active: `item:${ids[0]}`, visible: true, scrollTop: 0,
     })), ids);
-    await page.goto(`${baseURL}/p/dentalml?item=${ids[0]}`);
+    await page.goto(`${baseURL}/p/shop?item=${ids[0]}`);
     await page.locator("[data-reader-card]").last().waitFor();
     await page.waitForTimeout(1000);
     const cdp = await page.context().newCDPSession(page);

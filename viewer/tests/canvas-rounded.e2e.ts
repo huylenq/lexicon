@@ -7,7 +7,7 @@ test("relationship corner radius updates drawing, undoes, and survives reload", 
   const root = await mkdtemp(join(tmpdir(), "lexicon-rounded-"));
   let id: string | undefined;
   try {
-    await cp(resolve(import.meta.dirname, "../examples/canvas-workshop"), root, { recursive: true,
+    await cp(resolve(import.meta.dirname, "../../examples/canvas-workshop"), root, { recursive: true,
       filter: source => !/\/lexicon\/(canvas\.json|\.canvas[^/]*|assets)(\/|$)/.test(source) });
     const original = await readFile(join(root, "lexicon/model.xml"), "utf8");
     const response = await request.post("/api/projects", { data: { root } });

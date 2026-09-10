@@ -5,7 +5,7 @@ import { applyPatch } from "../server/chat/model-edit";
 import { flowsFor, type Flow } from "../shared/model";
 import { indexModel, projectGraph, neighborhood } from "../client/src/graph/model";
 
-const xml = await readFile(new URL("../examples/shop/lexicon/model.xml", import.meta.url), "utf8");
+const xml = await readFile(new URL("../../examples/shop/lexicon/model.xml", import.meta.url), "utf8");
 const model = () => parseModel(xml);
 const flow = (): Flow => model().items.find((item): item is Flow => item.type === "flow")!;
 

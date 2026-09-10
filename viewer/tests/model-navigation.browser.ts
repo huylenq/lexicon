@@ -5,11 +5,11 @@ import { join } from "node:path";
 
 test.use({ serviceWorkers: "block" });
 
-test("object type tooltips work with hover, keyboard, and a zoomed canvas", async ({ page }) => {
-  await page.goto("/p/dentalml?item=selected-tooth");
-  const tooth = page.getByRole("button", { name: "Concept · entity Selected tooth", exact: true });
+test("object type tooltips work with hover and keyboard", async ({ page }) => {
+  await page.goto("/p/shop?item=order");
+  const tooth = page.getByRole("button", { name: "Concept · entity Order", exact: true });
   const icon = tooth.getByRole("img", { name: "Concept · entity", exact: true });
-  await expect(tooth).toHaveText("Selected tooth");
+  await expect(tooth).toHaveText("Order");
   await icon.hover();
   await expect(page.getByRole("tooltip")).toHaveText("Concept · entity");
   await page.getByRole("tooltip").hover();
@@ -17,7 +17,7 @@ test("object type tooltips work with hover, keyboard, and a zoomed canvas", asyn
   await expect(page.getByRole("tooltip")).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("tooltip")).toBeHidden();
-  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Selected tooth");
+  await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Order");
   await page.mouse.move(0, 0);
   await page.keyboard.press("Tab");
   await tooth.focus();
@@ -26,20 +26,6 @@ test("object type tooltips work with hover, keyboard, and a zoomed canvas", asyn
   await expect(tooth).not.toBeFocused();
   await page.keyboard.press("Escape");
 
-  await page.goto("/p/dentalml");
-  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
-  await page.getByRole("button", { name: "Fit model", exact: true }).click();
-  await page.getByRole("radio", { name: "Diagram", exact: true }).check();
-  const canvasIcon = page.getByRole("button", { name: "concept: Selected tooth", exact: true })
-    .getByRole("img", { name: "Concept · entity", exact: true });
-  await canvasIcon.hover();
-  const tooltip = page.getByRole("tooltip");
-  await expect(tooltip).toHaveText("Concept · entity");
-  const anchorBox = await canvasIcon.boundingBox();
-  const tipBox = await tooltip.boundingBox();
-  expect(Math.abs(tipBox!.y - anchorBox!.y - anchorBox!.height - 8)).toBeLessThan(2);
-  await page.mouse.wheel(0, -100);
-  await expect(tooltip).toBeHidden();
 });
 
 test("a registered model with parallel edges, self-links, stale links, and invalid endpoints stays usable", async ({

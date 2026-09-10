@@ -11,7 +11,7 @@ try {
  await mkdir('dist/qa', {recursive:true});
  for (const width of [1440, 390]) {
   await instance.evaluate(({BrowserWindow}, width) => BrowserWindow.getAllWindows()[0].setSize(width, 844), width);
-  for (const route of ['/', '/p/dentalml?item=selected-tooth']) {
+  for (const route of ['/', '/p/shop?item=order']) {
    await instance.evaluate(({app}, route) => app.emit('open-url', {preventDefault() {}}, 'lexicon://app' + route), route);
    await expect(page.locator('.app-header')).toBeVisible();
    if (route !== '/') await expect(page.locator('[data-save-status]')).toHaveAttribute('data-save-status', 'saved');

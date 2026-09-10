@@ -44,8 +44,8 @@ test("install metadata, offline deep links, and uncached local API", async ({ pa
       return `${image.naturalWidth}x${image.naturalHeight}`;
     }, icon.src)).toBe(icon.sizes);
   }
-  await page.goto("/p/dentalml");
-  await expect(page.getByRole("navigation", { name: "Reader breadcrumb" }).getByRole("button").first()).toHaveText("Canal measurement");
+  await page.goto("/p/shop");
+  await expect(page.getByRole("navigation", { name: "Reader breadcrumb" }).getByRole("button").first()).toHaveText("Shop");
   expect(await page.evaluate(async () => {
     const keys = await caches.keys();
     const requests = (await Promise.all(keys.map(async (key) => (await caches.open(key)).keys()))).flat();
@@ -66,7 +66,7 @@ test("install metadata, offline deep links, and uncached local API", async ({ pa
   await expect(page.getByRole("alert")).toContainText("local server is unavailable");
   await context.setOffline(false);
   await page.reload();
-  await expect(page.locator(".example-card")).toHaveCount(2);
+  await expect(page.locator(".example-card")).toHaveCount(1);
   await expect(page.getByRole("alert")).toHaveCount(0);
 });
 
@@ -76,7 +76,7 @@ test("inline header remains usable across themes and narrow screens", async ({ p
   await page.getByRole("button", { name: "Use dark theme" }).click();
   await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", "#0a0a0a");
   await page.screenshot({ path: test.info().outputPath("library-dark.png") });
-  await page.goto("/p/dentalml");
+  await page.goto("/p/shop");
   await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", "#0a0a0a");
   await page.getByRole("button", { name: "Use light theme" }).click();
   await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", "#f7f7f7");
@@ -88,7 +88,7 @@ test("inline header remains usable across themes and narrow screens", async ({ p
 });
 
 test("window-control spacing takes precedence over responsive header padding", async ({ page }) => {
-  await page.goto("/p/dentalml");
+  await page.goto("/p/shop");
   // Headless Chromium has no installed-app titlebar. Activate the real overlay
   // stylesheet branch and use its 12px fallback to exercise the CSS cascade.
   await page.evaluate(() => {

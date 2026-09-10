@@ -7,7 +7,7 @@ import { promisify } from 'node:util';
 
 const desktop = import.meta.dirname;
 const temp = await mkdtemp(join(tmpdir(), 'lexicon-lifecycle-'));
-const target = 'lexicon://app/p/dentalml?item=selected-tooth';
+const target = 'lexicon://app/p/shop?item=order';
 const executablePath = process.env.LEXICON_DESKTOP_EXECUTABLE || join(desktop, 'node_modules/electron/dist/Electron.app/Contents/MacOS/Electron');
 const instance = await electron.launch({ executablePath,
   args: [...(process.env.LEXICON_DESKTOP_EXECUTABLE ? [] : [desktop]), target],
@@ -38,7 +38,7 @@ try {
   // A saved link delivered by macOS must navigate the running window.
   await instance.evaluate(({ app }) => app.emit('open-url', { preventDefault() {} }, 'lexicon://app/'));
   await expect(page.getByRole('heading', { name: /Find the meaning/ })).toBeVisible();
-  for (const invalid of ['https://example.com/', 'lexicon://other/p/dentalml', 'lexicon://app/api/projects', 'not a URL']) {
+  for (const invalid of ['https://example.com/', 'lexicon://other/p/shop', 'lexicon://app/api/projects', 'not a URL']) {
     await instance.evaluate(({ app }, url) => app.emit('open-url', { preventDefault() {} }, url), invalid);
     expect(page.url()).toBe('lexicon://app/');
   }

@@ -51,7 +51,7 @@ try {
   await page.screenshot({ path: join(desktop, 'dist/qa/desktop-hmr.png') });
   console.log('React and CSS update without reloading the document or losing input.');
 
-  await page.goto('lexicon://app/p/dentalml?item=selected-tooth');
+  await page.goto('lexicon://app/p/shop?item=order');
   await expect(page.getByRole('region', { name: 'Model canvas' })).toBeVisible();
   const location = page.url();
   let count = endpoints().length;

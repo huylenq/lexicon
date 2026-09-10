@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 
 test("assistant moves, resizes, remembers geometry and preserves its draft", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("link", { name: /DentalML/ }).first().click();
+  await page.getByRole("link", { name: /Shop/ }).first().click();
   const launcher = page.getByRole("button", { name: "Agent", exact: true });
   await launcher.click();
   const chat = page.getByRole("complementary", { name: "Project conversation" });
@@ -60,7 +60,7 @@ test("assistant moves, resizes, remembers geometry and preserves its draft", asy
 
 
 test("launcher docks into the toolbar and can be dragged out again", async ({ page }) => {
-  await page.goto("/p/dentalml");
+  await page.goto("/p/shop");
   const launcher = page.getByRole("button", { name: "Agent", exact: true });
   const toolbar = page.locator(".toolbar");
   const start = (await launcher.boundingBox())!;
@@ -98,8 +98,8 @@ test("launcher docks into the toolbar and can be dragged out again", async ({ pa
 
 test("floating launcher clears panel edges and context tooltips paint above chat", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
-  await page.goto("/p/dentalml");
-  await page.getByRole("button", { name: "Concept · entity Selected tooth", exact: true }).click();
+  await page.goto("/p/shop");
+  await page.getByRole("button", { name: "Concept · entity Order", exact: true }).click();
   const launcher = page.getByRole("button", { name: "Agent", exact: true });
   await launcher.click();
   const chat = page.locator(".chat-pane");

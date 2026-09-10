@@ -4,9 +4,9 @@ import { parseModel, serializeModel, validateModel } from "../server/model";
 import { applyPatch, validateChangedLinks } from "../server/chat/model-edit";
 import { indexModel, projectGraph, neighborhood, domainId } from "../client/src/graph/model";
 import { parentOf, type Model } from "../shared/model";
-import { handle } from "../examples/shop/src/api";
+import { handle } from "../../examples/shop/src/api";
 
-const root = new URL("../examples/shop/", import.meta.url).pathname;
+const root = new URL("../../examples/shop/", import.meta.url).pathname;
 const xml = await readFile(root + "lexicon/model.xml", "utf8");
 const model = () => parseModel(xml);
 

@@ -38,4 +38,4 @@ Coverage grows from human questions. Start with the concepts needed to understan
 
 Code-link explanations make the correspondence between domain names and implementation names explicit. Rule annotations distinguish intended consistency, observed behavior, and enforced checks.
 
-Worked example: [DentalML canal measurement](viewer/examples/dentalml/README.md).
+Worked example: [Shop domain, architecture, and flows](examples/shop/README.md).

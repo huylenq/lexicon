@@ -14,7 +14,7 @@ for (const port of [apiPort, clientPort]) {
 }
 await mkdir(data, { recursive: true });
 if (!await access(project).then(() => true, () => false))
-  await cp(resolve(viewer, "examples/shop"), project, { recursive: true });
+  await cp(resolve(viewer, "../examples/shop"), project, { recursive: true });
 const env = { ...process.env, LEXICON_VIEWER_API_PORT: apiPort, LEXICON_VIEWER_DB: resolve(data, "registry.db") };
 const processes = [
   Bun.spawn(["bun", "run", "--hot", "server/index.ts"], { cwd: viewer, env, stdout: "inherit", stderr: "inherit" }),

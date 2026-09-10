@@ -20,7 +20,7 @@ import { MAX_CANVAS_BYTES, MAX_ASSET_BYTES } from "../shared/canvas";
 
 const exec = promisify(execFile);
 const repository = resolve(import.meta.dir, "../..");
-const examplesRoot = process.env.LEXICON_EXAMPLES_ROOT || resolve(import.meta.dir, "../examples");
+const examplesRoot = process.env.LEXICON_EXAMPLES_ROOT || resolve(repository, "examples");
 const examples = [
   {
     id: "shop", name: "Shop · Domain, architecture, and flows",
@@ -30,17 +30,10 @@ const examples = [
   ...((process.env.LEXICON_CANVAS_WORKSHOP || process.env.LEXICON_CANVAS_PROTOTYPE) === "1" ? [{
     id: "canvas-workshop",
     name: "Checkout · Canvas workshop",
-    root: resolve(import.meta.dir, "../examples/canvas-workshop"),
-    artifactRoot: resolve(import.meta.dir, "../examples/canvas-workshop"),
+    root: resolve(examplesRoot, "canvas-workshop"),
+    artifactRoot: resolve(examplesRoot, "canvas-workshop"),
     example: true,
   }] : []),
-  {
-    id: "dentalml",
-    name: "DentalML · Canal measurement",
-    root: resolve(repository, "../dentalml"),
-    artifactRoot: resolve(examplesRoot, "dentalml"),
-    example: true,
-  },
 ];
 export async function artifactRoot(root: string): Promise<string> {
   for (const name of ["model.xml", "system.xml"])
