@@ -24,8 +24,8 @@ const examplesRoot = process.env.LEXICON_EXAMPLES_ROOT || resolve(import.meta.di
 const examples = [
   {
     id: "shop", name: "Shop · Domain, architecture, and flows",
-    root: resolve(import.meta.dir, "../examples/shop"),
-    artifactRoot: resolve(import.meta.dir, "../examples/shop"), example: true,
+    root: resolve(examplesRoot, "shop"),
+    artifactRoot: resolve(examplesRoot, "shop"), example: true,
   },
   ...((process.env.LEXICON_CANVAS_WORKSHOP || process.env.LEXICON_CANVAS_PROTOTYPE) === "1" ? [{
     id: "canvas-workshop",

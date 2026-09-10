@@ -3,7 +3,7 @@ const { spawn, execFile } = require('node:child_process');
 const { createInterface } = require('node:readline');
 const { randomBytes } = require('node:crypto');
 const { readFileSync, writeFileSync } = require('node:fs');
-const { mkdir, copyFile, access } = require('node:fs/promises');
+const { mkdir, copyFile, access, cp } = require('node:fs/promises');
 const { join, resolve } = require('node:path');
 const { homedir } = require('node:os');
 const { checkRelease, RELEASES_URL } = require('./updates.cjs');
@@ -68,11 +68,14 @@ async function launchPath() {
 async function startBackend() {
   const data = app.getPath('userData');
   const examples = join(data, 'examples');
-  const model = join(examples, 'dentalml/lexicon/model.xml');
-  await mkdir(join(examples, 'dentalml/lexicon'), { recursive: true });
-  try { await access(model); } catch {
-    await copyFile(join(viewer, 'examples/dentalml/lexicon/model.xml'), model);
+  for (const name of ['dentalml', 'shop']) {
+    const model = join(examples, name, 'lexicon/model.xml');
+    await mkdir(join(examples, name, 'lexicon'), { recursive: true });
+    try { await access(model); } catch {
+      await copyFile(join(viewer, 'examples', name, 'lexicon/model.xml'), model);
+    }
   }
+  await cp(join(viewer, 'examples/shop/src'), join(examples, 'shop/src'), { recursive: true, force: false });
   backend = spawn(bun, ['run', join(viewer, 'server/desktop.ts')], {
     cwd: viewer,
     env: { ...process.env, PATH: await launchPath(), LEXICON_VIEWER_DB: join(data, 'lexicon-viewer.db'),

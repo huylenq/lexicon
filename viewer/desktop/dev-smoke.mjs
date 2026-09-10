@@ -59,7 +59,7 @@ try {
     window.holdRestart = event => event.preventDefault();
     window.addEventListener('beforeunload', window.holdRestart);
   });
-  await edit('server/index.ts', source => source.replace('ok: true, model: "2.0"', 'ok: true, model: "hmr-verified"'));
+  await edit('server/index.ts', source => source.replace('ok: true, model: MODEL_SCHEMA', 'ok: true, model: "hmr-verified"'));
   await expect.poll(() => log.includes('Waiting for canvas edits to save'), { timeout: 10000 }).toBe(true);
   expect(endpoints().length).toBe(count);
   await page.evaluate(() => window.removeEventListener('beforeunload', window.holdRestart));

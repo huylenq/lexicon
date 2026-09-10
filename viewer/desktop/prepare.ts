@@ -21,6 +21,9 @@ for (const name of ["server", "shared", "package.json", "bun.lock"])
 await cp(join(viewer, "client/dist"), join(stage, "viewer/client/dist"), { recursive: true });
 await mkdir(join(stage, "viewer/examples/dentalml/lexicon"), { recursive: true });
 await cp(join(viewer, "examples/dentalml/lexicon/model.xml"), join(stage, "viewer/examples/dentalml/lexicon/model.xml"));
+await mkdir(join(stage, "viewer/examples/shop/lexicon"), { recursive: true });
+await cp(join(viewer, "examples/shop/lexicon/model.xml"), join(stage, "viewer/examples/shop/lexicon/model.xml"));
+await cp(join(viewer, "examples/shop/src"), join(stage, "viewer/examples/shop/src"), { recursive: true });
 await cp(resolve(viewer, "../skills/lexicon"), join(stage, "skills/lexicon"), { recursive: true });
 await run([process.execPath, "install", "--production", "--frozen-lockfile"], join(stage, "viewer"));
 // Fail packaging if native symbol resolution silently fell back to file-only mode.
