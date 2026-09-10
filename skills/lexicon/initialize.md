@@ -38,7 +38,7 @@ Keep meaningful concepts when their integration is unresolved. Explain the uncer
 
 ## 4. Author and review
 
-Read `MODEL.md` for the format. Write the selected domain concepts, software elements, or flows and their relationships as the question requires, with explanations of purpose, rules, and rationale. Link inspected implementation and explicit checks. Distinguish intended, observed, and enforced claims; preserve activation conditions, defaults, exceptions, and failure outcomes.
+Read the bundle's `MODEL.md` for the format, semantic type hierarchy, and composition obligations. Choose types by the claims they express; explain domain-to-software correspondences and scenario triggers, relevant preconditions, and outcomes. Write the selected domain concepts, software elements, or flows and their relationships as the question requires, with explanations of purpose, rules, and rationale. Link inspected implementation and explicit checks. Distinguish intended, observed, and enforced claims; preserve activation conditions, defaults, exceptions, and failure outcomes.
 
 The project description should explain the system and the model's scope in language a newcomer can use. Record significant uncertainty beside the affected concept or relationship. Keep temporary discovery notes temporary; the shared model carries the result.
 

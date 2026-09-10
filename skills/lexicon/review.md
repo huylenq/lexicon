@@ -1,4 +1,4 @@
-# Review domain meaning
+# Review model meaning
 
 Apply these two passes separately when creating or changing a model. For a focused refinement, review the requested scope and affected connections; preserve established judgment elsewhere. For a first model, assess the chosen scope against the original request. Declaring a narrow scope does not make it representative.
 
@@ -17,6 +17,8 @@ For example, a commerce model can trace checkout perfectly while omitting the di
 ## Correctness: does the evidence support the meaning?
 
 Inspect the source behind consequential claims, including connecting callsites and relevant declaration bodies. Verify the endpoints' roles, direction, creation/consumption order, and activation conditions. A declaration proves that a type exists; an integration claim needs evidence of the bridge. Separate similarly shaped concepts with different identities or lifetimes, and explain their code correspondence.
+
+Check semantic composition against `MODEL.md`: are domain ideas distinguished from software responsibilities, and are their correspondences explained? For every Flow, identify the trigger, relevant preconditions, and outcome. Check each occurrence's action, direction, participants, and order against connecting source. A valid reference to a static association or implementation mapping does not establish an interaction. Review important alternative outcomes within the requested scope, without treating every model as requiring a Flow or architecture inventory.
 
 For rules, distinguish intended consistency, observed behavior, and enforced checks. Name the scope of enforcement and link the check. Preserve configuration dependence, defaults, bypasses, exceptional outcomes, and limits. A naming convention or documented architectural boundary is not automatically enforced. A test describes a contract; claim it passed only if it was run.
 

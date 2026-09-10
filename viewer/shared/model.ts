@@ -46,7 +46,10 @@ export interface Person extends Item { type: "person" }
 export interface SoftwareSystem extends Item { type: "system" }
 export interface Container extends Item { type: "container"; parent: string }
 export interface Component extends Item { type: "component"; parent: string }
-export type ArchitectureItem = Person | SoftwareSystem | Container | Component;
+export type DomainElement = Context | Concept;
+export type ArchitectureElement = Person | SoftwareSystem | Container | Component;
+/** Compatibility name for consumers of the original shared contract. */
+export type ArchitectureItem = ArchitectureElement;
 export interface Relationship extends Item {
   type: "relationship";
   from: string;
@@ -63,13 +66,15 @@ export interface Flow extends Item {
   type: "flow";
   steps: FlowStep[];
 }
-export type ModelItem = Context | Concept | ArchitectureItem | Relationship | Flow;
-export type ModelElement = Exclude<ModelItem, Relationship | Flow>;
+/** Semantic categories are unions, not additional persisted item types. */
+export type ModelElement = DomainElement | ArchitectureElement;
+export type Behavior = Flow;
+export type ModelItem = ModelElement | Relationship | Behavior;
 export const isModelElement = (item: ModelItem): item is ModelElement =>
   item.type !== "relationship" && item.type !== "flow";
 export const parentOf = (item: ModelItem): string | undefined =>
   "parent" in item ? item.parent : undefined;
-export const isArchitecture = (item: ModelItem): item is ArchitectureItem =>
+export const isArchitecture = (item: ModelItem): item is ArchitectureElement =>
   ["person", "system", "container", "component"].includes(item.type);
 export const typeNames: Record<ModelItem["type"], string> = {
   context: "Context", concept: "Concept", person: "Person",

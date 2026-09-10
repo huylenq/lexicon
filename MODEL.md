@@ -17,6 +17,53 @@ Every item requires a name and description and may have annotations and code lin
 
 Domain Context and Concept draw on DDD. The four software-structure types follow [C4 abstractions](https://c4model.com/abstractions). A Context and a Software System have different meanings; explain their correspondence with an ordinary relationship where useful. The question determines which vocabulary is needed. A domain-only model remains a complete valid model.
 
+## Semantic type hierarchy
+
+```text
+ModelItem
+├── Element
+│   ├── DomainElement
+│   │   ├── Context
+│   │   └── Concept
+│   └── ArchitectureElement
+│       ├── Person
+│       ├── SoftwareSystem
+│       ├── Container
+│       └── Component
+├── Relationship
+└── Behavior
+    └── Flow
+```
+
+`Element` is named `ModelElement` in TypeScript. These categories are fixed unions, not XML wrappers or user-defined types. All items have identity; Elements specifically identify the participants that relationships may connect. Behavior describes occurrences involving those participants. A scenario is the meaning of a Flow, not an additional type.
+
+### Choosing and composing constructs
+
+| Construct | Semantic obligation | Composition |
+|---|---|---|
+| Context | Explain the scope in which domain terms and responsibilities have consistent meaning; a directory alone is insufficient | Root element; owns Concepts |
+| Concept | Explain a domain idea, its distinguishing identity or value, responsibility, and relevant lifetime; a code symbol alone is insufficient | Exactly one Context parent |
+| Person | Explain a user role and its involvement with the system | Root architecture element |
+| SoftwareSystem | Explain the software boundary and the outcome or responsibility it provides | Root architecture element; owns Containers |
+| Container | Explain an application or data store and its responsibility within the system | Exactly one SoftwareSystem parent; owns Components |
+| Component | Explain functionality behind an interface within an application or data store; a domain classification does not establish a Component | Exactly one Container parent |
+| Relationship | Explain a directed connection, what connects the endpoints, and applicable conditions | Exactly two Element endpoints; may cross domain, architecture, and containment boundaries |
+| Flow | Explain one scenario's trigger, relevant preconditions, ordered interactions, and outcome | Owns one or more ordered FlowSteps referencing Relationships |
+
+Annotations and CodeLinks are owned metadata on any item. FlowSteps are owned occurrences, not Elements or independent ModelItems. Containment does not imply a runtime call, aggregate membership, or consistency enforcement. Domain and architecture elements may correspond through an explained Relationship without sharing identity or parentage.
+
+### Relationship meaning and scenario obligations
+
+State the connection's meaning in its name and description. Domain associations explain membership, classification, or other business meaning. Dependencies explain what one responsibility needs from another and through what mechanism. Implementation correspondences explain how software realizes a domain idea. Runtime interactions explain an action from one participant toward another under relevant conditions. These are review distinctions, not an exclusive enum or new XML attributes; a connection may need more than one explanation.
+
+A Flow step must describe an interaction supported by the referenced Relationship's direction and participants. A connection such as “is classified by” or “implements” does not alone justify a message. Do not turn every static connection into a scenario step. If the observed interaction makes a different claim, author a distinct, supported Relationship. Reuse a Relationship when the claim is the same and only its occurrence or action wording differs.
+
+Use the Flow description and annotations to state its trigger, preconditions where relevant, and outcome. Ground consequential steps and ordering in connecting source, not merely declarations of the participants. Explain domain participants' implementation correspondence when tracing a runtime scenario. Capture an important refusal or failure as a separate named Flow when it helps answer the question. Do not invent branches or claim that the successful path covers all behavior.
+
+### Enforcement and semantic review
+
+The parser and validator enforce legal syntax, identity, containment, endpoint types, and step references. The code-link checker establishes target resolution. Neither proves the meaning of a connection, runtime ordering, or scenario coverage. Agent review must assess those claims against source and qualify intended, observed, and enforced behavior beside the claim. Report structural validity, source-supported correctness, and coverage separately. Unsupported meaning must not be presented as verified merely because the document passes validation.
+
 ## Containment and relationships
 
 An element has at most one structural parent: Concept → Context, Container → System, Component → Container. XML nesting supplies `parent` in memory and in embedded patches. Root elements have no parent. Parentage implies grouping, without aggregate consistency, lifecycle ownership, or cascading deletion. Moving an element preserves its ID; removing its parent requires explicitly handling the children and dependent relationships.
