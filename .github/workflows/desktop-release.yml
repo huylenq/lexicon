@@ -1,0 +1,72 @@
+name: Desktop release
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+permissions:
+  contents: read
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            arch: arm64
+          - runner: macos-15-intel
+            arch: x64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.14
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Check version and architecture
+        working-directory: viewer/desktop
+        env:
+          TARGET_ARCH: ${{ matrix.arch }}
+        run: |
+          node -e 'const p = require("./package.json"); if (process.arch !== process.env.TARGET_ARCH) throw Error("Wrong build architecture"); if (process.env.GITHUB_REF_TYPE === "tag" && process.env.GITHUB_REF_NAME !== `v${p.version}`) throw Error("Tag must match desktop/package.json version");'
+      - run: bun install --frozen-lockfile
+        working-directory: viewer
+      - run: bun install --frozen-lockfile
+        working-directory: viewer/desktop
+      - run: bun run test && bun run typecheck
+        working-directory: viewer
+      - run: bun run test && bun run test:dev && bun run package
+        working-directory: viewer/desktop
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - name: Test packaged app
+        working-directory: viewer/desktop
+        run: |
+          APP=$(find dist -path '*/Contents/MacOS/Lexicon' -print -quit)
+          LEXICON_DESKTOP_EXECUTABLE="$PWD/$APP" bun run test:app
+          LEXICON_DESKTOP_EXECUTABLE="$PWD/$APP" bun run test:lifecycle
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Lexicon-macos-${{ matrix.arch }}
+          path: |
+            viewer/desktop/dist/*.dmg
+            viewer/desktop/dist/*.zip
+          if-no-files-found: error
+  release:
+    if: github.ref_type == 'tag'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: gh release create "$RELEASE_TAG" artifacts/* --draft --verify-tag --generate-notes --title "Lexicon $RELEASE_TAG"

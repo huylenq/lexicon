@@ -102,6 +102,12 @@ export default function Library() {
                 placeholder="/path/to/your/project"
                 required
               />
+              {window.lexiconDesktop && <button type="button" className="quiet" onClick={async () => {
+                try {
+                  const folder = await window.lexiconDesktop!.chooseFolder();
+                  if (folder) setRoot(folder);
+                } catch { setError("Could not open the folder picker."); }
+              }}>Choose folder…</button>}
               <button className="primary" disabled={busy || !root.trim()}>
                 {busy ? "Opening…" : "Add project"}
               </button>

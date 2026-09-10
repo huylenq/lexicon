@@ -1,0 +1,64 @@
+{
+  "name": "lexicon-desktop",
+  "productName": "Lexicon",
+  "version": "2.0.0",
+  "private": true,
+  "description": "A human model of your code",
+  "author": "Huy Le",
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "prepare:app": "bun prepare.ts",
+    "package": "bun run prepare:app && electron-builder --mac --publish never",
+    "package:dir": "bun run prepare:app && electron-builder --mac --dir --publish never",
+    "test": "node --test updates.test.cjs",
+    "test:app": "node --experimental-strip-types smoke.ts",
+    "postinstall": "node node_modules/electron/install.js",
+    "dev": "node dev.mjs",
+    "test:dev": "node dev-smoke.mjs",
+    "test:lifecycle": "node lifecycle-smoke.mjs",
+    "test:titlebar": "node titlebar-smoke.mjs"
+  },
+  "devDependencies": {
+    "electron": "44.3.0",
+    "electron-builder": "26.16.1"
+  },
+  "trustedDependencies": [
+    "electron"
+  ],
+  "build": {
+    "appId": "com.huylenq.lexicon",
+    "productName": "Lexicon",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.cjs",
+      "preload.cjs",
+      "updates.cjs",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "stage",
+        "to": "backend"
+      }
+    ],
+    "npmRebuild": false,
+    "protocols": [{ "name": "Lexicon view", "schemes": ["lexicon"] }],
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.developer-tools",
+      "identity": null,
+      "hardenedRuntime": false,
+      "notarize": false,
+      "icon": "../client/public/icon-512.png"
+    },
+    "artifactName": "Lexicon-${version}-${arch}.${ext}",
+    "publish": null
+  },
+  "type": "module"
+}

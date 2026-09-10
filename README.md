@@ -8,6 +8,10 @@ Start with a context, understand its concepts, follow a relationship, and open t
 - [Model](MODEL.md): the current schema and its XML representation.
 - [Migration](MIGRATION.md): bringing an earlier project forward.
 
+## Desktop app
+
+Build or install the macOS app with the [desktop guide](viewer/desktop/README.md). It bundles the local server and links to newer releases when available.
+
 ## Run the reader
 
 ```sh

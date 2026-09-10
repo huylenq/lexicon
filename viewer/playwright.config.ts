@@ -1,9 +1,9 @@
 import { defineConfig } from "@playwright/test";
 import { fileURLToPath } from "node:url";
-const port = process.env.LEXICON_BROWSER_PORT || "5384";
 const agentFixture = fileURLToPath(
   new URL("./tests/fixtures/agent.ts", import.meta.url),
 );
+const port = process.env.LEXICON_BROWSER_PORT || "5384";
 export default defineConfig({
   testDir: "./tests",
   testMatch: "**/*.browser.ts",
