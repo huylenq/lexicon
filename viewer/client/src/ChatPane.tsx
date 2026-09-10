@@ -16,6 +16,7 @@ import ChatActivity from "./ChatActivity";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import "./styles/chat.css";
+import type { AssistantWindow, Corner } from "./useAssistantWindow";
 
 const names: Record<Provider, string> = {
   codex: "Codex",
@@ -27,6 +28,7 @@ const names: Record<Provider, string> = {
 };
 export default function ChatPane({
   projectId,
+  window: assistantWindow,
   open,
   attached,
   onToggleAttachment,
@@ -39,6 +41,7 @@ export default function ChatPane({
   onModelChanged,
   onSelect,
 }: {
+  window: AssistantWindow;
   projectId: string;
   open: boolean;
   attached: boolean;
@@ -186,12 +189,17 @@ export default function ChatPane({
     <aside
       id="chat-pane"
       className={`chat-pane${attached ? " chat-attached" : ""}`}
+      style={attached ? undefined : assistantWindow.paneStyle}
       aria-label="Project conversation"
       hidden={!open}
     >
-      <div className="chat-heading">
-        <span className="pane-title">Chat</span>
+      <div className={`chat-heading${attached ? "" : " chat-drag-handle"}`} {...(attached ? {} : assistantWindow.handlers("window"))}>
+        <span className="pane-title">Assistant</span>
         <div className="chat-heading-actions">
+          {assistantWindow.canDock && <button className="quiet icon-button" aria-label={assistantWindow.docked ? "Float launcher" : "Dock launcher in toolbar"}
+            title={assistantWindow.docked ? "Float launcher" : "Dock launcher in toolbar"} onClick={assistantWindow.toggleDock}>
+            <Icon name={assistantWindow.docked ? "open" : "install"} />
+          </button>}
           <button className="quiet icon-button chat-attach-toggle" aria-label={attached ? "Float Agent window" : "Attach Agent to right side"}
             title={attached ? "Float Agent window" : "Attach Agent to right side"} aria-pressed={attached} onClick={onToggleAttachment}>
             <Icon name={attached ? "open" : "panel-right"} />
@@ -486,6 +494,9 @@ export default function ChatPane({
           </p>
         )}
       </form>
+      {!attached && (["nw", "ne", "sw", "se"] as Corner[]).map(corner => (
+        <div key={corner} className={`chat-resize chat-resize-${corner}`} data-testid={`assistant-resize-${corner}`} aria-hidden="true" {...assistantWindow.handlers(corner)} />
+      ))}
     </aside>
   );
 }

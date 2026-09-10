@@ -1023,7 +1023,7 @@ article section {
 .nav-item:has(> .object-name[data-tone="code-link"]) { --object-color: var(--type-code); }
 .type-tooltip {
   position: fixed;
-  z-index: 100;
+  z-index: 700;
   max-width: 240px;
   padding: 7px 10px;
   border: 1px solid var(--line);

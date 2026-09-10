@@ -740,6 +740,7 @@ export default function CanvasPane(props: CanvasPaneProps) {
             hidden
             onChange={(e) => importCanvas(e.target.files?.[0])}
           />
+          <div className="assistant-toolbar-slot" ref={props.assistantHost} />
         </Toolbar>
         {!!needsAttention && (
           <div

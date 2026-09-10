@@ -29,7 +29,6 @@
   }
 
   .reader .code-pane-heading,
-  .reader .chat-heading,
   .reader .code-controls {
     border-color: var(--pane-rule);
     background: var(--pane-surface);
@@ -48,9 +47,14 @@
   .reader > .chat-pane {
     border: 1px solid var(--pane-edge);
     border-radius: 10px;
+  }
+
+  .reader .code-pane {
     background: var(--pane-surface);
     box-shadow: none;
   }
+
+  .reader .chat-heading { border-color: var(--pane-rule); }
 
   .reader .code-divider::after,
   .reader > .chat-divider::after {
