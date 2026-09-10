@@ -1,8 +1,13 @@
 /** Original 20-unit glyphs; the same SVG also serves as the visual catalogue. */
 export type IconName =
+  | "person"
+  | "system"
+  | "container"
+  | "component"
   | "context"
   | "concept"
   | "relationship"
+  | "flow"
   | "code-link"
   | "entity"
   | "value"

@@ -18,7 +18,7 @@ Investigate these perspectives where applicable:
 | Change over time | What is learned, revised, approved, expired, recovered, or reused? |
 | Collaboration | Which responsibilities depend on each other, and through which contracts? |
 
-These are discovery questions, not required contexts or objects. Do not invent governance, learning, or other machinery where the system has none. A monorepo may contain distinct products; establish their relationship and explain the selected product boundary before treating one package as the system.
+These are discovery questions, not required contexts or objects. Use the current contract to distinguish domain meaning, software structure, and scenarios; initialization does not require all three. Do not invent governance, learning, or other machinery where the system has none. A monorepo may contain distinct products; establish their relationship and explain the selected product boundary before treating one package as the system.
 
 ## 2. Select the essential ideas
 
@@ -38,7 +38,7 @@ Keep meaningful concepts when their integration is unresolved. Explain the uncer
 
 ## 4. Author and review
 
-Read `MODEL.md` for the format. Write the selected concepts and their relationships, with explanations of purpose, rules, and rationale. Link inspected implementation and explicit checks. Distinguish intended, observed, and enforced claims; preserve activation conditions, defaults, exceptions, and failure outcomes.
+Read `MODEL.md` for the format. Write the selected domain concepts, software elements, or flows and their relationships as the question requires, with explanations of purpose, rules, and rationale. Link inspected implementation and explicit checks. Distinguish intended, observed, and enforced claims; preserve activation conditions, defaults, exceptions, and failure outcomes.
 
 The project description should explain the system and the model's scope in language a newcomer can use. Record significant uncertainty beside the affected concept or relationship. Keep temporary discovery notes temporary; the shared model carries the result.
 

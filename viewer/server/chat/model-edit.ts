@@ -1,5 +1,4 @@
 import {
-  readFile,
   writeFile,
   mkdir,
   realpath,
@@ -7,63 +6,42 @@ import {
   rename,
   unlink,
 } from "node:fs/promises";
-import { join, relative, isAbsolute, basename } from "node:path";
+import { join, relative, isAbsolute } from "node:path";
 import { createHash } from "node:crypto";
-import type { Model, ModelItem } from "../../shared/model";
+import type { Model, ModelItem, ModelProblem } from "../../shared/model";
 import type { ModelPatch } from "../../shared/chat";
-import { loadModel, parseModel, serializeModel, validateModel } from "../model";
+import { parseModel, serializeModel, validateModel, readXml } from "../model";
+export { readXml, modelOrEmpty } from "../model";
 import { readCode } from "../code";
 
 export const fingerprint = (xml: string | null) =>
   createHash("sha256")
     .update(xml === null ? "missing" : `xml:${xml}`)
     .digest("hex");
-export async function readXml(root: string): Promise<string | null> {
-  try {
-    return await readFile(join(root, "lexicon/model.xml"), "utf8");
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
-    throw error;
-  }
-}
-export async function modelOrEmpty(root: string): Promise<Model> {
-  const native = await readXml(root);
-  if (native !== null) return parseModel(native);
-  if (await lstat(join(root, "lexicon/system.xml")).catch(() => null))
-    return loadModel(root);
-  return {
-    id: "project",
-    name: basename(root),
-    description: "Start with a question about this project.",
-    items: [],
-    issues: [],
-    source: "native",
-  };
-}
 export function extractPatch(text: string): {
   text: string;
   patch?: ModelPatch;
+  migration?: string;
 } {
-  const matches = [...text.matchAll(/```lexicon-patch\s*\n([\s\S]*?)```/g)];
-  if (!matches.length) {
-    if (text.includes("```lexicon-patch"))
-      throw new Error(
-        "The model change was incomplete. No changes were saved.",
-      );
-    return { text };
-  }
+  const matches = [...text.matchAll(/```lexicon-(patch|migration)[ \t]*\r?\n([\s\S]*?)```/g)];
+  const starts = [...text.matchAll(/```lexicon-(?:patch|migration)/g)];
+  if (matches.length !== starts.length)
+    throw new Error("The model change was incomplete. No changes were saved.");
+  if (!matches.length) return { text };
   if (matches.length !== 1)
     throw new Error("Expected one model change per reply.");
   return {
     text: text.replace(matches[0][0], "").trim(),
-    patch: JSON.parse(matches[0][1]),
+    ...(matches[0][1] === "migration"
+      ? { migration: matches[0][2].trim() }
+      : { patch: JSON.parse(matches[0][2]) }),
   };
 }
 export const visibleReply = (text: string) => {
-  const visible = text.split("```lexicon-patch")[0];
+  const visible = text.split(/```lexicon-(?:patch|migration)/)[0];
   const fence = visible.lastIndexOf("```");
   return (
-    fence >= 0 && "```lexicon-patch".startsWith(visible.slice(fence))
+    fence >= 0 && ["```lexicon-patch", "```lexicon-migration"].some(prefix => prefix.startsWith(visible.slice(fence)))
       ? visible.slice(0, fence)
       : visible
   ).trimEnd();
@@ -102,7 +80,7 @@ export function applyPatch(model: Model, raw: unknown): Model {
   for (const item of upserts) {
     if (
       !object(item) ||
-      !["context", "concept", "relationship"].includes(item.type)
+      !["context", "concept", "relationship", "person", "system", "container", "component", "flow"].includes(item.type)
     )
       throw new Error("Invalid object type.");
     keys(item, [
@@ -113,9 +91,11 @@ export function applyPatch(model: Model, raw: unknown): Model {
       "annotations",
       "codeLinks",
       ...(item.type === "concept"
-        ? ["context", "classification"]
+        ? ["parent", "classification"]
+        : item.type === "container" || item.type === "component" ? ["parent"]
         : item.type === "relationship"
           ? ["from", "to"]
+          : item.type === "flow" ? ["steps"]
           : []),
     ]);
     for (const key of [
@@ -123,7 +103,8 @@ export function applyPatch(model: Model, raw: unknown): Model {
       "name",
       "description",
       ...(item.type === "concept"
-        ? ["context"]
+        ? ["parent"]
+        : item.type === "container" || item.type === "component" ? ["parent"]
         : item.type === "relationship"
           ? ["from", "to"]
           : []),
@@ -138,6 +119,14 @@ export function applyPatch(model: Model, raw: unknown): Model {
       throw new Error("Invalid classification.");
     if (!Array.isArray(item.annotations) || !Array.isArray(item.codeLinks))
       throw new Error("Objects need annotations and codeLinks arrays.");
+    if (item.type === "flow") {
+      if (!Array.isArray(item.steps)) throw new Error("Flows need a steps array.");
+      for (const step of item.steps) {
+        if (!object(step) || [step.id, step.relationship, step.label].some(value => typeof value !== "string"))
+          throw new Error("Steps need id, relationship, and label text.");
+        keys(step, ["id", "relationship", "label"]);
+      }
+    }
     for (const a of item.annotations) {
       if (
         !object(a) ||
@@ -177,7 +166,6 @@ export function applyPatch(model: Model, raw: unknown): Model {
     ...patch.project,
     items: [...items.values()],
     issues: [],
-    source: "native",
   });
   const errors = next.issues.filter((i) => i.severity === "error");
   if (errors.length) throw new Error(errors.map((i) => i.message).join(" "));
@@ -185,6 +173,16 @@ export function applyPatch(model: Model, raw: unknown): Model {
   if (roundtrip.issues.some((i) => i.severity === "error"))
     throw new Error("The changed model did not pass XML validation.");
   return next;
+}
+/** A migration is a complete current-schema document, never an old-schema Model. */
+export function migrationModel(xml: string, problem: ModelProblem): Model {
+  const next = parseModel(xml);
+  const errors = next.issues.filter(issue => issue.severity === "error");
+  if (errors.length) throw new Error(errors.map(issue => issue.message).join(" "));
+  if (problem.documentId && next.id !== problem.documentId)
+    throw new Error("Migration must preserve the document ID so existing canvas state remains attached.");
+  // Serialization enforces the same latest contract as ordinary edits.
+  return parseModel(serializeModel(next));
 }
 export async function validateChangedLinks(
   before: Model,

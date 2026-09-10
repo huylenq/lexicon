@@ -2,6 +2,7 @@
 <title id="title">Lexicon icon set</title>
 <desc id="desc">Thirty-one original icons on a 20-unit grid. Four model objects, five DDD classifications, annotations, and viewer controls. Each glyph is shown at 28 and 16 pixels. Reuse symbols by their IDs.</desc>
 <defs>
+<symbol id="flow" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v14M17 3v14M3 7h11m-3-3 3 3-3 3M17 13H6m3-3-3 3 3 3"/></g></symbol>
 <symbol id="context" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="3.5" width="15" height="13" rx="3" stroke-dasharray="2 2.5"/><circle cx="7" cy="10" r="1.5"/><circle cx="13" cy="10" r="1.5"/><path d="M8.5 10h3"/></g></symbol>
 <symbol id="concept" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="6.5"/><circle cx="10" cy="10" r="1.5" fill="currentColor" stroke="none"/></g></symbol>
 <symbol id="relationship" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="3.5" cy="10" r="2"/><circle cx="16.5" cy="10" r="2"/><path d="M5.5 10h9m-4-3 3 3-3 3"/></g></symbol>
@@ -33,6 +34,11 @@
 <symbol id="fit" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3H3v4m10-4h4v4M3 13v4h4m10-4v4h-4"/></g></symbol>
 <symbol id="locate" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="5.5"/><circle cx="10" cy="10" r="1.5"/><path d="M10 1v3m0 12v3M1 10h3m12 0h3"/></g></symbol>
 <symbol id="panel-right" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="3.5" width="15" height="13" rx="2"/><path d="M12.5 3.5v13"/><path d="M14.5 6h1m-1 4h1m-1 4h1"/></g></symbol>
+
+<symbol id="person" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="5" r="3"/><path d="M4 18v-3a6 6 0 0 1 12 0v3"/></g></symbol>
+<symbol id="system" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="16" height="14" rx="2"/><path d="M2 7h16M6 11h3v3H6zM12 11h3v3h-3z"/></g></symbol>
+<symbol id="container" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="2" width="14" height="16" rx="2"/><path d="M3 7h14M3 12h14M6 5h1M6 10h1M6 15h1"/></g></symbol>
+<symbol id="component" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v14H6v-3m0-8V3"/><path d="M2 6h7v3H2zM2 11h7v3H2z"/></g></symbol>
 </defs>
 <rect width="760" height="904" rx="12" fill="#fff"/>
 <g font-family="-apple-system, BlinkMacSystemFont, sans-serif" fill="#242424" color="#242424">

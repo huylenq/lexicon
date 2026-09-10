@@ -1,11 +1,12 @@
 /** The model contract shared by the parser, reader, and command line. */
+export const MODEL_SCHEMA = "3.0" as const;
 export interface Annotation {
   kind: string;
   text: string;
   evidence?: "observed" | "intended" | "enforced";
 }
 export interface CodeLink {
-  /** Stable within its owning object. Older models may omit it. */
+  /** Stable within its owning object. Recommended for authored links. */
   id?: string;
   file: string;
   symbol?: string;
@@ -18,7 +19,7 @@ export const codeTargetId = (
   link: Pick<CodeLink, "file" | "symbol" | "line">,
 ) =>
   `code:${JSON.stringify([link.file, link.symbol ? "symbol" : link.line ? "line" : "file", link.symbol || link.line || ""])}`;
-/** Legacy links remain stable across reordering; explicit IDs also survive target edits. */
+/** Inferred keys survive reordering; explicit IDs also survive target edits. */
 export function codeLinkKey(link: CodeLink): string {
   if (link.id) return link.id;
   let hash = 0xcbf29ce484222325n;
@@ -38,28 +39,72 @@ export interface Context extends Item {
 }
 export interface Concept extends Item {
   type: "concept";
-  context: string;
+  parent: string;
   classification?: string;
 }
+export interface Person extends Item { type: "person" }
+export interface SoftwareSystem extends Item { type: "system" }
+export interface Container extends Item { type: "container"; parent: string }
+export interface Component extends Item { type: "component"; parent: string }
+export type ArchitectureItem = Person | SoftwareSystem | Container | Component;
 export interface Relationship extends Item {
   type: "relationship";
   from: string;
   to: string;
 }
-export type ModelItem = Context | Concept | Relationship;
+/** An occurrence of a relationship in one scenario. Array order is interaction order. */
+export interface FlowStep {
+  /** Stable within this flow, including when steps are reordered. */
+  id: string;
+  relationship: string;
+  label: string;
+}
+export interface Flow extends Item {
+  type: "flow";
+  steps: FlowStep[];
+}
+export type ModelItem = Context | Concept | ArchitectureItem | Relationship | Flow;
+export type ModelElement = Exclude<ModelItem, Relationship | Flow>;
+export const isModelElement = (item: ModelItem): item is ModelElement =>
+  item.type !== "relationship" && item.type !== "flow";
+export const parentOf = (item: ModelItem): string | undefined =>
+  "parent" in item ? item.parent : undefined;
+export const isArchitecture = (item: ModelItem): item is ArchitectureItem =>
+  ["person", "system", "container", "component"].includes(item.type);
+export const typeNames: Record<ModelItem["type"], string> = {
+  context: "Context", concept: "Concept", person: "Person",
+  system: "Software System", container: "Container", component: "Component",
+  relationship: "Relationship", flow: "Flow",
+};
 export interface Issue {
   severity: "error" | "warning";
   message: string;
   item?: string;
 }
 export interface Model {
+  schema: typeof MODEL_SCHEMA;
   id: string;
   name: string;
   description: string;
   items: ModelItem[];
   issues: Issue[];
-  source: "native" | "legacy";
 }
+/** Document availability is separate from the current semantic model. */
+export interface ModelProblem {
+  kind: "schema-mismatch" | "invalid-xml";
+  expectedSchema: typeof MODEL_SCHEMA;
+  actualSchema: string | null;
+  message: string;
+  documentId?: string;
+}
+export type ModelDocument =
+  | { model: Model; problem?: never }
+  | { model?: never; problem: ModelProblem };
+export type ProjectModel = ModelDocument & {
+  project: Project;
+  modelRevision: string;
+  artifactRoot: string;
+};
 export interface Project {
   id: string;
   name: string;
@@ -84,3 +129,9 @@ export const related = (model: Model, id: string): Relationship[] =>
     (item): item is Relationship =>
       item.type === "relationship" && (item.from === id || item.to === id),
   );
+export function flowsFor(model: Model, id: string): Flow[] {
+  const relationships = new Set(related(model, id).map(item => item.id));
+  relationships.add(id);
+  return model.items.filter((item): item is Flow =>
+    item.type === "flow" && item.steps.some(step => relationships.has(step.relationship)));
+}

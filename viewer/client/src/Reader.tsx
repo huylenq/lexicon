@@ -9,7 +9,8 @@ import {
   type CSSProperties,
 } from "react";
 import { Link, useLocation, useNavigate, useNavigationType, useParams } from "react-router-dom";
-import type { Model, ModelItem, Project } from "../../shared/model";
+import type { ModelItem, ProjectModel } from "../../shared/model";
+import { parentOf, isArchitecture } from "../../shared/model";
 import { request, Theme, ErrorNotice } from "./ui";
 import CodePane from "./CodePane";
 import { useCodeNavigation, type CodeLocation } from "./codeNavigation";
@@ -89,7 +90,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
   );
   const [canvasCommand, setCanvasCommand] = useState<CanvasCommand>();
   const workArea = useRef<HTMLDivElement>(null);
-  const [data, setData] = useState<{ model: Model; project: Project; modelRevision: string; artifactRoot: string }>();
+  const [data, setData] = useState<ProjectModel>();
   const model = data?.model;
   const graphIndex = useMemo(
     () => (model ? indexModel(model) : undefined),
@@ -131,7 +132,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
     setLoading(true);
     setError("");
     try {
-      const next = await request<{ model: Model; project: Project; modelRevision: string; artifactRoot: string }>(
+      const next = await request<ProjectModel>(
         `/api/projects/${projectId}/model`,
       );
       if (token === seq.current) setData(next);
@@ -245,6 +246,8 @@ function ReaderProject({ projectId }: { projectId: string }) {
   };
   const item = model?.items.find((i) => i.id === params.get("item"));
   const contexts = model?.items.filter((i) => i.type === "context") || [];
+  const architecture = model?.items.filter(isArchitecture) || [];
+  const flows = model?.items.filter(i => i.type === "flow") || [];
   const matches = query.trim()
     ? model?.items.filter((i) =>
         [
@@ -253,6 +256,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
           i.id,
           ...i.annotations.map((a) => a.text),
           ...i.codeLinks.map((l) => `${l.file} ${l.symbol || ""}`),
+          ...(i.type === "flow" ? i.steps.map(step => step.label) : []),
         ]
           .join(" ")
           .toLowerCase()
@@ -270,6 +274,14 @@ function ReaderProject({ projectId }: { projectId: string }) {
         classification={i.type === "concept" ? i.classification : undefined} />
     </button>
   );
+  const architectureTree = (i: ModelItem, seen = new Set<string>()): React.ReactNode => {
+    if (seen.has(i.id)) return null;
+    const next = new Set([...seen, i.id]);
+    return <div className="nav-context" key={i.id}>
+      {itemButton(i)}
+      <div className="nav-concepts">{architecture.filter(c => parentOf(c) === i.id).map(c => architectureTree(c, next))}</div>
+    </div>;
+  };
   const titleForCard = (card: ReaderCard) => {
     const item = card.kind === "item" ? model?.items.find(i => i.id === card.id) : undefined;
     return item ? (item.type === "relationship"
@@ -278,7 +290,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
   };
   const activeCard = reading.stack.cards.find(card => cardKey(card) === reading.stack.active);
   const breadcrumbItem = activeCard?.kind === "item" ? model?.items.find(i => i.id === activeCard.id) : undefined;
-  const breadcrumbOwner = breadcrumbItem?.type === "concept" ? model?.items.find(i => i.id === breadcrumbItem.context) : undefined;
+  const breadcrumbOwner = breadcrumbItem ? model?.items.find(i => i.id === parentOf(breadcrumbItem)) : undefined;
   const renderCardHeader = (card: ReaderCard, collapsed = false, style?: CSSProperties) => (
     <ReaderCardHeader card={card} item={card.kind === "item" ? graphIndex?.items.get(card.id) : undefined}
       title={titleForCard(card)} preview={reading.stack.preview === cardKey(card)} collapsed={collapsed} style={style}
@@ -306,7 +318,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
   return (
     <div
       ref={readerSurface}
-      className={`reader ${chatOpen && agentAttached && !compact ? "agent-attached" : ""} ${codeNavigation.open ? "with-code" : ""} with-canvas ${!workspace.sidebar ? "without-sidebar" : ""} ${mobileRead && reading.stack.visible ? "mobile-reading" : "mobile-canvas"} ${mobileCode ? "mobile-code" : ""}`}
+      className={`reader ${chatOpen && agentAttached && !compact ? "agent-attached" : ""} ${model && codeNavigation.open ? "with-code" : ""} with-canvas ${!workspace.sidebar ? "without-sidebar" : ""} ${mobileRead && reading.stack.visible ? "mobile-reading" : "mobile-canvas"} ${model && mobileCode ? "mobile-code" : ""}`}
       style={{ "--chat-width": `${workspace.chatWidth}px` } as CSSProperties}
     >
       <a className="skip-link" href="#main-content">
@@ -330,7 +342,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
         <span className="header-divider" />
         <nav className="header-breadcrumb" aria-label="Reader breadcrumb">
           <button {...readerLink(mode => select(undefined, mode))} aria-current={!activeCard || activeCard.kind === "overview" ? "page" : undefined}
-            title={model?.name}><Icon name="overview" size={14} /><span>{model?.name || "Opening project"}</span></button>
+            title={model?.name || data?.project.name}><Icon name="overview" size={14} /><span>{model?.name || data?.project.name || "Opening project"}</span></button>
           {breadcrumbOwner && <>
             <span aria-hidden="true">›</span>
             <button {...readerLink(mode => select(breadcrumbOwner.id, mode))} title={breadcrumbOwner.name} aria-label={breadcrumbOwner.name}>
@@ -439,11 +451,19 @@ function ReaderProject({ projectId }: { projectId: string }) {
                   {itemButton(ctx)}
                   <div className="nav-concepts">
                     {model?.items
-                      .filter((c) => c.type === "concept" && c.context === ctx.id)
+                      .filter((c) => c.type === "concept" && c.parent === ctx.id)
                       .map(itemButton)}
                   </div>
                 </div>
               ))}
+              {architecture.length > 0 && <>
+                <div className="eyebrow nav-heading">Architecture <span>{architecture.length}</span></div>
+                {architecture.filter(i => !parentOf(i)).map(i => architectureTree(i))}
+              </>}
+              {flows.length > 0 && <>
+                <div className="eyebrow nav-heading">Flows <span>{flows.length}</span></div>
+                {flows.map(itemButton)}
+              </>}
             </>
           )}
         </div>
@@ -489,14 +509,23 @@ function ReaderProject({ projectId }: { projectId: string }) {
               container={workArea} edge="left" unit="percent" min={25} max={75} step={2}
               value={workspace.width} onChange={update => setWorkspace(w => ({ ...w, width: update(w.width) }))} />
           )}
-          <ReaderStackViewport reading={reading} model={model}
+          {data?.problem && <main id="main-content" tabIndex={-1} className="model-problem" aria-label="Model unavailable">
+            <div>
+              <h1>{data.problem.kind === "schema-mismatch" ? "This model needs migration" : "The model needs repair"}</h1>
+              <p>{data.problem.message}</p>
+              <p>Your document is preserved. You can ask the project agent about it or request an update. Applied changes can be undone.</p>
+              <button className="primary" onClick={() => setChatOpen(true)}>Open Agent</button>
+              <button className="quiet" onClick={() => void refresh()}>Check again</button>
+            </div>
+          </main>}
+          {!data?.problem && <ReaderStackViewport reading={reading} model={model}
             layoutKey={`${routeLocation.key}:${compact}:${mobileRead}:${mobileCode}`}
             titleForCard={titleForCard} renderCardHeader={renderCardHeader}
             renderBody={card => cardBodies.get(cardKey(card))}
             notice={<>{error && <ErrorNotice message={error} />}
-              {!model && loading && <p className="empty" role="status">Opening the model…</p>}</>} />
+              {!model && loading && <p className="empty" role="status">Opening the model…</p>}</>} />}
         </div>
-        {codeNavigation.open && (
+        {model && codeNavigation.open && (
           <PaneSeparator className="code-divider" label="Resize code workspace"
             container={paneArea} edge="right" unit="percent" min={25} max={60} step={2}
             value={workspace.codeWidth} onChange={update => setWorkspace(w => ({ ...w, codeWidth: update(w.codeWidth) }))} />
@@ -544,7 +573,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
       {data && <ChatPane projectId={projectId} open={chatOpen} selected={item} modelRevision={data.modelRevision}
         attached={agentAttached && !compact} onToggleAttachment={() => setAgentAttached(value => !value)}
         onRunningChange={setAgentRunning}
-        empty={data.model.items.length === 0} example={data.project.example}
+        empty={data.model?.items.length === 0} problem={data.problem} example={data.project.example}
         onClose={() => { setChatOpen(false); chatToggle.current?.focus(); }} onModelChanged={refresh} onSelect={select} />}
     </div>
   );

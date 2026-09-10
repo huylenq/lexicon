@@ -840,7 +840,7 @@ test("a 300-concept model opens, saves, and keeps the complete document while cu
     `<concept id="c${c}n${n}"><name>Concept ${c} ${n}</name><description>Benchmark concept.</description></concept>`).join("")}</context>`).join("");
   const relations = Array.from({ length: 20 }, (_, c) => Array.from({ length: 14 }, (_, n) =>
     `<relationship id="r${c}n${n}" from="c${c}n${n}" to="c${c}n${n+1}"><name>feeds</name><description>Benchmark connection.</description></relationship>`).join("")).join("");
-  await writeFile(join(root, "lexicon/model.xml"), `<lexicon schema="2.0" id="benchmark"><name>Canvas benchmark</name><description>300 concepts, 20 contexts, 280 relationships.</description>${contexts}${relations}</lexicon>`);
+  await writeFile(join(root, "lexicon/model.xml"), `<lexicon schema="3.0" id="benchmark"><name>Canvas benchmark</name><description>300 concepts, 20 contexts, 280 relationships.</description>${contexts}${relations}</lexicon>`);
   const started = Date.now();
   await page.goto(`/p/${projectId}`);
   await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible({ timeout: 15_000 });

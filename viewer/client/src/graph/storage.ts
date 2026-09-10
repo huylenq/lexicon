@@ -39,6 +39,8 @@ export function readWorkspace(key: string): Workspace {
       if (typeof value[name] === "boolean") result[name] = value[name];
     if (value.atlasSkin === "ink" || value.atlasSkin === "village")
       result.atlasSkin = value.atlasSkin;
+    if (["all", "domain", "architecture"].includes(value.view))
+      result.view = value.view;
     if (Number.isFinite(value.width))
       result.width = Math.max(25, Math.min(75, value.width));
     if (Number.isFinite(value.codeWidth))

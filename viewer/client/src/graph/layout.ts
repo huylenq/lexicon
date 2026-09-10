@@ -14,85 +14,87 @@ export async function arrangeGraph(
   const elk = new ELK();
   const layout: Layout = {};
   const groups = graph.nodes.filter((n) => !n.parentId);
-  await Promise.all(
-    groups.map(async (group) => {
-      const children = graph.nodes.filter((n) => n.parentId === group.id);
-      if (!children.length) {
-        layout[group.id] = { x: 0, y: 0, width: 260, height: 88 };
-        return;
+  async function arrangeGroup(group: Projection["nodes"][number]) {
+    const children = graph.nodes.filter((n) => n.parentId === group.id);
+    if (!children.length) {
+      layout[group.id] = { x: 0, y: 0, ...(sizes[group.id] || (group.parentId ? { width: 190, height: 70 } : { width: 260, height: 88 })) };
+      return;
+    }
+    await Promise.all(children.map(arrangeGroup));
+    if (group.kind === "file") {
+      const columnWidth = Math.max(...children.map(n => sizes[n.id]?.width || 228)) + 24;
+      const rowHeight = Math.max(...children.map(n => sizes[n.id]?.height || 76)) + 24;
+      children.forEach((n, i) => {
+        layout[n.id] = {
+          x: 24 + (i % 2) * columnWidth,
+          y: 72 + Math.floor(i / 2) * rowHeight,
+          ...(sizes[n.id] || { width: 228, height: 76 }),
+        };
+      });
+    } else {
+      const ids = new Set(children.map((n) => n.id));
+      const result = await elk.layout({
+        id: group.id,
+        layoutOptions: {
+          "elk.algorithm": "layered",
+          "elk.direction": "DOWN",
+          "elk.spacing.nodeNode": "26",
+          "elk.layered.spacing.nodeNodeBetweenLayers": "48",
+          "elk.padding": "[top=0,left=0,bottom=0,right=0]",
+        },
+        children: children.map((n) => ({ id: n.id, width: layout[n.id].width, height: layout[n.id].height })),
+        edges: graph.connections
+          .filter(
+            (e) =>
+              e.kind === "relationship" &&
+              ids.has(e.source) &&
+              ids.has(e.target) &&
+              e.source !== e.target,
+          )
+          .map((e) => ({
+            id: e.id,
+            sources: [e.source],
+            targets: [e.target],
+          })),
+      });
+      for (const n of result.children || [])
+        layout[n.id] = {
+          x: (n.x || 0) + 28,
+          y: (n.y || 0) + 60,
+          width: layout[n.id].width, height: layout[n.id].height,
+        };
+    }
+    // Previously placed children stay still. New children avoid them.
+    const occupied: Box[] = children
+      .filter((n) => saved[n.id])
+      .map((n) => ({ ...layout[n.id], ...saved[n.id] }));
+    for (const n of children) {
+      if (saved[n.id]) layout[n.id] = { ...layout[n.id], ...saved[n.id] };
+      else {
+        while (occupied.some((b) => intersects(layout[n.id], b, 16)))
+          layout[n.id].y += 100;
+        occupied.push(layout[n.id]);
       }
-      if (group.kind === "file") {
-        const columnWidth = Math.max(...children.map(n => sizes[n.id]?.width || 228)) + 24;
-        const rowHeight = Math.max(...children.map(n => sizes[n.id]?.height || 76)) + 24;
-        children.forEach((n, i) => {
-          layout[n.id] = {
-            x: 24 + (i % 2) * columnWidth,
-            y: 72 + Math.floor(i / 2) * rowHeight,
-            ...(sizes[n.id] || { width: 228, height: 76 }),
-          };
-        });
-      } else {
-        const ids = new Set(children.map((n) => n.id));
-        const result = await elk.layout({
-          id: group.id,
-          layoutOptions: {
-            "elk.algorithm": "layered",
-            "elk.direction": "DOWN",
-            "elk.spacing.nodeNode": "26",
-            "elk.layered.spacing.nodeNodeBetweenLayers": "48",
-            "elk.padding": "[top=0,left=0,bottom=0,right=0]",
-          },
-          children: children.map((n) => ({ id: n.id, ...(sizes[n.id] || { width: 190, height: 70 }) })),
-          edges: graph.connections
-            .filter(
-              (e) =>
-                e.kind === "relationship" &&
-                ids.has(e.source) &&
-                ids.has(e.target) &&
-                e.source !== e.target,
-            )
-            .map((e) => ({
-              id: e.id,
-              sources: [e.source],
-              targets: [e.target],
-            })),
-        });
-        for (const n of result.children || [])
-          layout[n.id] = {
-            x: (n.x || 0) + 28,
-            y: (n.y || 0) + 60,
-            ...(sizes[n.id] || { width: 190, height: 70 }),
-          };
-      }
-      // Previously placed children stay still. New children avoid them.
-      const occupied: Box[] = children
-        .filter((n) => saved[n.id])
-        .map((n) => ({ ...layout[n.id], ...saved[n.id] }));
-      for (const n of children) {
-        if (saved[n.id]) layout[n.id] = { ...layout[n.id], ...saved[n.id] };
-        else {
-          while (occupied.some((b) => intersects(layout[n.id], b, 16)))
-            layout[n.id].y += 100;
-          occupied.push(layout[n.id]);
-        }
-      }
-      layout[group.id] = {
-        x: 0,
-        y: 0,
-        width: Math.max(
-          280,
-          ...children.map((n) => layout[n.id].x + layout[n.id].width + 28),
-        ),
-        height: Math.max(
-          110,
-          ...children.map((n) => layout[n.id].y + layout[n.id].height + 28),
-        ),
-      };
-    }),
-  );
+    }
+    layout[group.id] = {
+      x: 0,
+      y: 0,
+      width: Math.max(
+        280,
+        ...children.map((n) => layout[n.id].x + layout[n.id].width + 28),
+      ),
+      height: Math.max(
+        110,
+        ...children.map((n) => layout[n.id].y + layout[n.id].height + 28),
+      ),
+    };
+  }
+  await Promise.all(groups.map(arrangeGroup));
   const domain = groups.filter((g) => g.kind !== "file");
-  const topOwner = (id: string) =>
-    graph.nodes.find((n) => n.id === id)?.parentId || id;
+  const topOwner = (id: string): string => {
+    const parent = graph.nodes.find((n) => n.id === id)?.parentId;
+    return parent ? topOwner(parent) : id;
+  };
   if (domain.length) {
     const ids = new Set(domain.map((n) => n.id));
     const result = await elk.layout({

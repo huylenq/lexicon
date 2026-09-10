@@ -11,7 +11,7 @@ test("left click replaces one Preview through context, concept, relationship, se
   await page.goto("/p/dentalml");
   await active(page).locator(".context-card").filter({ hasText: "Tooth selection" }).click();
   await expect(preview(page)).toHaveAttribute("data-reader-card", "item:selection");
-  await active(page).locator(".concept-list button").filter({ hasText: "Selected tooth" }).click();
+  await active(page).locator(".concept-list button").filter({ has: page.getByText("Selected tooth", { exact: true }) }).click();
   await expect(preview(page)).toHaveAttribute("data-reader-card", "item:selected-tooth");
   await active(page).getByRole("link", { name: "Read relationship: selects", exact: true }).click();
   await expect(preview(page)).toHaveAttribute("data-reader-card", "item:selects-input");
@@ -114,7 +114,7 @@ test("mapping explanations preview and pin while their source and owner links st
   const source = new URL(page.url()).searchParams.get("code");
   await expect(preview(page)).toHaveAttribute("data-reader-card", "item:selected-tooth");
   await page.locator(".code-mappings summary").click();
-  const mapping = page.locator(".code-mapping").filter({ hasText: "Selected tooth" })
+  const mapping = page.locator(".code-mapping").filter({ has: page.getByText("Selected tooth", { exact: true }) })
     .getByRole("button", { name: "Read implementation mapping", exact: true });
   await mapping.click();
   await expect(preview(page)).toHaveAttribute("data-reader-card", /^mapping:/);

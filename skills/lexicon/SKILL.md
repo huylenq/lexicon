@@ -10,6 +10,9 @@ Reduce the understanding someone must reconstruct from code. Contexts establish 
 
 ## Choose the workflow
 
+Read [architecture.md](architecture.md) when the question needs software structure alongside domain meaning.
+Read [flows.md](flows.md) when the question needs an ordered runtime scenario or sequence diagram.
+
 - **Explain:** answer the person's question from the existing model and relevant source. Explain directly when no model exists. Exploratory questions do not authorize model changes.
 - **Initialize:** when asked to create a first model, read [initialize.md](initialize.md), then apply [review.md](review.md). A general initialization asks “What is this system, and how should I think about it?” Establish its essential ideas before selecting detailed traces. Respect an explicitly narrower scope.
 - **Refine:** read the current model and relevant source, then make the requested incremental changes. Preserve stable IDs and established judgment. Add, split, move, merge, or remove objects as needed; keep dependent relationships consistent. Apply [review.md](review.md) to the changed scope and its connections. Do not broaden a focused request into a fresh system survey or regenerate the model.
@@ -18,7 +21,7 @@ Reduce the understanding someone must reconstruct from code. Contexts establish 
 
 Inspect project instructions and existing artifacts before editing. For a linked Git worktree, inspect implementation in the selected checkout and check the primary worktree for model artifacts. Use the caller's explicit artifact root when supplied. Preserve unrelated work and project registrations.
 
-Read the bundle's `MODEL.md` before authoring; it defines XML, naming, annotations, and code-link conventions. Contexts group consistent meaning and responsibility. A domain concept may span several files, and a file may implement several concepts. Explain discrepancies between domain names and code symbols. Use DDD classifications when they clarify identity, consistency, or responsibility.
+Read the bundle's `MODEL.md` and [contract.md](contract.md) before authoring; it defines XML, naming, annotations, and code-link conventions. Contexts group consistent meaning and responsibility. A domain concept may span several files, and a file may implement several concepts. Explain discrepancies between domain names and code symbols. Use DDD classifications when they clarify identity, consistency, or responsibility.
 
 For standalone skill use, write scoped edits to `<artifact-root>/lexicon/model.xml`. Embedded Lexicon chat uses the server's patch protocol instead; its read-only source and server-owned save rules govern delivery. Project prose stays where it is. Do not introduce personal models or a separate modeling-decision log.
 
@@ -35,4 +38,4 @@ Install dependencies with `bun install --frozen-lockfile` in `<bundle>/viewer/` 
 
 Run the checker after edits and inspect the result through the reader when available. Report coverage and correctness separately, including important unresolved questions, broken or unchecked links, and reviews not performed. Check whether Git ignores the artifact and report that without changing ignore rules. Counts and resolving links do not establish semantic quality.
 
-For earlier XML, read `<bundle>/MIGRATION.md`; preview conversion and preserve the originals. Initialization creates a starting point that the team refines through use and existing Git review.
+For any schema mismatch, keep the document intact and read [migrations/README.md](migrations/README.md). Explain questions without changes; an explicit migration uses the matching delta and current-schema validation. Embedded Chat keeps migration and ordinary incremental patches distinct. Initialization creates a starting point that the team refines through use and existing Git review.

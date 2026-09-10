@@ -351,8 +351,7 @@ export function createProjection(
       const needed = new Set(projected.nodes.map((n) => n.id));
       for (const node of full.nodes)
         if (
-          node.kind === "concept" ||
-          node.kind === "context" ||
+          (node.kind !== "code" && node.kind !== "file") ||
           legacyPositions[node.id] ||
           editor.getShape(modelShapeId(node.id))
         ) {
@@ -451,10 +450,11 @@ export function createProjection(
           newEdges = connections
             .filter((c) => !editor.getShape(modelShapeId(c.id)))
             .map((c) => modelShapeId(c.id));
-        for (const node of [
-          ...full.nodes.filter((n) => !n.parentId),
-          ...full.nodes.filter((n) => n.parentId),
-        ]) {
+        const depth = (node: GraphVertex): number => {
+          const parent = node.parentId && vertices.get(node.parentId);
+          return parent ? 1 + depth(parent) : 0;
+        };
+        for (const node of [...full.nodes].sort((a, b) => depth(a) - depth(b))) {
           const id = modelShapeId(node.id),
             existing = editor.getShape<ObjectShape>(id);
           const box = layout[node.id];
@@ -463,7 +463,7 @@ export function createProjection(
             graphId: node.id,
             w: box.width,
             h: box.height,
-            group: node.kind === "context" || node.kind === "file",
+            group: ["context", "system", "container", "file"].includes(node.kind),
           };
           const meta = {
             lexiconHidden: hidden(node.id),

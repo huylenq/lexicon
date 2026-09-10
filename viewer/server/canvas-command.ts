@@ -70,9 +70,9 @@ export function canvasModelEdit(model: Model, command: CanvasModelCommand) {
       const context = model.items.find(
         (item) => item.id === command.contextId && item.type === "context",
       );
-      if (item.type !== "concept" || !context || context.id === item.context)
+      if (item.type !== "concept" || !context || context.id === item.parent)
         throw new Error("Choose a different owning context for this concept.");
-      updated = { ...item, context: context.id };
+      updated = { ...item, parent: context.id };
       text = `Moved ${item.name} to ${context.name} from the canvas.`;
       break;
     }

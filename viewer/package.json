@@ -12,9 +12,9 @@
     "typecheck": "tsc --noEmit",
     "test": "bun test tests",
     "check": "bun server/cli.ts check",
-    "convert": "bun server/cli.ts convert",
     "test:browser": "playwright test",
     "dev:canvas": "bun scripts/canvas-dev.ts",
+    "dev:model": "bun scripts/model-dev.ts",
     "test:canvas": "playwright test --config playwright.canvas.config.ts"
   },
   "dependencies": {

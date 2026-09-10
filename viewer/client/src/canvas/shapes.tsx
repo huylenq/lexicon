@@ -9,6 +9,7 @@ import {
   ShapeUtil,
   Vec,
   getIndexAbove,
+  getPointerInfo,
   ZERO_INDEX_KEY,
   useEditor,
   useValue,
@@ -18,6 +19,7 @@ import {
   type TLHandle,
   type TLHandleDragInfo,
 } from "tldraw";
+import { connectionDrawing } from "./rounded-route";
 import ObjectName from "../ObjectName";
 import {
   objectProps,
@@ -262,6 +264,7 @@ function ConnectionCard({ shape }: { shape: ConnectionShape }) {
   const connection = model.connections.get(shape.props.graphId);
   const p = shape.props;
   const road = useValue("Visible relationship route", () => roadInput(editor, shape), [editor, shape]);
+  const drawing = useValue("Rounded relationship drawing", () => connectionDrawing(shape, editor), [editor, shape]);
   const label = road || p;
   const marker = `arrow-${encodeURIComponent(shape.id)}`;
   const end = p.points.at(-1) || { x: 0, y: 0 };
@@ -275,7 +278,7 @@ function ConnectionCard({ shape }: { shape: ConnectionShape }) {
       data-atlas-road={model.mapEnabled && connection?.kind === "relationship" && isPrimary(shape) && choice(shape.meta.lexiconPath, paths, "road") !== "none" || undefined}
     >
       <path
-        d={p.path}
+        d={drawing.path}
         fill="none"
         stroke="currentColor"
         strokeWidth={1.8}
@@ -298,6 +301,12 @@ function ConnectionCard({ shape }: { shape: ConnectionShape }) {
         <button
           className="canvas-connection-label"
           data-connection-id={p.graphId}
+          onPointerDown={event => {
+            if (event.button !== 0 && event.button !== 1) return;
+            // A visible label names its shape even when another route crosses it.
+            // Dispatch the native shape gesture so dragging and modifier taps still work.
+            editor.dispatch({ ...getPointerInfo(editor, event), type: "pointer", name: "pointer_down", target: "shape", shape });
+          }}
           aria-label={`${connection?.kind === "mapping" ? "Read code mapping" : "Read relationship"}: ${connection?.label || "Removed relationship"}`}
           onClick={(event) => {
             if (event.detail === 0)
@@ -358,7 +367,7 @@ export class LexiconConnectionUtil extends ShapeUtil<ConnectionShape> {
     const geometry = new Group2d({
       children: [
         road ? new Polygon2d({ points: road.outline.map(p => new Vec(p.x, p.y)), isFilled: true }) : new Polyline2d({
-          points: p.points.map((point) => new Vec(point.x, point.y)),
+          points: connectionDrawing(shape, this.editor).points.map((point) => new Vec(point.x, point.y)),
         }),
         new Rectangle2d({
           x: (road || p).labelX - p.labelWidth / 2,
@@ -389,7 +398,7 @@ export class LexiconConnectionUtil extends ShapeUtil<ConnectionShape> {
       paper = ctx.isDarkMode ? "#252b39" : "#fafbff";
     return (
       <g>
-        <path d={p.path} fill="none" stroke={ink} strokeWidth={1.8} />
+        <path d={connectionDrawing(shape, this.editor).path} fill="none" stroke={ink} strokeWidth={1.8} />
         <path
           d="M -9 -4 L 0 0 L -9 4"
           fill="none"
@@ -424,7 +433,7 @@ export class LexiconConnectionUtil extends ShapeUtil<ConnectionShape> {
   }
   getIndicatorPath(shape: ConnectionShape) {
     const road = shapeRoad(this.editor, shape);
-    return new Path2D(road ? pathFor(road.outline, true) : shape.props.path);
+    return new Path2D(road ? pathFor(road.outline, true) : connectionDrawing(shape, this.editor).path);
   }
 }
 

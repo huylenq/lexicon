@@ -3,7 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 const codePane = (page: Page) =>
   page.getByRole("complementary", { name: "Code workspace" });
 const browse = (page: Page, name: string) =>
-  page.locator(".sidebar .nav-item").filter({ hasText: name }).click();
+  page.locator(".sidebar .nav-item").filter({ has: page.getByText(name, { exact: true }) }).click();
 const toggle = (page: Page) =>
   page.getByRole("button", { name: "Toggle code workspace", exact: true });
 

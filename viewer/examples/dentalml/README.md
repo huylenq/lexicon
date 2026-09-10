@@ -71,7 +71,7 @@ The aggregate classification expresses the human consistency boundary. The curre
 
 ## What the trial changes
 
-The four objects cover selection, calculation, presentation, and the proposed aggregate. Two conventions make them more useful:
+Domain objects cover selection, calculation, presentation, and the proposed aggregate. Two conventions make them more useful:
 
 1. **Annotate code names explicitly.** A concept's domain name can differ from a linked field or symbol. Its code link explains the correspondence, as with Canal index and `Canal.tooth_id`.
 2. **Qualify rules beside their evidence.** Distinguish a proposed consistency rule, an observed calculation, and an explicit guard in the annotation. This keeps the model faithful to existing implementation.
@@ -79,3 +79,9 @@ The four objects cover selection, calculation, presentation, and the proposed ag
 Aggregate membership fits named relationships and a root annotation in this example. A shared kernel remains untested: these contexts pass data between stages, which alone supplies insufficient evidence of a deliberately shared domain model.
 
 Explore this question in the reader: **Why does the drawn path differ from the path being measured?** A reader should reach `renders-path`, see its branch-specific explanation, and open the relevant code.
+
+## Runtime scenarios
+
+**Measure a Selected Tooth** reuses the selection → measurement → presentation relationships for the successful app callback. Its annotations state the required loaded data and successful calculation, and its code links expose the source order.
+
+**Request a Tooth Selection** shows the early refusal after volumes and metadata are loaded but no label is selected. The app returns guidance, no plot, and an empty table before calling measurement. It uses a separate named flow and one explained feedback relationship; the shared format needs no branch syntax. These scenarios describe the inspected implementation, not clinical validity.

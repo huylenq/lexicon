@@ -1,5 +1,5 @@
-import type { CodeLink, Model, ModelItem } from "../../../shared/model";
-import { codeTargetId as targetId, codeLinkKey } from "../../../shared/model";
+import type { CodeLink, Flow, Model, ModelItem } from "../../../shared/model";
+import { codeTargetId as targetId, codeLinkKey, parentOf, isArchitecture, isModelElement, typeNames, type ModelElement } from "../../../shared/model";
 
 export type GraphSelection =
   | { kind: "item"; id: string }
@@ -15,6 +15,13 @@ export type Mapping = {
 };
 export type Target = { id: string; link: CodeLink; mappings: Mapping[] };
 export type GraphIndex = ReturnType<typeof indexModel>;
+export function descendantIds(index: GraphIndex, id: string): Set<string> {
+  const ids = new Set([id]);
+  for (const parent of ids)
+    for (const item of index.items.values())
+      if (parentOf(item) === parent) ids.add(item.id);
+  return ids;
+}
 export const domainId = (id: string) => `item:${id}`;
 export { targetId };
 export const mappingId = (owner: string, key: number | string) =>
@@ -54,7 +61,7 @@ export function indexModel(model: Model) {
 
 export type GraphVertex = {
   id: string;
-  kind: "context" | "concept" | "code" | "file";
+  kind: ModelElement["type"] | "code" | "file";
   title: string;
   subtitle: string;
   parentId?: string;
@@ -73,6 +80,7 @@ export type GraphConnection = {
 export type GraphOptions = {
   expanded: string[];
   allCode: boolean;
+  view?: "all" | "domain" | "architecture";
 };
 export type Projection = ReturnType<typeof projectGraph>;
 
@@ -81,18 +89,18 @@ export function projectGraph(index: GraphIndex, options: GraphOptions) {
   const nodes: GraphVertex[] = [];
   const connections: GraphConnection[] = [];
   for (const item of index.items.values()) {
-    if (item.type === "relationship") continue;
-    const parent =
-      item.type === "concept" &&
-      index.items.get(item.context)?.type === "context"
-        ? domainId(item.context)
-        : undefined;
+    if (item.type === "relationship" || item.type === "flow") continue;
+    if (options.view === "domain" && isArchitecture(item)) continue;
+    if (options.view === "architecture" && !isArchitecture(item)) continue;
+    const owner = parentOf(item);
+    const expected = item.type === "concept" ? "context" : item.type === "container" ? "system" : item.type === "component" ? "container" : undefined;
+    const parent = owner && index.items.get(owner)?.type === expected ? domainId(owner) : undefined;
     nodes.push({
       id: domainId(item.id),
       kind: item.type,
       title: item.name,
       subtitle:
-        item.type === "concept" ? item.classification || "Concept" : "Context",
+        item.type === "concept" ? item.classification || "Concept" : typeNames[item.type],
       selection: { kind: "item", id: item.id },
       parentId: parent,
     });
@@ -105,7 +113,7 @@ export function projectGraph(index: GraphIndex, options: GraphOptions) {
     const source = domainId(item.from),
       target = domainId(item.to);
     if (!nodeIds.has(source) || !nodeIds.has(target)) {
-      omitted++;
+      if (!index.items.has(item.from) || !index.items.has(item.to)) omitted++;
       continue;
     }
     const connection: GraphConnection = {
@@ -122,7 +130,8 @@ export function projectGraph(index: GraphIndex, options: GraphOptions) {
     relationConnection.set(item.id, connection);
   }
   const shownMappings = [...index.mappings.values()].filter(
-    (m) => options.allCode || expanded.has(m.owner.id),
+    (m) => (options.allCode || expanded.has(m.owner.id)) &&
+      (m.owner.type === "relationship" ? relationConnection.has(m.owner.id) : nodeIds.has(domainId(m.owner.id))),
   );
   const shownTargets = new Set(shownMappings.map((m) => m.target));
   const files = new Set<string>();
@@ -177,7 +186,11 @@ export function selectionRecords(
   selection?: GraphSelection,
 ) {
   if (!selection) return { items: [], mappings: [] };
-  if (selection.kind === "item") return { items: [selection.id], mappings: [] };
+  if (selection.kind === "item") {
+    const item = index.items.get(selection.id);
+    return { items: item?.type === "flow"
+      ? [...new Set(item.steps.map(step => step.relationship))] : [selection.id], mappings: [] };
+  }
   if (selection.kind === "mapping")
     return { items: [], mappings: [selection.id] };
   if (selection.kind === "code")
@@ -199,16 +212,14 @@ export function neighborhood(
   const edgeSeeds = new Set<string>();
   for (const id of records.items) {
     const item = index.items.get(id);
-    if (item?.type === "context") {
-      seeds.add(domainId(id));
-      for (const c of index.items.values())
-        if (c.type === "concept" && c.context === id) seeds.add(domainId(c.id));
-    } else if (item?.type === "relationship") {
+    if (item?.type === "relationship") {
       seeds.add(domainId(item.from));
       seeds.add(domainId(item.to));
       for (const c of projection.connections)
         if (c.relationships.includes(id)) edgeSeeds.add(c.id);
-    } else if (item) seeds.add(domainId(id));
+    } else if (item) {
+      for (const child of descendantIds(index, id)) seeds.add(domainId(child));
+    }
   }
   for (const id of records.mappings) {
     const m = index.mappings.get(id);
@@ -241,8 +252,11 @@ export function neighborhood(
       edges.add(c.id);
       nodes.add(c.target);
     }
-  for (const n of projection.nodes)
-    if (nodes.has(n.id) && n.parentId) nodes.add(n.parentId);
+  const byId = new Map(projection.nodes.map(n => [n.id, n]));
+  for (const id of nodes) {
+    const parent = byId.get(id)?.parentId;
+    if (parent) nodes.add(parent);
+  }
   return { nodes, edges };
 }
 
@@ -265,4 +279,20 @@ export function readSelection(raw: string | null): GraphSelection | undefined {
   } catch {
     /* Invalid or stale URLs leave the ordinary reader available. */
   }
+}
+
+/** Sequence and structural views resolve the same canonical item identities. */
+export function projectFlow(index: GraphIndex, flow: Flow) {
+  const participants = new Map<string, ModelElement>();
+  const interactions = flow.steps.map(step => {
+    const relationship = index.items.get(step.relationship);
+    const from = relationship?.type === "relationship" ? index.items.get(relationship.from) : undefined;
+    const to = relationship?.type === "relationship" ? index.items.get(relationship.to) : undefined;
+    if (relationship?.type !== "relationship" || !from || !to || !isModelElement(from) || !isModelElement(to))
+      return { step };
+    participants.set(from.id, from);
+    participants.set(to.id, to);
+    return { step, relationship, from, to };
+  });
+  return { actors: [...participants.values()], interactions };
 }

@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — Shared model and schema 3.0
+
+- Add fixed C4 elements, single structural parents, and flows with ordered relationship occurrences to the shared model. Reader, search, graph filters, sequence diagrams, code navigation, and agent refinement use the same identities.
+- Support only schema 3.0 in semantic parsing and writing. Remove the earlier XML importer and converter. Version mismatches and malformed documents preserve their bytes and keep Agent available for discussion, explicit migration or repair, validation, and exact undo.
+- Keep schema deltas under the agent skill and share one compact authoring contract with embedded Chat. Promote the Shop worked example and enable domain Atlas within mixed models.
+
 ## Unreleased — Project canvas
 
 - Integrate macOS traffic lights into the desktop header with draggable space and room for controls at narrow widths.

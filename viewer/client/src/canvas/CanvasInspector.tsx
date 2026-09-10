@@ -422,7 +422,7 @@ export function CanvasInspector({
               >
                 <option value="">Choose context</option>
                 {props.model.items
-                  .filter((i) => i.type === "context" && i.id !== item.context)
+                  .filter((i) => i.type === "context" && i.id !== item.parent)
                   .map((i) => (
                     <option key={i.id} value={i.id}>
                       {i.name}

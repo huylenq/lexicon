@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 test.use({ serviceWorkers: "block" });
 const xml =
-  '<lexicon schema="2.0" id="shop"><name>Shop</name><description>Orders.</description><context id="scope"><name>Ordering</name><description>Orders.</description><concept id="thing"><name>Order</name><description>A purchase.</description><code-link file="order.ts" symbol="Order" role="representation">Stores the order.</code-link></concept></context><relationship id="owns" from="scope" to="thing"><name>owns</name><description>Owns orders.</description></relationship></lexicon>';
+  '<lexicon schema="3.0" id="shop"><name>Shop</name><description>Orders.</description><context id="scope"><name>Ordering</name><description>Orders.</description><concept id="thing"><name>Order</name><description>A purchase.</description><code-link file="order.ts" symbol="Order" role="representation">Stores the order.</code-link></concept></context><relationship id="owns" from="scope" to="thing"><name>owns</name><description>Owns orders.</description></relationship></lexicon>';
 test("conversation refines a selected concept, survives navigation and reload, and undoes the file change", async ({
   page,
   request,
@@ -268,6 +268,77 @@ test("an unmodeled project opens with a question-led chat and optional overview"
     ).toBeVisible();
     await expect(readFile(join(root, "lexicon/model.xml"))).rejects.toThrow();
   } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("a schema mismatch keeps Chat usable, migrates explicitly, and undo returns to the preserved document", async ({ page, request }) => {
+  const root = await mkdtemp(join(tmpdir(), "lexicon-migration-browser-"));
+  let id: string | undefined;
+  const original = xml.replace('schema="3.0"', 'schema="2.0"') + '\n<!-- retain exact bytes -->';
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  try {
+    await mkdir(join(root, "lexicon"));
+    await writeFile(join(root, "lexicon/model.xml"), original);
+    await writeFile(join(root, "order.ts"), "export interface Order { id: string }");
+    id = (await (await request.post("/api/projects", { data: { root } })).json()).id;
+    await page.goto(`/p/${id}?item=thing&code=thing:0`);
+    await expect(page.getByRole("main", { name: "Model unavailable" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "This model needs migration" })).toBeVisible();
+    await expect(page.locator(".canvas-stage")).toHaveCount(0);
+    expect(await readFile(join(root, "lexicon/model.xml"), "utf8")).toBe(original);
+    await page.getByRole("button", { name: "Open Agent", exact: true }).click();
+    const chat = page.getByRole("complementary", { name: "Project conversation" });
+    await chat.getByRole("textbox", { name: "Message the coding agent" }).fill("Explain the schema mismatch. Do not change it.");
+    await chat.getByRole("button", { name: "Send", exact: true }).click();
+    await expect(chat.getByRole("region", { name: "Codex reply" }).last()).toContainText("No model change is needed");
+    expect(await readFile(join(root, "lexicon/model.xml"), "utf8")).toBe(original);
+    await chat.getByRole("button", { name: "Migrate to schema 3.0", exact: true }).click();
+    await expect(chat.getByText("Model migrated to schema 3.0", { exact: true })).toBeVisible();
+    await expect(page.locator(".canvas-stage[data-ready=true]")).toBeVisible();
+    await expect(page.locator("main [data-reader-card].active h1")).toHaveText("Order");
+    await expect(chat.getByRole("region", { name: "Codex reply" }).last()).not.toContainText("<lexicon");
+    await chat.getByRole("button", { name: "Undo edit", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "This model needs migration" })).toBeVisible();
+    await expect(chat.getByText("Model change undone", { exact: true })).toBeVisible();
+    expect(await readFile(join(root, "lexicon/model.xml"), "utf8")).toBe(original);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(chat.getByRole("textbox", { name: "Message the coding agent" })).toBeVisible();
+    await page.getByRole("button", { name: "Agent", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Open Agent", exact: true })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+    await page.screenshot({ path: "../output/model-migration-mobile.png" });
+    await page.reload();
+    await expect(page.getByRole("heading", { name: "This model needs migration" })).toBeVisible();
+    expect(errors).toEqual([]);
+  } finally {
+    if (id) await request.delete(`/api/projects/${id}`);
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("malformed and future XML remain readable as status with Agent available after refresh", async ({ page, request }) => {
+  const root = await mkdtemp(join(tmpdir(), "lexicon-invalid-browser-"));
+  let id: string | undefined;
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  try {
+    await mkdir(join(root, "lexicon"));
+    await writeFile(join(root, "lexicon/model.xml"), '<lexicon schema="3.0">');
+    id = (await (await request.post("/api/projects", { data: { root } })).json()).id;
+    await page.goto(`/p/${id}`);
+    await expect(page.getByRole("heading", { name: "The model needs repair" })).toBeVisible();
+    await page.getByRole("button", { name: "Open Agent", exact: true }).click();
+    await expect(page.getByRole("textbox", { name: "Message the coding agent" })).toBeVisible();
+    await page.getByRole("button", { name: "Agent", exact: true }).click();
+    await writeFile(join(root, "lexicon/model.xml"), xml.replace('schema="3.0"', 'schema="9.0"'));
+    await page.getByRole("button", { name: "Check again", exact: true }).click();
+    await expect(page.getByRole("main", { name: "Model unavailable" })).toContainText("schema 9.0");
+    await expect(page.locator(".canvas-stage")).toHaveCount(0);
+    expect(errors).toEqual([]);
+  } finally {
+    if (id) await request.delete(`/api/projects/${id}`);
     await rm(root, { recursive: true, force: true });
   }
 });

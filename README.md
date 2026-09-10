@@ -1,11 +1,11 @@
 # Lexicon
 
-Lexicon reduces the effort of reconstructing how software works. It presents code as a human mental model, using Domain-Driven Design through annotation and linkage.
+Lexicon reduces the effort of reconstructing how software works. It presents code as a human mental model, using DDD for domain meaning, C4 for software structure, and flows for runtime scenarios.
 
 Start with a context, understand its concepts, follow a relationship, and open the implementation behind it.
 
 - [Manifesto](MANIFESTO.md): purpose and principles.
-- [Model](MODEL.md): the four objects and their XML representation.
+- [Model](MODEL.md): the current schema and its XML representation.
 - [Migration](MIGRATION.md): bringing an earlier project forward.
 
 ## Desktop app
@@ -21,11 +21,11 @@ bun run build:client
 bun start
 ```
 
-Open **http://127.0.0.1:5374**. The library includes a DentalML canal-measurement example. DentalML code links use a sibling `../dentalml` checkout; its domain explanation is readable independently.
+Open **http://127.0.0.1:5374**. The library includes DentalML canal measurement and a self-contained Shop example with domain, C4, and sequence views. DentalML code links use a sibling `../dentalml` checkout; its domain explanation is readable independently.
 
 For development, run `mise run viewer` from this repository, then open **http://127.0.0.1:5373**.
 
-The reader provides context browsing, search across meaning and code symbols, incoming and outgoing relationships with separate links for each endpoint and relationship, and a source pane with declaration highlighting. Browser addresses preserve the selected item and code link. Refresh reads the current files.
+The reader provides context browsing, search across meaning and code symbols, incoming and outgoing relationships with separate links for each endpoint and relationship, and a source pane with declaration highlighting. Browser addresses preserve the selected item and code link. Refresh reads the current files. Unsupported schemas open with Agent available for explicit migration; only schema 3.0 is parsed.
 
 Projects open in **Canvas**, with concepts grouped by context alongside notes, drawings, and media. Expand code into shared target nodes or focus on a neighborhood; selections update the reader. The [viewer guide](viewer/README.md#canvas) covers navigation and saved layouts. The **Diagram / Atlas** toggle changes the presentation within this same tldraw canvas.
 
@@ -34,7 +34,7 @@ Projects open in **Canvas**, with concepts grouped by context alongside notes, d
 ```text
 project/
   lexicon/
-    model.xml       # contexts, concepts, relationships, annotations, code links
+    model.xml       # domain, software structure, relationships, flows, code links
     docs/           # project prose; organize it as needed
 ```
 

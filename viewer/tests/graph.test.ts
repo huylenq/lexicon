@@ -13,7 +13,7 @@ import {
 } from "../client/src/graph/model";
 import { connectionPath } from "../client/src/graph/layout";
 
-const xml = `<lexicon schema="2.0" id="shop"><name>Shop</name><description>Example.</description>
+const xml = `<lexicon schema="3.0" id="shop"><name>Shop</name><description>Example.</description>
 <context id="sales"><name>Sales</name><description>Sells.</description>
 <concept id="order"><name>Order</name><description>A purchase.</description>
 <code-link file="order.ts" symbol="Order" role="representation">Stores orders.</code-link>
@@ -160,16 +160,16 @@ describe("layout and worked example", () => {
     expect(connectionPath(box, box, 0, true).path).not.toContain("NaN");
     expect(connectionPath(box, box, 0, true).x).toBeGreaterThan(box.width);
   });
-  test("DentalML has all 18 mappings represented by six shared targets", async () => {
+  test("DentalML shares six code targets while flow links stay outside the structural graph", async () => {
     const dental = indexModel(
       await loadModel(resolve(import.meta.dir, "../examples/dentalml")),
     );
     const graph = projectGraph(dental, { ...options, allCode: true });
     expect(graph.omitted).toBe(0);
-    expect(dental.mappings.size).toBe(18);
+    expect(dental.mappings.size).toBe(22);
     expect(graph.nodes.filter((n) => n.kind === "code")).toHaveLength(6);
     expect(graph.connections.filter((e) => e.kind === "mapping")).toHaveLength(
-      18,
+      19, // Three additional flow links remain accessible through the reader.
     );
   });
 });

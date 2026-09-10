@@ -1,0 +1,44 @@
+.flow-section { min-width: 0; }
+.flow-section .section-heading { flex-wrap: wrap; gap: 4px 12px; }
+.flow-section .section-heading > span { font-size: 12px; }
+.flow-scroll {
+  max-width: 100%;
+  overflow: auto;
+  overscroll-behavior-x: contain;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+}
+.flow-sequence { padding: 20px 0 16px; }
+.flow-participants { display: grid; align-items: stretch; }
+.flow-participant {
+  margin: 0 8px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  text-align: center;
+  font-size: 12px;
+}
+.flow-participant .object-name { white-space: normal; justify-content: center; }
+.flow-participant .object-name-text { overflow-wrap: anywhere; }
+.flow-timeline { position: relative; padding-top: 20px; }
+.flow-lifelines { position: absolute; inset: 0; pointer-events: none; }
+.flow-lifelines > span { position: absolute; top: 0; bottom: 0; border-left: 1px dashed var(--muted); opacity: 0.45; }
+.flow-steps { list-style: none; margin: 0; padding: 0 0 16px; }
+.flow-steps > li { position: relative; min-height: 76px; padding-bottom: 40px; }
+.flow-message {
+  position: relative;
+  display: block;
+  padding: 4px 6px;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  background: var(--paper);
+  border-radius: 4px;
+}
+.flow-step-number { font-weight: 600; color: var(--muted); }
+.flow-arrow { display: block; position: absolute; bottom: 12px; left: 0; color: var(--ink); pointer-events: none; }
+.flow-participant:hover, .flow-message:hover { background: var(--accent-soft); color: var(--accent); }
+.flow-hint { margin: 10px 0 0; font-size: 12px; color: var(--muted); }
+.flow-steps > .flow-missing, .flow-missing { padding: 12px 24px; color: var(--error); overflow-wrap: anywhere; }

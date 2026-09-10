@@ -34,6 +34,8 @@ Two tabs combine independent record changes using a three-way merge. Edits to th
 
 ## Use the canvas
 
+In Diagram mode, select a relationship and adjust **Corner radius** in its appearance panel (0–24 px); on narrow screens, open **Styles**. Zero keeps square corners; short segments and nearby labels reduce the rounding automatically. This shared appearance setting supports undo and saves in `canvas.json`. Routing and label placement stay orthogonal; Atlas keeps its existing road style.
+
 Select a model object and click **Add note** to attach a note. It follows the object and its context. The native **Note**, **Text**, **Draw**, **Arrow**, **Media**, and other tldraw tools create freeform content. Semantic relationships and code mappings use custom relationship shapes; native arrows do not create model relationships.
 
 Labels and card bodies use the same native selection and dragging gestures. Shift-click or Command/Ctrl-click toggles a shape; Shift-drag adds a marquee selection. A marquee must enclose an entire context to select its container. Drag its heading to move the context and its contents. Both modes follow inner nodes in every direction, including negative local positions: Diagram fits a rectangle, and Atlas fits a polygon. Moving a selection preserves its spacing and attached notes; the context heading follows above its contents. Empty-canvas clicks and Escape clear selection; showing code or refreshing the model does not restore a cleared selection. **Add note** attaches only when exactly one model reference is selected.

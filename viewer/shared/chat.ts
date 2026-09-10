@@ -49,6 +49,7 @@ export interface ChatMessage {
     updated: string[];
     removed: string[];
     undone?: boolean;
+    migrated?: { from: string | null; to: string };
   };
   error?: string;
 }

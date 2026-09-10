@@ -1,30 +1,18 @@
-# Bringing an earlier Lexicon project forward
+# Model schema migration
 
-The reader opens `lexicon/model.xml` first. If it is absent, it can import the earlier XML layout (`system.xml`, `contexts/*.xml`, and `surfaces/*.xml`) for reading.
+Lexicon reads and writes only schema **3.0**. Older, unversioned, and newer XML is preserved and shown as a version mismatch; malformed XML shows a repair state. There are no old-schema semantic readers, serializers, or automatic converters.
 
-The import adapter preserves original identities where possible, maps model atoms into concepts, extracts reference relationships, and carries prose and code anchors forward. Earlier system and surface groupings become provisional contexts. Earlier atom kinds remain classifications. Import notices identify unresolved references and the need to review meaning.
+Open the project in the viewer, choose **Open Agent**, and ask about the document or choose **Migrate to schema 3.0**. Asking a question does not request a change. The agent follows the matching [schema delta](skills/lexicon/migrations/README.md), preserves the model's meaning and identities, and returns a complete current-schema document. The server validates it and all declared code links, checks that model.xml still matches the starting snapshot, and saves atomically. **Undo edit** restores the exact previous bytes, including an unsupported document; the mismatch screen then returns. External edits prevent save or undo from overwriting them.
 
-The adapter is a reading bridge. Review context boundaries, relation names, code-link explanations, and DDD classifications before adopting its output. Earlier originals remain the record for any semantics that require interpretation. YAML-era models require a manual reconstruction from source and their existing notes.
+Readable schema-3 models use ordinary incremental patches. Migration is reserved for unavailable documents. A future or unknown version without a documented migration path remains intact; the agent explains the missing path. A malformed document can be repaired on explicit request when its intended content is clear.
 
-## Preview and write
-
-From `viewer/`:
+For standalone agents, read [the migration instructions](skills/lexicon/migrations/README.md). Keep the original bytes in a backup before writing model.xml and run:
 
 ```sh
-# Print the proposed model to stdout for review.
-bun run convert /path/to/project
-
-# Create model.xml while preserving every earlier file.
-bun run convert /path/to/project --write
-
-# Check the new model and its source links.
-bun run check /path/to/project
+cd viewer
+bun run check /absolute/artifact-root --code-root /absolute/code-root
 ```
 
-Writing uses exclusive creation: an existing `model.xml` is preserved. Structural errors stop conversion. Import warnings stay visible in the preview log; resolve their meaning during review. When code lives elsewhere, use `--code-root /path/to/code` with the checker.
+An earlier project with lexicon/system.xml is detected without importing its semantics. Its agent reads the earlier files and creates model.xml; the originals remain. Linked worktrees retain separate source and artifact roots. Canvas, assets, registrations, and conversations are preserved independently.
 
-## Workflow consolidation
-
-The plugin now has one skill: `/lexicon:lexicon`. Read, annotate, and update under the current task. Earlier lifecycle commands, the timestamp marker, and the awareness and prose skills are retired. Existing project prose stays in `lexicon/docs/`.
-
-The viewer now reads the four-object model through Read, Map, and linked source. The old graph lenses, LSP services, generated territory graphs, model-health dashboards, and editor dependencies have been removed. The project registry remains compatible with the existing local SQLite database.
+When changing the schema again, update the current model contract, parser, fixtures, and docs together and add the delta to the migration directory. Maintain instructions for moving forward; do not add runtime branches for older models.

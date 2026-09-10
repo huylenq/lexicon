@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { ModelItem } from "../../shared/model";
+import type { ModelItem, ModelProblem } from "../../shared/model";
 import {
   providers,
   type Provider,
@@ -33,6 +33,7 @@ export default function ChatPane({
   selected,
   modelRevision,
   empty,
+  problem,
   example,
   onClose,
   onRunningChange,
@@ -46,6 +47,7 @@ export default function ChatPane({
   selected?: ModelItem;
   modelRevision: string;
   empty: boolean;
+  problem?: ModelProblem;
   example?: boolean;
   onClose: () => void;
   onRunningChange: (running: boolean) => void;
@@ -220,7 +222,19 @@ export default function ChatPane({
           }
         }}
       >
-        {!state?.messages.length && (
+        {problem && <div className="chat-welcome" role="status">
+          <p>{problem.message}</p>
+          <div className="chat-starters">
+            <button disabled={busy || state?.running || unavailable || !modelReady || example}
+              onClick={() => void send(problem.kind === "schema-mismatch"
+                ? `Migrate this project's existing model to schema ${problem.expectedSchema} using the supplied migration instructions. Preserve all existing meaning and stable IDs.`
+                : "Repair the model XML using the current schema. Preserve all recoverable content and stable IDs.")}>
+              {problem.kind === "schema-mismatch" ? `Migrate to schema ${problem.expectedSchema}` : "Repair model XML"}<Icon name="arrow-right" />
+            </button>
+          </div>
+          <p className="hint">You can also ask about the document before requesting a change.</p>
+        </div>}
+        {!problem && !state?.messages.length && (
           <div className="chat-welcome">
             <p>
               {empty
@@ -343,7 +357,7 @@ export default function ChatPane({
                   <Icon name="check" />{" "}
                   {message.change.undone
                     ? "Model change undone"
-                    : "Model updated"}
+                    : message.change.migrated ? `Model migrated to schema ${message.change.migrated.to}` : "Model updated"}
                 </span>
                 {(["added", "updated", "removed"] as const).map(
                   (kind) =>

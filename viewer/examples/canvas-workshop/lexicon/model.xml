@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<lexicon schema="2.0" id="canvas-workshop">
+<lexicon schema="3.0" id="canvas-workshop">
   <name>Checkout workshop</name>
   <description>A small, illustrative checkout model for trying the canvas. Follow an Order through its lines and price calculation, then attach questions, sketches, or interface examples. The source is a local teaching fixture, not a production checkout.</description>
   <context id="ordering">

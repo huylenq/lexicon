@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<lexicon schema="3.0" id="shop-prototype">
+  <name>Shop</name>
+  <description>A small order API used to examine domain meaning, software structure, and runtime collaboration. It validates quantities and keeps accepted orders in process memory. It has no pricing, payment, inventory, authentication, or durable storage.</description>
+  <context id="ordering">
+    <name>Ordering</name>
+    <description>Agree on which products and quantities a customer requests.</description>
+    <concept id="order" classification="entity">
+      <name>Order</name>
+      <description>An accepted request identified independently of its product quantities.</description>
+      <annotation kind="rule" evidence="enforced">Creation requires at least one product with a nonempty SKU and a positive whole quantity.</annotation>
+      <code-link id="definition" file="src/order.ts" symbol="Order" role="definition">Order stores identity and checks the initial lines in its constructor.</code-link>
+    </concept>
+    <concept id="order-line" classification="value">
+      <name>Order Line</name>
+      <description>A product identifier and its requested quantity within an order.</description>
+      <code-link id="definition" file="src/order.ts" symbol="OrderLine" role="representation">The TypeScript record names a SKU and quantity.</code-link>
+    </concept>
+  </context>
+  <person id="customer">
+    <name>Customer</name>
+    <description>The intended caller of the order API. The fixture does not authenticate callers or provide a customer interface.</description>
+    <annotation kind="role" evidence="intended">A customer submits the products they want to order.</annotation>
+  </person>
+  <system id="shop">
+    <name>Shop</name>
+    <description>The software system accepting orders through its API.</description>
+    <container id="api">
+      <name>Shop API</name>
+      <description>A Bun application exposing POST /orders. Checkout and its in-memory repository run inside this application.</description>
+      <code-link id="entry" file="src/api.ts" symbol="handle" role="entrypoint">Routes a request to the checkout component and returns acceptance or refusal.</code-link>
+      <component id="checkout">
+        <name>Order Handling</name>
+        <description>Creates a validated order, assigns its identity, and passes it to the repository.</description>
+        <code-link id="implementation" file="src/checkout.ts" symbol="Checkout" role="implementation">Checkout is the code name for the Order Handling responsibility.</code-link>
+      </component>
+      <component id="repository">
+        <name>Order Repository</name>
+        <description>Stores accepted orders in a map owned by the API process.</description>
+        <annotation kind="lifetime" evidence="observed">Orders are lost when the API process restarts.</annotation>
+        <code-link id="implementation" file="src/repository.ts" symbol="OrderRepository" role="implementation">The repository stores orders by ID in process memory.</code-link>
+      </component>
+    </container>
+  </system>
+  <relationship id="order-lines" from="order" to="order-line">
+    <name>contains</name>
+    <description>An order contains product quantities. This domain relationship does not change the Order Line concept's owning context.</description>
+    <code-link id="members" file="src/order.ts" symbol="Order" role="representation">Order copies the input lines into its lines collection.</code-link>
+  </relationship>
+  <relationship id="customer-orders" from="customer" to="api">
+    <name>submits orders to</name>
+    <description>Clients can submit product quantities to POST /orders. The intended customer role is not checked by the implementation.</description>
+    <code-link id="request" file="src/api.ts" symbol="handle" role="entrypoint">The handler accepts POST requests without authenticating a customer identity.</code-link>
+  </relationship>
+  <relationship id="creates-order" from="checkout" to="order">
+    <name>creates</name>
+    <description>Order Handling realizes order creation by invoking the domain constructor before saving the result.</description>
+    <code-link id="creation" file="src/checkout.ts" symbol="Checkout.place" role="implementation">Constructs Order and then calls repository.save.</code-link>
+  </relationship>
+  <relationship id="saves-order" from="checkout" to="repository">
+    <name>saves accepted orders through</name>
+    <description>After successful validation, checkout passes the order to the repository supplied at application startup.</description>
+    <code-link id="call" file="src/checkout.ts" symbol="Checkout.place" role="usage">The call to repository.save connects these components.</code-link>
+  </relationship>
+  <relationship id="stores-order" from="repository" to="order">
+    <name>stores</name>
+    <description>The repository implements storage for accepted orders for the lifetime of one API process.</description>
+    <code-link id="storage" file="src/repository.ts" symbol="OrderRepository.save" role="implementation">Stores the supplied order under its ID.</code-link>
+  </relationship>
+  <relationship id="handles-order" from="api" to="checkout">
+    <name>dispatches orders to</name>
+    <description>The API parses the request body and passes its product quantities to Order Handling for validation and creation.</description>
+    <code-link id="dispatch" file="src/api.ts" symbol="handle" role="usage">The handler invokes checkout.place after parsing the JSON request body.</code-link>
+  </relationship>
+  <flow id="place-order">
+    <name>Place an Order</name>
+    <description>The successful path through POST /orders, from a request to storing the accepted order in process memory.</description>
+    <annotation kind="scope" evidence="observed">This scenario assumes valid product quantities. Parsing or order validation failures produce HTTP 400 before the repository is called. A successful request returns the created order with HTTP 201.</annotation>
+    <code-link id="entry" file="src/api.ts" symbol="handle" role="entrypoint">Routes the request and reports success or failure.</code-link>
+    <code-link id="sequence" file="src/checkout.ts" symbol="Checkout.place" role="implementation">Constructs and validates Order before saving it through the repository.</code-link>
+    <step id="submit" relationship="customer-orders">Submit product quantities</step>
+    <step id="create" relationship="handles-order">Create and validate the order</step>
+    <step id="save" relationship="saves-order">Save the accepted order</step>
+  </flow>
+</lexicon>
