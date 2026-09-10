@@ -46,6 +46,7 @@ import { useProjectCanvas } from "./useProjectCanvas";
 import { CanvasInspector, noteText } from "./CanvasInspector";
 import { canvasThemes, syncCanvasTheme } from "./theme";
 import { InkMapBackground, MapStylePanel } from "./terrain/InkMap";
+import { ConnectionStylePanel } from "./ConnectionStylePanel";
 import { useSyncCanvasPresentation } from "./presentation";
 import "tldraw/tldraw.css";
 import "./canvas.css";
@@ -74,7 +75,7 @@ function CanvasStylePanel() {
       editor.getSelectedShapes().some((shape) => !isModelShape(shape)),
     [editor],
   );
-  return shown ? <DefaultStylePanel /> : <MapStylePanel />;
+  return shown ? <DefaultStylePanel /> : <><ConnectionStylePanel /><MapStylePanel /></>;
 }
 const components = {
   PageMenu: null,

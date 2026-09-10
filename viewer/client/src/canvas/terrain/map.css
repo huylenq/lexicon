@@ -73,7 +73,7 @@
 .canvas-pane[data-map="true"] .canvas-object[data-map-building="true"] .object-name { font-size: 12px; }
 .map-style-panel { display: flex; flex-direction: column; gap: 6px; padding: 12px; width: 200px; font: 12px system-ui, sans-serif; }
 .map-style-panel label { display: flex; flex-direction: column; gap: 6px; }
-.map-style-panel select { width: 100%; padding: 6px; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 4px; font: inherit; }
+.map-style-panel select, .map-style-panel input { width: 100%; padding: 6px; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 4px; font: inherit; }
 .map-style-panel small { font-size: 10px; color: var(--muted); }
 .map-style-panel button { padding: 6px; border: 1px solid var(--line); border-radius: 4px; background: var(--paper); color: var(--ink); font: inherit; cursor: pointer; }
 .map-style-panel button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
