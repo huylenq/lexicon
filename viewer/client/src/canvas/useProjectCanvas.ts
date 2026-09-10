@@ -16,6 +16,7 @@ import {
   readCanvasScope,
   canvasTabId,
   listRecovery,
+  deleteRecovery,
   type Recovery,
 } from "./recovery";
 
@@ -169,6 +170,13 @@ export function useProjectCanvas(
     replaceProject: (state: CanvasState) =>
       runtime.current?.replaceProject(state),
     restoreDraft: (draft: Recovery) => runtime.current?.restoreDraft(draft),
+    async deleteDraft(draft: Recovery) {
+      await deleteRecovery(draft.key);
+      setState((state) => ({
+        ...state,
+        drafts: state.drafts.filter((entry) => entry.key !== draft.key),
+      }));
+    },
     recoverPrevious: () => runtime.current?.recoverPrevious(),
   };
 }

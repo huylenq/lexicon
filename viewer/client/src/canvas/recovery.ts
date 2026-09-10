@@ -73,6 +73,17 @@ export async function saveRecovery(record: Recovery) {
       );
   });
 }
+export async function deleteRecovery(key: string) {
+  const db = await database();
+  await new Promise<void>((resolve, reject) => {
+    const transaction = db.transaction("drafts", "readwrite");
+    transaction.objectStore("drafts").delete(key);
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = transaction.onabort = () =>
+      reject(transaction.error || new Error("Could not delete the recovery copy."));
+  });
+}
+
 export async function listRecovery(scope: string): Promise<Recovery[]> {
   const db = await database();
   return new Promise((resolve, reject) => {

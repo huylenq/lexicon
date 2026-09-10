@@ -114,6 +114,7 @@ export default function CanvasPane(props: CanvasPaneProps) {
   const [focus, setFocus] = useState<GraphSelection>();
   const [restored, setRestored] = useState<TLEditorSnapshot>();
   const [review, setReview] = useState<CanvasState>();
+  const recoveryDialog = useRef<HTMLDialogElement>(null);
   const api = useMemo(() => canvasApi(props.projectId), [props.projectId]);
   const storage = useProjectCanvas(props.projectId, model, projectKey, () =>
     setRevision((n) => n + 1),
@@ -610,13 +611,17 @@ export default function CanvasPane(props: CanvasPaneProps) {
     conflict: "Conflicting changes",
     error: "Canvas needs attention",
   }[storage.status];
-  const needsAttention =
-    storage.message ||
+  const needsAttention = !!(
+    storage.status === "local" ||
     storage.status === "error" ||
     storage.status === "conflict" ||
     storage.remote?.issue ||
     storage.remote?.missingAssets.length ||
-    storage.drafts.length;
+    storage.drafts.length || error);
+
+  useEffect(() => {
+    if (!needsAttention) recoveryDialog.current?.close();
+  }, [needsAttention]);
 
   return (
     <CanvasActions.Provider
@@ -766,148 +771,186 @@ export default function CanvasPane(props: CanvasPaneProps) {
             hidden
             onChange={(e) => importCanvas(e.target.files?.[0])}
           />
+          {needsAttention && <button
+            className="quiet canvas-recovery-trigger"
+            aria-haspopup="dialog"
+            aria-label={`Canvas recovery${storage.drafts.length ? ` (${storage.drafts.length})` : ""}`}
+            data-attention={!!needsAttention}
+            onClick={() => recoveryDialog.current?.showModal()}
+          >
+            Recovery{storage.drafts.length ? ` (${storage.drafts.length})` : ""}
+          </button>}
           <div className="assistant-toolbar-slot" ref={props.assistantHost} />
         </Toolbar>
-        {!!needsAttention && (
-          <div
-            className="canvas-save-state"
-            role="status"
-            data-attention-status={storage.status}
-          >
-            {storage.message && <span>{storage.message}</span>}
-            {["local", "error"].includes(storage.status) && (
-              <button onClick={() => void storage.retry()}>Retry save</button>
-            )}
-            {storage.status === "conflict" && (
-              <button
-                onClick={async () => {
-                  try {
-                    setReview(await storage.reviewProject());
-                  } catch (e) {
-                    setError((e as Error).message);
-                  }
-                }}
+        <dialog
+          ref={recoveryDialog}
+          className="canvas-recovery-dialog"
+          aria-label="Canvas recovery"
+          onClick={(event) => {
+            if (event.target !== event.currentTarget) return;
+            const bounds = event.currentTarget.getBoundingClientRect();
+            if (event.clientX < bounds.left || event.clientX > bounds.right ||
+                event.clientY < bounds.top || event.clientY > bounds.bottom)
+              event.currentTarget.close();
+          }}
+        >
+          <header>
+            <h2>Canvas recovery</h2>
+            <button className="quiet" aria-label="Close canvas recovery" onClick={() => recoveryDialog.current?.close()}>Close</button>
+          </header>
+          <div className="canvas-recovery-content">
+            {!!needsAttention && (
+              <div
+                className="canvas-save-state"
+                role="status"
+                data-attention-status={storage.status}
               >
-                Review versions
-              </button>
-            )}
-            {storage.remote?.backupAvailable && storage.remote.issue && (
-              <button
-                onClick={() =>
-                  void storage
-                    .recoverPrevious()
-                    ?.catch((e) => setError(e.message))
-                }
-              >
-                Recover previous canvas
-              </button>
-            )}
-            {!!storage.remote?.missingAssets.length && (
-              <span>
-                {storage.remote.missingAssets.length} media files are missing
-                from lexicon/assets.
-              </span>
-            )}
-            {!!storage.drafts.length && (
-              <details>
-                <summary>Recover another tab ({storage.drafts.length})</summary>
-                {storage.drafts.map((draft) => (
+                {storage.message && <span>{storage.message}</span>}
+                {["local", "error"].includes(storage.status) && (
+                  <button onClick={() => void storage.retry()}>Retry save</button>
+                )}
+                {storage.status === "conflict" && (
                   <button
-                    key={draft.key}
+                    onClick={async () => {
+                      try {
+                        setReview(await storage.reviewProject());
+                      } catch (e) {
+                        setError((e as Error).message);
+                      }
+                    }}
+                  >
+                    Review versions
+                  </button>
+                )}
+                {storage.remote?.backupAvailable && storage.remote.issue && (
+                  <button
                     onClick={() =>
                       void storage
-                        .restoreDraft(draft)
+                        .recoverPrevious()
                         ?.catch((e) => setError(e.message))
                     }
                   >
-                    Restore edits from{" "}
-                    {new Date(draft.updatedAt).toLocaleString()}
+                    Recover previous canvas
                   </button>
-                ))}
-              </details>
+                )}
+                {!!storage.remote?.missingAssets.length && (
+                  <span>
+                    {storage.remote.missingAssets.length} media files are missing
+                    from lexicon/assets.
+                  </span>
+                )}
+                {!!storage.drafts.length && (
+                  <section className="canvas-recovery-copies" aria-label="Browser recovery copies">
+                    <p>Recovery copies from other tabs in this browser. Restoring a copy changes your current canvas.</p>
+                    {storage.drafts.map((draft) => (
+                      <div className="canvas-recovery-entry" key={draft.key}>
+                        <button
+                          onClick={() =>
+                            void storage
+                              .restoreDraft(draft)
+                              ?.catch((e) => setError(e.message))
+                          }
+                        >
+                          Restore edits from{" "}
+                          {new Date(draft.updatedAt).toLocaleString()}
+                        </button>
+                        <button
+                          aria-label={`Delete recovery copy from ${new Date(draft.updatedAt).toLocaleString()}`}
+                          title="Delete this browser recovery copy"
+                          onClick={() =>
+                            void storage.deleteDraft(draft).catch((e) => setError(e.message))
+                          }
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    ))}
+                  </section>
+                )}
+              </div>
+            )}
+            {!storage.drafts.length && <p className="canvas-recovery-empty">No browser recovery copies.</p>}
+            {review && (
+              <div
+                className="canvas-review"
+                role="region"
+                aria-label="Review canvas versions"
+              >
+                <strong>Review canvas versions</strong>
+                <p>
+                  {storage.conflicts.length} overlapping records. Your current
+                  canvas is preserved. Export it to keep a portable copy.
+                </p>
+                <p>
+                  Project version:{" "}
+                  {
+                    Object.values(review.document?.snapshot.store || {}).filter(
+                      (r) => r.typeName === "shape",
+                    ).length
+                  }{" "}
+                  shapes.
+                </p>
+                <div className="canvas-version-comparison">
+                  {storage.conflicts.slice(0, 30).map((id) => (
+                    <div key={id}>
+                      <p>
+                        <strong>Project:</strong>{" "}
+                        {describeRecord(
+                          review.document?.snapshot.store[
+                            id as keyof typeof review.document.snapshot.store
+                          ],
+                        )}
+                      </p>
+                      <p>
+                        <strong>This tab:</strong>{" "}
+                        {editor
+                          ? describeRecord(editor.store.get(id as TLRecord["id"]))
+                          : "Unavailable"}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+                <button onClick={exportCanvas}>Export my canvas</button>
+                <button
+                  onClick={() =>
+                    void storage
+                      .useProject()
+                      ?.then(() => setReview(undefined))
+                      .catch((e) => setError(e.message))
+                  }
+                >
+                  Use project version
+                </button>
+                <button
+                  disabled={!!review.issue || !review.document}
+                  onClick={() =>
+                    void storage
+                      .replaceProject(review)
+                      ?.then(() => setReview(undefined))
+                      .catch((e) => setError(e.message))
+                  }
+                >
+                  Replace reviewed project version with mine
+                </button>
+                <button onClick={() => setReview(undefined)}>Keep reviewing</button>
+              </div>
+            )}
+            {error && (
+              <div className="canvas-error" role="alert">
+                {error}
+                <button
+                  className="quiet"
+                  onClick={() => {
+                    setError("");
+                    setRevision((n) => n + 1);
+                  }}
+                >
+                  Retry
+                </button>
+              </div>
             )}
           </div>
-        )}
-        {review && (
-          <div
-            className="canvas-review"
-            role="dialog"
-            aria-modal="false"
-            aria-label="Review canvas versions"
-          >
-            <strong>Review canvas versions</strong>
-            <p>
-              {storage.conflicts.length} overlapping records. Your current
-              canvas is visible below. Export it to keep a portable copy.
-            </p>
-            <p>
-              Project version:{" "}
-              {
-                Object.values(review.document?.snapshot.store || {}).filter(
-                  (r) => r.typeName === "shape",
-                ).length
-              }{" "}
-              shapes.
-            </p>
-            <div className="canvas-version-comparison">
-              {storage.conflicts.slice(0, 30).map((id) => (
-                <div key={id}>
-                  <p>
-                    <strong>Project:</strong>{" "}
-                    {describeRecord(
-                      review.document?.snapshot.store[
-                        id as keyof typeof review.document.snapshot.store
-                      ],
-                    )}
-                  </p>
-                  <p>
-                    <strong>This tab:</strong>{" "}
-                    {editor
-                      ? describeRecord(editor.store.get(id as TLRecord["id"]))
-                      : "Unavailable"}
-                  </p>
-                </div>
-              ))}
-            </div>
-            <button onClick={exportCanvas}>Export my canvas</button>
-            <button
-              onClick={() =>
-                void storage
-                  .useProject()
-                  ?.then(() => setReview(undefined))
-                  .catch((e) => setError(e.message))
-              }
-            >
-              Use project version
-            </button>
-            <button
-              disabled={!!review.issue || !review.document}
-              onClick={() =>
-                void storage
-                  .replaceProject(review)
-                  ?.then(() => setReview(undefined))
-                  .catch((e) => setError(e.message))
-              }
-            >
-              Replace reviewed project version with mine
-            </button>
-            <button onClick={() => setReview(undefined)}>Keep reviewing</button>
-          </div>
-        )}
-        {error && (
-          <div className="canvas-error" role="alert">
-            {error}
-            <button
-              className="quiet"
-              onClick={() => {
-                setError("");
-                setRevision((n) => n + 1);
-              }}
-            >
-              Retry
-            </button>
-          </div>
-        )}
+        </dialog>
         </div>
         <div className="canvas-stage" data-ready={!loading && !importing}
           // Native bounds updates are throttled; refresh before the first tap
