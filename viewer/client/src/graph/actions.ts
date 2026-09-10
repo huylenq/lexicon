@@ -1,5 +1,6 @@
 import {
   selectionRecords,
+  descendantIds,
   type GraphIndex,
   type GraphSelection,
 } from "./model";
@@ -16,14 +17,8 @@ export function codeOwners(
     if (mapping) result.add(mapping.owner.id);
   }
   for (const id of [...result]) {
-    if (index.items.get(id)?.type !== "context") continue;
-    const members = new Set([id]);
-    for (const item of index.items.values()) {
-      if (item.type === "concept" && item.context === id) {
-        result.add(item.id);
-        members.add(item.id);
-      }
-    }
+    const members = descendantIds(index, id);
+    for (const child of members) result.add(child);
     for (const item of index.items.values()) {
       if (
         item.type === "relationship" &&

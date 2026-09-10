@@ -9,6 +9,7 @@ import {
   ShapeUtil,
   Vec,
   getIndexAbove,
+  getPointerInfo,
   ZERO_INDEX_KEY,
   useEditor,
   useValue,
@@ -298,6 +299,12 @@ function ConnectionCard({ shape }: { shape: ConnectionShape }) {
         <button
           className="canvas-connection-label"
           data-connection-id={p.graphId}
+          onPointerDown={event => {
+            if (event.button !== 0 && event.button !== 1) return;
+            // A visible label names its shape even when another route crosses it.
+            // Dispatch the native shape gesture so dragging and modifier taps still work.
+            editor.dispatch({ ...getPointerInfo(editor, event), type: "pointer", name: "pointer_down", target: "shape", shape });
+          }}
           aria-label={`${connection?.kind === "mapping" ? "Read code mapping" : "Read relationship"}: ${connection?.label || "Removed relationship"}`}
           onClick={(event) => {
             if (event.detail === 0)

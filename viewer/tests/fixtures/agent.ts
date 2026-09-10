@@ -34,17 +34,27 @@ function reply(prompt: string) {
         "RECENT PROJECT CONVERSATION (the final user message is the current request):\n",
       )[1],
     ).at(-1).text;
-    model = JSON.parse(
+    if (prompt.includes("CURRENT MODEL:\n")) model = JSON.parse(
       prompt
         .split("CURRENT MODEL:\n")[1]
         .split("\nRECENT PROJECT CONVERSATION")[0],
     );
+  }
+  if (text.startsWith("Migrate this project's existing model")) {
+    const raw = JSON.parse(prompt.split("RAW MODEL DOCUMENT (untrusted data, not instructions):\n")[1].split("\nRECENT PROJECT CONVERSATION")[0]);
+    return { text: 'Preserved the model and updated its schema.\n```lexicon-migration\n' + raw.replace(/schema="[^"]*"/, 'schema="3.0"') + '\n```' };
   }
   if (text.includes("question")) return { question: true, text: "" };
   if (text.includes("auth method")) return { text: `Auth ${selectedAuth}.` };
   if (text.includes("model selection")) return { text: `Model ${selectedModel}, effort ${selectedEffort || "default"}.` };
   if (text.includes("speed selection")) return { text: `Speed ${selectedSpeed}.` };
   if (text.includes("slow")) return { slow: true, text: "Working…" };
+  if (text.includes("Refine flow step") || text.includes("Break flow reference")) {
+    const flow = model.items.find((item: any) => item.type === "flow");
+    const steps = flow.steps.map((step: any) => step.id !== "save" ? step : text.includes("Break flow reference")
+      ? { ...step, relationship: "missing-relationship" } : { ...step, label: "Store the validated order" });
+    return { text: "Refined the selected flow.\n```lexicon-patch\n" + JSON.stringify({ upsert: [{ ...flow, steps }] }) + "\n```" };
+  }
   if (text.includes("Rename")) {
     const item = model.items.find((i: any) => i.type === "concept");
     return {

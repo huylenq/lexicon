@@ -1,14 +1,14 @@
 import { Hono } from "hono";
 import { serveStatic } from "hono/bun";
 import { readFile, realpath, stat } from "node:fs/promises";
-import { resolve, relative, isAbsolute, join } from "node:path";
+import { resolve, relative, isAbsolute, join, basename } from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { projects } from "./db";
-import { loadModel, parseModel } from "./model";
+import { loadModel, readModelDocument } from "./model";
 import { readCode } from "./code";
 import type { Project } from "../shared/model";
-import { codeTargetId } from "../shared/model";
+import { MODEL_SCHEMA, codeTargetId } from "../shared/model";
 import { streamSSE } from "hono/streaming";
 import { chat } from "./chat/service";
 import { modelOrEmpty, readXml, fingerprint } from "./chat/model-edit";
@@ -21,6 +21,11 @@ import { MAX_CANVAS_BYTES, MAX_ASSET_BYTES } from "../shared/canvas";
 const exec = promisify(execFile);
 const repository = resolve(import.meta.dir, "../..");
 const examples = [
+  {
+    id: "shop", name: "Shop · Domain, architecture, and flows",
+    root: resolve(import.meta.dir, "../examples/shop"),
+    artifactRoot: resolve(import.meta.dir, "../examples/shop"), example: true,
+  },
   ...((process.env.LEXICON_CANVAS_WORKSHOP || process.env.LEXICON_CANVAS_PROTOTYPE) === "1" ? [{
     id: "canvas-workshop",
     name: "Checkout · Canvas workshop",
@@ -94,7 +99,7 @@ app.use("/api/*", async (c, next) => {
   await next();
 });
 app.onError((error, c) => c.json({ error: error.message }, error instanceof CanvasError ? error.status : 400));
-app.get("/api/health", (c) => c.json({ ok: true, model: "2.0" }));
+app.get("/api/health", (c) => c.json({ ok: true, model: MODEL_SCHEMA }));
 app.get("/api/projects", (c) =>
   c.json([
     ...examples.map(({ artifactRoot, ...p }) => p),
@@ -115,10 +120,10 @@ app.post("/api/projects", async (c) => {
   const root = await realpath(body.root);
   if (!(await stat(root)).isDirectory())
     return c.json({ error: "Choose a project folder." }, 400);
-  const model = await modelOrEmpty(await artifactRoot(root));
+  const document = await readModelDocument(await artifactRoot(root));
   if (projects.list().some((p) => p.root_path === root))
     return c.json({ error: "This project is already in your library." }, 409);
-  const p = projects.add(model.name, root);
+  const p = projects.add(document.model?.name || basename(root), root);
   return c.json({ id: String(p.id), name: p.name, root: p.root_path });
 });
 app.delete("/api/projects/:id", (c) => {
@@ -139,14 +144,15 @@ app.get("/api/projects/:id/model", async (c) => {
   if (!p) return c.json({ error: "Project not found." }, 404);
   const root = p.artifactRoot || (await artifactRoot(p.root));
   const xml = await readXml(root);
-  const model = xml === null ? await modelOrEmpty(root) : parseModel(xml);
+  const document = await readModelDocument(root, xml);
+  const name = document.model?.name || p.name;
   if (!p.example) {
     projects.touch(Number(p.id));
-    if (p.name !== model.name) projects.rename(Number(p.id), model.name);
+    if (p.name !== name) projects.rename(Number(p.id), name);
   }
   return c.json({
-    project: { id: p.id, name: model.name, root: p.root, example: p.example },
-    model,
+    project: { id: p.id, name, root: p.root, example: p.example },
+    ...document,
     modelRevision: fingerprint(xml),
     artifactRoot: root,
   });

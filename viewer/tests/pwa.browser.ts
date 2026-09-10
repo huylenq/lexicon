@@ -66,7 +66,7 @@ test("install metadata, offline deep links, and uncached local API", async ({ pa
   await expect(page.getByRole("alert")).toContainText("local server is unavailable");
   await context.setOffline(false);
   await page.reload();
-  await expect(page.locator(".example-card")).toHaveCount(1);
+  await expect(page.locator(".example-card")).toHaveCount(2);
   await expect(page.getByRole("alert")).toHaveCount(0);
 });
 

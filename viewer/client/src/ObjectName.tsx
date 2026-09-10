@@ -1,8 +1,9 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Icon, { type IconName } from "./Icon";
+import { typeNames, type ModelItem } from "../../shared/model";
 
-export type ObjectKind = "context" | "concept" | "relationship" | "code-link" | "code";
+export type ObjectKind = ModelItem["type"] | "code-link" | "code";
 
 const classifications: Record<string, IconName> = {
   entity: "entity", value: "value", aggregate: "aggregate",
@@ -23,7 +24,7 @@ function appearance(type: ObjectKind, classification?: string) {
     icon: type === "concept" && tone ? classifications[tone] || "concept" : type,
     label: type === "concept" && classification
       ? "Concept · " + classification
-      : { context: "Context", concept: "Concept", relationship: "Relationship", "code-link": "Code link", code: "Code" }[type],
+      : { ...typeNames, "code-link": "Code link", code: "Code" }[type],
   };
 }
 

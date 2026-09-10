@@ -12,10 +12,10 @@ import {
 import { tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
 import { join, resolve } from "node:path";
-import { loadModel, parseModel, serializeModel } from "../server/model";
+import { loadModel, parseModel, serializeModel, readModelDocument } from "../server/model";
 import { readCode } from "../server/code";
 
-const native = `<lexicon schema="2.0" id="shop"><name>Shop</name><description>Ordering goods.</description>
+const native = `<lexicon schema="3.0" id="shop"><name>Shop</name><description>Ordering goods.</description>
 <context id="orders"><name>Orders</name><description>Accept customer orders.</description>
 <concept id="order" classification="aggregate"><name>Order</name><description>Items purchased together.</description>
 <annotation kind="rule" evidence="intended">Total follows the items.</annotation>
@@ -90,7 +90,7 @@ describe("the four-object model", () => {
   });
   test("rejects unsupported schema, malformed XML and entity declarations", () => {
     expect(() =>
-      parseModel(native.replace('schema="2.0"', 'schema="9.0"')),
+      parseModel(native.replace('schema="3.0"', 'schema="9.0"')),
     ).toThrow();
     expect(() => parseModel("<lexicon>")).toThrow();
     expect(() =>
@@ -116,35 +116,16 @@ describe("the four-object model", () => {
       await writeFile(join(dir, "lexicon/model.xml"), "<bad>");
       await expect(loadModel(dir)).rejects.toThrow();
     }));
-  test("imports earlier XML read-only, preserving concept categories, rules, anchors and references", async () =>
+  test("earlier split XML is detected without interpreting it or creating an empty model", async () =>
     temp(async (dir) => {
-      await mkdir(join(dir, "lexicon/contexts"), { recursive: true });
-      const old =
-        '<system schema="1.0" id="shop"><name>Shop</name><purpose>Ordering goods.</purpose><contexts><ref to="orders"/></contexts></system>';
+      await mkdir(join(dir, "lexicon"));
+      const old = '<system schema="1.0" id="shop"><name>Shop</name><purpose>Ordering.</purpose></system>';
       await writeFile(join(dir, "lexicon/system.xml"), old);
-      await writeFile(
-        join(dir, "lexicon/contexts/orders.xml"),
-        '<bounded-context schema="1.0" id="orders"><name>Orders</name><purpose>Ordering.</purpose><term id="order" category="entity"><name>Order</name><definition>A purchase.</definition><symbols><code-anchor file="order.ts" symbol="Order"/></symbols></term><aggregate id="group"><name>Group</name><description>Consistency.</description><root><ref to="order"/></root><rationale>Change together.</rationale></aggregate></bounded-context>',
-      );
-      const m = await loadModel(dir);
-      expect(m.source).toBe("legacy");
-      expect(
-        m.items.find((i) => i.id === "orders/order")?.codeLinks[0].symbol,
-      ).toBe("Order");
-      expect(
-        m.items.find((i) => i.id === "orders/aggregate/group"),
-      ).toMatchObject({ classification: "aggregate" });
-      expect(
-        m.items.some(
-          (i) =>
-            i.type === "relationship" &&
-            i.from === "orders/aggregate/group" &&
-            i.to === "orders/order",
-        ),
-      ).toBe(true);
-      expect(m.issues.filter((i) => i.severity === "error")).toEqual([]);
+      const document = await readModelDocument(dir);
+      expect(document.model).toBeUndefined();
+      expect(document.problem?.kind).toBe("schema-mismatch");
+      await expect(loadModel(dir)).rejects.toThrow("Open Agent");
       expect(await readFile(join(dir, "lexicon/system.xml"), "utf8")).toBe(old);
-      expect(parseModel(serializeModel(m)).items).toEqual(m.items);
     }));
 });
 describe("links into source", () => {
@@ -208,33 +189,19 @@ describe("links into source", () => {
 
 });
 
-test("conversion creates a new model and refuses to overwrite it", async () =>
+test("the checker reports mismatches without converting or writing the original", async () =>
   temp(async (dir) => {
     await mkdir(join(dir, "lexicon"));
-    const original =
-      '<system schema="1.0" id="shop"><name>Shop</name><purpose>Purchases.</purpose><contexts><ref to="missing"/></contexts></system>';
-    await writeFile(join(dir, "lexicon/system.xml"), original);
-    const args = [
-      resolve(import.meta.dir, "../server/cli.ts"),
-      "convert",
-      dir,
-      "--write",
-    ];
-    const first = spawnSync(process.execPath, args, { encoding: "utf8" });
-    expect(first.status).toBe(0);
-    const output = await readFile(join(dir, "lexicon/model.xml"), "utf8");
-    expect(output).toContain('kind="import-review"');
-    expect(parseModel(output).issues).toEqual([]);
-    const second = spawnSync(process.execPath, args, { encoding: "utf8" });
-    expect(second.status).toBe(1);
-    expect(await readFile(join(dir, "lexicon/model.xml"), "utf8")).toBe(output);
-    expect(await readFile(join(dir, "lexicon/system.xml"), "utf8")).toBe(
-      original,
-    );
+    const original = native.replace('schema="3.0"', 'schema="2.0"');
+    await writeFile(join(dir, "lexicon/model.xml"), original);
+    const result = spawnSync(process.execPath, [resolve(import.meta.dir, "../server/cli.ts"), "check", dir], { encoding: "utf8" });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("Open Agent to migrate");
+    expect(await readFile(join(dir, "lexicon/model.xml"), "utf8")).toBe(original);
   }));
 
 test("optional code-link IDs round-trip and must be unique within their owner", () => {
-  const xml = `<lexicon schema="2.0" id="test"><name>Test</name><description>Test.</description><context id="ctx"><name>Context</name><description>Scope.</description><code-link id="definition" file="a.ts" role="definition">Definition.</code-link></context></lexicon>`;
+  const xml = `<lexicon schema="3.0" id="test"><name>Test</name><description>Test.</description><context id="ctx"><name>Context</name><description>Scope.</description><code-link id="definition" file="a.ts" role="definition">Definition.</code-link></context></lexicon>`;
   const model = parseModel(xml);
   expect(model.items[0].codeLinks[0].id).toBe("definition");
   expect(parseModel(serializeModel(model)).items[0].codeLinks[0].id).toBe("definition");

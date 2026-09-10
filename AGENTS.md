@@ -2,7 +2,7 @@
 
 Read [MANIFESTO.md](MANIFESTO.md) and [MODEL.md](MODEL.md) before changing the product. They define the direction and the model. The user's current instructions govern scope.
 
-Lexicon reduces cognitive debt through a human model of code. Context, Concept, Relationship, and Code Link are the core objects. Annotations explain meaning, rules, and rationale. DDD is applied through annotation and linkage to existing software.
+Lexicon reduces cognitive debt through a human model of code. Contexts and Concepts describe domain meaning; fixed C4 elements describe software structure; Flows order relationship occurrences. Items share annotations and code links. Annotations explain meaning, rules, and rationale. DDD is applied through annotation and linkage to existing software.
 
 Keep implementation small. Add structure when a worked example needs it. Preserve the distinction between intended consistency, observed behavior, and enforced checks. Explain mismatches between domain names and code symbols.
 
@@ -10,7 +10,6 @@ The DentalML example is in `viewer/examples/dentalml/lexicon/model.xml`; its cod
 
 - `viewer/shared/model.ts`: shared domain types.
 - `viewer/server/model.ts`: XML parsing, validation, serialization, and loading.
-- `viewer/server/legacy.ts`: read-only import of earlier XML.
 - `viewer/server/code.ts`: declared source-link resolution.
 - `viewer/server/index.ts`: local API and project registration.
 - `viewer/client/src/`: reader, independent canvas pane, and source viewing.
@@ -20,7 +19,7 @@ The DentalML example is in `viewer/examples/dentalml/lexicon/model.xml`; its cod
 
 Run `bun run test`, `bun run typecheck`, `bun run build:client` from `viewer/`. For viewer changes, exercise the browser through a context, concept, relationship, and code link; check search, history, narrow screens, and error states. `bun run test:browser` runs the reader, navigation, and conversation browser checks with an isolated registry; see the viewer README for browser installation.
 
-Preserve unrelated work and existing project registrations. Conversion creates a new file and preserves originals. Keep historical decisions in Git and the changelog rather than repeating superseded instructions in active guidance.
+Preserve unrelated work and existing project registrations. Only the current semantic schema is parsed. Mismatches preserve the document and keep Chat available; agent-readable deltas live in `skills/lexicon/migrations/`. Migration uses current-schema validation and exact-file undo, without old-schema readers. Keep historical decisions in Git and the changelog rather than repeating superseded instructions in active guidance.
 
 ## Scope for future sessions
 
@@ -40,4 +39,4 @@ Keep conversations at project level. Capture the selected concept or relationshi
 
 Lexicon owns its conversations and reuses authenticated coding runtimes on the local machine. Codex uses app-server, Grok uses ACP, and Claude uses its streaming CLI. Use Codex for live end-to-end testing. `viewer/server/chat/` owns provider adapters, conversation persistence, and model edits; `viewer/shared/chat.ts` defines the client contract.
 
-Agents inspect source with read-only tools and return incremental model patches. The server validates patches and new code links, checks that the model still matches the turn's starting snapshot, and saves only the resolved artifact root's `lexicon/model.xml`. Undo restores exact file contents and refuses to overwrite external changes. Keep source roots and artifact roots explicit for linked worktrees. Browser and protocol tests use isolated registries and a deterministic CLI fixture; live runtime tests need a separate temporary project.
+Agents inspect source with read-only tools and return incremental model patches. On explicit migration requests for an unavailable document, they return complete current-schema XML through the migration protocol. The server validates patches and new code links, checks that the model still matches the turn's starting snapshot, and saves only the resolved artifact root's `lexicon/model.xml`. Undo restores exact file contents and refuses to overwrite external changes. Keep source roots and artifact roots explicit for linked worktrees. Browser and protocol tests use isolated registries and a deterministic CLI fixture; live runtime tests need a separate temporary project.

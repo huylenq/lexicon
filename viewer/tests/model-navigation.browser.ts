@@ -29,6 +29,7 @@ test("object type tooltips work with hover, keyboard, and a zoomed canvas", asyn
   await page.goto("/p/dentalml");
   await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
   await page.getByRole("button", { name: "Fit model", exact: true }).click();
+  await page.getByRole("radio", { name: "Diagram", exact: true }).check();
   const canvasIcon = page.getByRole("button", { name: "concept: Selected tooth", exact: true })
     .getByRole("img", { name: "Concept · entity", exact: true });
   await canvasIcon.hover();
@@ -51,7 +52,7 @@ test("a registered model with parallel edges, self-links, stale links, and inval
     await mkdir(join(root, "lexicon"));
     await writeFile(
       join(root, "lexicon/model.xml"),
-      `<lexicon schema="2.0" id="edge-cases"><name>Edge cases</name><description>Canvas validation.</description><context id="c"><name>Context</name><description>Example.</description><concept id="a"><name>Alpha</name><description>First.</description><code-link file="missing.ts" symbol="Missing" role="definition">Missing code.</code-link></concept><concept id="b"><name>Beta</name><description>Second.</description></concept></context><relationship id="one" from="a" to="b"><name>one</name><description>First edge.</description></relationship><relationship id="two" from="a" to="b"><name>two</name><description>Second edge.</description></relationship><relationship id="self" from="a" to="a"><name>itself</name><description>Self edge.</description></relationship><relationship id="bad" from="a" to="missing"><name>bad</name><description>Missing endpoint.</description></relationship></lexicon>`,
+      `<lexicon schema="3.0" id="edge-cases"><name>Edge cases</name><description>Canvas validation.</description><context id="c"><name>Context</name><description>Example.</description><concept id="a"><name>Alpha</name><description>First.</description><code-link file="missing.ts" symbol="Missing" role="definition">Missing code.</code-link></concept><concept id="b"><name>Beta</name><description>Second.</description></concept></context><relationship id="one" from="a" to="b"><name>one</name><description>First edge.</description></relationship><relationship id="two" from="a" to="b"><name>two</name><description>Second edge.</description></relationship><relationship id="self" from="a" to="a"><name>itself</name><description>Self edge.</description></relationship><relationship id="bad" from="a" to="missing"><name>bad</name><description>Missing endpoint.</description></relationship></lexicon>`,
     );
     const response = await request.post("/api/projects", { data: { root } });
     id = (await response.json()).id;

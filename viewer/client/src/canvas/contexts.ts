@@ -1,6 +1,6 @@
 import type { Editor, TLShape } from "tldraw";
 import type { ObjectShape } from "../../../shared/canvas-schema";
-import type { Territory, TerritoryPreferences } from "../../../shared/canvas-geometry";
+import type { Bounds, Territory, TerritoryPreferences } from "../../../shared/canvas-geometry";
 import { objectSizes } from "./sizing";
 import { applyTerritoryEdits, fitContextFrame, generateTerritory, migrateTerritory, pointBounds, roundTerritory } from "./territory";
 
@@ -9,18 +9,19 @@ export const isContext = (shape: TLShape): shape is ContextShape =>
   shape.type === "lexicon-object" && shape.props.group && shape.props.graphId.startsWith("item:");
 
 /** Only inner model nodes shape a context; notes, roads, and expanded code do not. */
-export function contextContents(editor: Editor, shape: ObjectShape) {
+export function contextContents(editor: Editor, shape: ObjectShape): Bounds[] {
   return editor.getSortedChildIdsForParent(shape.id).flatMap(id => {
     const child = editor.getShape(id);
-    return child?.type === "lexicon-object" && !child.props.group
-      ? [{ x: child.x, y: child.y, w: child.props.w, h: child.props.h }] : [];
+    if (child?.type !== "lexicon-object") return [];
+    const box = child.props.group ? diagramContextFrame(editor, child) : { x: 0, y: 0, w: child.props.w, h: child.props.h };
+    return [{ ...box, x: child.x + box.x, y: child.y + box.y }];
   });
 }
 export function contextHeading(editor: Editor, shape: ObjectShape) {
   const size = objectSizes(editor, String(shape.meta.lexiconLabel || "Context"), "context").diagram;
   return { w: Math.max(100, size.w), h: Math.max(40, size.h) };
 }
-export function diagramContextFrame(editor: Editor, shape: ObjectShape) {
+export function diagramContextFrame(editor: Editor, shape: ObjectShape): Bounds {
   return fitContextFrame(contextContents(editor, shape), contextHeading(editor, shape));
 }
 type Derived = { key: string; territory: Territory; control: Territory; preferences: TerritoryPreferences | null };

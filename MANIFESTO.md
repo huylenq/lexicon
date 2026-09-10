@@ -4,7 +4,7 @@ Lexicon exists to reduce cognitive debt: the effort of reconstructing how a code
 
 It reflects the software as a human mental model: concepts, relationships, responsibilities, and their places in the implementation.
 
-We believe in Domain-Driven Design. Lexicon brings its vocabulary and bounded contexts to existing code through annotation and linkage. Annotations explain meaning. Links connect concepts to each other and to the code that implements them.
+Domain-Driven Design grounds domain meaning, C4 grounds software structure, and ordered scenarios explain runtime interactions. Lexicon brings these to existing code through annotation and linkage. The question determines which perspective earns a place in the shared model.
 
 The model comes first. It must express a real system clearly, remain small enough to understand, and let people move easily between domain meaning and implementation.
 
@@ -24,16 +24,11 @@ Human judgment guides the abstractions. Implementation evidence grounds their ex
 
 ## The model
 
-The project supplies a name, a short explanation, and its contexts. Four objects describe the system:
+The project supplies a name, a short explanation, and the objects needed to understand it. Contexts and Concepts describe domain meaning. Person, Software System, Container, and Component describe software structure. Relationships explain connections; Flows describe ordered occurrences of those relationships in a scenario. Each item can carry annotations and code links.
 
-| Object | Purpose | Contents |
-|---|---|---|
-| Context | Establish where meaning is consistent | Stable ID, name, purpose, responsibilities |
-| Concept | Name a domain idea within a context | Stable ID, name, explanation, owning context |
-| Relationship | Explain how concepts or contexts relate | Stable ID, source, target, named relation, explanation |
-| Code Link | Connect meaning to implementation | Owning object, file or symbol, role, explanation |
+Structural containment is stored once. Concepts belong to contexts, containers to systems, and components to containers. Domain membership and consistency claims remain explained relationships and annotations. Views reuse the same identities; canvas drawings and layout remain separate authored presentation.
 
-Annotations carry explanations, rules, constraints, and rationale on these objects.
+The model language stays fixed and small. Add structure when a worked example needs it. Parser and viewer support one current schema; agent-readable migration deltas carry older documents forward on explicit request. Reading a mismatch must preserve the document and keep conversation available.
 
 DDD classifications add precision where useful: entity, value object, service, event, aggregate; upstream/downstream, shared kernel, translation boundary. Real examples guide how much structure each needs.
 

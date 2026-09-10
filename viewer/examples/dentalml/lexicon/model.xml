@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<lexicon schema="2.0" id="dentalml-canal-measurement">
+<lexicon schema="3.0" id="dentalml-canal-measurement">
   <name>Canal measurement</name>
   <description>A researcher selects a tooth, derives its canal geometry, and reads a measurement alongside a spatial view. This model explains the selected-tooth workflow in DentalML, especially why the displayed path can differ from the measured path.</description>
   <context id="selection">
@@ -108,4 +108,25 @@
     <description>The app reads measurement objects and builds table rows and spatial annotations.</description>
     <code-link file="apps/pages/canal_measurement_app.py" role="implementation" symbol="measure_canal">Builds the researcher-facing result from the computed canals.</code-link>
   </relationship>
+  <relationship id="selection-feedback" from="selection" to="presentation">
+    <name>reports missing selection to</name>
+    <description>The app returns an empty plot and table with guidance when input volumes, metadata, or the tooth selection are missing, before invoking measurement.</description>
+    <code-link id="guard" file="apps/pages/canal_measurement_app.py" symbol="measure_canal" role="enforcement">The initial guards return the load-result or select-tooth message without calling the measurement module.</code-link>
+  </relationship>
+  <flow id="measure-selected-tooth">
+    <name>Measure a Selected Tooth</name>
+    <description>The successful path from a loaded result and selected FDI label through calculation to a table and spatial view.</description>
+    <annotation kind="precondition" evidence="observed">Both instance volumes and metadata are present, a tooth label is selected, and the measurement module completes successfully. The posterior toggle can override the calculation strategy independently of the FDI label.</annotation>
+    <code-link id="entry" file="apps/pages/canal_measurement_app.py" symbol="measure_canal" role="implementation">Isolates masks, calls the module, then builds rows and spatial annotations from its results.</code-link>
+    <code-link id="calculation" file="dentalml/endo/canal_measurement.py" symbol="canal_measurement_module_v2" role="implementation">Extracts and calculates canal geometry before returning results to the app.</code-link>
+    <step id="calculate" relationship="selected-measurement">Calculate canal results for the selected tooth</step>
+    <step id="present" relationship="presents-results">Build measurement rows and the spatial view</step>
+  </flow>
+  <flow id="missing-tooth-selection">
+    <name>Request a Tooth Selection</name>
+    <description>The refusal path when input volumes and metadata are loaded but the user has not selected a tooth.</description>
+    <annotation kind="rule" evidence="enforced">When tooth_label is empty after the input-data guard passes, measure_canal returns no plot, an empty table, and “Select a tooth from the dropdown.” before invoking the measurement module.</annotation>
+    <code-link id="guard" file="apps/pages/canal_measurement_app.py" symbol="measure_canal" role="enforcement">The tooth-label guard ends this request before mask isolation or calculation.</code-link>
+    <step id="request-selection" relationship="selection-feedback">Ask the user to select a tooth</step>
+  </flow>
 </lexicon>

@@ -22,7 +22,7 @@ import {
 const root = await mkdtemp(join(tmpdir(), "lexicon-chat-model-"));
 afterAll(() => rm(root, { recursive: true, force: true }));
 const xml =
-  '<lexicon schema="2.0" id="shop"><name>Shop</name><description>Orders.</description><context id="ordering"><name>Ordering</name><description>Accept orders.</description><concept id="order"><name>Order</name><description>An order.</description></concept></context><relationship id="owns" from="ordering" to="order"><name>owns</name><description>Owns orders.</description></relationship></lexicon>';
+  '<lexicon schema="3.0" id="shop"><name>Shop</name><description>Orders.</description><context id="ordering"><name>Ordering</name><description>Accept orders.</description><concept id="order"><name>Order</name><description>An order.</description></concept></context><relationship id="owns" from="ordering" to="order"><name>owns</name><description>Owns orders.</description></relationship></lexicon>';
 
 test("incremental renaming preserves unrelated objects and stable relationship endpoints", () => {
   const model = parseModel(xml),
@@ -121,4 +121,15 @@ test("save and undo refuse external edits and linked destinations", async () => 
   await mkdir(escape);
   await symlink(folder, join(escape, "lexicon"));
   await expect(saveXml(escape, null, xml)).rejects.toThrow("outside");
+});
+
+test("migration fences stay hidden while streaming and reject mixed or incomplete edits", async () => {
+  const { visibleReply } = await import("../server/chat/model-edit");
+  const migration = `Ready.\n\`\`\`lexicon-migration\n${xml}\n\`\`\``;
+  expect(extractPatch(migration)).toEqual({ text: "Ready.", migration: xml });
+  expect(visibleReply(migration)).toBe("Ready.");
+  expect(visibleReply("Ready.\n```lexicon-mig")).toBe("Ready.");
+  expect(() => extractPatch(migration + '\n```lexicon-patch\n{}\n```')).toThrow("one model change");
+  expect(() => extractPatch(migration + '\n```lexicon-patch\n{}')).toThrow("incomplete");
+  expect(() => extractPatch('```lexicon-migration\n<lexicon>')).toThrow("incomplete");
 });

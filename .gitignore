@@ -9,3 +9,6 @@
 
 # Claude Code local state (per-user, not part of plugin distribution)
 .claude/
+
+# Isolated modeling prototype runtime
+viewer/.model-prototype/

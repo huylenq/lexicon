@@ -77,3 +77,5 @@
 .canvas-note-list > button span { white-space: pre-wrap; max-height: 80px; overflow: hidden; }
 .canvas-note-list small { color: var(--muted); }
 .canvas-inspector select { max-width: 170px; }
+
+.canvas-pane .model-view { max-width: 130px; width: 130px; }

@@ -2,7 +2,7 @@
 
 Projects open in [Canvas](CANVAS.md), with model references, notes, drawings, and media. Run `bun run dev:canvas` for an isolated checkout workshop.
 
-A local reader for the four-object domain model: contexts, concepts, relationships, and code links. Read the explanation, explore its connections, and inspect the implementation.
+A local reader for domain meaning, C4 software structure, and ordered flows, sharing relationships, annotations, and code links. Read the explanation, explore its connections, and inspect the implementation.
 
 ```sh
 bun install --frozen-lockfile
@@ -16,7 +16,7 @@ The production build is installable as a PWA. Open port 5374 and use **Install a
 
 Keep `bun start` running to read projects and source. The service worker caches only the built app shell, including the canvas assets. If the server is unavailable, the app opens with a reconnect message; model data, source code, and library changes are never cached. Updates activate after all existing app windows and tabs close. PWA caching is enabled only in production builds, so Vite development stays live.
 
-The library includes a DentalML example plus your registered projects. DentalML source links use a sibling `dentalml` checkout. Add a project by its absolute folder path. Removal affects its library registration only.
+The library includes DentalML and a self-contained Shop example plus your registered projects. DentalML source links use a sibling `dentalml` checkout. Add a project by its absolute folder path. Removal affects its library registration only.
 
 - **Read:** a vertical stack of context, concept, relationship, and mapping explanations overlays the right side of Canvas. Left click opens or replaces a single **Preview** card. Middle click or Command-click (Ctrl-click on Windows/Linux) opens a **Pinned** card at the end of the stack; pinning the current Preview keeps it in place. Clicking the Preview label also keeps it. Opening or returning to a Pinned card dismisses any other Preview. Reopening an existing card reveals it without duplicates. Close removes only that card. Resize the overlay at its left edge, or use the Reader toggle in the App header to hide it without clearing your cards.
 - **Relationships:** select either endpoint to open that context or concept, or select the relationship name to read its explanation. Each is a separate link that also supports opening in a new tab.
@@ -65,7 +65,7 @@ The selected concept or relationship and its code links appear above the compose
 
 Ask exploratory questions to discuss the model. Explicit requests such as “rename this concept” or “split this into two concepts” produce incremental edits. Agents read source; the server validates and saves the model. New code links must resolve, and unsupported symbol checks are reported. Invalid edits and edits based on an externally changed model are rejected without overwriting the file. **Undo edit** restores the previous contents, provided the file has not changed since. The team shares and reviews model changes through Git.
 
-An unmodeled project opens without generating or writing anything. Start with a question or request a small overview. The built-in example supports explanation only; earlier XML models must be converted before chat can refine them. Linked worktrees can share model artifacts with their primary checkout.
+An unmodeled project opens without generating or writing anything. Start with a question or request a small overview. The built-in example supports explanation only; schema mismatches keep Chat available for discussion and explicit migration using the agent delta instructions. Only schema 3.0 is parsed, and migration supports exact-file undo. Linked worktrees can share model artifacts with their primary checkout.
 
 Conversation history, native session IDs, and undo snapshots live in the viewer's local SQLite registry. **New conversation** clears the visible conversation and starts fresh provider sessions while retaining model undo history. CLI paths can be set with `LEXICON_CODEX_BIN`, `LEXICON_GROK_BIN`, `LEXICON_CLAUDE_BIN`, `LEXICON_PI_BIN`, `LEXICON_OMP_BIN`, and `LEXICON_HERMES_BIN` when they are not on the server's PATH. The ACP entries accept a full command line; extra arguments are passed to the agent, replacing its configured spawn arguments.
 
@@ -88,3 +88,7 @@ Browser checks build and serve the client on port 5384 with a separate in-memory
 For reader frame-time measurements, build the client, start an isolated server with `LEXICON_VIEWER_API_PORT=5388 LEXICON_VIEWER_DB=:memory: bun run start`, then run `bun scripts/reader-performance.ts http://localhost:5388` in another terminal. The script scrolls 5-card and full DentalML stacks down and back three times in Chromium at 1600×900 with 4× CPU throttling. It reports animation-frame intervals and CDP script/layout/task time; these are comparative measurements, not portable performance thresholds. Keep other builds and tests idle during comparison runs. Stop the isolated server afterward.
 
 For a detailed Canvas trace, build with `bun run build:client --sourcemap`, use the isolated server above, and run `bun scripts/reader-trace.ts http://localhost:5388 /tmp/reader-canvas /absolute/path/to/lexicon/model.xml`. The optional model is copied to a temporary project; the original is untouched. The script exercises both morph directions, tile-row changes, settling, and distant navigation with up to 24 concept cards. It writes a Chrome `.trace.json`, `.cpuprofile`, screenshot, and summary beside the output prefix. Import the trace in Chrome DevTools Performance. Tracing adds overhead, and nested event durations must not be added together as total runtime.
+
+## Model migration acceptance
+
+Run `LEXICON_TRIAL_MODEL=<available-model> bun scripts/migration-agent.ts` against the model workshop API to check a live migration and two flow additions using temporary copies of DentalML source. The script preserves existing meaning, checks that an exploratory question makes no edit, undoes both changes exactly, and removes its own registration. It requires the sibling DentalML checkout or DENTALML_CODE_ROOT. Runtime settings remain local to the trial.

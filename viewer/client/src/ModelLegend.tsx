@@ -22,6 +22,9 @@ export default function ModelLegend({
   return (
     <div className="model-legend" aria-label="Model legend and counts">
       <span className="model-object-legend" aria-label="Object icon legend">
+        {(["person", "system", "container", "component"] as const).filter(kind => projection.nodes.some(n => n.kind === kind)).map(kind =>
+          <span className="model-object-key object-name" key={kind}><Icon name={kind} size={13} />{kind === "system" ? "Software System" : kind[0].toUpperCase() + kind.slice(1)}</span>
+        )}
         {objectLegend.map(([tone, icon, label]) => (
           <span
             className="model-object-key object-name"
@@ -44,6 +47,8 @@ export default function ModelLegend({
       <span className="model-count">
         {projection.nodes.filter((node) => node.kind === "concept").length}{" "}
         concepts
+        {projection.nodes.some(n => ["person", "system", "container", "component"].includes(n.kind)) &&
+          <> · {projection.nodes.filter(n => ["person", "system", "container", "component"].includes(n.kind)).length} architecture</>}
         {" · "}
         {projection.nodes.filter((node) => node.kind === "code").length} code
       </span>

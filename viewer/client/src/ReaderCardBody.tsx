@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { related, type Model } from "../../shared/model";
+import { related, flowsFor, parentOf, isArchitecture, isModelElement, typeNames, type Model } from "../../shared/model";
 import type { GraphIndex, GraphSelection, Target } from "./graph/model";
 import type { ReaderCard, ReaderOpenMode } from "./readerState";
 import { cardParams, readerLink } from "./readerNavigation";
@@ -7,6 +7,7 @@ import { Paragraph } from "./ui";
 import Icon from "./Icon";
 import ObjectName from "./ObjectName";
 import SelectionReading from "./SelectionReading";
+import FlowSequence from "./FlowSequence";
 
 type Props = {
   card: ReaderCard;
@@ -29,6 +30,7 @@ export default function ReaderCardBody({ card, model, graphIndex, params, loadin
   onSelect: select, onSelectGraph: selectGraph, onCanvasAction: graphAction, onCode: code, onOpenChat, onCopy }: Props) {
   const contexts = model?.items.filter(i => i.type === "context") || [];
   const relationships = model?.items.filter(i => i.type === "relationship") || [];
+  const architectureRoots = model?.items.filter(i => isArchitecture(i) && !parentOf(i)) || [];
   const itemLink = (id: string, label: string, relationship = false) => {
     const linked = model?.items.find((i) => i.id === id);
     const p = cardParams(params, { kind: "item", id });
@@ -49,11 +51,12 @@ export default function ReaderCardBody({ card, model, graphIndex, params, loadin
   const item = card.kind === "item" ? model?.items.find(i => i.id === card.id) : undefined;
   const specialSelection = card.kind !== "item" && card.kind !== "overview" ? card : undefined;
   const readerSelection = card.kind === "overview" ? undefined : card;
-  const owner = item?.type === "concept" ? model?.items.find(i => i.id === item.context) : undefined;
+  const owner = item ? model?.items.find(i => i.id === parentOf(item)) : undefined;
+  const flows = model ? item ? flowsFor(model, item.id) : model.items.filter(i => i.type === "flow") : [];
   return (
     <>
-      {owner && <nav className="reader-card-owner" aria-label="Owning context">{itemLink(owner.id, owner.name)}</nav>}
-      {readerSelection && (
+      {owner && <nav className="reader-card-owner" aria-label={item?.type === "concept" ? "Owning context" : "Containing object"}>{itemLink(owner.id, owner.name)}</nav>}
+      {readerSelection && item?.type !== "flow" && (
         <div className="reader-canvas-actions">
           <button
             className="quiet"
@@ -91,9 +94,7 @@ export default function ReaderCardBody({ card, model, graphIndex, params, loadin
           {model.issues.length > 0 && (
             <details className="issues">
               <summary>
-                {model.source === "legacy"
-                  ? "Earlier model imported for reading"
-                  : "Model needs attention"}{" "}
+                Model needs attention{" "}
                 · {model.issues.length} notices
               </summary>
               <ul>
@@ -134,7 +135,10 @@ export default function ReaderCardBody({ card, model, graphIndex, params, loadin
                   {itemLink(item.to, model.items.find((i) => i.id === item.to)?.name || item.to)}
                 </div>
               )}
+              {item && isArchitecture(item) && <div className="eyebrow">{typeNames[item.type]}</div>}
+              {item?.type === "flow" && <div className="eyebrow">Flow · {item.steps.length} steps</div>}
               <Paragraph text={item?.description || model.description} />
+              {item?.type === "flow" && <FlowSequence flow={item} model={model} params={params} onSelect={select} />}
               {!item && (
                 <>
                   <div className="stats">
@@ -171,7 +175,7 @@ export default function ReaderCardBody({ card, model, graphIndex, params, loadin
                             model.items.filter(
                               (i) =>
                                 i.type === "concept" &&
-                                i.context === ctx.id,
+                                i.parent === ctx.id,
                             ).length
                           }{" "}
                           concepts <Icon name="arrow-right" />
@@ -181,6 +185,24 @@ export default function ReaderCardBody({ card, model, graphIndex, params, loadin
                   </div>
                 </>
               )}
+              {!item && architectureRoots.length > 0 && <section>
+                <h2>Architecture</h2>
+                <div className="context-grid">{architectureRoots.map(root =>
+                  <button className="context-card" key={root.id} {...readerLink(mode => select(root.id, mode))}>
+                    <h3><ObjectName type={root.type} name={root.name} /></h3>
+                    <p>{root.description}</p>
+                  </button>
+                )}</div>
+              </section>}
+              {item && isArchitecture(item) && model.items.some(i => parentOf(i) === item.id) && <section>
+                <h2>Inside {item.name}</h2>
+                <div className="concept-list">{model.items.filter(i => parentOf(i) === item.id).map(child =>
+                  <button key={child.id} {...readerLink(mode => select(child.id, mode))}>
+                    <h3><ObjectName type={child.type} name={child.name} /></h3>
+                    <p>{child.description}</p>
+                  </button>
+                )}</div>
+              </section>}
               {item?.type === "context" && (
                 <section>
                   <h2>Concepts in this context</h2>
@@ -188,7 +210,7 @@ export default function ReaderCardBody({ card, model, graphIndex, params, loadin
                     {model.items
                       .filter(
                         (i) =>
-                          i.type === "concept" && i.context === item.id,
+                          i.type === "concept" && i.parent === item.id,
                       )
                       .map((i) => (
                         <button key={i.id} {...readerLink(mode => select(i.id, mode))}>
@@ -202,7 +224,7 @@ export default function ReaderCardBody({ card, model, graphIndex, params, loadin
                       ))}
                   </div>
                   {!model.items.some(
-                    (i) => i.type === "concept" && i.context === item.id,
+                    (i) => i.type === "concept" && i.parent === item.id,
                   ) && (
                     <p className="empty">
                       This context has its explanation; concepts can be
@@ -231,7 +253,7 @@ export default function ReaderCardBody({ card, model, graphIndex, params, loadin
                       ))}
                     </section>
                   )}
-                  {item.type !== "relationship" && (
+                  {isModelElement(item) && (
                     <section>
                       <div className="section-heading">
                         <h2 className="object-label"><Icon name="relationship" />Relationships</h2>
@@ -312,6 +334,15 @@ export default function ReaderCardBody({ card, model, graphIndex, params, loadin
                   )}
                 </>
               )}
+              {flows.length > 0 && <section className="related-flows">
+                <h2 className="object-label"><Icon name="flow" />{item ? "Flows through here" : "Follow a flow"}</h2>
+                <div className="concept-list">{flows.map(flow =>
+                  <button key={flow.id} {...readerLink(mode => select(flow.id, mode))}>
+                    <h3><ObjectName type="flow" name={flow.name} /></h3>
+                    <p>{flow.description}</p>
+                  </button>
+                )}</div>
+              </section>}
               <div className="item-footer">
                 <code>{item?.id || model.id}</code>
                 <button

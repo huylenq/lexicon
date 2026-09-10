@@ -20,6 +20,7 @@ import {
 } from "tldraw";
 import { getAssetUrlsByImport } from "@tldraw/assets/imports.vite";
 import type { CanvasState } from "../../../shared/canvas";
+import { isArchitecture } from "../../../shared/model";
 import type { CanvasPaneProps } from "./types";
 import Icon from "../Icon";
 import ModelLegend from "../ModelLegend";
@@ -98,6 +99,9 @@ export default function CanvasPane(props: CanvasPaneProps) {
     command,
     statusHost,
   } = props;
+  const hasArchitecture = model.items.some(isArchitecture);
+  const domainView = !hasArchitecture || workspace.view === "domain";
+  const mapEnabled = domainView && (workspace.map ?? true);
   const [editor, setEditor] = useState<Editor>();
   const [inspectorHost, setInspectorHost] = useState<HTMLSpanElement | null>(
     null,
@@ -149,7 +153,7 @@ export default function CanvasPane(props: CanvasPaneProps) {
   );
   const projected = useMemo(
     () => projectGraph(index, workspace),
-    [index, workspace.expanded, workspace.allCode],
+    [index, workspace.expanded, workspace.allCode, workspace.view],
   );
   const vertices = useMemo(
     () =>
@@ -261,6 +265,7 @@ export default function CanvasPane(props: CanvasPaneProps) {
     setFocus(undefined);
     setWorkspace((current) => ({
       ...current,
+      view: "all",
       expanded: [...new Set([...current.expanded, ...expand])],
     }));
     setRevision((n) => n + 1);
@@ -576,7 +581,7 @@ export default function CanvasPane(props: CanvasPaneProps) {
       ) || !!edge?.relationships.some((item) => matchSet.has(item))
     );
   }, [props.query, vertices, connections, matchSet]);
-  useSyncCanvasPresentation(editor, { modelId: model.id, mapEnabled: workspace.map ?? true, atlasSkin: workspace.atlasSkin ?? "ink",
+  useSyncCanvasPresentation(editor, { modelId: model.id, mapEnabled, atlasSkin: workspace.atlasSkin ?? "ink",
     vertices, connections, matches });
 
   const saveLabel = {
@@ -616,25 +621,31 @@ export default function CanvasPane(props: CanvasPaneProps) {
         },
       }}
     >
-      <section className="canvas-pane" aria-label="Model canvas" data-map={workspace.map ?? true} data-atlas-skin={workspace.atlasSkin ?? "ink"}>
+      <section className="canvas-pane" aria-label="Model canvas" data-map={mapEnabled} data-atlas-skin={workspace.atlasSkin ?? "ink"}>
         <div ref={canvasTop} className="canvas-top">
         <Toolbar
           title="Canvas"
           controls={<>
+            {hasArchitecture && <select className="atlas-skin model-view" aria-label="Model view" value={workspace.view || "all"}
+              onChange={e => { initialFit.current = true; setFocus(undefined); setWorkspace(w => ({ ...w, view: e.target.value as "all" | "domain" | "architecture" })); }}>
+              <option value="all">Combined</option><option value="domain">Domain</option><option value="architecture">Architecture</option>
+            </select>}
             <fieldset className="canvas-mode" aria-label="Canvas mode">
               {([false, true] as const).map((atlas) => (
                 <label key={String(atlas)} title={atlas ? "Explore the model as places and landmarks" : "Read the model as cards and connections"}>
                   <input
                     type="radio"
                     name="canvas-mode"
-                    checked={(workspace.map ?? true) === atlas}
+                    checked={mapEnabled === atlas}
+                    disabled={atlas && !domainView}
+                    title={atlas && !domainView ? "Select Domain to explore Atlas" : undefined}
                     onChange={() => setWorkspace((w) => ({ ...w, map: atlas }))}
                   />
                   <span>{atlas ? "Atlas" : "Diagram"}</span>
                 </label>
               ))}
             </fieldset>
-            {(workspace.map ?? true) && <select className="atlas-skin" aria-label="Atlas skin"
+            {mapEnabled && <select className="atlas-skin" aria-label="Atlas skin"
               title="Atlas skin" value={workspace.atlasSkin ?? "ink"}
               onChange={event => {
                 const atlasSkin = event.target.value === "village" ? "village" : "ink";
