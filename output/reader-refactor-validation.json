@@ -1,0 +1,278 @@
+{
+  "scope": "All six reader refactors; Preview/Pinned interactions and appearance preserved",
+  "checks": {
+    "unitTestsPassed": 104,
+    "browserChecksPassed": 54,
+    "typecheck": "passed",
+    "clientBuild": "passed",
+    "browserRetries": {
+      "count": 8,
+      "reason": "Initial page loads failed with ERR_ADDRESS_INVALID; all passed on retry"
+    }
+  },
+  "screenshots": [
+    {
+      "image": "reader-pinned-mobile.png",
+      "changedPixels": 0
+    },
+    {
+      "image": "reader-preview-collapsed.png",
+      "changedPixels": 0
+    },
+    {
+      "image": "reader-preview-dark.png",
+      "changedPixels": 0
+    },
+    {
+      "image": "reader-preview-light.png",
+      "changedPixels": 0
+    },
+    {
+      "image": "reader-preview-mobile.png",
+      "changedPixels": 0
+    }
+  ],
+  "performance": {
+    "initialBefore": [
+      {
+        "surface": "canvas",
+        "cards": 5,
+        "cpuThrottle": 4,
+        "viewport": "1600x900",
+        "runs": [
+          {
+            "frames": 341,
+            "p95ms": 33.3,
+            "maxMs": 33.4,
+            "over25ms": 20,
+            "scriptMs": 442,
+            "layoutMs": 257,
+            "taskMs": 3001,
+            "layouts": 181
+          },
+          {
+            "frames": 340,
+            "p95ms": 33.3,
+            "maxMs": 33.4,
+            "over25ms": 21,
+            "scriptMs": 387,
+            "layoutMs": 145,
+            "taskMs": 2665,
+            "layouts": 179
+          },
+          {
+            "frames": 340,
+            "p95ms": 33.3,
+            "maxMs": 33.4,
+            "over25ms": 21,
+            "scriptMs": 419,
+            "layoutMs": 147,
+            "taskMs": 2780,
+            "layouts": 180
+          }
+        ]
+      },
+      {
+        "surface": "canvas",
+        "cards": 20,
+        "cpuThrottle": 4,
+        "viewport": "1600x900",
+        "runs": [
+          {
+            "frames": 256,
+            "p95ms": 33.4,
+            "maxMs": 50,
+            "over25ms": 95,
+            "scriptMs": 1036,
+            "layoutMs": 430,
+            "taskMs": 5821,
+            "layouts": 352
+          },
+          {
+            "frames": 246,
+            "p95ms": 50,
+            "maxMs": 66.7,
+            "over25ms": 98,
+            "scriptMs": 995,
+            "layoutMs": 301,
+            "taskMs": 5882,
+            "layouts": 347
+          },
+          {
+            "frames": 251,
+            "p95ms": 33.4,
+            "maxMs": 50.1,
+            "over25ms": 100,
+            "scriptMs": 968,
+            "layoutMs": 299,
+            "taskMs": 5787,
+            "layouts": 348
+          }
+        ]
+      }
+    ],
+    "initialAfter": [
+      {
+        "surface": "canvas",
+        "cards": 5,
+        "cpuThrottle": 4,
+        "viewport": "1600x900",
+        "runs": [
+          {
+            "frames": 341,
+            "p95ms": 33.3,
+            "maxMs": 33.4,
+            "over25ms": 20,
+            "scriptMs": 483,
+            "layoutMs": 269,
+            "taskMs": 3210,
+            "layouts": 182
+          },
+          {
+            "frames": 339,
+            "p95ms": 33.3,
+            "maxMs": 33.5,
+            "over25ms": 22,
+            "scriptMs": 428,
+            "layoutMs": 172,
+            "taskMs": 2873,
+            "layouts": 181
+          },
+          {
+            "frames": 338,
+            "p95ms": 33.3,
+            "maxMs": 33.4,
+            "over25ms": 23,
+            "scriptMs": 420,
+            "layoutMs": 144,
+            "taskMs": 2857,
+            "layouts": 182
+          }
+        ]
+      },
+      {
+        "surface": "canvas",
+        "cards": 20,
+        "cpuThrottle": 4,
+        "viewport": "1600x900",
+        "runs": [
+          {
+            "frames": 229,
+            "p95ms": 50,
+            "maxMs": 66.7,
+            "over25ms": 115,
+            "scriptMs": 1079,
+            "layoutMs": 454,
+            "taskMs": 5942,
+            "layouts": 331
+          },
+          {
+            "frames": 233,
+            "p95ms": 50,
+            "maxMs": 66.7,
+            "over25ms": 110,
+            "scriptMs": 1048,
+            "layoutMs": 346,
+            "taskMs": 5989,
+            "layouts": 338
+          },
+          {
+            "frames": 228,
+            "p95ms": 50,
+            "maxMs": 66.7,
+            "over25ms": 115,
+            "scriptMs": 1008,
+            "layoutMs": 313,
+            "taskMs": 5973,
+            "layouts": 336
+          }
+        ]
+      }
+    ],
+    "pairedBefore": [
+      {
+        "surface": "canvas",
+        "cards": 20,
+        "cpuThrottle": 4,
+        "viewport": "1600x900",
+        "runs": [
+          {
+            "frames": 233,
+            "p95ms": 49.9,
+            "maxMs": 50,
+            "over25ms": 111,
+            "scriptMs": 1072,
+            "layoutMs": 466,
+            "taskMs": 6033,
+            "layouts": 336
+          },
+          {
+            "frames": 209,
+            "p95ms": 50,
+            "maxMs": 83.3,
+            "over25ms": 123,
+            "scriptMs": 1074,
+            "layoutMs": 356,
+            "taskMs": 6065,
+            "layouts": 314
+          },
+          {
+            "frames": 205,
+            "p95ms": 50,
+            "maxMs": 66.7,
+            "over25ms": 125,
+            "scriptMs": 1044,
+            "layoutMs": 354,
+            "taskMs": 6103,
+            "layouts": 312
+          }
+        ]
+      }
+    ],
+    "pairedAfter": [
+      {
+        "surface": "canvas",
+        "cards": 20,
+        "cpuThrottle": 4,
+        "viewport": "1600x900",
+        "runs": [
+          {
+            "frames": 233,
+            "p95ms": 50,
+            "maxMs": 50,
+            "over25ms": 115,
+            "scriptMs": 1073,
+            "layoutMs": 438,
+            "taskMs": 5949,
+            "layouts": 335
+          },
+          {
+            "frames": 208,
+            "p95ms": 50,
+            "maxMs": 83.3,
+            "over25ms": 124,
+            "scriptMs": 1066,
+            "layoutMs": 325,
+            "taskMs": 5981,
+            "layouts": 305
+          },
+          {
+            "frames": 197,
+            "p95ms": 50,
+            "maxMs": 133.4,
+            "over25ms": 120,
+            "scriptMs": 1023,
+            "layoutMs": 316,
+            "taskMs": 6033,
+            "layouts": 304
+          }
+        ]
+      }
+    ],
+    "note": "The follow-up compares the old and new bundles sequentially on the same isolated server. Timing observations vary with machine load; these are not portable pass/fail thresholds."
+  },
+  "readerLines": {
+    "before": 989,
+    "after": 551
+  }
+}

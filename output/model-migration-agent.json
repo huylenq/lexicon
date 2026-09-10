@@ -1,0 +1,97 @@
+{
+  "status": "passed",
+  "provider": "codex",
+  "model": "gpt-5.6-sol",
+  "example": "DentalML canal measurement",
+  "migration": {
+    "from": "2.0",
+    "to": "3.0"
+  },
+  "flows": [
+    {
+      "id": "measure-selected-tooth",
+      "name": "Measure Selected Tooth",
+      "description": "With teeth and pulp volumes, metadata, and a tooth label present, measure_canal isolates both masks by the parsed FDI label, invokes canal_measurement_module_v2, and then builds the returned canal plot, table rows, and status message.",
+      "annotations": [
+        {
+          "kind": "explanation",
+          "text": "This flow represents the successful path after both input guards pass and canal_measurement_module_v2 returns. Internal single-canal, multi-canal, anterior, and posterior choices do not change the two modeled collaborations.",
+          "evidence": "observed"
+        },
+        {
+          "kind": "rule",
+          "text": "The path is entered only when teeth_instance, pulps_instance, metadata, and tooth_label are present. Its outcome is a canal plot, one table row per returned canal, and a status naming the selected FDI tooth.",
+          "evidence": "enforced"
+        }
+      ],
+      "codeLinks": [
+        {
+          "id": "entrypoint",
+          "file": "apps/pages/canal_measurement_app.py",
+          "role": "implementation",
+          "description": "Checks required inputs, parses the selected FDI label, invokes measurement, and builds the plot, rows, and status.",
+          "symbol": "measure_canal"
+        },
+        {
+          "id": "calculation",
+          "file": "dentalml/endo/canal_measurement.py",
+          "role": "implementation",
+          "description": "Calculates and returns the canal results and restored-presentation inputs consumed by measure_canal.",
+          "symbol": "canal_measurement_module_v2"
+        }
+      ],
+      "type": "flow",
+      "steps": [
+        {
+          "id": "calculate",
+          "relationship": "selected-measurement",
+          "label": "Measure the canals for the selected tooth."
+        },
+        {
+          "id": "present",
+          "relationship": "presents-results",
+          "label": "Build the table rows, spatial view, and completion status from the returned results."
+        }
+      ]
+    },
+    {
+      "id": "missing-tooth-selection",
+      "name": "Request Tooth Selection",
+      "description": "With teeth and pulp volumes and metadata loaded but no tooth label selected, measure_canal stops before mask isolation or measurement and asks the researcher to select a tooth.",
+      "annotations": [
+        {
+          "kind": "rule",
+          "text": "After the loaded-data guard passes, a missing or empty tooth_label returns no plot, an empty row list, and the message “Select a tooth from the dropdown.”",
+          "evidence": "enforced"
+        },
+        {
+          "kind": "explanation",
+          "text": "canal_measurement_module_v2 is not invoked on this path because the tooth-selection guard returns first.",
+          "evidence": "observed"
+        }
+      ],
+      "codeLinks": [
+        {
+          "id": "missing-selection-guard",
+          "file": "apps/pages/canal_measurement_app.py",
+          "role": "enforcement",
+          "description": "Returns the empty presentation and tooth-selection guidance before parsing an FDI label or invoking measurement.",
+          "symbol": "measure_canal"
+        }
+      ],
+      "type": "flow",
+      "steps": [
+        {
+          "id": "request-selection",
+          "relationship": "selection-feedback",
+          "label": "Return an empty plot and table with guidance to select a tooth."
+        }
+      ]
+    }
+  ],
+  "explanationReadOnly": true,
+  "existingMeaningPreserved": true,
+  "exactUndo": true,
+  "sourceUnchanged": true,
+  "elapsedSeconds": 220.491
+}
