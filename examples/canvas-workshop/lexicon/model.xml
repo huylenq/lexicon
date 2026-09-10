@@ -32,4 +32,42 @@
     <description>The total calculation sums the extended price of each line.</description>
     <code-link file="checkout.ts" symbol="total" role="implementation">The reduce callback adds each price multiplied by quantity.</code-link>
   </relationship>
+  <system id="workshop-system">
+    <name>Checkout Teaching Fixture</name>
+    <description>An illustrative software boundary for experimenting with order-total calculation.</description>
+    <container id="workshop-runtime">
+      <name>Teaching Runtime</name>
+      <description>The intended TypeScript host for checkout.ts. The fixture supplies no executable entrypoint or deployment configuration.</description>
+      <annotation kind="boundary" evidence="intended">A caller must import and invoke total; no UI, server, database, or external integration is implemented.</annotation>
+      <component id="total-calculator">
+        <name>Total Calculator</name>
+        <description>The callable total function checks for an empty order and sums extended line prices.</description>
+        <code-link id="source" file="checkout.ts" symbol="total" role="implementation">Implements the Total Calculator interface.</code-link>
+      </component>
+    </container>
+  </system>
+  <relationship id="calculator-reads-order" from="total-calculator" to="order">
+    <name>reads lines from</name>
+    <description>The total function receives an Order record and checks its lines length before reducing the collection. The Order participant represents that input record.</description>
+    <code-link id="source" file="checkout.ts" symbol="total" role="implementation">The total function receives an Order record and checks its lines length before reducing the collection. The Order participant represents that input record.</code-link>
+  </relationship>
+  <relationship id="calculator-produces-total" from="total-calculator" to="order-total">
+    <name>calculates</name>
+    <description>For a nonempty order, total reduces unitPrice times quantity to the numeric Order Total. This is a computation, without persistence or a separate total service.</description>
+    <code-link id="source" file="checkout.ts" symbol="total" role="implementation">For a nonempty order, total reduces unitPrice times quantity to the numeric Order Total. This is a computation, without persistence or a separate total service.</code-link>
+  </relationship>
+  <flow id="calculate-total">
+    <name>Calculate an Order Total</name>
+    <description>A caller invokes total with a nonempty Order. It reads the lines and returns their summed extended prices.</description>
+    <code-link id="source" file="checkout.ts" symbol="total" role="implementation">Defines the scenario ordering and outcome.</code-link>
+    <annotation kind="scope" evidence="observed">Caller orchestration is outside the fixture. Prices and quantities have TypeScript number types but no runtime positivity or finiteness checks.</annotation>
+    <step id="read" relationship="calculator-reads-order">Read nonempty order lines</step>
+    <step id="sum" relationship="calculator-produces-total">Sum unit price times quantity</step>
+  </flow>
+  <flow id="reject-empty-order">
+    <name>Reject an Empty Order</name>
+    <description>A caller invokes total with an empty lines array. The length check throws before any total is calculated.</description>
+    <code-link id="source" file="checkout.ts" symbol="total" role="implementation">Defines the scenario ordering and outcome.</code-link>
+    <step id="check" relationship="calculator-reads-order">Read lines and reject the empty order</step>
+  </flow>
 </lexicon>

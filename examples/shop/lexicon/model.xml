@@ -82,4 +82,13 @@
     <step id="create" relationship="handles-order">Create and validate the order</step>
     <step id="save" relationship="saves-order">Save the accepted order</step>
   </flow>
+  <flow id="reject-order">
+    <name>Reject Invalid Quantities</name>
+    <description>A POST /orders request supplies a JSON array with an empty SKU or a nonpositive or fractional quantity. Order construction throws; the API returns HTTP 400 and the repository is not called.</description>
+    <code-link id="source" file="src/api.ts" symbol="handle" role="implementation">Defines the scenario ordering and outcome.</code-link>
+    <annotation kind="scope" evidence="observed">This is the domain validation path. Malformed JSON fails earlier, before dispatch; unmatched routes return HTTP 404. Neither alternate is expanded here.</annotation>
+    <step id="submit" relationship="customer-orders">Submit invalid product quantities</step>
+    <step id="dispatch" relationship="handles-order">Attempt order creation</step>
+    <step id="validate" relationship="creates-order">Construct Order and reject invalid lines</step>
+  </flow>
 </lexicon>

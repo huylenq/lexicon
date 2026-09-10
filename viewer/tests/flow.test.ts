@@ -16,7 +16,9 @@ test("flow steps roundtrip in order with repeated relationships and flow-local I
   const next = applyPatch(model(), { upsert: [first, second] });
   const saved = parseModel(serializeModel(next));
   expect(saved.issues).toEqual([]);
-  expect(saved.items.filter(item => item.type === "flow")).toEqual([first, second]);
+  expect(saved.items.filter(item => item.type === "flow")).toEqual([
+    first, ...model().items.filter((item): item is Flow => item.type === "flow" && item.id !== first.id), second,
+  ]);
   expect(saved.items.filter(item => item.type !== "flow")).toEqual(model().items.filter(item => item.type !== "flow"));
 });
 
@@ -70,6 +72,7 @@ test("the static graph reuses flow participants while sequence references preser
   expect(graph.nodes.find(node => node.id === "item:checkout")?.parentId).toBe("item:api");
   const focus = neighborhood(index, graph, { kind: "item", id: "place-order" });
   for (const id of ["customer", "api", "checkout", "repository"]) expect(focus.nodes.has(`item:${id}`)).toBe(true);
-  for (const id of ["api", "checkout", "handles-order"]) expect(flowsFor(current, id).map(flow => flow.id)).toEqual(["place-order"]);
+  for (const id of ["api", "checkout", "handles-order"]) expect(flowsFor(current, id).map(flow => flow.id)).toEqual(["place-order", "reject-order"]);
+  expect(flowsFor(current, "repository").map(flow => flow.id)).toEqual(["place-order"]);
   expect(flowsFor(current, "order-lines")).toEqual([]);
 });

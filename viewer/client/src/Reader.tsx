@@ -291,9 +291,11 @@ function ReaderProject({ projectId }: { projectId: string }) {
   const architectureTree = (i: ModelItem, seen = new Set<string>()): React.ReactNode => {
     if (seen.has(i.id)) return null;
     const next = new Set([...seen, i.id]);
-    return <div className="nav-context" key={i.id}>
+    const children = architecture.filter(c => parentOf(c) === i.id);
+    if (!children.length) return itemButton(i);
+    return <div className="nav-branch" key={i.id}>
       {itemButton(i)}
-      <div className="nav-concepts">{architecture.filter(c => parentOf(c) === i.id).map(c => architectureTree(c, next))}</div>
+      <div className="nav-children">{children.map(c => architectureTree(c, next))}</div>
     </div>;
   };
   const titleForCard = (card: ReaderCard) => {
@@ -447,18 +449,18 @@ function ReaderProject({ projectId }: { projectId: string }) {
         </div>
         <div className="browse-items">
           {query.trim() ? (
-            <>
+            <div className="nav-section">
               <div className="eyebrow nav-heading">
                 {matches.length} {matches.length === 1 ? "result" : "results"}{" "}
                 <button className="quiet" onClick={() => setQuery("")}>
                   Clear
                 </button>
               </div>
-              {matches.map(itemButton)}
+              <div className="nav-list">{matches.map(itemButton)}</div>
               {!matches.length && (
                 <p className="hint">Try a domain name, code symbol, or phrase.</p>
               )}
-            </>
+            </div>
           ) : (
             <>
               <button
@@ -467,27 +469,29 @@ function ReaderProject({ projectId }: { projectId: string }) {
               >
                 <span className="nav-name"><Icon name="overview" size={14} />Overview</span>
               </button>
-              <div className="eyebrow nav-heading">
-                Contexts <span>{contexts.length}</span>
-              </div>
-              {contexts.map((ctx) => (
-                <div className="nav-context" key={ctx.id}>
-                  {itemButton(ctx)}
-                  <div className="nav-concepts">
-                    {model?.items
-                      .filter((c) => c.type === "concept" && c.parent === ctx.id)
-                      .map(itemButton)}
-                  </div>
+              <div className="nav-section">
+                <div className="eyebrow nav-heading">
+                  Contexts <span>{contexts.length}</span>
                 </div>
-              ))}
-              {architecture.length > 0 && <>
+                <div className="nav-groups">{contexts.map((ctx) => (
+                  <div className="nav-branch" key={ctx.id}>
+                    {itemButton(ctx)}
+                    <div className="nav-children">
+                      {model?.items
+                        .filter((c) => c.type === "concept" && c.parent === ctx.id)
+                        .map(itemButton)}
+                    </div>
+                  </div>
+                ))}</div>
+              </div>
+              {architecture.length > 0 && <div className="nav-section">
                 <div className="eyebrow nav-heading">Architecture <span>{architecture.length}</span></div>
-                {architecture.filter(i => !parentOf(i)).map(i => architectureTree(i))}
-              </>}
-              {flows.length > 0 && <>
+                <div className="nav-list">{architecture.filter(i => !parentOf(i)).map(i => architectureTree(i))}</div>
+              </div>}
+              {flows.length > 0 && <div className="nav-section">
                 <div className="eyebrow nav-heading">Flows <span>{flows.length}</span></div>
-                {flows.map(itemButton)}
-              </>}
+                <div className="nav-list">{flows.map(itemButton)}</div>
+              </div>}
             </>
           )}
         </div>

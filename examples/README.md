@@ -18,11 +18,11 @@ git -C examples/django-oscar rev-parse HEAD
 
 Keep this revision fixed when comparing Lexicon iterations. Record any later revision change here.
 
-When modeling is requested, a useful first question is: how does a basket become an order, and where are pricing and stock rules applied? Start with `src/oscar/apps/`, `tests/`, and `docs/`. This is a suggested trial question; its answer has not been modeled or verified yet.
+When modeling is requested, a useful first question is: how does a basket become an order, and where are pricing and stock rules applied? Start with `src/oscar/apps/`, `tests/`, and `docs/`. This is a suggested trial question; the current model covers its domain concepts and a source-reviewed checkout placement flow, plus conditional payment-refusal recovery. Architecture identifies the sandbox Django application, database, checkout controller, payment hook, and order writer. The base payment hook is a no-op; no live payment integration or application execution is claimed.
 
 ## Included examples
 
-- `examples/canvas-workshop/` contains the isolated canvas workshop fixture.
+- `examples/canvas-workshop/` contains the isolated canvas workshop fixture, with calculation architecture and flows for a total and an empty-order refusal.
 - `examples/shop/` is the self-contained domain, architecture, and flow example.
 - `viewer/sample-lexicon/` contains historical order-placement prose, without an active model.
 - The root `lexicon/docs/` and `viewer/lexicon/docs/` contain historical design notes. There is no active Lexicon self-model or self-registration to remove.

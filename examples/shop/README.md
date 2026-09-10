@@ -6,7 +6,7 @@ Open **Shop · Domain, architecture, and flows** in the library. Read Order, fol
 
 Follow Shop → Shop API → Order Handling to see C4 containment. Combined, Domain, and Architecture filter the shared canvas; Domain also supports Atlas. These are exploration filters rather than a full set of scoped C4 diagrams.
 
-Open **Place an Order**. Its ordered interactions reuse customer-orders, handles-order, and saves-order. Select a participant for its responsibility or a message for its relationship and code. Flow conditions explain validation and response behavior; the source rejects invalid quantities before storage. A separate failure scenario can reuse the same elements without adding branch syntax.
+Open **Place an Order**. Its ordered interactions reuse customer-orders, handles-order, and saves-order. Select a participant for its responsibility or a message for its relationship and code. Flow conditions explain validation and response behavior; the source rejects invalid quantities before storage. Open **Reject Invalid Quantities** for the validation failure path: it reuses the same elements and stops before storage.
 
 The library example is read-only. For an editable isolated copy, run from viewer/:
 
