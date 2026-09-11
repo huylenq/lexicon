@@ -16,10 +16,10 @@ export function Toolbar({
     <div className="toolbar">
       <div className="toolbar-heading">
         <span className="pane-title">{title}</span>
-        {controls}
         <span className="canvas-scope" title={scope}>
           {scope}
         </span>
+        {controls}
       </div>
       <div className="toolbar-actions">{children}</div>
     </div>

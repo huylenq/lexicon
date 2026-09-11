@@ -24,6 +24,7 @@
 - Let a completed tap reopen the selected object on mobile after returning from the reader, without changing native drag or modifier-selection behavior. Fit a saved canvas on first visit when this browser has no personal camera, including when the canvas finishes loading behind the reader.
 - End a drag without opening the dragged object's explanation: the selection a completed move leaves behind is now a plain selection, and a deliberate click on the just-moved item or relationship still reads it.
 - Share the icon toolbar and semantic legend, move routine save status to the footer, and expose selection actions in a popover. Restore context code toggling and the previous camera after Focus.
+- Read the canvas toolbar as a location trail, then Domain / Diagram / Atlas view controls, then actions. Idle scope is Overview.
 - Migrate compatible Graph placements and camera on first open; existing canvases and recovery drafts take precedence.
 - Save a versioned `lexicon/canvas.json` and content-addressed assets with revision checks, atomic writes, a previous version, browser recovery, and conflict review.
 - Preserve a never-saved draft's missing merge base when another browser creates the project canvas; require review before replacing that file.

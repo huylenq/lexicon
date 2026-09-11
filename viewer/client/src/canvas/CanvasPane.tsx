@@ -645,41 +645,76 @@ export default function CanvasPane(props: CanvasPaneProps) {
         <div ref={canvasTop} className="canvas-top">
         <Toolbar
           title="Canvas"
-          controls={<>
-            {hasArchitecture && <select className="atlas-skin model-view" aria-label="Model view" value={workspace.view || "all"}
-              onChange={e => { initialFit.current = true; setFocus(undefined); setWorkspace(w => ({ ...w, view: e.target.value as "all" | "domain" | "architecture" })); }}>
-              <option value="all">Combined</option><option value="domain">Domain</option><option value="architecture">Architecture</option>
-            </select>}
-            <fieldset className="canvas-mode" aria-label="Canvas mode">
-              {([false, true] as const).map((atlas) => (
-                <label key={String(atlas)} title={atlas ? "Explore the model as places and landmarks" : "Read the model as cards and connections"}>
-                  <input
-                    type="radio"
-                    name="canvas-mode"
-                    checked={mapEnabled === atlas}
-                    disabled={atlas && !domainView}
-                    title={atlas && !domainView ? "Select Domain to explore Atlas" : undefined}
-                    onChange={() => setWorkspace((w) => ({ ...w, map: atlas }))}
-                  />
-                  <span>{atlas ? "Atlas" : "Diagram"}</span>
-                </label>
-              ))}
-            </fieldset>
-            {mapEnabled && <select className="atlas-skin" aria-label="Atlas skin"
-              title="Atlas skin" value={workspace.atlasSkin ?? "ink"}
-              onChange={event => {
-                const atlasSkin = event.target.value === "village" ? "village" : "ink";
-                setWorkspace(w => ({ ...w, atlasSkin }));
-              }}>
-              <option value="ink">Ink</option>
-              <option value="village">Village</option>
-            </select>}
-          </>}
+          controls={
+            <div className="toolbar-view-controls" role="group" aria-label="Canvas view">
+              {hasArchitecture && (
+                <select
+                  className="model-view"
+                  aria-label="Model view"
+                  title="Which part of the model to show"
+                  value={workspace.view || "all"}
+                  onChange={(e) => {
+                    initialFit.current = true;
+                    setFocus(undefined);
+                    setWorkspace((w) => ({
+                      ...w,
+                      view: e.target.value as "all" | "domain" | "architecture",
+                    }));
+                  }}
+                >
+                  <option value="all">Combined</option>
+                  <option value="domain">Domain</option>
+                  <option value="architecture">Architecture</option>
+                </select>
+              )}
+              <fieldset className="canvas-mode" aria-label="Canvas mode">
+                {([false, true] as const).map((atlas) => (
+                  <label
+                    key={String(atlas)}
+                    title={
+                      atlas
+                        ? domainView
+                          ? "Explore the model as places and landmarks"
+                          : "Select Domain to explore Atlas"
+                        : "Read the model as cards and connections"
+                    }
+                  >
+                    <input
+                      type="radio"
+                      name="canvas-mode"
+                      checked={mapEnabled === atlas}
+                      disabled={atlas && !domainView}
+                      onChange={() =>
+                        setWorkspace((w) => ({ ...w, map: atlas }))
+                      }
+                    />
+                    <span>{atlas ? "Atlas" : "Diagram"}</span>
+                  </label>
+                ))}
+              </fieldset>
+              {mapEnabled && (
+                <select
+                  className="atlas-skin"
+                  aria-label="Atlas skin"
+                  title="Atlas skin"
+                  value={workspace.atlasSkin ?? "ink"}
+                  onChange={(event) => {
+                    const atlasSkin =
+                      event.target.value === "village" ? "village" : "ink";
+                    setWorkspace((w) => ({ ...w, atlasSkin }));
+                  }}
+                >
+                  <option value="ink">Ink</option>
+                  <option value="village">Village</option>
+                </select>
+              )}
+            </div>
+          }
           scope={
             (selectedShapes.length > 1
               ? `${selectedShapes.length} selected`
               : selectionName(index, shapeSelection(selectedShapes[0]))) ||
-            (focus ? "Focused neighborhood" : "Overall domain")
+            (focus ? "Focused neighborhood" : "Overview")
           }
         >
           {focus && (
