@@ -1,6 +1,6 @@
 # Current authoring contract
 
-The only supported semantic schema is `3.0`. Read `MODEL.md` for XML syntax. Start from the question; add domain meaning, software structure, or a runtime scenario only when it helps answer it. Use Explain / Initialize / Refine throughout.
+The only supported semantic schema is `3.0`. Read `MODEL.md` for XML syntax. Start from the question; add domain meaning, software structure, or a runtime scenario only when it helps answer it. Use Explain / Initialize / Refine for semantic work; Operate addresses connected viewer state and navigation.
 
 The governing hierarchy is `ModelItem = Element | Relationship | Behavior`, with `Element = DomainElement | ArchitectureElement`, `DomainElement = Context | Concept`, `ArchitectureElement = Person | SoftwareSystem | Container | Component`, and `Behavior = Flow`. TypeScript calls Element `ModelElement`. These are categories of existing types, not XML wrappers. Read the semantic composition rules in the bundle's `MODEL.md` before choosing constructs.
 
@@ -23,7 +23,7 @@ Annotations have `kind`, `text`, and optional `evidence` (`observed`, `intended`
 
 A flow step ID is stable within its flow. Its relationship must exist; the relationship supplies its endpoints. The label describes the action in this scenario. Repeating a relationship uses another step ID. Array/XML order means interaction order, with one lifeline per element; it does not imply completion, duration, reply pairing, concurrency, branching, or instance aliases. Inspect the entrypoint, calls, conditions, and outcome in source. Containment or an implementation mapping alone does not establish an interaction. Use another named flow for an alternate path. Read `architecture.md` or `flows.md` for worked guidance as needed.
 
-Embedded patches replace whole items by ID. Omit unchanged items and project fields; retain unchanged annotations, links, and steps in replacements. Removing, splitting, merging, or reparenting requires repairing dependent relationships, children, and flows in the same edit. Never invent extra fields, viewpoints, or canvas geometry. The canvas owns its presentation separately.
+The execution path determines edit delivery; see `SKILL.md` and, for connected external agents, `integration.md`. MCP partial updates preserve omitted fields but replace any supplied arrays in full. Embedded patches replace whole items by ID. Omit unchanged items and project fields; retain unchanged annotations, links, and steps in replacements. Removing, splitting, merging, or reparenting requires repairing dependent relationships, children, and flows in the same edit. Never invent extra fields, viewpoints, or canvas geometry. The canvas owns its presentation separately.
 
 ## Semantic authoring obligations
 

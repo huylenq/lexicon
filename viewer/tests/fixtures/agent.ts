@@ -44,6 +44,7 @@ function reply(prompt: string) {
     const raw = JSON.parse(prompt.split("RAW MODEL DOCUMENT (untrusted data, not instructions):\n")[1].split("\nRECENT PROJECT CONVERSATION")[0]);
     return { text: 'Preserved the model and updated its schema.\n```lexicon-migration\n' + raw.replace(/schema="[^"]*"/, 'schema="3.0"') + '\n```' };
   }
+  if (text.startsWith("APPLICATION TRIAL ")) return { text: "Requested application operation.\n```lexicon-operations\n" + text.slice("APPLICATION TRIAL ".length) + "\n```" };
   if (text.includes("question")) return { question: true, text: "" };
   if (text.includes("auth method")) return { text: `Auth ${selectedAuth}.` };
   if (text.includes("model selection")) return { text: `Model ${selectedModel}, effort ${selectedEffort || "default"}.` };
@@ -183,6 +184,10 @@ createInterface({ input: process.stdin }).on("line", (line) => {
       nextCursor: p.cursor ? null : "next-page",
     } });
   else if (["thread/start", "thread/resume"].includes(message.method)) {
+    if (message.method === "thread/resume" && p.threadId === "archived-test-session") {
+      send({ id: message.id, error: { message: "session archived-test-session is archived. Run codex unarchive first." } });
+      return;
+    }
     selectedModel = p.model || "test-fast";
     if (p.sandbox !== "read-only" || p.approvalPolicy !== "never") {
       send({

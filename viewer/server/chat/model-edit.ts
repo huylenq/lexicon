@@ -22,26 +22,27 @@ export function extractPatch(text: string): {
   text: string;
   patch?: ModelPatch;
   migration?: string;
+  operations?: unknown;
 } {
-  const matches = [...text.matchAll(/```lexicon-(patch|migration)[ \t]*\r?\n([\s\S]*?)```/g)];
-  const starts = [...text.matchAll(/```lexicon-(?:patch|migration)/g)];
+  const matches = [...text.matchAll(/```lexicon-(patch|migration|operations)[ \t]*\r?\n([\s\S]*?)```/g)];
+  const starts = [...text.matchAll(/```lexicon-(?:patch|migration|operations)/g)];
   if (matches.length !== starts.length)
     throw new Error("The model change was incomplete. No changes were saved.");
   if (!matches.length) return { text };
-  if (matches.length !== 1)
-    throw new Error("Expected one model change per reply.");
+  const edits = matches.filter(m => m[1] !== "operations"), operations = matches.filter(m => m[1] === "operations");
+  if (edits.length > 1 || operations.length > 1) throw new Error("Expected one model change and one operation list per reply.");
+  const edit = edits[0];
   return {
-    text: text.replace(matches[0][0], "").trim(),
-    ...(matches[0][1] === "migration"
-      ? { migration: matches[0][2].trim() }
-      : { patch: JSON.parse(matches[0][2]) }),
+    text: matches.reduce((value, match) => value.replace(match[0], ""), text).trim(),
+    ...(operations.length ? { operations: JSON.parse(operations[0][2]) } : {}),
+    ...(edit ? edit[1] === "migration" ? { migration: edit[2].trim() } : { patch: JSON.parse(edit[2]) } : {}),
   };
 }
 export const visibleReply = (text: string) => {
-  const visible = text.split(/```lexicon-(?:patch|migration)/)[0];
+  const visible = text.split(/```lexicon-(?:patch|migration|operations)/)[0];
   const fence = visible.lastIndexOf("```");
   return (
-    fence >= 0 && ["```lexicon-patch", "```lexicon-migration"].some(prefix => prefix.startsWith(visible.slice(fence)))
+    fence >= 0 && ["```lexicon-patch", "```lexicon-migration", "```lexicon-operations"].some(prefix => prefix.startsWith(visible.slice(fence)))
       ? visible.slice(0, fence)
       : visible
   ).trimEnd();

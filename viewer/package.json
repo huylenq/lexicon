@@ -15,9 +15,11 @@
     "test:browser": "playwright test",
     "dev:canvas": "bun scripts/canvas-dev.ts",
     "dev:model": "bun scripts/model-dev.ts",
-    "test:canvas": "playwright test --config playwright.canvas.config.ts"
+    "test:canvas": "playwright test --config playwright.canvas.config.ts",
+    "mcp": "bun run server/agent/mcp.ts"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "@tldraw/assets": "5.4.0",
     "@tldraw/tlschema": "5.4.0",
     "@tldraw/validate": "5.4.0",

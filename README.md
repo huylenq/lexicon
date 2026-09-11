@@ -92,6 +92,10 @@ Keep the full repository installed and run `bun install --frozen-lockfile` in it
 
 Use `/lexicon:lexicon` to read, create, or update a model. The single [skill](skills/lexicon/SKILL.md) separates explanation, initialization, and incremental refinement. [Initialization](skills/lexicon/initialize.md) discovers the system's essential concepts before tracing their collaborations. [Review](skills/lexicon/review.md) checks coverage separately from source accuracy. Embedded chat reads these same workflow files on each turn; existing models receive refinement guidance without repeating initialization.
 
+## Agent integration
+
+Lexicon exposes model operations and live viewer navigation to compatible local MCP clients. See the [capability taxonomy and rationale](AGENT-CAPABILITIES.md) and [integration setup](viewer/AGENT-INTEGRATION.md).
+
 ## Development
 
 ```sh

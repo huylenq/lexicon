@@ -176,13 +176,16 @@ const codex: ProviderAdapter = {
         } while (cursor);
         if (!fastTier) throw new Error("Fast mode is not available for this Codex model.");
       }
-      const thread = await rpc.request(
-        input.sessionId ? "thread/resume" : "thread/start",
-        {
-          ...parameters,
-          ...(input.sessionId ? { threadId: input.sessionId } : {}),
-        },
-      );
+      let thread: Wire;
+      try {
+        thread = await rpc.request(input.sessionId ? "thread/resume" : "thread/start", {
+          ...parameters, ...(input.sessionId ? { threadId: input.sessionId } : {}),
+        });
+      } catch (error) {
+        if (!input.sessionId || !/\b(?:session|thread)\b.*\b(?:archived|not found|does not exist)\b/i.test((error as Error).message)) throw error;
+        input.onActivity("Starting a fresh runtime session with the saved project conversation…");
+        thread = await rpc.request("thread/start", parameters);
+      }
       threadId = thread.thread.id;
       input.onSession(threadId);
       rpc.onRequest = async (method, params) => {
@@ -602,7 +605,8 @@ export async function listModels(provider: Provider): Promise<ModelCatalog> {
       cursor = page.nextCursor || undefined;
     } while (cursor);
     const settings = await rpc.request("config/read", { includeLayers: false });
-    return { models, defaultModel: settings.config?.model || catalogDefault };
+    const configured = settings.config?.model;
+    return { models, defaultModel: models.some(model => model.id === configured) ? configured : catalogDefault || models[0]?.id };
   } finally { await rpc.close(); }
 }
 export async function probeProviders(): Promise<ProviderStatus[]> {

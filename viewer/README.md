@@ -71,6 +71,10 @@ An unmodeled project opens without generating or writing anything. Start with a 
 
 Conversation history, native session IDs, and undo snapshots live in the viewer's local SQLite registry. **New conversation** clears the visible conversation and starts fresh provider sessions while retaining model undo history. CLI paths can be set with `LEXICON_CODEX_BIN`, `LEXICON_GROK_BIN`, `LEXICON_CLAUDE_BIN`, `LEXICON_PI_BIN`, `LEXICON_OMP_BIN`, and `LEXICON_HERMES_BIN` when they are not on the server's PATH. The ACP entries accept a full command line; extra arguments are passed to the agent, replacing its configured spawn arguments.
 
+## External agent integration
+
+A local MCP adapter exposes project and model inspection, live viewer sessions, select/focus/fit navigation, validated model creation and updates, undo, and selection/model events. See [setup and tool contracts](AGENT-INTEGRATION.md) and the [capability taxonomy](../AGENT-CAPABILITIES.md). Compatible local agent hosts can operate the same visible viewer through these tools.
+
 ## Checks
 
 ```sh

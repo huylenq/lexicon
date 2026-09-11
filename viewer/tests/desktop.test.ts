@@ -1,5 +1,7 @@
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { expect, test } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, readFile, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -15,7 +17,18 @@ test("desktop backend authenticates API access and stops when its parent closes"
     const first = await reader.read();
     const ready = JSON.parse(new TextDecoder().decode(first.value).trim());
     expect(ready.type).toBe("lexicon-ready");
+    const connectionFile = join(temp, "agent-connection.json");
+    const connection = JSON.parse(await readFile(connectionFile, "utf8"));
+    expect(connection.token).toBe(token);
+    expect(connection.origin).toBe(`http://127.0.0.1:${ready.port}`);
+    expect((await stat(connectionFile)).mode & 0o777).toBe(0o600);
     const base = `http://127.0.0.1:${ready.port}`;
+    const client = new Client({ name: "desktop-discovery-test", version: "1" });
+    try {
+      await client.connect(new StdioClientTransport({ command: process.execPath, args: [join(import.meta.dir, "../server/agent/mcp.ts")], env: { LEXICON_CONNECTION_FILE: connectionFile } }));
+      expect((await client.listTools()).tools.some(tool => tool.name === "lexicon_navigate")).toBe(true);
+      expect((await client.callTool({ name: "lexicon_projects", arguments: {} })).isError).not.toBe(true);
+    } finally { await client.close(); }
     expect((await fetch(`${base}/api/health`)).status).toBe(403);
     expect((await fetch(`${base}/api/health`, { headers: { "x-lexicon-desktop-token": "wrong" } })).status).toBe(403);
     const headers = { "x-lexicon-desktop-token": token };

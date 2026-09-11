@@ -34,6 +34,7 @@ export default function ChatPane({
   onToggleAttachment,
   selected,
   modelRevision,
+  viewerSessionId,
   empty,
   problem,
   example,
@@ -49,6 +50,7 @@ export default function ChatPane({
   onToggleAttachment: () => void;
   selected?: ModelItem;
   modelRevision: string;
+  viewerSessionId?: string;
   empty: boolean;
   problem?: ModelProblem;
   example?: boolean;
@@ -178,6 +180,7 @@ export default function ChatPane({
         fast: selection.fast === true,
         ...(selection.effort ? { effort: selection.effort } : {}),
         modelRevision,
+        viewerSessionId,
         ...(includeContext && selected ? { contextId: selected.id } : {}),
       })
     )
@@ -378,6 +381,14 @@ export default function ChatPane({
                 )}
               </div>
             )}
+            {message.operations?.map((operation, index) => <div key={index} className={operation.status === "error" ? "chat-error" : "chat-change"} role="status">
+              {operation.status === "error" ? `${operation.action || operation.tool} failed: ${operation.error}`
+                : operation.tool === "lexicon_navigate" ? `Viewer confirmed: ${operation.action}`
+                : operation.tool === "lexicon_undo" ? "Model change undone — exact file restored"
+                : operation.tool === "lexicon_edit" ? "Model saved"
+                : `${operation.tool}: completed`}
+              {Array.isArray(operation.result?.warnings) && operation.result.warnings.filter((warning): warning is string => typeof warning === "string").map((warning, warningIndex) => <p key={warningIndex}>{warning}</p>)}
+            </div>)}
             {message.error && (
               <p className="chat-error" role="alert">
                 {message.error}

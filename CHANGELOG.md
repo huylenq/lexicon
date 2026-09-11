@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — External agent integration
+
+- Document the agent capability taxonomy, operation semantics, and first implementation slice.
+- Route embedded chat and MCP through one operation dispatcher and model save primitive, including viewer-bound navigation, exact undo, and separate operation receipts.
+- Discover desktop port/token changes through a private connection file, use the running server's tool catalog, choose an advertised default model, and recover archived Codex sessions with the saved project conversation.
+- Add a local MCP adapter for project/model inspection, search, explicit viewer sessions, select/focus/fit navigation, model creation and partial updates, protected undo, and selection/model events.
+- Refresh open viewers after model changes and wait for viewer acknowledgment before reporting navigation success. Reuse the existing model validation, artifact-root lock, and exact-file undo.
+
 ## Unreleased — Shared model and schema 3.0
 
 - Add fixed C4 elements, single structural parents, and flows with ordered relationship occurrences to the shared model. Reader, search, graph filters, sequence diagrams, code navigation, and agent refinement use the same identities.

@@ -51,6 +51,7 @@ export interface ChatMessage {
     undone?: boolean;
     migrated?: { from: string | null; to: string };
   };
+  operations?: { tool: string; action?: string; status: "complete" | "error"; result?: Record<string, unknown>; error?: string }[];
   error?: string;
 }
 export interface ChatToolCall {

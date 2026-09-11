@@ -17,6 +17,7 @@ import { providers, type Provider } from "../shared/chat";
 import { stopOwnedAgents } from "./chat/process";
 import { CanvasError, validateCanvas, readCanvas, saveCanvas, recoverCanvas, saveCanvasAsset, readCanvasAsset } from "./canvas";
 import { MAX_CANVAS_BYTES, MAX_ASSET_BYTES } from "../shared/canvas";
+import { installAgentRoutes } from "./agent/routes";
 
 const exec = promisify(execFile);
 const repository = resolve(import.meta.dir, "../..");
@@ -290,6 +291,10 @@ app.get("/api/projects/:id/code", async (c) => {
     ),
   );
 });
+installAgentRoutes(app, chatProject, () => [
+  ...examples.map(({ artifactRoot, ...p }) => p),
+  ...projects.list().map(p => ({ id: String(p.id), name: p.name, root: p.root_path })),
+]);
 app.all("/api/*", (c) => c.json({ error: "Endpoint not found." }, 404));
 const dist = resolve(import.meta.dir, "../client/dist");
 app.get("*", serveStatic({ root: relative(process.cwd(), dist) || "." }));

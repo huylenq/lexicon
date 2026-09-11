@@ -6,8 +6,11 @@ import type { ReaderOpenMode } from "../readerState";
 
 export type CanvasCommand = {
   sequence: number;
-  action: "locate" | "expand";
+  action: "locate" | "expand" | "fit";
   selection: GraphSelection;
+  expiresAt?: number;
+  signal?: AbortSignal;
+  complete?: (error?: string) => void;
 };
 
 export type CanvasPaneProps = {

@@ -19,6 +19,8 @@ import InstallApp from "./InstallApp";
 import Icon from "./Icon";
 import ObjectName from "./ObjectName";
 import ChatPane from "./ChatPane";
+import { useAgentSession } from "./useAgentSession";
+import type { NavigationCommand } from "../../shared/agent";
 import useAssistantWindow from "./useAssistantWindow";
 import ReaderCardBody from "./ReaderCardBody";
 import ReaderCardHeader from "./ReaderCardHeader";
@@ -246,6 +248,43 @@ function ReaderProject({ projectId }: { projectId: string }) {
   useEffect(() => setCanvasClearedAt(undefined), [routeLocation.key]);
   const graphSelection = canvasClearedAt === routeLocation.key ? undefined :
     params.get("focus") === "code" ? codeSelection : readerSelection;
+  const viewerSessionId = useAgentSession(projectId, data ? {
+    selection: graphSelection || null,
+    modelRevision: data.modelRevision,
+    view: !model ? "unavailable" : mobileCode && codeNavigation.open ? "code" : mobileRead && reading.stack.visible ? "reader" : "canvas",
+  } : null, async (command: NavigationCommand, signal: AbortSignal) => {
+    if (signal.aborted) throw new Error("Navigation cancelled.");
+    if (!model) throw new Error("The model is unavailable in this viewer.");
+    if (command.itemId && !model.items.some(item => item.id === command.itemId))
+      throw new Error("The requested item is not available in this viewer. Retry after refresh.");
+    if (command.action !== "fit") {
+      setCanvasClearedAt(undefined);
+      select(command.itemId);
+    }
+    if (command.action === "select") return;
+    setMobileRead(false);
+    setMobileCode(false);
+    setMenu(false);
+    setQuery("");
+    await new Promise<void>((resolve, reject) => {
+      const finish = (error?: string) => {
+        clearTimeout(timer);
+        signal.removeEventListener("abort", abort);
+        error ? reject(new Error(error)) : resolve();
+      };
+      const abort = () => finish("Navigation cancelled.");
+      const timer = setTimeout(() => finish("Canvas navigation expired."), Math.max(0, command.expiresAt - Date.now()));
+      signal.addEventListener("abort", abort, { once: true });
+      setCanvasCommand(current => ({
+        sequence: (current?.sequence || 0) + 1,
+        action: command.action === "fit" ? "fit" : "locate",
+        selection: { kind: "item", id: command.itemId || "" },
+        expiresAt: command.expiresAt,
+        signal,
+        complete: finish,
+      }));
+    });
+  }, refresh);
   const graphAction = (
     action: "locate" | "expand",
     selection: GraphSelection,
@@ -594,7 +633,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
         <div className="workspace-canvas-status" ref={setCanvasStatusHost} />
       </div>
       {assistantWindow.docked && assistantHost ? createPortal(launcher, assistantHost) : launcher}
-      {data && <ChatPane projectId={projectId} open={chatOpen} window={assistantWindow} selected={item} modelRevision={data.modelRevision}
+      {data && <ChatPane viewerSessionId={viewerSessionId} projectId={projectId} open={chatOpen} window={assistantWindow} selected={item} modelRevision={data.modelRevision}
         attached={agentAttached && !compact} onToggleAttachment={() => setAgentAttached(value => !value)}
         onRunningChange={setAgentRunning}
         empty={data.model?.items.length === 0} problem={data.problem} example={data.project.example}

@@ -342,3 +342,16 @@ test("server shutdown closes owned agent processes and settles their turns", () 
     await stopOwnedAgents();
     await expect(turn).rejects.toThrow();
   }));
+
+
+test("Codex recovers an archived runtime session using the supplied project conversation", () => withFixtures(async () => {
+  let session = "", activity = "";
+  const result = await adapters.codex.turn({
+    cwd: tmpdir(), prompt: "Explain an order", sessionId: "archived-test-session", model: "test-fast",
+    signal: new AbortController().signal, onSession: id => { session = id; }, onText: () => {},
+    onActivity: value => { if (value.includes("fresh runtime")) activity = value; }, ask: async () => ({}),
+  });
+  expect(session).toBe("codex-owned");
+  expect(activity).toContain("saved project conversation");
+  expect(result).toContain("An order records a purchase");
+}));

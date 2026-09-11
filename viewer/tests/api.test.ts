@@ -44,7 +44,7 @@ test("chat uses the installed workflow texts and keeps initialization out of exi
   expect(refinement).toContain(contract);
   expect(refinement).toContain(JSON.stringify(model.items));
   expect(initial).toContain("Never modify files");
-  expect(initial).toContain("No edit block means no edit");
+  expect(initial).toContain("No edit block or operation means no edit");
 });
 
 test("library serves the domain example and rejects unknown projects and links", async () => {
@@ -232,6 +232,7 @@ test("chat rejects stale context, invalid edits, concurrent turns, and external 
   await expect(service.start(p, { text: "Edit", provider: "codex", modelRevision: "stale" })).rejects.toThrow("changed");
   await service.start(p, { text: "Edit", provider: "codex", modelRevision: fingerprint(xml) });
   await expect(service.start({ ...p, id: "another-project" }, { text: "Edit", provider: "codex", modelRevision: fingerprint(xml) })).rejects.toThrow("already working");
+  await expect(service.agentCommand({ ...p, id: "agent-alias" }, fingerprint(xml), { action: "update", itemId: "thing", fields: { name: "Blocked" } })).rejects.toThrow("current model edit");
   const external = xml.replace("Tiny", "External");
   await writeFile(join(p.root, "lexicon/model.xml"), external); release();
   const state = await untilChat(service, p.id, (s) => !s.running);
@@ -376,4 +377,131 @@ test("migration preserves external edits and validates source in the selected wo
   await expect(readFile(join(codeRoot, "lexicon/model.xml"))).rejects.toThrow();
   await migrate.undo(linked);
   expect(await readFile(join(p.root, "lexicon/model.xml"), "utf8")).toBe(oldXml);
+});
+
+test("external agent edits share revision checks, link validation, read-only examples, and exact undo", async () => {
+  const root = join(scratch, "agent-project");
+  await mkdir(join(root, "lexicon"), { recursive: true });
+  await writeFile(join(root, "lexicon/model.xml"), xml);
+  await writeFile(join(root, "thing.ts"), "export interface Thing { name: string }");
+  const post = (path: string, data: unknown) => req(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(data) });
+  const project = await (await post("/api/projects", { root })).json();
+  const call = (name: string, data: Record<string, unknown> = {}) => post(`/api/agent/tools/lexicon_${name}`, { projectId: project.id, ...data });
+  let snapshot = await (await call("inspect")).json();
+  expect(snapshot.revision).toBe(fingerprint(xml));
+  const created = await call("edit", { revision: snapshot.revision, action: "create", item: { type: "concept", id: "refund", parent: "scope", name: "Refund", description: "Return a payment." } });
+  expect(created.status).toBe(200);
+  const receipt = await created.json();
+  expect(receipt.affectedIds).toEqual(["refund"]);
+  expect(receipt.undoAvailable).toBe(true);
+  expect((await call("edit", { revision: snapshot.revision, action: "update", itemId: "thing", fields: { name: "Stale" } })).status).toBe(400);
+  snapshot = await (await call("inspect")).json();
+  const edit = (data: Record<string, unknown>) => call("edit", { revision: snapshot.revision, ...data });
+  expect((await edit({ action: "create", item: { type: "concept", id: "refund", parent: "scope", name: "Duplicate", description: "Duplicate." } })).status).toBe(400);
+  expect((await edit({ action: "create", item: { type: "relationship", id: "bad", from: "refund", to: "absent", name: "fails", description: "Invalid." } })).status).toBe(400);
+  expect((await edit({ action: "update", itemId: "thing", fields: { id: "new-id" } })).status).toBe(400);
+  expect((await edit({ action: "update", itemId: "thing", fields: { codeLinks: [{ file: "missing.ts", role: "definition", description: "Invented." }] } })).status).toBe(400);
+  const changed = await edit({ action: "update", itemId: "thing", fields: { description: "Updated description only." } });
+  expect(changed.status).toBe(200);
+  const changedReceipt = await changed.json();
+  const item = (await (await call("inspect", { itemId: "thing" })).json()).item;
+  expect(item.name).toBe("Thing");
+  expect(item.codeLinks).toHaveLength(1);
+  expect(item.description).toBe("Updated description only.");
+  expect((await call("undo", { changeId: receipt.changeId })).status).toBe(400);
+  expect((await call("undo", { changeId: changedReceipt.changeId })).status).toBe(200);
+  expect((await call("undo", { changeId: receipt.changeId })).status).toBe(200);
+  expect(await readFile(join(root, "lexicon/model.xml"), "utf8")).toBe(xml);
+  const search = await (await call("search", { query: "representation" })).json();
+  expect(search.items.map((i: { id: string }) => i.id)).toEqual(["thing"]);
+  expect((await post("/api/agent/tools/lexicon_edit", { projectId: "shop", revision: "anything", action: "update", itemId: "order", fields: { name: "No" } })).status).toBe(400);
+  const again = await call("edit", { revision: fingerprint(xml), action: "update", itemId: "thing", fields: { name: "Changed" } });
+  const againReceipt = await again.json();
+  await writeFile(join(root, "lexicon/model.xml"), xml + "\n<!-- external change -->\n");
+  expect((await call("undo", { changeId: againReceipt.changeId })).status).toBe(400);
+  expect(await readFile(join(root, "lexicon/model.xml"), "utf8")).toContain("external change");
+  await req(`/api/projects/${project.id}`, { method: "DELETE" });
+});
+
+
+test("embedded operations and external operations share edit, navigation, and exact undo", async () => {
+  const { createAgentOperations } = await import("../server/agent/operations");
+  const project = await chatFixture("embedded-operations");
+  let output = "";
+  const service = fakeChat(async input => { expect(input.prompt).toContain("APPLICATION OPERATIONS"); return output; });
+  const operations = createAgentOperations(service, async id => { if (id !== project.id) throw new Error("Wrong project"); return project; }, () => []);
+  service.connectOperations(operations);
+  const state = { selection: null, view: "canvas" as const, modelRevision: fingerprint(xml) };
+  const first = operations.sessions.create(project.id, state), second = operations.sessions.create(project.id, state);
+  const commands: string[] = [];
+  operations.sessions.connect(project.id, first.id, message => {
+    if (message.type === "command") {
+      commands.push(message.command.action);
+      operations.sessions.acknowledge(project.id, first.id, message.command.id, { ...state, selection: { kind: "item", id: message.command.itemId || "thing" } });
+    }
+  });
+  operations.sessions.connect(project.id, second.id, message => { if (message.type === "command") throw new Error("Wrong viewer"); });
+  const send = async (calls: unknown, revision?: string) => {
+    output = "Requested operations.\n```lexicon-operations\n" + JSON.stringify(calls) + "\n```";
+    await service.start(project, { text: "Test operations", provider: "codex", viewerSessionId: first.id, modelRevision: revision || fingerprint(await readFile(join(project.root, "lexicon/model.xml"), "utf8")) });
+    return (await untilChat(service, project.id, state => !state.running)).messages.at(-1)!;
+  };
+  const edited = await send([{ name: "lexicon_edit", arguments: { action: "update", itemId: "thing", fields: { name: "Updated" } } }, { name: "lexicon_navigate", arguments: { action: "focus", itemId: "thing" } }]);
+  expect(edited.operations?.map(r => r.status)).toEqual(["complete", "complete"]);
+  expect(commands).toEqual(["focus"]);
+  expect(operations.sessions.list(project.id).find(s => s.id === second.id)?.selection).toBeNull();
+  const after = await readFile(join(project.root, "lexicon/model.xml"), "utf8");
+  expect(after).toContain("Updated");
+  await operations.execute("lexicon_undo", { projectId: project.id, changeId: edited.id });
+  expect(await readFile(join(project.root, "lexicon/model.xml"), "utf8")).toBe(xml);
+  const external = await operations.execute("lexicon_edit", { projectId: project.id, revision: fingerprint(xml), action: "update", itemId: "thing", fields: { name: "External" } });
+  const undone = await send([{ name: "lexicon_undo", arguments: {} }]);
+  expect(undone.operations?.[0].status).toBe("complete");
+  expect(await readFile(join(project.root, "lexicon/model.xml"), "utf8")).toBe(xml);
+  expect(service.state(project.id).messages.find(m => m.id === external.changeId)?.change?.undone).toBe(true);
+  const invalid = await send([{ name: "lexicon_edit", arguments: { action: "update", itemId: "thing", fields: { name: "Must not save" } } }, { name: "lexicon_navigate", arguments: { action: "focus", itemId: "thing", sessionId: second.id } }]);
+  expect(invalid.status).toBe("error");
+  expect(await readFile(join(project.root, "lexicon/model.xml"), "utf8")).toBe(xml);
+  const partial = await send([{ name: "lexicon_edit", arguments: { action: "update", itemId: "thing", fields: { name: "Saved before navigation failed" } } }, { name: "lexicon_navigate", arguments: { action: "focus", itemId: "missing" } }, { name: "lexicon_navigate", arguments: { action: "fit" } }]);
+  expect(partial.operations?.map(r => r.status)).toEqual(["complete", "error"]);
+  expect(commands).toEqual(["focus"]);
+  expect(await readFile(join(project.root, "lexicon/model.xml"), "utf8")).toContain("Saved before navigation failed");
+});
+
+
+test("embedded operations preserve an external edit made while the runtime is thinking", async () => {
+  const { createAgentOperations } = await import("../server/agent/operations");
+  const project = await chatFixture("embedded-stale");
+  const changed = xml.replace("The modeled thing.", "An external edit.");
+  const service = fakeChat(async () => {
+    await writeFile(join(project.root, "lexicon/model.xml"), changed);
+    return '```lexicon-operations\n[{"name":"lexicon_edit","arguments":{"action":"update","itemId":"thing","fields":{"name":"Stale"}}}]\n```';
+  });
+  service.connectOperations(createAgentOperations(service, async () => project, () => []));
+  await service.start(project, { text: "Rename", provider: "codex", modelRevision: fingerprint(xml) });
+  const result = (await untilChat(service, project.id, s => !s.running)).messages.at(-1)!;
+  expect(result.operations?.[0].status).toBe("error");
+  expect(result.operations?.[0].error).toContain("model changed");
+  expect(await readFile(join(project.root, "lexicon/model.xml"), "utf8")).toBe(changed);
+});
+
+test("Stop during navigation interrupts chat and skips later operations", async () => {
+  const { createAgentOperations } = await import("../server/agent/operations");
+  const project = await chatFixture("embedded-stop-navigation");
+  const service = fakeChat(async () => '```lexicon-operations\n[{"name":"lexicon_navigate","arguments":{"action":"fit"}},{"name":"lexicon_edit","arguments":{"action":"update","itemId":"thing","fields":{"name":"Must not apply"}}}]\n```');
+  const operations = createAgentOperations(service, async () => project, () => []);
+  service.connectOperations(operations);
+  const state = { selection: null, view: "canvas" as const, modelRevision: fingerprint(xml) };
+  const viewer = operations.sessions.create(project.id, state);
+  let cancelled = false;
+  operations.sessions.connect(project.id, viewer.id, message => {
+    if (message.type === "command") service.stop(project.id);
+    if (message.type === "cancel") cancelled = true;
+  });
+  await service.start(project, { text: "Fit then edit", provider: "codex", viewerSessionId: viewer.id, modelRevision: fingerprint(xml) });
+  const result = (await untilChat(service, project.id, s => !s.running)).messages.at(-1)!;
+  expect(cancelled).toBe(true);
+  expect(result.status).toBe("interrupted");
+  expect(result.operations?.map(operation => operation.status)).toEqual(["error"]);
+  expect(await readFile(join(project.root, "lexicon/model.xml"), "utf8")).toBe(xml);
 });

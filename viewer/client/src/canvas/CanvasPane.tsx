@@ -146,6 +146,8 @@ export default function CanvasPane(props: CanvasPaneProps) {
   const initialFit = useRef(false);
   const rearrangeNext = useRef(false);
   const pendingLocate = useRef<GraphSelection>();
+  const pendingAgentLocate = useRef<CanvasPaneProps["command"]>();
+  const handledCommand = useRef<number>();
   const restoreCamera = useRef<{ x: number; y: number; z: number }>();
   const pendingCamera = useRef<{ x: number; y: number; z: number }>();
   const index = useMemo(() => indexModel(model), [model]);
@@ -464,14 +466,25 @@ export default function CanvasPane(props: CanvasPaneProps) {
           pendingLocate.current = undefined;
           const id = findSelection(chosen),
             bounds = id && editor.getShapePageBounds(id);
-          if (bounds)
+          const agentCommand = pendingAgentLocate.current;
+          pendingAgentLocate.current = undefined;
+          if (agentCommand?.signal?.aborted) {
+            agentCommand.complete?.("Navigation cancelled.");
+          } else if (agentCommand?.expiresAt && Date.now() >= agentCommand.expiresAt) {
+            agentCommand.complete?.("Canvas navigation expired.");
+          } else if (bounds) {
+            editor.updateViewportScreenBounds(editor.getContainer());
             fitBounds(bounds);
+            agentCommand?.complete?.();
+          } else agentCommand?.complete?.("This item has no visible canvas shape.");
         }
       })
       .catch((e) => {
         if (active) {
           setError(e.message);
           setLoading(false);
+          pendingAgentLocate.current?.complete?.(e.message);
+          pendingAgentLocate.current = undefined;
         }
       });
     return () => {
@@ -501,10 +514,30 @@ export default function CanvasPane(props: CanvasPaneProps) {
     }
   }, [editor, loading, navigationKey]);
   useEffect(() => {
-    if (!command) return;
-    if (command.action === "expand") expandCode(command.selection);
-    else reveal(command.selection);
-  }, [command?.sequence]);
+    if (!command || !editor || loading || handledCommand.current === command.sequence) return;
+    handledCommand.current = command.sequence;
+    if (command.signal?.aborted) {
+      command.complete?.("Navigation cancelled.");
+      return;
+    }
+    if (command.expiresAt && Date.now() >= command.expiresAt) {
+      command.complete?.("Canvas navigation expired.");
+      return;
+    }
+    if (command.action === "fit") {
+      const bounds = projection.current?.visibleIds().map(id => editor.getShapePageBounds(id)).filter((box): box is Box => !!box) || [];
+      if (!bounds.length) command.complete?.("There is no visible model content to frame.");
+      else {
+        editor.updateViewportScreenBounds(editor.getContainer());
+        fitBounds(Box.Common(bounds));
+        command.complete?.();
+      }
+    } else if (command.action === "expand") expandCode(command.selection);
+    else {
+      pendingAgentLocate.current = command.complete ? command : undefined;
+      reveal(command.selection);
+    }
+  }, [command?.sequence, editor, loading]);
 
   const addNote = () => {
     if (!editor) return;
