@@ -276,6 +276,7 @@ export default function LayeredCanvas(props: CanvasPaneProps & { onFlat: () => v
             <option value="both">All elements</option><option value="domain">Domain</option><option value="architecture">Architecture</option>
           </select>
         </CanvasViewControls>}>
+        <div className="assistant-toolbar-slot" ref={props.assistantHost} />
         <CanvasButton icon="fit" label="Fit model" onClick={fit} />
         <CanvasButton icon="refresh" label="Reset view" onClick={resetView} />
         <CanvasButton icon="locate" label="Locate" disabled={!item} onClick={() => {
@@ -297,7 +298,6 @@ export default function LayeredCanvas(props: CanvasPaneProps & { onFlat: () => v
             {ready && <button onClick={() => void exportCanvasFile(handles.domain!.editor, storage.boot!.remote.documentId, model.id).catch(error => setError(String(error)))}>Export canvas</button>}
           </div>
         </details>
-        <div className="assistant-toolbar-slot" ref={props.assistantHost} />
       </Toolbar>
     </div>
       <section className="layers-stage" ref={stage} aria-label="Exploded model layers" data-ready={ready} data-view={view}

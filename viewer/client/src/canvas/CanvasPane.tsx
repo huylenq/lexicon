@@ -130,6 +130,7 @@ function FlatCanvasPane(props: CanvasPaneProps & { onLayers: () => void }) {
   const domainView = !hasArchitecture || workspace.view === "domain";
   const mapEnabled = domainView && (workspace.map ?? true);
   const [editor, setEditor] = useState<Editor>();
+  const [actionsHost, setActionsHost] = useState<HTMLSpanElement | null>(null);
   const [inspectorHost, setInspectorHost] = useState<HTMLSpanElement | null>(
     null,
   );
@@ -728,6 +729,7 @@ function FlatCanvasPane(props: CanvasPaneProps & { onLayers: () => void }) {
             (focus ? "Focused neighborhood" : "Overview")
           }
         >
+          <div className="assistant-toolbar-slot" ref={props.assistantHost} />
           {focus && (
             <CanvasButton
               icon="arrow-left"
@@ -827,7 +829,7 @@ function FlatCanvasPane(props: CanvasPaneProps & { onLayers: () => void }) {
           >
             Recovery{storage.drafts.length ? ` (${storage.drafts.length})` : ""}
           </button>}
-          <div className="assistant-toolbar-slot" ref={props.assistantHost} />
+          <span className="canvas-inspector-toggles" ref={setActionsHost} />
         </Toolbar>
         <dialog
           ref={recoveryDialog}
@@ -1010,6 +1012,7 @@ function FlatCanvasPane(props: CanvasPaneProps & { onLayers: () => void }) {
               editor={editor}
               props={props}
               toolbarHost={inspectorHost}
+              actionsHost={actionsHost}
               onLocateBounds={fitBounds}
             />
           )}

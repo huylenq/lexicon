@@ -27,11 +27,13 @@ export function CanvasInspector({
   editor,
   props,
   toolbarHost,
+  actionsHost,
   onLocateBounds,
 }: {
   editor: Editor;
   props: CanvasPaneProps;
   toolbarHost: HTMLSpanElement | null;
+  actionsHost: HTMLSpanElement | null;
   onLocateBounds: (bounds: Box) => void;
 }) {
   const [params, setParams] = useSearchParams();
@@ -78,7 +80,8 @@ export function CanvasInspector({
       if (
         event.target instanceof Node &&
         !panel.current?.contains(event.target) &&
-        !toolbarHost?.contains(event.target)
+        !toolbarHost?.contains(event.target) &&
+        !actionsHost?.contains(event.target)
       ) {
         setOpen(false);
         setActionsOpen(false);
@@ -86,7 +89,7 @@ export function CanvasInspector({
     };
     document.addEventListener("pointerdown", dismiss);
     return () => document.removeEventListener("pointerdown", dismiss);
-  }, [open, actionsOpen, toolbarHost]);
+  }, [open, actionsOpen, toolbarHost, actionsHost]);
   useEffect(() => {
     if (open || actionsOpen)
       panel.current
@@ -209,29 +212,31 @@ export function CanvasInspector({
     <>
       {toolbarHost &&
         createPortal(
-          <>
-            <CanvasButton
-              icon="annotation"
-              label={`Notes (${annotations.length})`}
-              title="Search canvas notes"
-              aria-expanded={open}
-              onClick={() => {
-                setOpen(!open);
-                setActionsOpen(false);
-              }}
-            />
-            <CanvasButton
-              icon="more"
-              label="Selection actions"
-              aria-expanded={actionsOpen}
-              disabled={!selected.length && !changeId}
-              onClick={() => {
-                setActionsOpen(!actionsOpen);
-                setOpen(false);
-              }}
-            />
-          </>,
+          <CanvasButton
+            icon="annotation"
+            label={`Notes (${annotations.length})`}
+            title="Search canvas notes"
+            aria-expanded={open}
+            onClick={() => {
+              setOpen(!open);
+              setActionsOpen(false);
+            }}
+          />,
           toolbarHost,
+        )}
+      {actionsHost &&
+        createPortal(
+          <CanvasButton
+            icon="more"
+            label="Selection actions"
+            aria-expanded={actionsOpen}
+            disabled={!selected.length && !changeId}
+            onClick={() => {
+              setActionsOpen(!actionsOpen);
+              setOpen(false);
+            }}
+          />,
+          actionsHost,
         )}
       <div
         className="canvas-inspector"
@@ -241,7 +246,7 @@ export function CanvasInspector({
           if (event.key !== "Escape") return;
           event.stopPropagation();
           event.preventDefault();
-          toolbarHost
+          (actionsOpen ? actionsHost : toolbarHost)
             ?.querySelector<HTMLButtonElement>(`button[aria-expanded="true"]`)
             ?.focus();
           setOpen(false);
