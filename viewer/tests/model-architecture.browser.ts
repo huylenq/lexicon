@@ -76,22 +76,33 @@ test("nested boundaries and shared canvas survive filters, a drawing move, and r
   const canvas = async () => (await (await request.get(`/api/projects/${id}/canvas`)).json()).document;
   await expect.poll(canvas).not.toBeNull();
   const before = await canvas();
-  await page.getByRole("combobox", { name: "Model view" }).selectOption("domain");
+  await page.getByRole("radio", { name: "Domain", exact: true }).check();
   await expect(card("checkout")).toBeHidden();
   await expect(page.locator(".canvas-pane")).toHaveAttribute("data-map", "true");
-  await page.getByRole("combobox", { name: "Model view" }).selectOption("architecture");
+  await page.getByRole("radio", { name: "Architecture", exact: true }).check();
   await expect(card("order")).toBeHidden();
   await expect(card("checkout")).toBeVisible();
-  await page.getByRole("combobox", { name: "Model view" }).selectOption("all");
-  await expect(card("order")).toBeVisible();
+  await expect(page.getByRole("radio", { name: "Standard", exact: true })).toBeChecked();
+  await expect(page.getByRole("radio", { name: "Atlas · Ink", exact: true })).toBeDisabled();
+  await expect(page.getByRole("radio", { name: "Atlas · Village", exact: true })).toBeDisabled();
+  await expect(page.getByRole("group", { name: "Dimension", exact: true }).locator("label")).toHaveText(["Domain", "Architecture"]);
   await expect.poll(canvas).toEqual(before);
+  await page.getByRole("radio", { name: "Layers", exact: true }).check();
+  await expect(page.locator('.layers-stage[data-ready="true"]')).toBeVisible();
+  await expect(page.getByRole("radio", { name: "Domain", exact: true })).toBeDisabled();
+  await expect(page.getByRole("radio", { name: "Architecture", exact: true })).toBeDisabled();
+  await expect(page.locator(".layer-sheet")).toHaveCount(2);
+  await page.getByRole("radio", { name: "2D", exact: true }).check();
+  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  await expect(page.getByRole("radio", { name: "Architecture", exact: true })).toBeChecked();
+  const beforeMove = await canvas();
   // A visual move changes layout while semantic ownership stays in XML.
   const heading = (await page.getByRole("button", { name: "component: Order Handling", exact: true }).boundingBox())!;
   await page.mouse.move(heading.x + heading.width / 2, heading.y + heading.height / 2);
   await page.mouse.down();
   await page.mouse.move(heading.x + heading.width / 2 + 35, heading.y + heading.height / 2 + 35, { steps: 8 });
   await page.mouse.up();
-  await expect.poll(canvas).not.toEqual(before);
+  await expect.poll(canvas).not.toEqual(beforeMove);
   const records = Object.values((await canvas()).snapshot.store) as any[];
   const object = (item: string) => records.find(r => r.type === "lexicon-object" && r.props.graphId === `item:${item}`);
   expect(object("checkout").parentId).toBe(object("api").id);
@@ -240,11 +251,47 @@ test("Layers keeps the canvas shell and shared reader controls", async ({ page }
   await expect(active.locator('h1')).toHaveText('Order Handling creates Order');
   await active.locator('.code-links button').first().click();
   await expect(page.locator('.code-scroll')).toContainText('class Checkout');
-  await page.getByRole('radio', { name: 'Diagram', exact: true }).check();
+  await page.getByRole('radio', { name: '2D', exact: true }).check();
   await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
   expect(await shell!.evaluate(element => element.isConnected)).toBe(true);
   await expect(active.locator('h1')).toHaveText('Order Handling creates Order');
   await expect(page.locator('.code-scroll')).toContainText('class Checkout');
+});
+
+test("canvas presentation buttons stay in place when view-specific controls appear", async ({ page }) => {
+  await page.goto(`/p/${id}?presentation=layers`);
+  await expect(page.locator('.layers-stage[data-ready="true"]')).toBeVisible();
+  for (const width of [1600, 430, 320]) {
+    await page.setViewportSize({ width, height: 1000 });
+    const mode = page.getByRole("group", { name: "Canvas presentation", exact: true });
+    const before = (await mode.boundingBox())!;
+    for (const name of ["2D", "Layers", "2D", "Layers"]) {
+      await page.getByRole("radio", { name, exact: true }).check();
+      await expect(page.locator(name === "Layers" ? '.layers-stage[data-ready="true"]' : '.canvas-stage[data-ready="true"]')).toBeVisible();
+      if (name === "2D") {
+        await page.getByRole("radio", { name: "Domain", exact: true }).check();
+        for (const skin of ["standard", "ink", "village"]) {
+          await page.getByRole("radio", { name: skin === "standard" ? "Standard" : skin === "ink" ? "Atlas · Ink" : "Atlas · Village", exact: true }).check();
+          await expect(page.getByRole("radio", { name: "2D", exact: true })).toBeChecked();
+          await expect(page.locator(".canvas-pane")).toHaveAttribute("data-presentation", "flat");
+        }
+        await page.getByRole("radio", { name: "Atlas · Village", exact: true }).press("ArrowLeft");
+        await expect(page.getByRole("radio", { name: "Atlas · Ink", exact: true })).toBeChecked();
+        await expect(page.getByRole("radio", { name: "Domain", exact: true })).toBeChecked();
+        await expect(page.getByRole("radio", { name: "2D", exact: true })).toBeChecked();
+      } else {
+        for (const label of ["Domain", "Architecture", "Standard", "Atlas · Ink", "Atlas · Village"]) {
+          await expect(page.getByRole("radio", { name: label, exact: true })).toBeVisible();
+          await expect(page.getByRole("radio", { name: label, exact: true })).toBeDisabled();
+        }
+      }
+      const after = (await mode.boundingBox())!;
+      expect(after.x).toBeCloseTo(before.x, 0);
+      expect(after.y).toBeCloseTo(before.y, 0);
+      expect(after.width).toBeCloseTo(before.width, 0);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    }
+  }
 });
 
 test("frameless layers pan together without editing the model and lower cards remain selectable", async ({ page }) => {
@@ -401,7 +448,7 @@ test("moving a Layers node does not open the reader, but a following click does"
   await expect.poll(async () => Number(await page.locator('.layer-editor').first().getAttribute('data-render-scale'))).toBeGreaterThan(1);
   await page.getByText('Locate in canvas', { exact: true }).click();
   await expect(page.locator('.layers-camera')).toHaveAttribute('style', 'transform: translate(0px, 0px) scale(1);');
-  await expect(page.locator('.layers-stage')).toHaveAttribute('data-view', 'domain');
+  await expect(page.locator('.layers-stage')).toHaveAttribute('data-view', 'both');
   const locatedNode = (await node.boundingBox())!;
   const stageBounds = (await page.locator('.layers-stage').boundingBox())!;
   expect(Math.abs(locatedNode.x + locatedNode.width / 2 - stageBounds.x - stageBounds.width / 2)).toBeLessThan(5);

@@ -16,7 +16,7 @@ test("edge rounding is a browser preference independent of selection and canvas 
     await page.goto(`/p/${id}`);
     await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
     await page.getByRole("button", { name: "Toggle navigation", exact: true }).click();
-    await page.getByRole("radio", { name: "Diagram", exact: true }).check();
+    await page.getByRole("radio", { name: "Standard", exact: true }).check();
     await page.getByRole("button", { name: "Fit model", exact: true }).click();
     // Offset an endpoint so the fixture exercises bends, not a straight edge.
     const node = await page.getByRole("button", { name: "concept: Order Line", exact: true }).boundingBox();

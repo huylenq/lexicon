@@ -89,7 +89,9 @@ test("code nodes preserve the reader; mapping edges open explanation and the sam
   page,
 }) => {
   await page.goto("/p/shop?item=order");
-  await expect(page.locator(".canvas-card[data-model-id^='item:']")).toHaveCount(5);
+  await page.getByRole("radio", { name: "Domain", exact: true }).check();
+  await page.getByRole("radio", { name: "Standard", exact: true }).check();
+  await expect(page.getByRole("button", { name: "concept: Order", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Fit model", exact: true }).click();
   await page.getByRole("button", { name: "concept: Order", exact: true }).click({ button: "right" });
   await page.getByRole("menuitem", { name: "Expand code", exact: true }).click();

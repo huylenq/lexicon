@@ -58,13 +58,13 @@ test("reader history branches correctly and pane close buttons preserve navigati
   await expect(page.getByRole("textbox", { name: "Search model" })).toBeFocused();
   await expect(browse).toHaveAttribute("aria-pressed", "true");
 
-  await expect(page.locator(".canvas-card[data-model-id^='item:']")).toHaveCount(5);
+  await expect(page.locator(".canvas-card[data-model-id^='item:']")).toHaveCount(3);
   await expect(page.getByText("Arranging the canvas…")).toBeHidden();
   await page.getByRole("button", { name: "Fit model", exact: true }).click();
   await page.reload();
   await expect(canvas).toBeVisible();
   await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Ordering");
-  await expect(page.locator(".canvas-card[data-model-id^='item:']")).toHaveCount(5);
+  await expect(page.locator(".canvas-card[data-model-id^='item:']")).toHaveCount(3);
 
   await page.getByRole("button", { name: "Toggle code workspace" }).click();
   await page.getByRole("button", { name: "Close code pane", exact: true }).click();
@@ -90,26 +90,24 @@ test("compact reader returns to the permanent canvas using the header reader tog
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
-test("Canvas stays present despite an older saved hidden state and its title and selection share one toolbar", async ({ page }) => {
+test("Canvas stays present despite an older saved hidden state without duplicating the header breadcrumb", async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem("lexicon:graph:v1:shop", JSON.stringify({ open: false })));
   await page.goto("/p/shop");
   await expect(page.getByRole("region", { name: "Model canvas" })).toBeVisible();
   await expect(page.locator(".canvas-card[data-model-id^='item:']")).toHaveCount(5);
   await expect(page.getByRole("button", { name: "Switch to Graph", exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Close Canvas pane" })).toHaveCount(0);
-  const titleLeft = await page.locator(".toolbar .pane-title").evaluate(el => el.getBoundingClientRect().left);
-  const selectionLeft = await page.locator(".toolbar .canvas-scope").evaluate(el => el.getBoundingClientRect().left);
-  expect(titleLeft).toBe(16);
-  expect(selectionLeft).toBeGreaterThan(titleLeft);
+  await expect(page.locator(".toolbar .pane-title, .toolbar .canvas-scope")).toHaveCount(0);
+  const viewLeft = await page.locator(".canvas-presentation").evaluate(el => el.getBoundingClientRect().left);
   const toolbar = page.locator(".toolbar");
   const toolbarHeight = (await toolbar.boundingBox())!.height;
-  await page.getByRole("radio", { name: "Diagram", exact: true }).check();
+  await page.getByRole("radio", { name: "2D", exact: true }).check();
   await page.getByRole("button", { name: "Concept · entity Order", exact: true }).click();
   expect((await toolbar.boundingBox())!.height).toBe(toolbarHeight);
   expect(await page.locator(".canvas-stage").evaluate(el => el.getBoundingClientRect().top))
     .toBe(await toolbar.evaluate(el => el.getBoundingClientRect().top));
   await page.getByRole("button", { name: "Toggle navigation", exact: true }).click();
-  expect(await page.locator(".toolbar .pane-title").evaluate(el => el.getBoundingClientRect().left)).toBe(titleLeft);
+  expect(await page.locator(".canvas-presentation").evaluate(el => el.getBoundingClientRect().left)).toBe(viewLeft);
 });
 
 test("native canvas navigation remains reachable beside Browse on short and narrow screens", async ({ page }) => {
@@ -162,7 +160,7 @@ test("one shared status bar follows model counts and the floating Agent stays re
   await page.goto("/p/shop");
   const bar = page.getByRole("region", { name: "Workspace status", exact: true });
   const agent = page.getByRole("button", { name: "Agent", exact: true });
-  await expect(bar.locator(".model-count")).toHaveText("2 concepts · 5 architecture · 0 code");
+  await expect(bar.locator(".model-count")).toHaveText("0 concepts · 5 architecture · 0 code");
   const objectLegend = bar.getByLabel("Object icon legend", { exact: true });
   await expect(objectLegend).toBeVisible();
   for (const [tone, label] of [["context", "Context"], ["concept", "Concept"], ["entity", "Entity"], ["value", "Value"], ["aggregate", "Aggregate"], ["service", "Service"], ["event", "Event"]]) {
@@ -179,7 +177,7 @@ test("one shared status bar follows model counts and the floating Agent stays re
   expect(bounds.width).toBe(viewport.width);
   expect(bounds.y + bounds.height).toBe(viewport.height);
   await page.getByRole("button", { name: "Show all code", exact: true }).click();
-  await expect(bar.locator(".model-count")).toHaveText(/2 concepts · 5 architecture · \d+ code/);
+  await expect(bar.locator(".model-count")).toHaveText(/0 concepts · 5 architecture · \d+ code/);
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(objectLegend).toBeHidden();
   await expect(bar.locator(".model-count")).toBeVisible();

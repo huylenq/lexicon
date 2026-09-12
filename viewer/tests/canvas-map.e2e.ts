@@ -20,6 +20,7 @@ test.afterEach(async ({ request }) => {
 async function open(page: Page) {
   await page.goto(`/p/${projectId}`);
   await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  await page.getByRole("radio", { name: "Domain", exact: true }).check();
   await page.getByRole("button", { name: "Toggle navigation", exact: true }).click();
   await page.getByRole("button", { name: "Fit model", exact: true }).click();
 }
@@ -51,16 +52,14 @@ test("map follows native moves and undo, keeps appearance across reload, and tog
   await expect(landmark(page, "order")).toHaveAttribute("data-landmark-kind", "archive");
   const camera = await page.locator("[data-map-camera]").getAttribute("transform");
   const selected = await page.locator('[data-model-id="item:order"]').getAttribute("data-selected");
-  await page.getByRole("radio", { name: "Diagram", exact: true }).check();
+  await page.getByRole("radio", { name: "Standard", exact: true }).check();
   await expect(page.getByTestId("procedural-map")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "concept: Order", exact: true })).toBeVisible();
   expect(await page.locator('[data-model-id="item:order"]').getAttribute("data-selected")).toBe(selected);
   await page.reload();
-  await expect(page.getByRole("radio", { name: "Diagram", exact: true })).toBeChecked();
-  await expect(page.getByRole("radio", { name: "Atlas", exact: true })).not.toBeChecked();
-  await page.getByRole("radio", { name: "Diagram", exact: true }).focus();
-  await page.keyboard.press("ArrowRight");
-  await expect(page.getByRole("radio", { name: "Atlas", exact: true })).toBeChecked();
+  await expect(page.getByRole("radio", { name: "Standard", exact: true })).toBeChecked();
+  await page.getByRole("radio", { name: "Atlas · Ink", exact: true }).check();
+  await expect(page.getByRole("radio", { name: "2D", exact: true })).toBeChecked();
   await expect(landmark(page, "order")).toHaveAttribute("data-landmark-kind", "archive");
   await expect(landmark(page, "order")).toHaveAttribute("transform", initial!);
   await expect(page.locator("[data-map-camera]")).toHaveAttribute("transform", camera!);
@@ -86,10 +85,10 @@ test("Atlas road surfaces follow native selection and Diagram restores its conne
   await page.mouse.click(point.x, point.y);
   await expect(page.locator("main [data-reader-card].active > header h1")).toContainText("rechecks");
   await expect(page.getByLabel("Path", { exact: true })).toBeVisible();
-  await page.getByRole("radio", { name: "Diagram", exact: true }).check();
+  await page.getByRole("radio", { name: "Standard", exact: true }).check();
   await expect(road).toHaveCount(0);
   await expect(connector.locator(":scope > path").first()).toBeVisible();
-  await page.getByRole("radio", { name: "Atlas", exact: true }).check();
+  await page.getByRole("radio", { name: "Atlas · Ink", exact: true }).check();
   await expect(road).toBeVisible();
   await expect(page.locator("main [data-reader-card].active > header h1")).toContainText("rechecks");
 });
@@ -137,15 +136,15 @@ test("context and path metaphors survive model refresh and code expansion", asyn
   await page.screenshot({ path: info.outputPath("procedural-island.png") });
 });
 
-test("Village skin preserves the canvas and persists independently of the mode", async ({ page, request }, info) => {
+test("Village skin preserves the canvas and persists across reload", async ({ page, request }, info) => {
   await open(page);
   await page.getByRole("button", { name: "concept: Order", exact: true }).click();
   await expect(page.locator('[data-save-status="saved"]')).toBeVisible();
   const saved = await (await request.get(`/api/projects/${projectId}/canvas`)).json();
   const camera = await page.locator("[data-map-camera]").getAttribute("transform");
   const position = await landmark(page, "order").getAttribute("transform");
-  const skin = page.getByRole("combobox", { name: "Atlas skin", exact: true });
-  await skin.selectOption("village");
+  const skin = page.getByRole("group", { name: "2D skin", exact: true });
+  await skin.getByRole("radio", { name: "Atlas · Village", exact: true }).check();
   await expect(landmark(page, "order").locator(".village-building")).toBeVisible();
   const imageSize = await landmark(page, "order").locator("image").evaluate(async element => {
     const image = new Image();
@@ -162,28 +161,28 @@ test("Village skin preserves the canvas and persists independently of the mode",
   await expect(page.getByTestId("procedural-map")).toHaveCSS("--map-ground", "#272e24");
   await page.screenshot({ path: info.outputPath("village-dark.png") });
   await page.reload();
-  await expect(skin).toHaveValue("village");
-  await page.getByRole("radio", { name: "Diagram", exact: true }).check();
-  await expect(skin).toHaveCount(0);
-  await page.getByRole("radio", { name: "Atlas", exact: true }).check();
-  await expect(skin).toHaveValue("village");
+  await expect(skin.getByRole("radio", { name: "Atlas · Village", exact: true })).toBeChecked();
+  await page.getByRole("radio", { name: "Standard", exact: true }).check();
+  await expect(skin.getByRole("radio", { name: "Standard", exact: true })).toBeChecked();
+  await skin.getByRole("radio", { name: "Atlas · Village", exact: true }).check();
+  await expect(skin.getByRole("radio", { name: "Atlas · Village", exact: true })).toBeChecked();
   expect(await (await request.get(`/api/projects/${projectId}/canvas`)).json()).toEqual(saved);
   expect(await readFile(join(root, "lexicon/model.xml"), "utf8")).toBe(xml);
   await page.setViewportSize({ width: 430, height: 932 });
   await page.getByRole("button", { name: "Toggle reader", exact: true }).click();
   await page.getByRole("button", { name: "Fit model", exact: true }).click();
   await expect(skin).toBeVisible();
-  await skin.selectOption("ink");
+  await skin.getByRole("radio", { name: "Atlas · Ink", exact: true }).check();
   await expect(page.locator(".village-building")).toHaveCount(0);
   await expect(page.getByTestId("procedural-map")).toHaveCSS("--map-ground", "#20241f");
-  await skin.selectOption("village");
+  await skin.getByRole("radio", { name: "Atlas · Village", exact: true }).check();
   await page.screenshot({ path: info.outputPath("village-mobile.png") });
 });
 
 
 test("Village landmarks use readable sprite crops and recover from an unavailable sheet", async ({ page }, info) => {
   await open(page);
-  await page.getByRole("combobox", { name: "Atlas skin", exact: true }).selectOption("village");
+  await page.getByRole("radio", { name: "Atlas · Village", exact: true }).check();
   await page.getByRole("button", { name: "concept: Order", exact: true }).click();
   for (const kind of ["house", "hall", "workshop", "archive", "tower", "garden"]) {
     await page.getByLabel("Landmark", { exact: true }).selectOption(kind);
@@ -207,7 +206,7 @@ test("Village landmarks use readable sprite crops and recover from an unavailabl
 
 test("classic landscape has varied habitats, mountains and springs, and preserves them across reload", async ({ page }, info) => {
   await open(page);
-  await page.getByRole("combobox", { name: "Atlas skin", exact: true }).selectOption("village");
+  await page.getByRole("radio", { name: "Atlas · Village", exact: true }).check();
   await page.getByRole("button", { name: "context: Ordering", exact: true }).click();
   const terrain = page.getByLabel("Terrain", { exact: true });
   const features = page.locator("[data-landscape-kind]");
@@ -246,10 +245,10 @@ test("Ink varies vector scenery and keeps its sparse composition across skin swi
   await expect(map.locator("image")).toHaveCount(0);
   const before = await signature();
   await page.screenshot({ path: info.outputPath("ink-variety.png") });
-  const skin = page.getByRole("combobox", { name: "Atlas skin", exact: true });
-  await skin.selectOption("village");
+  const skin = page.getByRole("group", { name: "2D skin", exact: true });
+  await skin.getByRole("radio", { name: "Atlas · Village", exact: true }).check();
   await expect(page.locator(".ink-scenery")).toHaveCount(0);
-  await skin.selectOption("ink");
+  await skin.getByRole("radio", { name: "Atlas · Ink", exact: true }).check();
   expect(await signature()).toEqual(before);
   await expect(page.locator('[data-save-status="saved"]')).toBeVisible();
   await page.reload();
@@ -269,13 +268,13 @@ test("Ink varies vector scenery and keeps its sparse composition across skin swi
 
 test("terrain boundaries have distinct structures and Ink has its own drawing vocabulary", async ({ page }, info) => {
   await open(page);
-  const skin = page.getByRole("combobox", { name: "Atlas skin", exact: true });
+  const skin = page.getByRole("group", { name: "2D skin", exact: true });
   await page.getByRole("button", { name: "context: Ordering", exact: true }).click();
   const coast = page.locator('[data-map-district="item:ordering"] .map-district');
   const outline = await coast.getAttribute("d");
   expect(outline!.split("L").length).toBeGreaterThan(40);
   for (const renderer of ["ink", "village"]) {
-    await skin.selectOption(renderer);
+    await skin.getByRole("radio", { name: renderer === "ink" ? "Atlas · Ink" : "Atlas · Village", exact: true }).check();
     for (const terrain of ["village", "woodland", "highlands", "wetland", "island"]) {
       await page.getByLabel("Terrain", { exact: true }).selectOption(terrain);
       await expect(coast).toHaveAttribute("d", outline!);
@@ -322,21 +321,21 @@ test("terrain boundaries have distinct structures and Ink has its own drawing vo
 test("Village raster boundaries retain a usable fallback when the atlas is unavailable", async ({ page }) => {
   await page.route("**/boundary-sprites*.png", route => route.abort());
   await open(page);
-  await page.getByRole("combobox", { name: "Atlas skin", exact: true }).selectOption("village");
+  await page.getByRole("radio", { name: "Atlas · Village", exact: true }).check();
   await page.getByRole("button", { name: "context: Ordering", exact: true }).click();
   await page.getByLabel("Terrain", { exact: true }).selectOption("woodland");
   await expect(page.locator("[data-boundary-fallback]").first()).toBeVisible();
   await expect(page.locator(".village-boundary-scenery image")).toHaveCount(0);
   await page.getByLabel("Terrain", { exact: true }).selectOption("village");
   await expect(page.locator(".fort-tower-body").first()).toBeVisible();
-  await page.getByRole("combobox", { name: "Atlas skin", exact: true }).selectOption("ink");
+  await page.getByRole("radio", { name: "Atlas · Ink", exact: true }).check();
   await expect(page.locator("[data-ink-rampart]")).toBeVisible();
 });
 
 for (const skin of ["ink", "village"] as const) test(`${skin}: routed roads avoid a dragged landmark and preserve separate entrances`, async ({ page }, info) => {
   await writeFile(join(root, "lexicon/model.xml"), xml.replace("</lexicon>", '<relationship id="validates" from="order" to="order-line"><name>validates</name><description>Parallel Atlas route.</description></relationship></lexicon>'));
   await open(page);
-  await page.getByLabel("Atlas skin", { exact: true }).selectOption(skin);
+  await page.getByRole("radio", { name: skin === "ink" ? "Atlas · Ink" : "Atlas · Village", exact: true }).check();
   const exportCanvas = async () => {
     await page.locator('.canvas-file-menu summary').click();
     const downloading = page.waitForEvent('download');

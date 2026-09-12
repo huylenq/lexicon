@@ -1,6 +1,6 @@
 # Project canvas
 
-Canvas uses tldraw throughout, with **Diagram / Atlas** modes in its toolbar. Earlier `?canvas=graph` and `?canvas=tldraw` links open this same canvas and normalize to an ordinary project URL. Browse, Read, Code, and Chat remain independent panes.
+Canvas uses tldraw throughout, with **2D / Layers** views in its toolbar. Earlier `?canvas=graph` and `?canvas=tldraw` links open this same canvas and normalize to an ordinary project URL. Browse, Read, Code, and Chat remain independent panes.
 
 For the normal local viewer, run `bun run build:client` followed by `bun run start` from `viewer/`, then open port 5374.
 
@@ -34,11 +34,11 @@ Two tabs combine independent record changes using a three-way merge. Edits to th
 
 ## Use the canvas
 
-In Diagram mode, select a relationship and adjust **Corner radius** in its appearance panel (0–24 px); on narrow screens, open **Styles**. Zero keeps square corners; short segments and nearby labels reduce the rounding automatically. This shared appearance setting supports undo and saves in `canvas.json`. Routing and label placement stay orthogonal; Atlas keeps its existing road style.
+With the Standard 2D skin, select a relationship and adjust **Corner radius** in its appearance panel (0–24 px); on narrow screens, open **Styles**. Zero keeps square corners; short segments and nearby labels reduce the rounding automatically. This shared appearance setting supports undo and saves in `canvas.json`. Routing and label placement stay orthogonal; Atlas keeps its existing road style.
 
 Select a model object and click **Add note** to attach a note. It follows the object and its context. The native **Note**, **Text**, **Draw**, **Arrow**, **Media**, and other tldraw tools create freeform content. Semantic relationships and code mappings use custom relationship shapes; native arrows do not create model relationships.
 
-Labels and card bodies use the same native selection and dragging gestures. Shift-click or Command/Ctrl-click toggles a shape; Shift-drag adds a marquee selection. A marquee must enclose an entire context to select its container. Drag its heading to move the context and its contents. Both modes follow inner nodes in every direction, including negative local positions: Diagram fits a rectangle, and Atlas fits a polygon. Moving a selection preserves its spacing and attached notes; the context heading follows above its contents. Empty-canvas clicks and Escape clear selection; showing code or refreshing the model does not restore a cleared selection. **Add note** attaches only when exactly one model reference is selected.
+Labels and card bodies use the same native selection and dragging gestures. Shift-click or Command/Ctrl-click toggles a shape; Shift-drag adds a marquee selection. A marquee must enclose an entire context to select its container. Drag its heading to move the context and its contents. Both skin families follow inner nodes in every direction, including negative local positions: Standard fits a rectangle, and Atlas fits a polygon. Moving a selection preserves its spacing and attached notes; the context heading follows above its contents. Empty-canvas clicks and Escape clear selection; showing code or refreshing the model does not restore a cleared selection. **Add note** attaches only when exactly one model reference is selected.
 
 Contexts always show their concepts and authored relationships. Earlier collapse preferences are ignored, and older collapsed canvas snapshots restore their full frame sizes while retaining child placements and attached notes.
 
@@ -48,7 +48,7 @@ The toolbar uses Lexicon's shared icons and selection title; the footer shares i
 
 **Notes** lists and searches canvas notes and text, including the names of their attached objects. Select a result to locate it; its URL includes the shape ID. **Copy note link** copies that location. Open **Selection actions** with a note selected to attach it to a model object, detach it, or reattach it without changing its text.
 
-Main model references cannot be renamed, deleted, rewired, or reparented by canvas gestures. Context ownership always comes from the model. Diagram derives a padded rectangle from all inner model nodes and their labels; notes, selection, search, and expanded code do not change its bounds. Atlas derives its territory during dragging and keyboard movement. Border preferences yield to complete node footprints and labels, so a coast never blocks a node. Duplicating or pasting a model card creates a labeled reference copy with an independent position. Missing model objects and relationships retain their references and attached notes for review; those missing references can be deleted.
+Main model references cannot be renamed, deleted, rewired, or reparented by canvas gestures. Context ownership always comes from the model. Standard derives a padded rectangle from all inner model nodes and their labels; notes, selection, search, and expanded code do not change its bounds. Atlas derives its territory during dragging and keyboard movement. Border preferences yield to complete node footprints and labels, so a coast never blocks a node. Duplicating or pasting a model card creates a labeled reference copy with an independent position. Missing model objects and relationships retain their references and attached notes for review; those missing references can be deleted.
 
 In **Selection actions**, **Move to context** explicitly changes a concept's owner. **Add to model** previews a note as an annotation on a chosen object, with a kind and optional evidence qualification. Both actions use the existing model validator, revision checks, artifact-root rules, and Chat undo history. Built-in example models remain read-only. Canvas undo affects canvas edits; **Undo model edit** restores exact XML and refuses to overwrite a newer edit. Further semantic changes are available through Chat's incremental model-edit workflow.
 
@@ -56,9 +56,9 @@ Model refresh reconciles references by stable identity. New code links should ha
 
 **Arrange** resets the model layout while retaining freeform content. Attached notes follow their targets. **Fit model** frames the visible model; tldraw's navigation menu also fits all canvas content. Code shapes are created as their links are opened, and previously placed code references are retained.
 
-## Atlas mode
+## Atlas skins
 
-The **Diagram / Atlas** toggle in the canvas toolbar selects the presentation. Diagram uses model cards and rectangular context frames; Atlas draws a village beneath them. The **Atlas skin** selector offers **Ink**, the original pen-and-paper style, and **Village**, with pale green terrain, bright yellow roofs, dark comic outlines, and simple cel-shaded buildings and trees. The skin is a browser preference and does not change shared canvas appearance choices or model XML. Switching modes preserves positions, selection, and camera. Atlas starts selected and the browser remembers your choice, including the earlier Map preference. Concepts anchor landmarks, and visible semantic relationships supply the road routes. Panning and zooming carry the map with the canvas.
+The **2D skin** toggle group offers **Standard** model cards and rectangular context frames, **Atlas · Ink** for the pen-and-paper style, and **Atlas · Village** for illustrated terrain and buildings. Atlas is a skin of the 2D domain view; Architecture uses Standard. The skin is a browser preference and does not change shared canvas appearance choices or model XML. Switching skins preserves positions, selection, and camera. The domain view initially uses Atlas Ink, and existing Map and Atlas preferences are retained. Switching between 2D and Layers preserves the 2D skin. Concepts anchor landmarks, and visible semantic relationships supply the road routes. Panning and zooming carry the map with the canvas.
 
 Atlas generates a rounded contour around the context's current inner nodes and title, with room for both card and landmark appearances. It grows and shrinks during movement, and its actual coast drives selection and context-road endpoints. Select a context and choose **Edit border** to reveal native vertex handles and their faint dashed control outline; **Finish border editing** hides them. Editing stays active through code expansion and model refresh while that context remains selected; changing the selection or leaving Atlas ends it. Each drag saves a local border preference. A sculpted bay yields when a node moves into it and returns when the node leaves. **Reshape to contents** clears those preferences. Border edits and reshaping support canvas undo. **Arrange** also resets border preferences when it lays out the model. Empty contexts retain a small title territory.
 
@@ -74,7 +74,7 @@ Coast edits are anchored within the context. An edit in an abandoned area can be
 
 Atlas roads have rounded bends, uneven ink banks, light wheel ruts, and small direction marks. They narrow into landmark entrances and skirt the labels below buildings. Their selectable surface follows the generated road, while landmarks and notes remain selectable where roads pass beneath them.
 
-Node frames fit their contents: artwork and a name in Atlas, or the label in Diagram. Long names wrap. Selection uses one outline around that visible frame. Appearance and mode changes preserve the node's shared center, and fitting a renamed node leaves its attached notes in place. Returning from the mobile reader refreshes the canvas viewport before drawing. A first visit without a personal camera fits the model once the canvas is visible; saved cameras retain their view.
+Node frames fit their contents: artwork and a name in Atlas, or the label in Standard. Long names wrap. Selection uses one outline around that visible frame. Appearance and skin changes preserve the node's shared center, and fitting a renamed node leaves its attached notes in place. Returning from the mobile reader refreshes the canvas viewport before drawing. A first visit without a personal camera fits the model once the canvas is visible; saved cameras retain their view.
 
 Select a single model object to change its appearance:
 

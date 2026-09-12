@@ -2,23 +2,15 @@ import type { ButtonHTMLAttributes, ReactNode } from "react";
 import Icon, { type IconName } from "../Icon";
 
 export function Toolbar({
-  title,
-  scope,
   controls,
   children,
 }: {
-  title: string;
-  scope: string;
   controls?: ReactNode;
   children: ReactNode;
 }) {
   return (
     <div className="toolbar">
       <div className="toolbar-heading">
-        <span className="pane-title">{title}</span>
-        <span className="canvas-scope" title={scope}>
-          {scope}
-        </span>
         {controls}
       </div>
       <div className="toolbar-actions">{children}</div>
@@ -48,22 +40,47 @@ export function CanvasButton({
   );
 }
 
-export type CanvasMode = "diagram" | "atlas" | "layers";
-
-/** The same presentation control is used by every canvas renderer. */
-export function CanvasViewControls({ mode, onMode, atlasEnabled, children }: {
-  mode: CanvasMode; onMode: (mode: CanvasMode) => void;
-  atlasEnabled: boolean; children?: ReactNode;
+export function CanvasToggleGroup<T extends string>({ label, value, onChange, options, className = "", disabled = false }: {
+  label: string; value?: T; onChange: (value: T) => void;
+  options: readonly { value: T; label: string; icon: IconName; title?: string; disabled?: boolean }[];
+  className?: string; disabled?: boolean;
 }) {
-  return <div className="toolbar-view-controls" role="group" aria-label="Canvas view">
-    {children}
-    <fieldset className="canvas-mode" aria-label="Canvas mode">
-      {(["diagram", "atlas", "layers"] as const).map(value => <label key={value}
-        title={value === "atlas" && !atlasEnabled ? "Select Domain to explore Atlas" : undefined}>
-        <input type="radio" name="canvas-mode" checked={mode === value}
-          disabled={value === "atlas" && !atlasEnabled} onChange={() => onMode(value)} />
-        <span>{value === "diagram" ? "Diagram" : value === "atlas" ? "Atlas" : "Layers"}</span>
-      </label>)}
-    </fieldset>
+  return <fieldset className={`canvas-toggle-group ${className}`} aria-label={label} disabled={disabled}>
+    {options.map(option => <label key={option.value} title={option.title ?? option.label}>
+      <input type="radio" name={`canvas-${label}`} aria-label={option.title ?? option.label}
+        disabled={option.disabled} checked={value === option.value} onChange={() => onChange(option.value)} />
+      <span><Icon name={option.icon} size={14} />{option.label}</span>
+    </label>)}
+  </fieldset>;
+}
+
+export type CanvasPresentation = "flat" | "layers";
+
+/** Keep the same controls in every presentation; disable inapplicable choices. */
+export function CanvasViewControls({ presentation, onPresentation, dimension, skin, hasArchitecture = true, onDimension, onSkin }: {
+  presentation: CanvasPresentation; onPresentation: (presentation: CanvasPresentation) => void;
+  dimension?: "domain" | "architecture"; skin?: "standard" | "ink" | "village";
+  hasArchitecture?: boolean;
+  onDimension?: (dimension: "domain" | "architecture") => void;
+  onSkin?: (skin: "standard" | "ink" | "village") => void;
+}) {
+  const layered = presentation === "layers";
+  return <div className="toolbar-view-controls" role="group" aria-label="Canvas controls">
+    <CanvasToggleGroup className="canvas-presentation" label="Canvas presentation"
+      value={presentation} onChange={onPresentation}
+      options={[{ value: "flat", label: "2D", icon: "overview" }, { value: "layers", label: "Layers", icon: "layers" }]} />
+    <CanvasToggleGroup label="Dimension" value={layered ? undefined : dimension} disabled={layered}
+      onChange={value => onDimension?.(value)}
+      options={[
+        { value: "domain", label: "Domain", icon: "context" },
+        { value: "architecture", label: "Architecture", icon: "component", disabled: !hasArchitecture },
+      ]} />
+    <CanvasToggleGroup label="2D skin" value={layered ? undefined : skin} disabled={layered}
+      onChange={value => onSkin?.(value)}
+      options={[
+        { value: "standard", label: "Standard", icon: "graph" },
+        { value: "ink", label: "Ink", title: "Atlas · Ink", icon: "ink", disabled: dimension !== "domain" },
+        { value: "village", label: "Village", title: "Atlas · Village", icon: "village", disabled: dimension !== "domain" },
+      ]} />
   </div>;
 }

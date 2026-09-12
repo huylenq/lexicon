@@ -37,7 +37,6 @@ export default function LayeredCanvas(props: CanvasPaneProps & { onFlat: () => v
   const { model, projectId, query, onSelect, onFlat } = props;
   const selected = props.selection?.kind === "item" ? props.selection.id : "";
   const choose = useCallback((id: string) => { if (id !== selected) onSelect({ kind: "item", id }); }, [selected, onSelect]);
-  const [view, setView] = useState<"both" | Layer>("both");
   const [gap, setGap] = useState(138);
   const [tilt, setTilt] = useState(45);
   const [rotation, setRotation] = useState(0);
@@ -67,7 +66,7 @@ export default function LayeredCanvas(props: CanvasPaneProps & { onFlat: () => v
   const [revision, setRevision] = useState(0);
   const [stageSize, setStageSize] = useState({ width: 1200, height: 800 });
   // Editors render beyond the visible viewport, while cameras can travel without bounds.
-  const scale = Math.max(.2, Math.min(1, (stageSize.width - 70) / (WIDTH + 120), (stageSize.height - 80) / (view === "both" ? 850 : HEIGHT + 65)));
+  const scale = Math.max(.2, Math.min(1, (stageSize.width - 70) / (WIDTH + 120), (stageSize.height - 80) / 850));
   const inset = Math.ceil(Math.max(stageSize.width, stageSize.height) / scale);
   const planeWidth = WIDTH + inset * 2, planeHeight = HEIGHT + inset * 2;
   const drag = useRef<{ id: number; x: number; y: number; mode: "pan" | "rotate" | "roll" | "separate"; rotation: number; tilt: number; roll: number }>();
@@ -92,7 +91,7 @@ export default function LayeredCanvas(props: CanvasPaneProps & { onFlat: () => v
     domain: projectGraph(index, { expanded: [], allCode: false, view: "domain" }),
     architecture: projectGraph(index, { expanded: [], allCode: false, view: "architecture" }),
   }), [index]);
-  const legend = useMemo(() => projectGraph(index, { expanded: [], allCode: false, view: view === "both" ? "all" : view }), [index, view]);
+  const legend = useMemo(() => projectGraph(index, { expanded: [], allCode: false, view: "all" }), [index]);
   const bridges = useMemo(() => model.items.filter((item): item is Relationship => {
     if (item.type !== "relationship") return false;
     const from = index.items.get(item.from), to = index.items.get(item.to);
@@ -234,7 +233,7 @@ export default function LayeredCanvas(props: CanvasPaneProps & { onFlat: () => v
     const handle = layer && handles[layer];
     const bounds = handle && handle.editor.getShapePageBounds(layerShapeId(`item:${id}`, layer));
     if (!layer || !bounds) { fit(); return; }
-    refreshBounds(); setView(layer); setLocated({ layer, bounds });
+    refreshBounds(); setLocated({ layer, bounds });
     setCameraView({ x: 0, y: 0, z: 1 }); setZoom(1); setPan({ x: 0, y: 0 });
   };
   useEffect(() => {
@@ -257,7 +256,7 @@ export default function LayeredCanvas(props: CanvasPaneProps & { onFlat: () => v
     finally { busy.current = false; storageRef.current.ready(); recordHistory(); }
   };
   const sceneStyle = {
-    transform: `scale(${Math.max(.2, scale)}) rotateX(${view === "both" ? tilt : 0}deg) rotateY(${view === "both" ? rotation : 0}deg) rotateZ(${view === "both" ? roll : 0}deg)`,
+    transform: `scale(${Math.max(.2, scale)}) rotateX(${tilt}deg) rotateY(${rotation}deg) rotateZ(${roll}deg)`,
   };
   if (!storage.boot || storage.boot.remote.issue) return <div className="canvas-loading"><p role="status">{storage.message || "Opening saved canvas…"}</p>{storage.status === "error" && <button onClick={() => void storage.retry()}>Retry</button>}<button onClick={onFlat}>Canvas and recovery</button></div>;
   return <div className="layers-renderer" onKeyDownCapture={event => {
@@ -268,14 +267,9 @@ export default function LayeredCanvas(props: CanvasPaneProps & { onFlat: () => v
     }
   }}>
     <div className="canvas-top">
-      <Toolbar title="Canvas" scope={item?.name || "Overview"}
-        controls={<CanvasViewControls mode="layers" atlasEnabled={view === "domain"}
-          onMode={mode => { props.setWorkspace(w => ({ ...w, map: mode === "atlas", view: view === "both" ? "all" : view })); onFlat(); }}>
-          <select className="model-view" aria-label="Model view" value={view}
-            onChange={e => setView(e.target.value as typeof view)}>
-            <option value="both">All elements</option><option value="domain">Domain</option><option value="architecture">Architecture</option>
-          </select>
-        </CanvasViewControls>}>
+      <Toolbar
+        controls={<CanvasViewControls presentation="layers"
+          onPresentation={presentation => { if (presentation === "flat") onFlat(); }} />}>
         <div className="assistant-toolbar-slot" ref={props.assistantHost} />
         <CanvasButton icon="fit" label="Fit model" onClick={fit} />
         <CanvasButton icon="refresh" label="Reset view" onClick={resetView} />
@@ -288,10 +282,10 @@ export default function LayeredCanvas(props: CanvasPaneProps & { onFlat: () => v
         <details className="canvas-menu layer-options">
           <summary className="quiet" aria-label="Layer options">Layers</summary>
           <div className="canvas-menu-content">
-            <label>Separation <input aria-label="Separation" type="range" min="0" max="650" value={gap} disabled={view !== "both"} onChange={e => setGap(+e.target.value)} /></label>
-            <label>Tilt <input aria-label="Tilt" type="range" min="-85" max="85" value={tilt} disabled={view !== "both"} onChange={e => setTilt(+e.target.value)} /></label>
-            <label>Rotation <input aria-label="Rotation" type="range" min="-180" max="180" value={rotation} disabled={view !== "both"} onChange={e => setRotation(+e.target.value)} /></label>
-            <label>Roll <input aria-label="Roll" type="range" min="-180" max="180" value={roll} disabled={view !== "both"} onChange={e => setRoll(+e.target.value)} /></label>
+            <label>Separation <input aria-label="Separation" type="range" min="0" max="650" value={gap} onChange={e => setGap(+e.target.value)} /></label>
+            <label>Tilt <input aria-label="Tilt" type="range" min="-85" max="85" value={tilt} onChange={e => setTilt(+e.target.value)} /></label>
+            <label>Rotation <input aria-label="Rotation" type="range" min="-180" max="180" value={rotation} onChange={e => setRotation(+e.target.value)} /></label>
+            <label>Roll <input aria-label="Roll" type="range" min="-180" max="180" value={roll} onChange={e => setRoll(+e.target.value)} /></label>
             <label>Surface <input aria-label="Plane opacity" type="range" min="0" max="25" value={surface} onChange={e => setSurface(+e.target.value)} /></label>
             <label>Zoom <input aria-label="Shared zoom" type="range" min=".1" max="8" step=".05" value={zoom} onChange={e => setZoom(+e.target.value)} /></label>
             <label><input type="checkbox" checked={allLinks} onChange={e => setAllLinks(e.target.checked)} /> All connections</label>
@@ -300,7 +294,7 @@ export default function LayeredCanvas(props: CanvasPaneProps & { onFlat: () => v
         </details>
       </Toolbar>
     </div>
-      <section className="layers-stage" ref={stage} aria-label="Exploded model layers" data-ready={ready} data-view={view}
+      <section className="layers-stage" ref={stage} aria-label="Exploded model layers" data-ready={ready} data-view="both"
         onWheelCapture={event => {
           if ((event.target as HTMLElement).closest('[data-view-control]')) return;
           event.preventDefault(); event.stopPropagation();
@@ -319,7 +313,7 @@ export default function LayeredCanvas(props: CanvasPaneProps & { onFlat: () => v
           const target = event.target as HTMLElement;
           if (target.closest('[data-view-control]')) return;
           const panShortcut = event.button === 1 || event.button === 2 || (event.shiftKey && !event.altKey);
-          const mode = panShortcut || view !== "both" ? "pan" : event.ctrlKey && event.altKey ? "roll" : event.ctrlKey ? "separate" : event.altKey ? "rotate" : "pan";
+          const mode = panShortcut ? "pan" : event.ctrlKey && event.altKey ? "roll" : event.ctrlKey ? "separate" : event.altKey ? "rotate" : "pan";
           // Cards retain their ordinary drag gesture; view tools use empty space.
           if (!panShortcut && !event.altKey && !event.ctrlKey && event.button === 0 && target.closest('.tl-shape,button,input,summary')) return;
           event.preventDefault(); event.stopPropagation();
@@ -327,7 +321,7 @@ export default function LayeredCanvas(props: CanvasPaneProps & { onFlat: () => v
           event.currentTarget.setPointerCapture(event.pointerId);
         }}
         onPointerMove={event => {
-          const previous = drag.current, handle = handles[view === "architecture" ? "architecture" : "domain"];
+          const previous = drag.current, handle = handles.domain;
           if (!previous || previous.id !== event.pointerId || !handle) return;
           const dx = event.clientX - previous.x, dy = event.clientY - previous.y;
           const next = { ...previous, x: event.clientX, y: event.clientY,
@@ -377,14 +371,14 @@ export default function LayeredCanvas(props: CanvasPaneProps & { onFlat: () => v
         <div className="layers-scene" style={sceneStyle}>
           {([...layers].reverse()).map(layer => <section key={layer} className={`layer-sheet ${layer}`} data-plane={layer}
             data-sheet-y={0}
-            data-sheet-z={view === "both" ? (layer === "domain" ? gap / 2 : -gap / 2) : 0}
+            data-sheet-z={layer === "domain" ? gap / 2 : -gap / 2}
             aria-label={`${layer === "domain" ? "Domain" : "Architecture"} plane`}
-            style={{ "--plane-opacity": `${surface}%`, transform: `translate3d(0,0px,${view === "both" ? (layer === "domain" ? gap / 2 : -gap / 2) : 0}px)`, visibility: view !== "both" && view !== layer ? "hidden" : "visible" } as CSSProperties}>
+            style={{ "--plane-opacity": `${surface}%`, transform: `translate3d(0,0px,${layer === "domain" ? gap / 2 : -gap / 2}px)` } as CSSProperties}>
             {handles[layer] && <PlaneSurface handle={handles[layer]!} />}
             <LayerEditor renderScale={renderScale} width={planeWidth} height={planeHeight} layer={layer} graph={graphs[layer]} modelId={model.id} snapshot={boot.snapshot} assets={storage.assets} onReady={onReady} onSelect={choose} onFocus={focus} onError={setError} />
             {handles[layer] && <EndpointMarkers handle={handles[layer]!} ids={endpointIds.filter(id => dimensionOf(index.items.get(id)!) === layer)} />}
           </section>)}
-          {ready && view === "both" && gap > 4 && <Bridges edges={shownBridges} index={index} handles={handles as Record<Layer, LayerHandle>} gap={gap} tilt={tilt} rotation={rotation} roll={roll} selected={selected} onSelect={choose} onHover={setHoveredRelationship} />}
+          {ready && gap > 4 && <Bridges edges={shownBridges} index={index} handles={handles as Record<Layer, LayerHandle>} gap={gap} tilt={tilt} rotation={rotation} roll={roll} selected={selected} onSelect={choose} onHover={setHoveredRelationship} />}
         </div>
         </div>
         {!ready && <div className="layers-arranging" role="status">Arranging two pages…</div>}

@@ -137,7 +137,8 @@ test("mapping explanations preview and pin while their source and owner links st
 test("canvas clicks preview, modifier taps pin, and middle dragging remains pan", async ({ page }) => {
   await page.goto("/p/shop");
   await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
-  await page.getByRole("radio", { name: "Diagram", exact: true }).check();
+  await page.getByRole("radio", { name: "Domain", exact: true }).check();
+  await page.getByRole("radio", { name: "Standard", exact: true }).check();
   await page.getByRole("button", { name: "Toggle navigation", exact: true }).click();
   await page.getByRole("button", { name: "Fit model", exact: true }).click();
   const tooth = page.locator('[data-model-id="item:order"] .canvas-object-title');

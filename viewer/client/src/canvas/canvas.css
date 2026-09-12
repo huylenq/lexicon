@@ -2,20 +2,17 @@
 .toolbar { position: relative; z-index: 5; }
 .toolbar .toolbar-actions { flex-shrink: 0; }
 .toolbar button[aria-pressed="true"], .toolbar button[aria-expanded="true"] { background: var(--accent-soft); color: var(--accent); }
-.toolbar-view-controls { display: flex; align-items: center; gap: 6px; flex-shrink: 0; margin-left: 4px; padding-left: 10px; border-left: 1px solid var(--line); }
-.toolbar-view-controls select { flex-shrink: 0; padding: 5px 6px; border: 1px solid var(--line); border-radius: 5px; color: var(--ink); background: var(--paper); font: 11px system-ui, sans-serif; }
-.toolbar-view-controls select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.canvas-mode { display: inline-flex; flex-shrink: 0; gap: 2px; margin: 0; padding: 2px; border: 1px solid var(--line); border-radius: 6px; background: var(--soft); }
-.canvas-mode label { position: relative; cursor: pointer; }
-.canvas-mode input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
-.canvas-mode span { display: block; padding: 4px 8px; border-radius: 4px; color: var(--muted); font-size: 11px; line-height: 18px; white-space: nowrap; }
-.canvas-mode input:checked + span { background: var(--accent-soft); color: var(--accent); }
-.canvas-mode input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 1px; }
-.canvas-mode label:hover span { color: var(--ink); }
-.canvas-mode input:disabled { cursor: not-allowed; }
-.canvas-mode input:disabled + span { opacity: 0.4; }
-.canvas-mode label:has(input:disabled) { cursor: not-allowed; }
-.canvas-mode label:has(input:disabled):hover span { color: var(--muted); }
+.toolbar-view-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; flex-shrink: 1; }
+.canvas-toggle-group { display: inline-flex; flex-shrink: 0; gap: 2px; margin: 0; padding: 2px; border: 1px solid var(--line); border-radius: 6px; background: var(--soft); }
+.canvas-toggle-group label { position: relative; cursor: pointer; }
+.canvas-toggle-group input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.canvas-toggle-group span { display: flex; align-items: center; gap: 5px; padding: 4px 8px; border-radius: 4px; color: var(--muted); font-size: 11px; line-height: 18px; white-space: nowrap; }
+.canvas-toggle-group input:checked + span { background: var(--accent-soft); color: var(--accent); }
+.canvas-toggle-group input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 1px; }
+.canvas-toggle-group label:has(input:enabled):hover span { color: var(--ink); }
+.canvas-toggle-group:disabled { opacity: .45; }
+.canvas-toggle-group:not(:disabled) input:disabled + span { opacity: .45; }
+.canvas-toggle-group label:has(input:disabled), .canvas-toggle-group input:disabled { cursor: not-allowed; }
 .canvas-inspector-toggles { display: contents; }
 .canvas-file-menu { position: relative; font-size: 12px; }
 .canvas-file-menu > summary { cursor: pointer; list-style: none; }
@@ -56,9 +53,9 @@
 .canvas-error button { margin-left: 8px; }
 .canvas-save-indicator { flex-shrink: 0; color: var(--muted); font-size: 10px; }
 .canvas-save-indicator[data-save-status="local"], .canvas-save-indicator[data-save-status="conflict"], .canvas-save-indicator[data-save-status="error"] { color: var(--accent); }
-@container (max-width: 420px) { .toolbar { padding-inline: 8px; gap: 4px; } .toolbar .canvas-scope { display: none; } .toolbar .toolbar-actions { gap: 1px; } }
+@container (max-width: 420px) { .toolbar { padding-inline: 8px; gap: 4px; } .toolbar .toolbar-actions { gap: 1px; } }
 @container (max-width: 600px) { .toolbar { flex-wrap: wrap; gap: 4px; } .toolbar .toolbar-heading { width: 100%; } .toolbar .toolbar-actions { width: 100%; justify-content: flex-end; } }
-@container (max-width: 350px) { .toolbar .toolbar-heading > .pane-title { display: none; } .toolbar-view-controls { margin-left: 0; padding-left: 0; border-left: 0; } .toolbar .toolbar-actions { justify-content: space-between; } }
+@container (max-width: 350px) { .toolbar .toolbar-actions { justify-content: space-between; } }
 .workspace-status-bar .model-legend > .canvas-save-indicator { display: inline; }
 
 
@@ -101,7 +98,6 @@
 .canvas-note-list small { color: var(--muted); }
 .canvas-inspector select { max-width: 170px; }
 
-.canvas-pane .model-view { width: auto; max-width: 11.5em; }
 
 .edge-appearance { position: relative; }
 .edge-appearance > summary { list-style: none; cursor: pointer; }

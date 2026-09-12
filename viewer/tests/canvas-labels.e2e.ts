@@ -24,7 +24,7 @@ async function open(page: Page) {
 for (const skin of ["ink", "village"] as const) {
   test(`${skin} curved context names drag their contents, undo, and remain accessible`, async ({ page }) => {
     await open(page);
-    await page.getByLabel("Atlas skin", { exact: true }).selectOption(skin);
+    await page.getByRole("radio", { name: skin === "ink" ? "Atlas · Ink" : "Atlas · Village", exact: true }).check();
     const label = page.getByRole("button", { name: "context: Ordering", exact: true });
     const text = label.locator("textPath");
     await expect(text).toHaveText("Ordering");
@@ -49,10 +49,10 @@ for (const skin of ["ink", "village"] as const) {
     await expect(child).toHaveAttribute("transform", before!);
     await label.click();
     await expect(page.locator("main [data-reader-card].active > header h1")).toContainText("Ordering");
-    await page.getByRole("radio", { name: "Diagram", exact: true }).check();
+    await page.getByRole("radio", { name: "Standard", exact: true }).check();
     await expect(label.locator("textPath")).toHaveCount(0);
     await expect(label.locator(".object-name")).toBeVisible();
-    await page.getByRole("radio", { name: "Atlas", exact: true }).check();
+    await page.getByRole("radio", { name: "Atlas · Ink", exact: true }).check();
     await expect(text).toBeVisible();
     await expect(child).toHaveAttribute("transform", before!);
     await expect(page.locator('[data-save-status="saved"]')).toBeVisible();

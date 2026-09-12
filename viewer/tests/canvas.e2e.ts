@@ -267,7 +267,7 @@ test("project links open one tldraw canvas with Diagram and Atlas modes and a st
     await expect(toolbar.getByRole("button", { name: label, exact: true }).locator("use")).toHaveAttribute("href", `/icons.svg#${icon}`);
   }
   await page.getByRole("button", { name: "concept: Order", exact: true }).click();
-  await expect(toolbar.locator(".canvas-scope")).toHaveText("Order");
+  await expect(toolbar.locator(".canvas-scope")).toHaveCount(0);
   await page.getByRole("button", { name: "Selection actions", exact: true }).click();
   await expect(page.getByRole("button", { name: "Move to context…", exact: true })).toBeVisible();
   expect(await stage.boundingBox()).toEqual(before);
@@ -304,10 +304,10 @@ test("project links open one tldraw canvas with Diagram and Atlas modes and a st
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole("button", { name: "Toggle reader", exact: true }).click();
   await expect(toolbar.getByRole("button", { name: "Arrange", exact: true })).toBeVisible();
-  await expect(page.getByRole("group", { name: "Canvas mode", exact: true })).toBeVisible();
-  await page.getByRole("radio", { name: "Diagram", exact: true }).check();
+  await expect(page.getByRole("group", { name: "Canvas presentation", exact: true })).toBeVisible();
+  await page.getByRole("radio", { name: "Standard", exact: true }).check();
   await expect(page.getByTestId("procedural-map")).toHaveCount(0);
-  await page.getByRole("radio", { name: "Atlas", exact: true }).check();
+  await page.getByRole("radio", { name: "Atlas · Ink", exact: true }).check();
   await expect(page.getByTestId("procedural-map")).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await expect(page.getByRole("button", { name: "Agent", exact: true })).toBeVisible();
@@ -684,7 +684,7 @@ test("project autosave survives a fresh browser and mode or camera changes do no
   await open(page); await page.getByRole("button", { name: "concept: Order", exact: true }).click();
   await note(page, "Shared note saved with the project."); await saved(page);
   const file = join(root, "lexicon/canvas.json"), before = await readFile(file, "utf8");
-  await page.getByRole("radio", { name: "Diagram", exact: true }).check();
+  await page.getByRole("radio", { name: "Standard", exact: true }).check();
   await page.getByRole("button", { name: "Fit model", exact: true }).click(); await saved(page);
   expect(await readFile(file, "utf8")).toBe(before);
   const context = await browser.newContext(), other = await context.newPage();
@@ -902,7 +902,7 @@ test("copy/paste and mixed deletion preserve the model, and removed relationship
 
 test("an unrelated concept dragged across a relationship reroutes it without moving endpoints", async ({ page }) => {
   await open(page);
-  await page.getByRole("radio", { name: "Diagram", exact: true }).check();
+  await page.getByRole("radio", { name: "Standard", exact: true }).check();
   const initial = (await exportDocument(page)).data;
   Object.assign(object(initial, "order"), { x: 100, y: 100 });
   Object.assign(object(initial, "order-line"), { x: 750, y: 100 });
@@ -946,7 +946,7 @@ test("shared relationship corridors keep separate arrowheads through reload and 
     <relationship id="confirms" from="order-line" to="order"><name>confirms</name><description>Opposing lane fixture.</description></relationship>
   </lexicon>`));
   await open(page);
-  await page.getByRole("radio", { name: "Diagram", exact: true }).check();
+  await page.getByRole("radio", { name: "Standard", exact: true }).check();
   const initial = (await exportDocument(page)).data;
   Object.assign(object(initial, "order"), { x: 100, y: 100 });
   Object.assign(object(initial, "order-line"), { x: 750, y: 100 });
@@ -1003,7 +1003,7 @@ test("dragging preserves a remote route and its label, including cancellation", 
     <relationship id="archived" from="receipt" to="record"><name>is archived as</name><description>Remote relationship.</description></relationship>
   </lexicon>`));
   await open(page);
-  await page.getByRole("radio", { name: "Diagram", exact: true }).check();
+  await page.getByRole("radio", { name: "Standard", exact: true }).check();
   const remote = page.locator('svg.canvas-connection:has([data-connection-id="relation:archived"])');
   const geometry = () => remote.evaluate(el => ({ path: el.querySelector('path')!.getAttribute('d'), x: el.querySelector('foreignObject')!.getAttribute('x'), y: el.querySelector('foreignObject')!.getAttribute('y') }));
   const before = await geometry();

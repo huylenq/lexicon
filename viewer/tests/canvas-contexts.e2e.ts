@@ -22,6 +22,7 @@ test.afterEach(async ({ request }) => {
 async function open(page: Page) {
   await page.goto(`/p/${projectId}`);
   await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  await page.getByRole("radio", { name: "Domain", exact: true }).check();
   await page.getByRole("button", { name: "Toggle navigation", exact: true }).click();
   await page.getByRole("button", { name: "Fit model", exact: true }).click();
 }
@@ -51,7 +52,7 @@ async function enclosesNodes(page: Page) {
 test("Diagram and Atlas automatically encompass inner nodes; node undo restores the derived coast", async ({ page }) => {
   await open(page);
   const initialBoundary = await renderedTerritory(page);
-  await page.getByRole("radio", { name: "Diagram", exact: true }).check();
+  await page.getByRole("radio", { name: "Standard", exact: true }).check();
   await expect(card(page, "ordering")).toHaveAttribute("data-context-boundary", "rectangle");
   await enclosesNodes(page);
   const before = await snapshot(page), context = object(before, "ordering");
@@ -68,7 +69,7 @@ test("Diagram and Atlas automatically encompass inner nodes; node undo restores 
   expect(object(moved, "ordering").x).toBe(context.x);
   expect(object(moved, "ordering").y).toBe(context.y);
   expect(object(moved, "order-line")).toEqual(object(before, "order-line"));
-  await page.getByRole("radio", { name: "Atlas", exact: true }).check();
+  await page.getByRole("radio", { name: "Atlas · Ink", exact: true }).check();
   await expect(card(page, "ordering")).toHaveAttribute("data-context-boundary", "territory");
   const territory = await renderedTerritory(page);
   expect(territory).not.toEqual(initialBoundary);
@@ -85,7 +86,7 @@ test("Diagram and Atlas automatically encompass inner nodes; node undo restores 
   await page.reload();
   await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
   expect(object(await snapshot(page), "order")).toEqual(changed);
-  await page.getByRole("radio", { name: "Diagram", exact: true }).check();
+  await page.getByRole("radio", { name: "Standard", exact: true }).check();
   await page.getByRole("button", { name: "Fit model", exact: true }).click();
   await enclosesNodes(page);
   expect(await readFile(join(root, "lexicon/model.xml"), "utf8")).toBe(xml);
@@ -143,7 +144,7 @@ test("context roads meet their coast and empty contexts and renamed inner nodes 
     const endpoint = { x: (banks[0][i].x + banks[1][i].x) / 2, y: (banks[0][i].y + banks[1][i].y) / 2 };
     expect(Math.min(...points.map((p: any, j: number) => distanceToSegment(endpoint, p, points[(j + 1) % points.length])))).toBeLessThan(1);
   }
-  await page.getByRole("radio", { name: "Diagram", exact: true }).check();
+  await page.getByRole("radio", { name: "Standard", exact: true }).check();
   await enclosesNodes(page);
   await expect(card(page, "delivery")).toHaveAttribute("data-context-boundary", "rectangle");
   await expect(page.getByRole("button", { name: "context: Delivery", exact: true })).toBeVisible();
@@ -160,7 +161,7 @@ test("context roads meet their coast and empty contexts and renamed inner nodes 
   expect(changed.x + changed.props.w / 2).toBe(previous.x + previous.props.w / 2);
   expect(changed.y + changed.props.h / 2).toBe(previous.y + previous.props.h / 2);
   expect(object(refreshed, "order-total")).toEqual(object(after, "order-total"));
-  await page.getByRole("radio", { name: "Atlas", exact: true }).check();
+  await page.getByRole("radio", { name: "Atlas · Ink", exact: true }).check();
   await atlasEnclosesNodes(page);
 });
 
@@ -191,9 +192,9 @@ test("border editing survives code expansion and model refresh, and ends on sele
   await page.getByRole("button", { name: "context: Ordering", exact: true }).click();
   await expect(edit).toBeVisible();
   await edit.click();
-  await page.getByRole("radio", { name: "Diagram", exact: true }).check();
+  await page.getByRole("radio", { name: "Standard", exact: true }).check();
   await expect(finish).toHaveCount(0);
-  await page.getByRole("radio", { name: "Atlas", exact: true }).check();
+  await page.getByRole("radio", { name: "Atlas · Ink", exact: true }).check();
   await expect(edit).toBeVisible();
 });
 

@@ -117,7 +117,7 @@ This approach follows [C4 dynamic diagrams](https://c4model.com/diagrams/dynamic
 
 ## Model and presentation
 
-One model supplies the reader, graph filters, and derived sequence diagrams. All elements, Domain, and Architecture are exploration filters, not a complete suite of scoped C4 diagrams. The all-elements filter draws the selected dimensions on one plane; Layers preserves separate planes when exploring their correspondence. Atlas is available for the domain projection. Views and Beyond guides choosing and reviewing views; it introduces no persisted viewpoint records, framework registry, or configurable type system.
+One model supplies the reader, graph filters, and derived sequence diagrams. The 2D view shows either Domain or Architecture as an exploration filter, not a complete suite of scoped C4 diagrams. Layers always shows all elements on separate Domain and Architecture planes when exploring their correspondence, without a per-layer selector. The 2D domain projection offers Standard, Atlas Ink, and Atlas Village skins. Views and Beyond guides choosing and reviewing views; it introduces no persisted viewpoint records, framework registry, or configurable type system.
 
 `lexicon/canvas.json` is a separate authored presentation document containing positions, notes, drawings, and asset references. It refers to semantic identities and does not define model meaning. Changing a view or drawing does not change XML. Conversation history and project registrations live in the local database; browser preferences, navigation, and recovery drafts have their own lifetimes. Schema migration preserves these artifacts and the model identity they reference.
 
