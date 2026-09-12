@@ -1,3 +1,8 @@
+/* Keep the local viewer's reading space clear across Canvas and Layers. */
+.tl-container .tl-watermark_SEE-LICENSE {
+  display: none !important;
+}
+
 :root {
   font-family:
     -apple-system,
