@@ -2,8 +2,8 @@ import { expect, test } from "bun:test";
 import { readFile } from "node:fs/promises";
 import { parseModel, serializeModel, validateModel } from "../server/model";
 import { applyPatch, validateChangedLinks } from "../server/chat/model-edit";
-import { indexModel, projectGraph, neighborhood, domainId } from "../client/src/graph/model";
-import { parentOf, type Model } from "../shared/model";
+import { indexModel, projectGraph, neighborhood, itemNodeId } from "../client/src/graph/model";
+import { parentOf, dimensionOf, type Model } from "../shared/model";
 import { handle } from "../../examples/shop/src/api";
 
 const root = new URL("../../examples/shop/", import.meta.url).pathname;
@@ -57,13 +57,13 @@ test("views reuse identity without rewriting semantic records", async () => {
   const all = projectGraph(index, options);
   const architecture = projectGraph(index, { ...options, view: "architecture" });
   const domain = projectGraph(index, { ...options, view: "domain" });
-  expect(architecture.nodes.map(i => i.id)).not.toContain(domainId("order"));
-  expect(domain.nodes.map(i => i.id)).not.toContain(domainId("api"));
+  expect(architecture.nodes.map(i => i.id)).not.toContain(itemNodeId("order"));
+  expect(domain.nodes.map(i => i.id)).not.toContain(itemNodeId("api"));
   expect(all.connections.find(i => i.id === "relation:creates-order")).toBeDefined();
   expect(architecture.connections.find(i => i.id === "relation:creates-order")).toBeUndefined();
-  expect(architecture.nodes.find(i => i.id === domainId("checkout"))).toEqual(all.nodes.find(i => i.id === domainId("checkout")));
+  expect(architecture.nodes.find(i => i.id === itemNodeId("checkout"))).toEqual(all.nodes.find(i => i.id === itemNodeId("checkout")));
   const focus = neighborhood(index, all, { kind: "item", id: "shop" });
-  expect(focus.nodes.has(domainId("checkout"))).toBe(true);
+  expect(focus.nodes.has(itemNodeId("checkout"))).toBe(true);
   expect(serializeModel(current)).toBe(before);
 });
 
@@ -74,4 +74,24 @@ test("the worked example's source links resolve and its claimed validation runs"
   expect(accepted.status).toBe(201);
   expect((await accepted.json()).lines).toEqual([{ sku: "book", quantity: 2 }]);
   expect((await handle(request([{ sku: "book", quantity: -1 }]))).status).toBe(400);
+});
+
+test("dimensions partition elements while relationships and flows retain cross-dimension meaning", () => {
+  const current = model(), index = indexModel(current);
+  const domain = projectGraph(index, { expanded: [], allCode: false, view: "domain" });
+  const architecture = projectGraph(index, { expanded: [], allCode: false, view: "architecture" });
+  const all = projectGraph(index, { expanded: [], allCode: false, view: "all" });
+  const ids = [...domain.nodes, ...architecture.nodes].map(node => node.id).sort();
+  expect(new Set(ids).size).toBe(ids.length);
+  expect(ids).toEqual(all.nodes.map(node => node.id).sort());
+  for (const item of current.items) {
+    if (item.type === "relationship" || item.type === "flow") expect(dimensionOf(item)).toBeUndefined();
+    else expect(dimensionOf({ ...item, name: "Architecture" })).toBe(dimensionOf(item));
+  }
+  const correspondence = current.items.find(item => item.id === "creates-order")!;
+  expect(correspondence.type).toBe("relationship");
+  if (correspondence.type !== "relationship") throw new Error("Missing correspondence");
+  expect(dimensionOf(index.items.get(correspondence.from)!)).toBe("architecture");
+  expect(dimensionOf(index.items.get(correspondence.to)!)).toBe("domain");
+  expect(itemNodeId("order")).toBe("item:order");
 });

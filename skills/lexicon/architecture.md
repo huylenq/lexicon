@@ -2,6 +2,8 @@
 
 Lexicon supports a fixed C4 vocabulary alongside domain meaning. Read this page only when the requested question needs architectural structure.
 
+Domain meaning, software architecture, and code are distinct dimensions of the same system. Keep domain and architecture boundaries independent; explain their correspondence with relationships and ground either in code links. Flows describe scenarios across existing participants. Canvas layers and pages present those meanings without defining them.
+
 Use a person for a user role, a system for the software system of interest or an external system, a container for an application or data store, and a component for functionality behind an interface inside a container. These terms follow [C4](https://c4model.com/abstractions). Code links ground them in implementation; a folder alone does not establish a component.
 
 Author the same explanations, annotations, code links, and ordinary relationships used for domain objects. A domain context and a software system remain distinct. Explain their connection when relevant.

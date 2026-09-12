@@ -15,6 +15,7 @@
     "test:browser": "playwright test",
     "dev:canvas": "bun scripts/canvas-dev.ts",
     "dev:model": "bun scripts/model-dev.ts",
+    "dev:layers": "bun scripts/layers-dev.ts",
     "test:canvas": "playwright test --config playwright.canvas.config.ts",
     "mcp": "bun run server/agent/mcp.ts"
   },

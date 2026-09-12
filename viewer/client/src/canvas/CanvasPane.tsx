@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { createPortal } from "react-dom";
 import {
@@ -8,6 +8,7 @@ import {
   createShapeId,
   getSnapshot,
   loadSnapshot,
+  type TLPageId,
   react,
   toRichText,
   useEditor,
@@ -24,7 +25,7 @@ import { isArchitecture } from "../../../shared/model";
 import type { CanvasPaneProps } from "./types";
 import Icon from "../Icon";
 import ModelLegend from "../ModelLegend";
-import { Toolbar, CanvasButton } from "./Toolbar";
+import { Toolbar, CanvasButton, CanvasViewControls } from "./Toolbar";
 import { codeOwners, selectionName } from "../graph/actions";
 import { CanvasActions, CanvasContextMenu } from "./CanvasContextMenu";
 import {
@@ -89,7 +90,32 @@ const visibility = (shape: TLShape) =>
 const selectionKey = (selection?: GraphSelection) =>
   JSON.stringify(selection || null);
 
+const LayersCanvas = lazy(() => import("../layers/LayeredCanvas"));
+
 export default function CanvasPane(props: CanvasPaneProps) {
+  const [params, setParams] = useSearchParams();
+  const layered = params.get("presentation") === "layers";
+  const present = (layers: boolean) => setParams(previous => {
+    const next = new URLSearchParams(previous);
+    if (layers) next.set("presentation", "layers"); else next.delete("presentation");
+    return next;
+  });
+  // Code expansion uses the flat canvas's existing code graph.
+  useEffect(() => {
+    if (layered && props.command && (props.command.action === "expand" || props.command.selection.kind !== "item")) present(false);
+  }, [props.command?.sequence]);
+  const hasArchitecture = props.model.items.some(isArchitecture);
+  const mapEnabled = !layered && (!hasArchitecture || props.workspace.view === "domain") && (props.workspace.map ?? true);
+  return <section className="canvas-pane" aria-label="Model canvas" data-map={mapEnabled}
+    data-presentation={layered ? "layers" : mapEnabled ? "atlas" : "diagram"}
+    data-atlas-skin={props.workspace.atlasSkin ?? "ink"}>
+    {layered
+      ? <Suspense fallback={<p className="canvas-loading" role="status">Opening layers…</p>}><LayersCanvas {...props} onFlat={() => present(false)} /></Suspense>
+      : <FlatCanvasPane {...props} onLayers={() => present(true)} />}
+  </section>;
+}
+
+function FlatCanvasPane(props: CanvasPaneProps & { onLayers: () => void }) {
   const [searchParams] = useSearchParams();
   const {
     model,
@@ -311,6 +337,12 @@ export default function CanvasPane(props: CanvasPaneProps) {
         const { x, y, zoom } = legacy.viewport;
         pendingCamera.current = { x: x / zoom, y: y / zoom, z: zoom };
       }
+      // Layers pages have their own visual references. Restore an ordinary page
+      // even when the most recent shared recovery session came from Layers.
+      const ordinary = instance.getPages().find(page => !["page:layers-domain", "page:layers-architecture"].includes(page.id));
+      if (!ordinary) instance.createPage({ id: "page:lexicon-canvas" as TLPageId, name: "Canvas" });
+      if (!ordinary || ["page:layers-domain", "page:layers-architecture"].includes(instance.getCurrentPageId()))
+        instance.setCurrentPage(ordinary?.id || "page:lexicon-canvas" as TLPageId);
       syncCanvasTheme(instance);
       const observer = new MutationObserver(() => syncCanvasTheme(instance));
       observer.observe(document.documentElement, {
@@ -674,75 +706,21 @@ export default function CanvasPane(props: CanvasPaneProps) {
         },
       }}
     >
-      <section className="canvas-pane" aria-label="Model canvas" data-map={mapEnabled} data-atlas-skin={workspace.atlasSkin ?? "ink"}>
+      <>
         <div ref={canvasTop} className="canvas-top">
         <Toolbar
           title="Canvas"
-          controls={
-            <div className="toolbar-view-controls" role="group" aria-label="Canvas view">
-              {hasArchitecture && (
-                <select
-                  className="model-view"
-                  aria-label="Model view"
-                  title="Which part of the model to show"
-                  value={workspace.view || "all"}
-                  onChange={(e) => {
-                    initialFit.current = true;
-                    setFocus(undefined);
-                    setWorkspace((w) => ({
-                      ...w,
-                      view: e.target.value as "all" | "domain" | "architecture",
-                    }));
-                  }}
-                >
-                  <option value="all">Combined</option>
-                  <option value="domain">Domain</option>
-                  <option value="architecture">Architecture</option>
-                </select>
-              )}
-              <fieldset className="canvas-mode" aria-label="Canvas mode">
-                {([false, true] as const).map((atlas) => (
-                  <label
-                    key={String(atlas)}
-                    title={
-                      atlas
-                        ? domainView
-                          ? "Explore the model as places and landmarks"
-                          : "Select Domain to explore Atlas"
-                        : "Read the model as cards and connections"
-                    }
-                  >
-                    <input
-                      type="radio"
-                      name="canvas-mode"
-                      checked={mapEnabled === atlas}
-                      disabled={atlas && !domainView}
-                      onChange={() =>
-                        setWorkspace((w) => ({ ...w, map: atlas }))
-                      }
-                    />
-                    <span>{atlas ? "Atlas" : "Diagram"}</span>
-                  </label>
-                ))}
-              </fieldset>
-              {mapEnabled && (
-                <select
-                  className="atlas-skin"
-                  aria-label="Atlas skin"
-                  title="Atlas skin"
-                  value={workspace.atlasSkin ?? "ink"}
-                  onChange={(event) => {
-                    const atlasSkin =
-                      event.target.value === "village" ? "village" : "ink";
-                    setWorkspace((w) => ({ ...w, atlasSkin }));
-                  }}
-                >
-                  <option value="ink">Ink</option>
-                  <option value="village">Village</option>
-                </select>
-              )}
-            </div>
-          }
+          controls={<CanvasViewControls mode={mapEnabled ? "atlas" : "diagram"} atlasEnabled={domainView}
+            onMode={mode => mode === "layers" ? props.onLayers() : setWorkspace(w => ({ ...w, map: mode === "atlas" }))}>
+            {hasArchitecture && <select className="model-view" aria-label="Model view" value={workspace.view || "all"}
+              onChange={e => { initialFit.current = true; setFocus(undefined); setWorkspace(w => ({ ...w, view: e.target.value as "all" | "domain" | "architecture" })); }}>
+              <option value="all">All elements</option><option value="domain">Domain</option><option value="architecture">Architecture</option>
+            </select>}
+            {mapEnabled && <select className="atlas-skin" aria-label="Atlas skin" value={workspace.atlasSkin ?? "ink"}
+              onChange={e => setWorkspace(w => ({ ...w, atlasSkin: e.target.value === "village" ? "village" : "ink" }))}>
+              <option value="ink">Ink</option><option value="village">Village</option>
+            </select>}
+          </CanvasViewControls>}
           scope={
             (selectedShapes.length > 1
               ? `${selectedShapes.length} selected`
@@ -1073,7 +1051,7 @@ export default function CanvasPane(props: CanvasPaneProps) {
             </ModelLegend>,
             statusHost,
           )}
-      </section>
+      </>
     </CanvasActions.Provider>
   );
 }

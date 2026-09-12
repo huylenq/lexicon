@@ -100,3 +100,9 @@ For a detailed Canvas trace, build with `bun run build:client --sourcemap`, use 
 
 
 For browser checks in another worktree, choose an unused port with `LEXICON_TEST_PORT=5398 bun run test:browser`.
+
+## Layers presentation
+
+Choose **Layers** in the canvas toolbar to explore domain meaning and software architecture on separate planes. The reader, navigation, source workspace, and Agent stay in place when changing canvas presentations. Relationships explain correspondence between dimensions; code links open source evidence. Hovering or selecting a connector marks both endpoints.
+
+Layers saves its Domain and Architecture pages in `lexicon/canvas.json`, alongside existing pages, notes, and media. Undo and Redo span both planes; Refresh model updates their semantic references in place. The ordinary canvas remains the default. See [Layers promotion](../LAYERS.md) for validation and remaining interaction work, or run `bun run dev:layers` for an isolated Shop development session.

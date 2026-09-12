@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { parseModel } from "../server/model";
 import {
   anchorId,
-  domainId,
+  itemNodeId,
   indexModel,
   mappingId,
   neighborhood,
@@ -36,8 +36,8 @@ describe("domain graph projection", () => {
   test("starts with all domain concepts grouped by ownership, preserving authored edges", () => {
     const graph = projectGraph(index, options);
     expect(graph.nodes.filter((n) => n.kind === "concept")).toHaveLength(3);
-    expect(graph.nodes.find((n) => n.id === domainId("order"))?.parentId).toBe(
-      domainId("sales"),
+    expect(graph.nodes.find((n) => n.id === itemNodeId("order"))?.parentId).toBe(
+      itemNodeId("sales"),
     );
     expect(graph.connections).toHaveLength(5);
     expect(graph.nodes.some((n) => n.kind === "code")).toBe(false);
@@ -92,7 +92,7 @@ describe("domain graph projection", () => {
       ["boundary", "sales", "fulfillment"],
     ]) {
       expect(graph.connections.find((e) => e.id === `relation:${id}`)).toMatchObject({
-        source: domainId(from), target: domainId(to),
+        source: itemNodeId(from), target: itemNodeId(to),
         relationships: [id], selection: { kind: "item", id },
       });
     }
@@ -130,10 +130,10 @@ describe("domain graph projection", () => {
       kind: "code",
       id: [...index.targets.keys()][0],
     });
-    expect(area.nodes.has(domainId("order"))).toBe(true);
-    expect(area.nodes.has(domainId("shipment"))).toBe(true);
+    expect(area.nodes.has(itemNodeId("order"))).toBe(true);
+    expect(area.nodes.has(itemNodeId("shipment"))).toBe(true);
     expect(area.edges.has("relation:contains")).toBe(true);
-    expect(area.nodes.has(domainId("sales"))).toBe(true);
+    expect(area.nodes.has(itemNodeId("sales"))).toBe(true);
   });
   test("malformed selections fail closed; earlier summary links remain readable", () => {
     expect(

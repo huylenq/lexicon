@@ -52,6 +52,7 @@ test("delete one recovery copy without changing the canvas or other backups", as
       });
     }, original);
     await page.reload();
+    await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
     const trigger = page.getByRole("button", { name: "Canvas recovery (6)", exact: true });
     const browse = page.getByRole("button", { name: "Toggle navigation", exact: true });
     if (await browse.getAttribute("aria-pressed") !== "true") await browse.click();
@@ -82,6 +83,7 @@ test("delete one recovery copy without changing the canvas or other backups", as
     expect((await records()).filter((entry) => entry.tab.startsWith("backup-"))).toHaveLength(5);
     expect((await records()).find((entry) => entry.key === original.key)?.document).toEqual(original.document);
     await page.reload();
+    await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
     await page.setViewportSize({ width: 390, height: 480 });
     if (await browse.getAttribute("aria-pressed") !== "true") await browse.click();
     await page.getByRole("button", { name: "Use dark theme", exact: true }).click();

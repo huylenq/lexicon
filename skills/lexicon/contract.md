@@ -4,6 +4,8 @@ The only supported semantic schema is `3.0`. Read `MODEL.md` for XML syntax. Sta
 
 The governing hierarchy is `ModelItem = Element | Relationship | Behavior`, with `Element = DomainElement | ArchitectureElement`, `DomainElement = Context | Concept`, `ArchitectureElement = Person | SoftwareSystem | Container | Component`, and `Behavior = Flow`. TypeScript calls Element `ModelElement`. These are categories of existing types, not XML wrappers. Read the semantic composition rules in the bundle's `MODEL.md` before choosing constructs.
 
+Domain meaning, software architecture, and code are distinct dimensions of the same system. Keep domain and architecture boundaries independent; explain their correspondence with relationships and ground either in code links. Flows describe scenarios across existing participants. Canvas layers and pages present those meanings without defining them.
+
 Every item has `type`, project-wide stable `id`, `name`, `description`, `annotations`, and `codeLinks`. Keep existing IDs and established names. Use spaced title-case concept names, natural context names, and verb phrases for relationships; explicit user terminology takes precedence. This preference does not change IDs, source symbols, labels, or prose.
 
 | Type | Additional fields | Meaning |

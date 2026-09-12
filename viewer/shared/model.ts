@@ -14,7 +14,7 @@ export interface CodeLink {
   role: string;
   description: string;
 }
-/** Source identity is independent of the domain objects that map to it. */
+/** Source identity is independent of the model items that map to it. */
 export const codeTargetId = (
   link: Pick<CodeLink, "file" | "symbol" | "line">,
 ) =>
@@ -76,6 +76,14 @@ export const parentOf = (item: ModelItem): string | undefined =>
   "parent" in item ? item.parent : undefined;
 export const isArchitecture = (item: ModelItem): item is ArchitectureElement =>
   ["person", "system", "container", "component"].includes(item.type);
+/** Semantic dimensions are independent of canvas layers and page names. */
+export type Dimension = "domain" | "architecture" | "code";
+export type ElementDimension = Exclude<Dimension, "code">;
+export const elementDimensions: readonly ElementDimension[] = ["domain", "architecture"];
+/** Relationships and flows can span dimensions; source targets use CodeLinks. */
+export const dimensionOf = (item: ModelItem): ElementDimension | undefined =>
+  isModelElement(item) ? (isArchitecture(item) ? "architecture" : "domain") : undefined;
+
 export const typeNames: Record<ModelItem["type"], string> = {
   context: "Context", concept: "Concept", person: "Person",
   system: "Software System", container: "Container", component: "Component",

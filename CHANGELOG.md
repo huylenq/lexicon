@@ -8,6 +8,12 @@
 - Add a local MCP adapter for project/model inspection, search, explicit viewer sessions, select/focus/fit navigation, model creation and partial updates, protected undo, and selection/model events.
 - Refresh open viewers after model changes and wait for viewer acknowledgment before reporting navigation success. Reuse the existing model validation, artifact-root lock, and exact-file undo.
 
+## Unreleased — Dimensions and Layers preview
+
+- Describe domain meaning, software architecture, and code as distinct dimensions, connected by relationships and code links. Keep layers and pages as presentation concepts.
+- Add an opt-in Layers preview from the reader, preserving the selected item in both directions. Domain and Architecture remain parallel planes with depth-aware connectors; layouts save as separate pages in the project canvas, with browser recovery, shared undo/redo, and model refresh.
+- Share element dimension classification between graph filters and Layers. Rename the generic graph item ID helper without changing persisted IDs; clarify the flat filter as All elements.
+
 ## Unreleased — Shared model and schema 3.0
 
 - Add fixed C4 elements, single structural parents, and flows with ordered relationship occurrences to the shared model. Reader, search, graph filters, sequence diagrams, code navigation, and agent refinement use the same identities.

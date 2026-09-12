@@ -16,7 +16,7 @@ import type {
   ConnectionShape,
   ObjectShape,
 } from "../../../shared/canvas-schema";
-import { isModelShape, isPrimary, modelShapeId } from "./references";
+import { isModelShape, isPrimary, modelShapeId as referenceId } from "./references";
 import { relationshipRoute } from "./routes";
 import { createRelationshipRouter, type RelationshipRoute } from "./scene-routing";
 import { objectFrame, objectSizes } from "./sizing";
@@ -90,7 +90,10 @@ export function connectionGeometry(
 export function createProjection(
   editor: Editor,
   legacyPositions: Positions = {},
+  layoutDirection: "DOWN" | "RIGHT" = "DOWN",
+  scope?: string,
 ) {
+  const modelShapeId = (id: string) => referenceId(id, scope);
   const relationshipRouter = createRelationshipRouter();
   let settleRoutes = false;
   let writing = false;
@@ -198,6 +201,7 @@ export function createProjection(
           height: 1,
         });
       const meta = {
+        ...(scope ? { lexiconProjection: scope } : {}),
         lexiconHidden: hidden(edge.id),
         lexiconLabel: edge.label,
         lexiconLane: edge.source < edge.target ? lane : -lane,
@@ -236,6 +240,7 @@ export function createProjection(
     editor.sideEffects.registerBeforeDeleteHandler("shape", (shape) => {
       if (
         !writing &&
+        editor.getAncestorPageId(shape) === pageId &&
         isModelShape(shape) &&
         isPrimary(shape) &&
         (vertices.has(shape.props.graphId) || edgeIds.has(shape.props.graphId))
@@ -245,7 +250,7 @@ export function createProjection(
     editor.sideEffects.registerBeforeChangeHandler(
       "shape",
       (previous, next) => {
-        if (writing || !isModelShape(previous) || !isModelShape(next))
+        if (writing || editor.getAncestorPageId(previous) !== pageId || !isModelShape(previous) || !isModelShape(next))
           return next;
         // A visual gesture cannot rename, rewire, or move a concept into a different context.
         let props = previous.props;
@@ -288,7 +293,7 @@ export function createProjection(
       },
     ),
     editor.sideEffects.registerAfterChangeHandler("shape", (previous, next) => {
-      if (next.type !== "lexicon-object") return;
+      if (next.type !== "lexicon-object" || editor.getAncestorPageId(next) !== pageId) return;
       if (!writing && (previous.x !== next.x || previous.y !== next.y || JSON.stringify(previous.props) !== JSON.stringify(next.props))) queueContext(next);
       if (!isPrimary(next)) return;
       if (
@@ -321,8 +326,8 @@ export function createProjection(
           });
       });
     }),
-    editor.sideEffects.registerAfterCreateHandler("shape", shape => { if (!writing && shape.type === "lexicon-object") queueContext(shape); }),
-    editor.sideEffects.registerAfterDeleteHandler("shape", shape => { if (!writing && shape.type === "lexicon-object") queueContext(shape); }),
+    editor.sideEffects.registerAfterCreateHandler("shape", shape => { if (!writing && shape.type === "lexicon-object" && editor.getAncestorPageId(shape) === pageId) queueContext(shape); }),
+    editor.sideEffects.registerAfterDeleteHandler("shape", shape => { if (!writing && shape.type === "lexicon-object" && editor.getAncestorPageId(shape) === pageId) queueContext(shape); }),
     editor.sideEffects.registerOperationCompleteHandler(() => {
       if (!writing && dirty.size) {
         dirty.clear();
@@ -379,7 +384,9 @@ export function createProjection(
         for (const node of full.nodes) {
           const existing = editor.getShape<ObjectShape>(modelShapeId(node.id));
           if (!existing) continue;
-          const size = sizes[node.id];
+          // Container coordinates are parent-relative origins, not label centers.
+          // Applying card-size compensation to them moves nested pages on reload.
+          const size = existing.props.group ? undefined : sizes[node.id];
           saved[node.id] = {
             x: existing.x + (size ? (existing.props.w - size.width) / 2 : 0),
             y: existing.y + (size ? (existing.props.h - size.height) / 2 : 0),
@@ -392,7 +399,7 @@ export function createProjection(
       const arranged =
         !rearrange && key === layoutKey
           ? structuredClone(layout)
-          : await arrangeGraph(full, saved, sizes);
+          : await arrangeGraph(full, saved, sizes, layoutDirection);
       if (token !== generation) return false;
       layout = arranged;
       layoutKey = key;
@@ -466,6 +473,7 @@ export function createProjection(
             group: ["context", "system", "container", "file"].includes(node.kind),
           };
           const meta = {
+            ...(scope ? { lexiconProjection: scope } : {}),
             lexiconHidden: hidden(node.id),
             lexiconLabel: node.title,
           };

@@ -47,3 +47,23 @@ export function CanvasButton({
     </button>
   );
 }
+
+export type CanvasMode = "diagram" | "atlas" | "layers";
+
+/** The same presentation control is used by every canvas renderer. */
+export function CanvasViewControls({ mode, onMode, atlasEnabled, children }: {
+  mode: CanvasMode; onMode: (mode: CanvasMode) => void;
+  atlasEnabled: boolean; children?: ReactNode;
+}) {
+  return <div className="toolbar-view-controls" role="group" aria-label="Canvas view">
+    {children}
+    <fieldset className="canvas-mode" aria-label="Canvas mode">
+      {(["diagram", "atlas", "layers"] as const).map(value => <label key={value}
+        title={value === "atlas" && !atlasEnabled ? "Select Domain to explore Atlas" : undefined}>
+        <input type="radio" name="canvas-mode" checked={mode === value}
+          disabled={value === "atlas" && !atlasEnabled} onChange={() => onMode(value)} />
+        <span>{value === "diagram" ? "Diagram" : value === "atlas" ? "Atlas" : "Layers"}</span>
+      </label>)}
+    </fieldset>
+  </div>;
+}

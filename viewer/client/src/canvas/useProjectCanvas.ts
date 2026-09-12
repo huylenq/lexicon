@@ -33,11 +33,12 @@ export function useProjectCanvas(
   model: Model,
   legacyProjectKey: string,
   onApplied: () => void,
+  sessionScope = "",
 ) {
   const [boot, setBoot] = useState<CanvasBoot>();
   const [state, setState] = useState(initialState);
   const [retry, setRetry] = useState(0);
-  const [tab] = useState(canvasTabId);
+  const [tab] = useState(() => `${canvasTabId()}${sessionScope ? `:${sessionScope}` : ""}`);
   const api = useMemo(() => canvasApi(projectId), [projectId]);
   const assets = useMemo(() => projectAssets(api), [api]);
   const index = useMemo(() => indexModel(model), [model]);
@@ -164,6 +165,7 @@ export function useProjectCanvas(
         if (runtime.current === instance) runtime.current = undefined;
       };
     },
+    pause: () => runtime.current?.pause(),
     ready: () => runtime.current?.ready(),
     reviewProject: () => runtime.current?.reviewProject(),
     useProject: () => runtime.current?.useProject(),
