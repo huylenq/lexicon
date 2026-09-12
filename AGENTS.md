@@ -2,11 +2,11 @@
 
 Read [MANIFESTO.md](MANIFESTO.md) and [MODEL.md](MODEL.md) before changing the product. They define the direction and the model. The user's current instructions govern scope.
 
-Lexicon reduces cognitive debt through a human model of code. Contexts and Concepts describe domain meaning; fixed C4 elements describe software structure; Flows order relationship occurrences. Items share annotations and code links. Annotations explain meaning, rules, and rationale. DDD is applied through annotation and linkage to existing software.
+Lexicon reduces cognitive debt by connecting domain meaning, software architecture, and code as distinct dimensions of one system. Layers are visual planes; tldraw pages hold presentation content. Neither determines semantic membership. Contexts and Concepts describe domain meaning; fixed C4 elements describe software structure; Flows order relationship occurrences. Items share annotations and code links. Annotations explain meaning, rules, and rationale. DDD is applied through annotation and linkage to existing software.
 
 Keep implementation small. Add structure when a worked example needs it. Preserve the distinction between intended consistency, observed behavior, and enforced checks. Explain mismatches between domain names and code symbols.
 
-- `viewer/shared/model.ts`: shared domain types.
+- `viewer/shared/model.ts`: shared semantic model types and dimension classification.
 - `viewer/server/model.ts`: XML parsing, validation, serialization, and loading.
 - `viewer/server/code.ts`: declared source-link resolution.
 - `viewer/server/index.ts`: local API and project registration.

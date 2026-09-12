@@ -9,6 +9,7 @@ export async function arrangeGraph(
   graph: Projection,
   saved: Positions = {},
   sizes: Record<string, { width: number; height: number }> = {},
+  direction: "DOWN" | "RIGHT" = "DOWN",
 ): Promise<Layout> {
   const { default: ELK } = await import("elkjs/lib/elk.bundled.js");
   const elk = new ELK();
@@ -37,7 +38,7 @@ export async function arrangeGraph(
         id: group.id,
         layoutOptions: {
           "elk.algorithm": "layered",
-          "elk.direction": "DOWN",
+          "elk.direction": direction,
           "elk.spacing.nodeNode": "26",
           "elk.layered.spacing.nodeNodeBetweenLayers": "48",
           "elk.padding": "[top=0,left=0,bottom=0,right=0]",
@@ -101,7 +102,7 @@ export async function arrangeGraph(
       id: "domain",
       layoutOptions: {
         "elk.algorithm": "layered",
-        "elk.direction": "DOWN",
+        "elk.direction": direction,
         "elk.spacing.nodeNode": "100",
         "elk.layered.spacing.nodeNodeBetweenLayers": "80",
         "elk.separateConnectedComponents": "true",

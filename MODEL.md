@@ -17,6 +17,21 @@ Every item requires a name and description and may have annotations and code lin
 
 Domain Context and Concept draw on DDD. The four software-structure types follow [C4 abstractions](https://c4model.com/abstractions). A Context and a Software System have different meanings; explain their correspondence with an ordinary relationship where useful. The question determines which vocabulary is needed. A domain-only model remains a complete valid model.
 
+## Dimensions and presentation vocabulary
+
+| Term | Meaning |
+|---|---|
+| Dimension | Domain meaning, software architecture, or code; each describes a different aspect of the system |
+| Relationship | An authored connection between model elements, within or across domain and architecture |
+| Code link | An owned mapping from a model item to a source target, with a role and explanation |
+| View | A presentation chosen to answer a question about the shared model |
+| Layer | A visual plane presenting a dimension in the Layers view |
+| Page | A tldraw presentation container holding shapes and layout |
+
+Domain and architecture membership follows an element's existing type. Code targets are reached through CodeLinks; they are not a new Element type. Relationships can cross dimensions, and Flows order occurrences of relationships. Neither is assigned wholesale to one dimension. This distinction adds no XML fields or schema version.
+
+Pages organize presentation. Their names and positions do not determine semantic membership. The Layers presentation stores separate Domain and Architecture pages in the project canvas, shown by two editors. Each view has its own visual references to the same semantic identities, so its placements remain independent. Domain appears above Architecture for reading; that arrangement implies no dependency or containment. Code is currently available through source links and the code workspace; a code plane remains future work.
+
 ## Semantic type hierarchy
 
 ```text
@@ -102,7 +117,7 @@ This approach follows [C4 dynamic diagrams](https://c4model.com/diagrams/dynamic
 
 ## Model and presentation
 
-One model supplies the reader, graph filters, and derived sequence diagrams. Combined, Domain, and Architecture are exploration filters, not a complete suite of scoped C4 diagrams. Atlas is available for the domain projection. Views and Beyond guides choosing and reviewing views; it introduces no persisted viewpoint records, framework registry, or configurable type system.
+One model supplies the reader, graph filters, and derived sequence diagrams. All elements, Domain, and Architecture are exploration filters, not a complete suite of scoped C4 diagrams. The all-elements filter draws the selected dimensions on one plane; Layers preserves separate planes when exploring their correspondence. Atlas is available for the domain projection. Views and Beyond guides choosing and reviewing views; it introduces no persisted viewpoint records, framework registry, or configurable type system.
 
 `lexicon/canvas.json` is a separate authored presentation document containing positions, notes, drawings, and asset references. It refers to semantic identities and does not define model meaning. Changing a view or drawing does not change XML. Conversation history and project registrations live in the local database; browser preferences, navigation, and recovery drafts have their own lifetimes. Schema migration preserves these artifacts and the model identity they reference.
 

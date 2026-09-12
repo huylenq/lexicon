@@ -2,7 +2,7 @@
 
 Lexicon exists to reduce cognitive debt: the effort of reconstructing how a codebase works.
 
-It reflects the software as a human mental model: concepts, relationships, responsibilities, and their places in the implementation.
+Understanding software means connecting domain meaning, software architecture, and code. Each has its own boundaries and vocabulary. Lexicon helps people understand their correspondence.
 
 Domain-Driven Design grounds domain meaning, C4 grounds software structure, and ordered scenarios explain runtime interactions. Lexicon brings these to existing code through annotation and linkage. The question determines which perspective earns a place in the shared model.
 
@@ -10,7 +10,17 @@ The model comes first. It must express a real system clearly, remain small enoug
 
 Lexicon should be lean. Every feature must earn its place by making software easier to understand. Maintenance effort counts toward that cost.
 
-`lexicon/docs/` remains a dumping ground to address later.
+## Dimensions
+
+Domain meaning describes the ideas, language, and rules people use to reason about the problem. Software architecture describes the people, systems, applications, and components that carry responsibilities. Code provides the implementation and evidence for those explanations.
+
+These are distinct dimensions of one system. A domain context can span several software components; a component can serve several domain concepts. Neither dimension supplies the other's containment tree. Relationships explain their correspondence, and code links connect either dimension to inspected source. A position on a canvas establishes no semantic relationship.
+
+Flows explain scenarios through ordered interactions between existing participants. They can draw on several dimensions. They do not require another hierarchy.
+
+A view should preserve these distinctions while making connections easy to follow. Layers can show domain and architecture together as separate planes, with code available through their links. Separation and tilt help expose correspondence; they carry no claim about runtime direction, dependency, or importance. A reader must be able to focus on each dimension and identify both ends of a connection. Canvas presentations share one workspace, with the same navigation, reading, source, and conversation controls.
+
+The question determines how much of the system to model. A useful domain explanation can stand on its own. Code remains evidence to inspect, and the team decides which abstractions deserve a place in the shared model.
 
 ## Progressive
 

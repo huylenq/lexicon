@@ -77,6 +77,7 @@ export function createCanvasPersistence({
   let lastSaved = base ? canonicalJson(base) : "";
   let closed = false,
     ready = false,
+    initialized = false,
     applying = false,
     inFlight = false;
   let blocked = !!remote.issue;
@@ -258,7 +259,7 @@ export function createCanvasPersistence({
     void checkRemote();
   }, 3000);
   const beforeUnload = (event: BeforeUnloadEvent) => {
-    if (!ready || canonicalJson(capture()) === lastSaved) return;
+    if (!initialized || canonicalJson(capture()) === lastSaved) return;
     void cache().catch(() => {});
     event.preventDefault();
     event.returnValue = "";
@@ -266,7 +267,9 @@ export function createCanvasPersistence({
   window.addEventListener("beforeunload", beforeUnload);
   window.addEventListener("focus", checkRemote);
   return {
+    pause() { ready = false; },
     ready() {
+      initialized = true;
       // Opening an unmodeled project must not create an empty canvas file.
       // The first drawing or model projection will differ from this clean baseline.
       if (
@@ -370,7 +373,7 @@ export function createCanvasPersistence({
       await cache();
     },
     dispose() {
-      if (ready) void cache().catch(() => {});
+      if (initialized) void cache().catch(() => {});
       closed = true;
       requests.abort();
       clearTimeout(timer);

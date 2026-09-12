@@ -1,0 +1,83 @@
+.layers-stage { flex: 1; min-width: 0; overflow: hidden; position: relative; background: var(--paper); touch-action: none; overscroll-behavior: contain; }
+.layers-scene { width: 1000px; height: 598px; position: absolute; left: calc(50% - 500px); top: calc(50% - 299px); transform-style: preserve-3d; pointer-events: none; }
+.layer-sheet { pointer-events: auto; }
+.layer-sheet { position: absolute; inset: 0; border: 1px solid #a9c4c0; border-radius: 10px; background: var(--paper); box-shadow: 0 20px 45px #2b45551c; color: var(--ink); }
+.layer-sheet.architecture { border-color: #bfb6d9; box-shadow: 0 25px 65px #483a642b; }
+.layer-editor { position: relative; width: 1000px; height: 560px; border-radius: 0 0 9px 9px; overflow: hidden; }
+.layer-editor .tl-background { background: transparent; }
+.layer-editor [data-plane-corner] { position: absolute; width: 0; height: 0; pointer-events: none; }
+.layer-editor .tl-watermark_SEE-LICENSE { opacity: .6; }
+.layer-empty { position: absolute; inset: 40% 0 auto; text-align: center; color: #859099; pointer-events: none; }
+/* These connectors share the planes' 3D context. Do not flatten these wrappers. */
+.layers-depth-bridges, .layers-depth-bridge { position: absolute; inset: 0; transform-style: preserve-3d; pointer-events: none; color: #a67537; }
+.layers-depth-ray { position: absolute; left: 0; top: 0; height: 1px; margin-top: -.5px; transform-origin: 0 50%; background: color-mix(in srgb, currentColor 55%, transparent); pointer-events: none; }
+.layers-depth-ray::after { content: ""; position: absolute; right: 0; top: -2px; border-left: 5px solid currentColor; border-top: 2.5px solid transparent; border-bottom: 2.5px solid transparent; }
+.layers-depth-hit { position: absolute; left: 8px; right: 8px; top: -5px; bottom: -5px; pointer-events: auto; cursor: pointer; }
+.layers-error { color: #b33154 !important; }
+.layers-arranging { position: absolute; top: 45%; left: 30%; background: white; padding: 15px 25px; border-radius: 8px; }
+.layers-loading { padding: 40px; }
+.layers-measurement-host { position: fixed; left: -10000px; top: 0; width: 1000px; height: 0; pointer-events: none; visibility: hidden; }
+
+.layers-endpoint-markers { position: absolute; inset: 0; pointer-events: none; }
+.layers-endpoint-marker { position: absolute; border: 2px solid #b72e78; border-radius: 4px; box-shadow: none; pointer-events: none; }
+
+.layers-renderer { display: contents; }
+.layer-options { position: relative; }
+.layer-options .canvas-menu-content { position: absolute; top: 100%; right: 0; min-width: 230px; padding: 12px; background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 7px; box-shadow: var(--shadow); }
+.layer-options label { display: flex; align-items: center; gap: 8px; margin: 8px 0; font-size: 12px; }
+.layer-options input[type=range] { width: 120px; accent-color: var(--accent); }
+.layers-depth-label { position: absolute; left: 0; top: 0; transform-origin: 0 0; padding: 1px 3px; border: 0; background: var(--paper); color: inherit; white-space: nowrap; font-size: 11px; font-weight: 500; line-height: 1.2; pointer-events: auto; }
+
+
+/* Unbounded working planes: only the overall canvas viewport clips content. */
+.layer-sheet, .layer-sheet.architecture { border: 0; border-radius: 0; background: transparent; box-shadow: none; pointer-events: none; }
+.layers-scene { height: 560px; top: calc(50% - 280px); }
+.layer-editor { position: absolute; border-radius: 0; pointer-events: none; background-image: radial-gradient(circle, color-mix(in srgb, var(--layer-grid, var(--muted)) 28%, transparent) 1px, transparent 1px); background-size: 32px 32px; }
+.layer-editor .tl-container, .layer-editor .tl-canvas, .layer-editor .tl-background { pointer-events: none; background-color: transparent; }
+.layer-editor .tl-shape { pointer-events: none; }
+.layer-editor .tl-shape[data-shape-type="lexicon-object"], .layer-editor .tl-shape[data-shape-type="lexicon-note"], .layer-editor .tl-selection-foreground { pointer-events: auto; }
+.layers-stage { cursor: grab; }
+.layers-stage:active { cursor: grabbing; }
+.domain .layer-editor { --layer-grid: #5f9f8a; }
+.architecture .layer-editor { --layer-grid: #9681b8; }
+.layer-editor, .layer-editor .tl-container, .layer-editor .tl-canvas { overflow: visible; }
+.layer-editor .tl-hit-test-blocker { pointer-events: none; }
+/* Browser containment assumes a flat viewport and can discard a tilted plane. */
+.layer-editor .tl-canvas { contain: none; content-visibility: visible; }
+
+.layer-editor { background-color: color-mix(in srgb, var(--layer-grid) var(--plane-opacity, 8%), transparent); }
+
+.layers-camera { position: absolute; inset: 0; perspective: 2400px; transform-origin: 0 0; pointer-events: none; }
+.layer-editor { background: none; }
+.domain { --layer-grid: #5f9f8a; }
+.architecture { --layer-grid: #9681b8; }
+.layer-surface { position: absolute; pointer-events: none; border-radius: 12px; background: color-mix(in srgb, var(--layer-grid) var(--plane-opacity, 8%), transparent); border: 1px solid color-mix(in srgb, var(--layer-grid) 30%, transparent); }
+/* Keep zoomed editor content in the scene rather than flattening it to a texture. */
+.layers-camera, .layer-sheet, .layer-editor { transform-style: preserve-3d; }
+
+
+/* Keep the bottom dock inside the canvas area exposed by floating panes. */
+.reader-workspace:not(.reader-hidden) .layers-stage {
+  --layers-help-right: min(calc(100% - 44px), calc(clamp(300px, var(--reader-width), 900px) + 28px));
+}
+@media (min-width: 1001px) {
+  .reader.with-canvas:not(.without-sidebar) .layers-stage { --layers-help-left: calc(var(--browse-space) + 12px); }
+}
+.layers-help { position: absolute; z-index: 550; bottom: 0; left: calc(var(--layers-help-left, 12px) + 60px); right: var(--layers-help-right, 12px); max-height: min(45%, 360px); overflow-y: auto; box-sizing: border-box; padding: 10px 0; background: transparent; color: var(--ink); border: 0; border-radius: 0; box-shadow: none; cursor: default; overscroll-behavior: contain; }
+.layers-help dl { display: flex; flex-wrap: wrap; gap: 16px 40px; margin: 0; font-size: 12px; line-height: 1.5; }
+.layers-help dt { text-align: center; font-weight: 500; color: var(--muted); }
+.layers-help dd { margin: 8px 0 0; color: color-mix(in srgb, var(--muted) 78%, var(--paper)); }
+.layers-help-toggle { position: absolute; z-index: 551; bottom: 12px; left: 12px; width: 32px; height: 32px; background: var(--panel); border: 1px solid var(--line); border-radius: 50%; box-shadow: var(--shadow); cursor: pointer; }
+.layers-help-toggle { color: var(--muted); }
+.layers-help-toggle[aria-expanded="true"], .layers-help-toggle:hover { color: var(--muted); }
+
+.layers-help dd { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
+.layers-help kbd { font: inherit; font-size: 11px; padding: 1px 4px; border: 1px solid color-mix(in srgb, var(--muted) 25%, transparent); border-radius: 3px; }
+.layers-help .gesture-direction { font-size: 17px; line-height: 1; }
+
+.layers-help .gesture-mouse { flex-shrink: 0; }
+.layers-help kbd { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 22px; box-sizing: border-box; font-size: 16px; line-height: 1; }
+
+.layers-help .gesture-alternative { width: 1px; height: 18px; margin: 0 7px; background: color-mix(in srgb, var(--muted) 28%, transparent); flex-shrink: 0; }
+
+.layers-depth-bridge[data-selected=true] { color: #b72e78; }

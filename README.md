@@ -1,6 +1,6 @@
 # Lexicon
 
-Lexicon reduces the effort of reconstructing how software works. It presents code as a human mental model, using DDD for domain meaning, C4 for software structure, and flows for runtime scenarios.
+Lexicon reduces the effort of reconstructing how software works. It connects three dimensions: domain meaning, software architecture, and code. DDD informs domain meaning, C4 informs architecture, and flows explain runtime scenarios across their participants.
 
 Start with a context, understand its concepts, follow a relationship, and open the implementation behind it.
 
@@ -28,6 +28,8 @@ For development, run `mise run viewer` from this repository, then open **http://
 The reader provides context browsing, search across meaning and code symbols, incoming and outgoing relationships with separate links for each endpoint and relationship, and a source pane with declaration highlighting. Browser addresses preserve the selected item and code link. Refresh reads the current files. Unsupported schemas open with Agent available for explicit migration; only schema 3.0 is parsed.
 
 Projects open in **Canvas**, with concepts grouped by context alongside notes, drawings, and media. Expand code into shared target nodes or focus on a neighborhood; selections update the reader. The [viewer guide](viewer/README.md#canvas) covers navigation and saved layouts. The **Diagram / Atlas** toggle changes the presentation within this same tldraw canvas.
+
+The canvas toolbar offers **Layers**, a presentation in the existing canvas pane with Domain above Architecture and explained relationships between them. Focus either plane or follow a connection to its endpoints and source evidence. Its Domain and Architecture pages save in the project canvas, with shared undo and model refresh. See [Layers](LAYERS.md) for the promotion stages and current limits.
 
 ## Model a project
 

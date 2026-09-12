@@ -2,6 +2,9 @@
 .toolbar { position: relative; z-index: 5; }
 .toolbar .toolbar-actions { flex-shrink: 0; }
 .toolbar button[aria-pressed="true"], .toolbar button[aria-expanded="true"] { background: var(--accent-soft); color: var(--accent); }
+.toolbar-view-controls { display: flex; align-items: center; gap: 6px; flex-shrink: 0; margin-left: 4px; padding-left: 10px; border-left: 1px solid var(--line); }
+.toolbar-view-controls select { flex-shrink: 0; padding: 5px 6px; border: 1px solid var(--line); border-radius: 5px; color: var(--ink); background: var(--paper); font: 11px system-ui, sans-serif; }
+.toolbar-view-controls select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .canvas-mode { display: inline-flex; flex-shrink: 0; gap: 2px; margin: 0; padding: 2px; border: 1px solid var(--line); border-radius: 6px; background: var(--soft); }
 .canvas-mode label { position: relative; cursor: pointer; }
 .canvas-mode input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
@@ -9,6 +12,10 @@
 .canvas-mode input:checked + span { background: var(--accent-soft); color: var(--accent); }
 .canvas-mode input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 1px; }
 .canvas-mode label:hover span { color: var(--ink); }
+.canvas-mode input:disabled { cursor: not-allowed; }
+.canvas-mode input:disabled + span { opacity: 0.4; }
+.canvas-mode label:has(input:disabled) { cursor: not-allowed; }
+.canvas-mode label:has(input:disabled):hover span { color: var(--muted); }
 .canvas-inspector-toggles { display: contents; }
 .canvas-file-menu { position: relative; font-size: 12px; }
 .canvas-file-menu > summary { cursor: pointer; list-style: none; }
@@ -51,7 +58,7 @@
 .canvas-save-indicator[data-save-status="local"], .canvas-save-indicator[data-save-status="conflict"], .canvas-save-indicator[data-save-status="error"] { color: var(--accent); }
 @container (max-width: 420px) { .toolbar { padding-inline: 8px; gap: 4px; } .toolbar .canvas-scope { display: none; } .toolbar .toolbar-actions { gap: 1px; } }
 @container (max-width: 600px) { .toolbar { flex-wrap: wrap; gap: 4px; } .toolbar .toolbar-heading { width: 100%; } .toolbar .toolbar-actions { width: 100%; justify-content: flex-end; } }
-@container (max-width: 350px) { .toolbar .toolbar-heading > .pane-title { display: none; } .toolbar .toolbar-actions { justify-content: space-between; } }
+@container (max-width: 350px) { .toolbar .toolbar-heading > .pane-title { display: none; } .toolbar-view-controls { margin-left: 0; padding-left: 0; border-left: 0; } .toolbar .toolbar-actions { justify-content: space-between; } }
 .workspace-status-bar .model-legend > .canvas-save-indicator { display: inline; }
 
 
@@ -94,7 +101,7 @@
 .canvas-note-list small { color: var(--muted); }
 .canvas-inspector select { max-width: 170px; }
 
-.canvas-pane .model-view { max-width: 130px; width: 130px; }
+.canvas-pane .model-view { width: auto; max-width: 11.5em; }
 
 .edge-appearance { position: relative; }
 .edge-appearance > summary { list-style: none; cursor: pointer; }

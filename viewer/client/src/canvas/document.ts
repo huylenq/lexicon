@@ -101,7 +101,7 @@ export function migrateModelReferences(
       current = index.legacyMappings.get(previous);
     if (!current) return record;
     const graphId = `mapping:${current}`;
-    const id = isPrimary(record) ? modelShapeId(graphId) : record.id;
+    const id = isPrimary(record) ? modelShapeId(graphId, typeof record.meta.lexiconProjection === "string" ? record.meta.lexiconProjection : undefined) : record.id;
     remap.set(record.id, id);
     return { ...record, id, props: { ...record.props, graphId } };
   });

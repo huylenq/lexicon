@@ -1,5 +1,5 @@
 import type { CodeLink, Flow, Model, ModelItem } from "../../../shared/model";
-import { codeTargetId as targetId, codeLinkKey, parentOf, isArchitecture, isModelElement, typeNames, type ModelElement } from "../../../shared/model";
+import { codeTargetId as targetId, codeLinkKey, parentOf, dimensionOf, isModelElement, typeNames, type ModelElement, type ElementDimension } from "../../../shared/model";
 
 export type GraphSelection =
   | { kind: "item"; id: string }
@@ -22,7 +22,7 @@ export function descendantIds(index: GraphIndex, id: string): Set<string> {
       if (parentOf(item) === parent) ids.add(item.id);
   return ids;
 }
-export const domainId = (id: string) => `item:${id}`;
+export const itemNodeId = (id: string) => `item:${id}`;
 export { targetId };
 export const mappingId = (owner: string, key: number | string) =>
   JSON.stringify([owner, key]);
@@ -80,7 +80,7 @@ export type GraphConnection = {
 export type GraphOptions = {
   expanded: string[];
   allCode: boolean;
-  view?: "all" | "domain" | "architecture";
+  view?: "all" | ElementDimension;
 };
 export type Projection = ReturnType<typeof projectGraph>;
 
@@ -90,13 +90,12 @@ export function projectGraph(index: GraphIndex, options: GraphOptions) {
   const connections: GraphConnection[] = [];
   for (const item of index.items.values()) {
     if (item.type === "relationship" || item.type === "flow") continue;
-    if (options.view === "domain" && isArchitecture(item)) continue;
-    if (options.view === "architecture" && !isArchitecture(item)) continue;
+    if (options.view && options.view !== "all" && dimensionOf(item) !== options.view) continue;
     const owner = parentOf(item);
     const expected = item.type === "concept" ? "context" : item.type === "container" ? "system" : item.type === "component" ? "container" : undefined;
-    const parent = owner && index.items.get(owner)?.type === expected ? domainId(owner) : undefined;
+    const parent = owner && index.items.get(owner)?.type === expected ? itemNodeId(owner) : undefined;
     nodes.push({
-      id: domainId(item.id),
+      id: itemNodeId(item.id),
       kind: item.type,
       title: item.name,
       subtitle:
@@ -110,8 +109,8 @@ export function projectGraph(index: GraphIndex, options: GraphOptions) {
   let omitted = 0;
   for (const item of index.items.values()) {
     if (item.type !== "relationship") continue;
-    const source = domainId(item.from),
-      target = domainId(item.to);
+    const source = itemNodeId(item.from),
+      target = itemNodeId(item.to);
     if (!nodeIds.has(source) || !nodeIds.has(target)) {
       if (!index.items.has(item.from) || !index.items.has(item.to)) omitted++;
       continue;
@@ -131,7 +130,7 @@ export function projectGraph(index: GraphIndex, options: GraphOptions) {
   }
   const shownMappings = [...index.mappings.values()].filter(
     (m) => (options.allCode || expanded.has(m.owner.id)) &&
-      (m.owner.type === "relationship" ? relationConnection.has(m.owner.id) : nodeIds.has(domainId(m.owner.id))),
+      (m.owner.type === "relationship" ? relationConnection.has(m.owner.id) : nodeIds.has(itemNodeId(m.owner.id))),
   );
   const shownTargets = new Set(shownMappings.map((m) => m.target));
   const files = new Set<string>();
@@ -158,7 +157,7 @@ export function projectGraph(index: GraphIndex, options: GraphOptions) {
     });
   }
   for (const m of shownMappings) {
-    let source = domainId(m.owner.id);
+    let source = itemNodeId(m.owner.id);
     if (m.owner.type === "relationship") {
       const relation = relationConnection.get(m.owner.id);
       if (!relation) {
@@ -213,19 +212,19 @@ export function neighborhood(
   for (const id of records.items) {
     const item = index.items.get(id);
     if (item?.type === "relationship") {
-      seeds.add(domainId(item.from));
-      seeds.add(domainId(item.to));
+      seeds.add(itemNodeId(item.from));
+      seeds.add(itemNodeId(item.to));
       for (const c of projection.connections)
         if (c.relationships.includes(id)) edgeSeeds.add(c.id);
     } else if (item) {
-      for (const child of descendantIds(index, id)) seeds.add(domainId(child));
+      for (const child of descendantIds(index, id)) seeds.add(itemNodeId(child));
     }
   }
   for (const id of records.mappings) {
     const m = index.mappings.get(id);
     if (m) {
       seeds.add(m.target);
-      if (selection?.kind !== "code") seeds.add(domainId(m.owner.id));
+      if (selection?.kind !== "code") seeds.add(itemNodeId(m.owner.id));
       for (const c of projection.connections)
         if (c.mappings.includes(id)) edgeSeeds.add(c.id);
     }

@@ -1,12 +1,14 @@
 ---
 name: lexicon
-description: Read or annotate a codebase as a human domain model. Use when the user wants to understand a system's concepts, responsibilities, relationships, or their implementation, or create and maintain lexicon/model.xml.
+description: Read or annotate a codebase as a human model of domain meaning, architecture, and code. Use when the user wants to understand a system's concepts, responsibilities, relationships, or their implementation, or create and maintain lexicon/model.xml.
 user-invocable: true
 ---
 
 # Lexicon
 
 Reduce the understanding someone must reconstruct from code. Contexts establish meaning, concepts name ideas, relationships explain connections, and code links show their implementation. Human judgment governs names, boundaries, and emphasis.
+
+Domain meaning, software architecture, and code are distinct dimensions of the same system. Keep domain and architecture boundaries independent; explain their correspondence with relationships and ground either in code links. Flows describe scenarios across existing participants. Canvas layers and pages present those meanings without defining them.
 
 ## Choose the workflow
 
