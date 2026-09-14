@@ -21,11 +21,13 @@ import {
 } from "tldraw";
 import { getAssetUrlsByImport } from "@tldraw/assets/imports.vite";
 import type { CanvasState } from "../../../shared/canvas";
-import { dimensionOf, isArchitecture } from "../../../shared/model";
+import { dimensionOf } from "../../../shared/model";
 import type { CanvasPaneProps } from "./types";
 import Icon from "../Icon";
 import ModelLegend from "../ModelLegend";
-import { Toolbar, CanvasButton, CanvasViewControls } from "./Toolbar";
+import { Toolbar, CanvasButton } from "./Toolbar";
+import { CanvasViewControls } from "./CanvasViewControls";
+import { resolveCanvasView, withCanvasSkin, type CanvasView } from "./viewState";
 import { codeOwners } from "../graph/actions";
 import { CanvasActions, CanvasContextMenu } from "./CanvasContextMenu";
 import {
@@ -93,10 +95,8 @@ const selectionKey = (selection?: GraphSelection) =>
 const LayersCanvas = lazy(() => import("../layers/LayeredCanvas"));
 
 export default function CanvasPane(input: CanvasPaneProps) {
-  // Older saved workspaces may still request the retired combined flat view.
-  const view = !input.model.items.some(isArchitecture) || input.workspace.view === "domain"
-    ? "domain" : "architecture";
-  const props: CanvasPaneProps = { ...input, workspace: { ...input.workspace, view } };
+  const view = resolveCanvasView(input.model, input.workspace);
+  const props: CanvasPaneProps = { ...input, workspace: { ...input.workspace, view: view.dimension } };
   const [params, setParams] = useSearchParams();
   const layered = params.get("presentation") === "layers";
   const present = (layers: boolean) => setParams(previous => {
@@ -108,18 +108,17 @@ export default function CanvasPane(input: CanvasPaneProps) {
   useEffect(() => {
     if (layered && props.command && (props.command.action === "expand" || props.command.selection.kind !== "item")) present(false);
   }, [props.command?.sequence]);
-  const hasArchitecture = props.model.items.some(isArchitecture);
-  const mapEnabled = !layered && (!hasArchitecture || props.workspace.view === "domain") && (props.workspace.map ?? true);
+  const mapEnabled = !layered && view.skin !== "standard";
   return <section className="canvas-pane" aria-label="Model canvas" data-map={mapEnabled}
     data-presentation={layered ? "layers" : "flat"}
     data-atlas-skin={props.workspace.atlasSkin ?? "ink"}>
     {layered
       ? <Suspense fallback={<p className="canvas-loading" role="status">Opening layers…</p>}><LayersCanvas {...props} onFlat={() => present(false)} /></Suspense>
-      : <FlatCanvasPane {...props} onLayers={() => present(true)} />}
+      : <FlatCanvasPane {...props} view={view} onLayers={() => present(true)} />}
   </section>;
 }
 
-function FlatCanvasPane(props: CanvasPaneProps & { onLayers: () => void }) {
+function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: () => void }) {
   const [searchParams] = useSearchParams();
   const {
     model,
@@ -130,9 +129,7 @@ function FlatCanvasPane(props: CanvasPaneProps & { onLayers: () => void }) {
     command,
     statusHost,
   } = props;
-  const hasArchitecture = model.items.some(isArchitecture);
-  const domainView = !hasArchitecture || workspace.view === "domain";
-  const mapEnabled = domainView && (workspace.map ?? true);
+  const mapEnabled = props.view.skin !== "standard";
   const [editor, setEditor] = useState<Editor>();
   const [actionsHost, setActionsHost] = useState<HTMLSpanElement | null>(null);
   const [inspectorHost, setInspectorHost] = useState<HTMLSpanElement | null>(
@@ -724,11 +721,9 @@ function FlatCanvasPane(props: CanvasPaneProps & { onLayers: () => void }) {
         <Toolbar
           controls={<CanvasViewControls presentation="flat"
             onPresentation={presentation => { if (presentation === "layers") props.onLayers(); }}
-            dimension={domainView ? "domain" : "architecture"} hasArchitecture={hasArchitecture}
-            skin={mapEnabled ? workspace.atlasSkin ?? "ink" : "standard"}
+            view={props.view}
             onDimension={view => { initialFit.current = true; setFocus(undefined); setWorkspace(w => ({ ...w, view })); }}
-            onSkin={skin => setWorkspace(w => ({ ...w, map: skin !== "standard",
-              atlasSkin: skin === "standard" ? w.atlasSkin : skin === "village" ? "village" : "ink" }))}
+            onSkin={skin => setWorkspace(w => withCanvasSkin(w, skin))}
           />}
         >
           <div className="assistant-toolbar-slot" ref={props.assistantHost} />

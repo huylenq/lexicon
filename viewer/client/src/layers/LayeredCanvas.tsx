@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import { measurePlane, unprojectPoint } from "./geometry";
 import ModelLegend from "../ModelLegend";
 import { createPortal } from "react-dom";
-import { Toolbar, CanvasButton, CanvasViewControls } from "../canvas/Toolbar";
+import { CanvasViewControls } from "../canvas/CanvasViewControls";
+import { Toolbar, CanvasButton } from "../canvas/Toolbar";
 import type { CanvasPaneProps } from "../canvas/types";
 import { Box, getSnapshot, loadSnapshot, type TLStoreSnapshot, type TLRecord, react } from "tldraw";
 import type { Relationship } from "../../../shared/model";
