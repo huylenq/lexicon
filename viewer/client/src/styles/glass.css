@@ -42,3 +42,26 @@
 .reader > .assistant-launcher.agent-toggle {
   background: var(--glass-illumination), var(--glass-background);
 }
+
+/* tldraw paints navigation on a pseudo-element; menus also cover right-click
+   and nested menus. Share the pane material without changing button states. */
+.reader .tlui-menu-zone,
+.reader .tlui-navigation-panel::before,
+.reader .tlui-main-toolbar__tools,
+.reader .tlui-main-toolbar__extras__controls,
+.reader .tlui-style-panel__wrapper,
+.reader .tlui-menu,
+.reader .tlui-popover__content {
+  background: var(--glass-background);
+  -webkit-backdrop-filter: var(--glass-filter);
+  backdrop-filter: var(--glass-filter);
+  /* An inset edge follows rounded corners without changing control geometry
+     or competing with tldraw's focus outlines. */
+  box-shadow: inset 0 0 0 1px var(--pane-edge, var(--line)), var(--glass-shadow);
+}
+
+.reader .tlui-menu-zone,
+.reader .tlui-navigation-panel::before,
+.reader .tlui-main-toolbar__extras__controls {
+  border-color: transparent;
+}

@@ -187,6 +187,11 @@
 .reader-workspace .canvas-stage > .tl-container { isolation: isolate; z-index: 0; }
 @media (min-width: 1001px) {
   .reader-workspace:not(.reader-hidden) .tlui-layout__top__right { margin-right: calc(clamp(300px, var(--reader-width), 900px) + 24px); }
+  /* Move only the bottom controls' centering region. Canvas remains full size
+     beneath the Reader, and follows its existing width and visibility. */
+  .reader-workspace:not(.reader-hidden) .tlui-layout__bottom__main {
+    width: max(0px, calc(100% - clamp(300px, var(--reader-width), 900px) - 12px));
+  }
 }
 
 

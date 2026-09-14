@@ -24,6 +24,27 @@
 .canvas-stage .tl-background { background: var(--paper); }
 .canvas-stage .tlui-layout { font-family: var(--tl-font-sans); }
 .canvas-stage .tlui-layout__top { padding-top: var(--canvas-top-inset, var(--toolbar-height)); }
+
+/* Compact the drawing tools without scaling text or menus. */
+.canvas-pane .tlui-main-toolbar .tlui-button__tool {
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+}
+.canvas-pane .tlui-main-toolbar .tlui-button__tool > .tlui-icon {
+  width: 20px;
+  height: 20px;
+}
+.canvas-pane .tlui-main-toolbar--horizontal .tlui-main-toolbar__overflow {
+  width: 32px;
+  min-width: 32px;
+}
+.canvas-pane .tlui-main-toolbar--horizontal .tlui-main-toolbar__extras {
+  height: 36px;
+}
+.canvas-pane .tlui-main-toolbar__inner { max-width: 100%; }
+.canvas-pane .tlui-main-toolbar__left { min-width: 0; }
+.canvas-pane .tlui-main-toolbar__tools { overflow-x: auto; }
 .canvas-loading { position: absolute; top: calc(var(--canvas-top-inset, var(--toolbar-height)) + 60px); left: 50%; transform: translateX(-50%); padding: 9px 12px; background: var(--panel); box-shadow: var(--shadow); border-radius: 6px; z-index: 500; font-size: 12px; pointer-events: none; }
 .canvas-object { color: var(--ink); width: 100%; height: 100%; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); font-family: system-ui, sans-serif; }
 .canvas-object .canvas-object-heading { height: 100%; display: flex; align-items: center; justify-content: center; gap: 5px; padding: 10px; }
@@ -121,3 +142,50 @@
 .edge-preview[role="slider"]:hover { border-color: var(--accent); }
 .edge-preview[role="slider"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .edge-preview[role="slider"] svg { pointer-events: none; }
+
+/* The dock occupies no layout space; DockedToolbar falls back before overlap. */
+.canvas-tool-dock { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 460px; pointer-events: none; }
+.canvas-tool-dock:empty { display: none; }
+.canvas-tool-dock > .canvas-docked-tools { position: relative; inset: auto; width: 100%; height: auto; overflow: visible; background: transparent; font-family: var(--tl-font-sans); --tl-color-selected: var(--accent); --tl-color-selected-contrast: var(--paper); }
+.canvas-docked-tools .tlui-main-toolbar--horizontal { padding-bottom: 0; }
+.canvas-docked-tools .tlui-main-toolbar--horizontal .tlui-main-toolbar__left { display: flex; align-items: center; gap: 6px; }
+.canvas-docked-tools .tlui-main-toolbar--horizontal .tlui-main-toolbar__extras { position: static; order: 1; width: 34px; height: 30px; flex-shrink: 0; }
+.canvas-docked-tools .tlui-main-toolbar--horizontal .tlui-main-toolbar__lock-button { position: relative; top: auto; right: auto; width: 34px; height: 30px; }
+.canvas-docked-tools .tlui-button { pointer-events: auto; }
+.canvas-top > .canvas-tool-popups { position: absolute; inset: 0; height: 0; overflow: visible; pointer-events: none; z-index: 601; --tl-color-selected: var(--accent); --tl-color-selected-contrast: var(--paper); }
+.toolbar .canvas-docked-tools button[aria-pressed="true"],
+.toolbar .canvas-docked-tools button[aria-expanded="true"] { background: transparent; color: inherit; }
+.toolbar .canvas-docked-tools .tlui-button__tool[aria-pressed="true"] { color: var(--tl-color-selected-contrast); }
+
+/* Docked tools sit directly on the toolbar, with space between hit targets. */
+.reader .canvas-docked-tools .tlui-main-toolbar__tools {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.canvas-pane .canvas-docked-tools .tlui-button__tool {
+  width: 34px;
+  min-width: 34px;
+  height: 30px;
+  margin-inline: 3px;
+  color: var(--muted);
+}
+.canvas-pane .canvas-docked-tools .tlui-button__tool > .tlui-icon {
+  width: 16px;
+  height: 16px;
+}
+.canvas-docked-tools .tlui-button__tool::after { inset: 0; border-radius: 4px; }
+.toolbar .canvas-docked-tools .tlui-button__tool[aria-pressed="true"] { color: var(--accent); }
+.reader .canvas-docked-tools .tlui-button__tool[aria-pressed="true"]:not(:disabled, [data-disabled])::after { background: var(--accent-soft); }
+.canvas-docked-tools .tlui-button__tool:hover { color: var(--ink); }
+.canvas-docked-tools .tlui-main-toolbar__overflow > .tlui-icon { transform: rotate(180deg); }
+/* Give the native action group an intentional inset instead of a hanging tab. */
+.reader .canvas-stage .tlui-menu-zone {
+  margin: 8px 12px;
+  border: 0;
+  border-radius: 6px;
+}

@@ -27,6 +27,7 @@ import Icon from "../Icon";
 import ModelLegend from "../ModelLegend";
 import { Toolbar, CanvasButton } from "./Toolbar";
 import { CanvasViewControls } from "./CanvasViewControls";
+import { DockedToolbar, ToolbarDock } from "./DockedToolbar";
 import { resolveCanvasView, withCanvasSkin, type CanvasView } from "./viewState";
 import { codeOwners } from "../graph/actions";
 import { CanvasActions, CanvasContextMenu } from "./CanvasContextMenu";
@@ -81,6 +82,7 @@ function CanvasStylePanel() {
   return shown ? <DefaultStylePanel /> : <MapStylePanel />;
 }
 const components = {
+  Toolbar: DockedToolbar,
   PageMenu: null,
   SharePanel: null,
   StylePanel: CanvasStylePanel,
@@ -131,6 +133,7 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
   } = props;
   const mapEnabled = props.view.skin !== "standard";
   const [editor, setEditor] = useState<Editor>();
+  const [toolHost, setToolHost] = useState<HTMLDivElement | null>(null);
   const [actionsHost, setActionsHost] = useState<HTMLSpanElement | null>(null);
   const [inspectorHost, setInspectorHost] = useState<HTMLSpanElement | null>(
     null,
@@ -699,6 +702,7 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
   }, [needsAttention]);
 
   return (
+    <ToolbarDock.Provider value={toolHost}>
     <CanvasActions.Provider
       value={{
         selectionForShape: shapeSelection,
@@ -719,6 +723,7 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
       <>
         <div ref={canvasTop} className="canvas-top">
         <Toolbar
+          toolHost={setToolHost}
           controls={<CanvasViewControls presentation="flat"
             onPresentation={presentation => { if (presentation === "layers") props.onLayers(); }}
             view={props.view}
@@ -1053,5 +1058,6 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
           )}
       </>
     </CanvasActions.Provider>
+    </ToolbarDock.Provider>
   );
 }

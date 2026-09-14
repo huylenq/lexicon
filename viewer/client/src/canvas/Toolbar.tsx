@@ -1,11 +1,13 @@
-import { useId, type ButtonHTMLAttributes, type ReactNode } from "react";
+import { useId, type ButtonHTMLAttributes, type ReactNode, type Ref } from "react";
 import Icon, { type IconName } from "../Icon";
 
 export function Toolbar({
   controls,
+  toolHost,
   children,
 }: {
   controls?: ReactNode;
+  toolHost?: Ref<HTMLDivElement>;
   children: ReactNode;
 }) {
   return (
@@ -13,6 +15,7 @@ export function Toolbar({
       <div className="toolbar-heading">
         {controls}
       </div>
+      {toolHost && <div className="canvas-tool-dock" ref={toolHost} />}
       <div className="toolbar-actions">{children}</div>
     </div>
   );
