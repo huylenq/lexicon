@@ -17,16 +17,16 @@ type CanvasViewControlsProps = {
 export function CanvasViewControls(props: CanvasViewControlsProps) {
   const flat = props.presentation === "flat" ? props : undefined;
   return <div className="toolbar-view-controls" role="group" aria-label="Canvas controls">
-    <CanvasToggleGroup className="canvas-presentation" label="Canvas presentation"
+    <CanvasToggleGroup iconOnly className="canvas-presentation" label="Canvas presentation"
       value={props.presentation} onChange={props.onPresentation}
       options={[{ value: "flat", label: "2D", icon: "overview" }, { value: "layers", label: "Layers", icon: "layers" }]} />
-    <CanvasToggleGroup<ElementDimension> label="Dimension" value={flat?.view.dimension} disabled={!flat}
+    <CanvasToggleGroup<ElementDimension> iconOnly label="Dimension" value={flat?.view.dimension} disabled={!flat}
       onChange={value => flat?.onDimension(value)}
       options={[
         { value: "domain", label: "Domain", icon: "context" },
         { value: "architecture", label: "Architecture", icon: "component", disabled: !flat?.view.hasArchitecture },
       ]} />
-    <CanvasToggleGroup<CanvasSkin> label="2D skin" value={flat?.view.skin} disabled={!flat}
+    <CanvasToggleGroup<CanvasSkin> iconOnly label="2D skin" value={flat?.view.skin} disabled={!flat}
       onChange={value => flat?.onSkin(value)}
       options={[
         { value: "standard", label: "Standard", icon: "graph" },

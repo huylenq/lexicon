@@ -144,12 +144,12 @@
 .edge-preview[role="slider"] svg { pointer-events: none; }
 
 /* The dock occupies no layout space; DockedToolbar falls back before overlap. */
-.canvas-tool-dock { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 460px; pointer-events: none; }
+.canvas-tool-dock { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 500px; pointer-events: none; }
 .canvas-tool-dock:empty { display: none; }
 .canvas-tool-dock > .canvas-docked-tools { position: relative; inset: auto; width: 100%; height: auto; overflow: visible; background: transparent; font-family: var(--tl-font-sans); --tl-color-selected: var(--accent); --tl-color-selected-contrast: var(--paper); }
 .canvas-docked-tools .tlui-main-toolbar--horizontal { padding-bottom: 0; }
-.canvas-docked-tools .tlui-main-toolbar--horizontal .tlui-main-toolbar__left { display: flex; align-items: center; gap: 6px; }
-.canvas-docked-tools .tlui-main-toolbar--horizontal .tlui-main-toolbar__extras { position: static; order: 1; width: 34px; height: 30px; flex-shrink: 0; }
+.canvas-docked-tools .tlui-main-toolbar--horizontal .tlui-main-toolbar__left { display: grid; grid-template-columns: 34px auto 34px; align-items: center; column-gap: 6px; }
+.canvas-docked-tools .tlui-main-toolbar--horizontal .tlui-main-toolbar__extras { position: static; grid-column: 3; grid-row: 1; width: 34px; height: 30px; flex-shrink: 0; }
 .canvas-docked-tools .tlui-main-toolbar--horizontal .tlui-main-toolbar__lock-button { position: relative; top: auto; right: auto; width: 34px; height: 30px; }
 .canvas-docked-tools .tlui-button { pointer-events: auto; }
 .canvas-top > .canvas-tool-popups { position: absolute; inset: 0; height: 0; overflow: visible; pointer-events: none; z-index: 601; --tl-color-selected: var(--accent); --tl-color-selected-contrast: var(--paper); }
@@ -189,3 +189,7 @@
   border: 0;
   border-radius: 6px;
 }
+
+.canvas-toggle-icons span { width: 30px; height: 26px; padding: 4px; justify-content: center; }
+/* Balance the optional lock with an equal empty column on the left. */
+.canvas-docked-tools .tlui-main-toolbar__left > .tlui-main-toolbar__tools { grid-column: 2; grid-row: 1; }

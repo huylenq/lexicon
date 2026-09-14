@@ -11,11 +11,17 @@ test("drawing tray docks centrally, keeps tools functional, and falls back witho
   expect(tray.y).toBeGreaterThanOrEqual(bar.y);
   expect(tray.y + tray.height).toBeLessThanOrEqual(bar.y + bar.height);
   const canvas = await page.locator(".canvas-stage").boundingBox();
+  await dock.getByTestId("tools.hand").hover();
+  const toolTip = page.locator(".tlui-tooltip");
+  await expect(toolTip).toBeVisible();
+  await expect(toolTip).toHaveAttribute("data-side", "bottom");
+  expect((await toolTip.boundingBox())!.y).toBeGreaterThanOrEqual(tray.y + tray.height);
   await dock.getByTestId("tools.draw").click();
   await expect(dock.getByTestId("tools.draw")).toHaveAttribute("aria-pressed", "true");
   await page.keyboard.press("v");
   await expect(dock.getByTestId("tools.select")).toHaveAttribute("aria-pressed", "true");
   await dock.getByTestId("tools.more-button").click();
+  await expect(page.locator(".canvas-tool-popups .tlui-popover__content")).toHaveAttribute("data-side", "bottom");
   await page.getByTestId("tools.more.ellipse").click();
   await expect(dock.getByTestId("tools.ellipse").filter({ visible: true })).toHaveAttribute("aria-pressed", "true");
   const lock = dock.getByTestId("tool-lock");
@@ -23,6 +29,8 @@ test("drawing tray docks centrally, keeps tools functional, and falls back witho
   const lockBox = (await lock.boundingBox())!;
   const lockedTray = (await dock.locator(".tlui-main-toolbar__tools").boundingBox())!;
   expect(lockedTray.y).toBe(tray.y);
+  expect(Math.abs(lockedTray.x + lockedTray.width / 2 - bar.x - bar.width / 2)).toBeLessThan(2);
+  expect(Math.abs(lockedTray.y + lockedTray.height / 2 - bar.y - bar.height / 2)).toBeLessThan(2);
   expect(lockBox.y).toBeGreaterThanOrEqual(bar.y);
   expect(lockBox.y + lockBox.height).toBeLessThanOrEqual(bar.y + bar.height);
   expect(lockBox.x).toBeGreaterThanOrEqual(lockedTray.x + lockedTray.width);
@@ -47,4 +55,21 @@ test("drawing tray docks centrally, keeps tools functional, and falls back witho
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(dock).toHaveCount(0);
   await expect(page.locator(".canvas-stage .tlui-main-toolbar")).toBeVisible();
+});
+
+test("view controls use Lexicon tooltips on hover and keyboard focus", async ({ page }) => {
+  await page.goto("/p/shop");
+  const domain = page.getByRole("radio", { name: "Domain", exact: true });
+  const label = domain.locator("..");
+  await expect(label).not.toHaveAttribute("title");
+  await label.hover();
+  const tip = page.getByRole("tooltip", { name: "Domain", exact: true });
+  await expect(tip).toBeVisible();
+  await expect(tip).toHaveClass("type-tooltip");
+  await page.keyboard.press("Escape");
+  await expect(tip).toHaveCount(0);
+  await domain.focus();
+  await expect(tip).toBeVisible();
+  await page.keyboard.press("Tab");
+  await expect(tip).toHaveCount(0);
 });

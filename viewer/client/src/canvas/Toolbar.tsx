@@ -1,5 +1,6 @@
 import { useId, type ButtonHTMLAttributes, type ReactNode, type Ref } from "react";
 import Icon, { type IconName } from "../Icon";
+import { useTooltip } from "../useTooltip";
 
 export function Toolbar({
   controls,
@@ -43,17 +44,27 @@ export function CanvasButton({
   );
 }
 
-export function CanvasToggleGroup<T extends string>({ label, value, onChange, options, className = "", disabled = false }: {
+export function CanvasToggleGroup<T extends string>({ label, value, onChange, options, className = "", disabled = false, iconOnly = false }: {
   label: string; value?: T; onChange: (value: T) => void;
   options: readonly { value: T; label: string; icon: IconName; title?: string; disabled?: boolean }[];
-  className?: string; disabled?: boolean;
+  className?: string; disabled?: boolean; iconOnly?: boolean;
 }) {
   const name = useId();
-  return <fieldset className={`canvas-toggle-group ${className}`} aria-label={label} disabled={disabled}>
-    {options.map(option => <label key={option.value} title={option.title ?? option.label}>
-      <input type="radio" name={name} aria-label={option.title ?? option.label}
-        disabled={option.disabled} checked={value === option.value} onChange={() => onChange(option.value)} />
-      <span><Icon name={option.icon} size={14} />{option.label}</span>
-    </label>)}
+  return <fieldset className={`canvas-toggle-group ${iconOnly ? "canvas-toggle-icons" : ""} ${className}`} aria-label={label} disabled={disabled}>
+    {options.map(option => <ToggleOption key={option.value} option={option} name={name}
+      checked={value === option.value} iconOnly={iconOnly} onChange={() => onChange(option.value)} />)}
   </fieldset>;
+}
+
+function ToggleOption({ option, name, checked, iconOnly, onChange }: {
+  option: { label: string; icon: IconName; title?: string; disabled?: boolean };
+  name: string; checked: boolean; iconOnly: boolean; onChange: () => void;
+}) {
+  const tip = useTooltip<HTMLLabelElement>(option.title ?? option.label);
+  return <><label ref={tip.anchor} onPointerEnter={tip.onPointerEnter} onPointerLeave={tip.onPointerLeave}>
+      <input type="radio" name={name} aria-label={option.title ?? option.label}
+        aria-describedby={tip.describedBy} onFocus={tip.onFocus} onBlur={tip.onBlur}
+        disabled={option.disabled} checked={checked} onChange={onChange} />
+      <span><Icon name={option.icon} size={14} />{!iconOnly && option.label}</span>
+    </label>{tip.tooltip}</>;
 }

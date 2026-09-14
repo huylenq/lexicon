@@ -1,6 +1,6 @@
 import { createContext, useContext, useLayoutEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { ContainerProvider, DefaultToolbar, useEditor, useValue } from "tldraw";
+import { ContainerProvider, DefaultToolbar, DefaultToolbarContent, TldrawUiOrientationProvider, useEditor, useValue } from "tldraw";
 
 export const ToolbarDock = createContext<HTMLDivElement | null>(null);
 
@@ -41,7 +41,11 @@ export function DockedToolbar() {
     <div className={`canvas-docked-tools tl-container tl-theme__${dark ? "dark" : "light"}`}
       onPointerDownCapture={() => editor.focus()}>
       {container && <ContainerProvider container={container}>
-        <DefaultToolbar minItems={8} maxItems={8} />
+        <DefaultToolbar minItems={8} maxItems={8}>
+          <TldrawUiOrientationProvider orientation="horizontal" tooltipSide="bottom">
+            <DefaultToolbarContent />
+          </TldrawUiOrientationProvider>
+        </DefaultToolbar>
       </ContainerProvider>}
     </div>, host,
   )}</>;
