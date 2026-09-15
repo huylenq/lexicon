@@ -110,7 +110,6 @@ function ReaderProject({ projectId }: { projectId: string }) {
   const closeCode = () => {
     codeNavigation.visibility(false);
     setMobileCode(false);
-    codeToggle.current?.focus();
   };
   const openCode = (location: CodeLocation, readMapping = false, mode: ReaderOpenMode = "preview") => {
     codeNavigation.navigate(location, readMapping, mode);
@@ -223,6 +222,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
           e.preventDefault();
           e.stopPropagation();
           closeCode();
+          codeToggle.current?.focus();
         }
       }
     };
@@ -622,7 +622,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
             targetId={codeNavigation.targetId}
             mapping={codeNavigation.mapping}
             open={codeNavigation.open}
-            onClose={closeCode}
+            onClose={() => { closeCode(); codeToggle.current?.focus(); }}
             onOwner={select}
             onMapping={(m, mode) =>
               openCode({ target: m.target, mapping: m.id }, true, mode)
