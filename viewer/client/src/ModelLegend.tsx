@@ -41,7 +41,7 @@ export default function ModelLegend({
           <i /> Relationship
         </span>
         <span>
-          <i className="code" /> Code mapping
+          <i className="code" /> Source mapping
         </span>
       </span>
       <span className="model-count">
@@ -50,7 +50,7 @@ export default function ModelLegend({
         {projection.nodes.some(n => ["person", "system", "container", "component"].includes(n.kind)) &&
           <> · {projection.nodes.filter(n => ["person", "system", "container", "component"].includes(n.kind)).length} architecture</>}
         {" · "}
-        {projection.nodes.filter((node) => node.kind === "code").length} code
+        {projection.nodes.filter((node) => node.kind === "code").length} sources
       </span>
       {children}
     </div>

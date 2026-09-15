@@ -1,3 +1,4 @@
+import { sourceKind, sourceLabel } from "../../shared/source";
 import { Link } from "react-router-dom";
 import { related, flowsFor, parentOf, isArchitecture, isModelElement, typeNames, type Model } from "../../shared/model";
 import type { GraphIndex, GraphSelection, Target } from "./graph/model";
@@ -66,12 +67,12 @@ export default function ReaderCardBody({ card, model, graphIndex, params, loadin
             <button
               className="quiet"
               disabled={allCode}
-              title={allCode ? "Turn off Show all code to change individual expansions" : undefined}
+              title={allCode ? "Turn off Show all sources to change individual expansions" : undefined}
               onClick={() =>
                 graphAction("expand", { kind: "item", id: item.id })
               }
             >
-              Toggle code in canvas
+              Toggle sources in canvas
             </button>
           )}
         </div>
@@ -294,9 +295,9 @@ export default function ReaderCardBody({ card, model, graphIndex, params, loadin
                   {item.codeLinks.length > 0 && (
                     <section>
                       <div className="section-heading">
-                        <h2 className="object-label"><Icon name="code-link" />In the implementation</h2>
+                        <h2 className="object-label"><Icon name="code-link" />Sources</h2>
                         <span className="muted">
-                          {item.codeLinks.length} code links
+                          {item.codeLinks.length} source links
                         </span>
                       </div>
                       <div className="code-links">
@@ -315,14 +316,14 @@ export default function ReaderCardBody({ card, model, graphIndex, params, loadin
                             }
                           >
                             <span className="code-role">
-                              <span>{l.role}</span> <Icon name="open" size={14} />
+                              <span>{sourceKind(l)} · {l.role}</span> <Icon name="open" size={14} />
                             </span>
                             <strong>
-                              <ObjectName type="code-link" name={l.symbol || l.file.split("/").pop() || l.file} size={14} />
+                              <ObjectName type="code-link" name={sourceLabel(l)} size={14} />
                             </strong>
                             <code>
                               {l.file}
-                              {l.line ? `:${l.line}` : ""}
+                              {l.heading ? `#${l.heading}` : l.line ? `:${l.line}` : ""}
                             </code>
                             <p>{l.description}</p>
                           </button>

@@ -15,14 +15,14 @@ import { join, resolve } from "node:path";
 import { loadModel, parseModel, serializeModel, readModelDocument } from "../server/model";
 import { readCode } from "../server/code";
 
-const native = `<lexicon schema="3.0" id="shop"><name>Shop</name><description>Ordering goods.</description>
+const native = `<lexicon schema="3.2" id="shop"><name>Shop</name><description>Ordering goods.</description>
 <context id="orders"><name>Orders</name><description>Accept customer orders.</description>
 <concept id="order" classification="aggregate"><name>Order</name><description>Items purchased together.</description>
 <annotation kind="rule" evidence="intended">Total follows the items.</annotation>
-<code-link file="order.ts" symbol="Order" role="representation">Stores ordered items.</code-link>
+<code-link kind="code" file="order.ts" symbol="Order" role="representation">Stores ordered items.</code-link>
 </concept><concept id="line"><name>Line</name><description>A quantity of one item.</description></concept></context>
 <relationship id="members" from="order" to="line"><name>contains</name><description>The order owns its lines.</description>
-<code-link file="order.ts" symbol="Order" role="enforcement">Owns the item collection.</code-link></relationship></lexicon>`;
+<code-link kind="code" file="order.ts" symbol="Order" role="enforcement">Owns the item collection.</code-link></relationship></lexicon>`;
 const temp = async (run: (dir: string) => Promise<void>) => {
   const dir = await mkdtemp(join(tmpdir(), "lexicon-test-"));
   try {
@@ -33,7 +33,7 @@ const temp = async (run: (dir: string) => Promise<void>) => {
 };
 
 describe("the four-object model", () => {
-  test("round-trips domain meaning, aggregate classification, evidence, and relationship code links", () => {
+  test("round-trips domain meaning, aggregate classification, evidence, and relationship source links", () => {
     const m = parseModel(native);
     expect(m.issues).toEqual([]);
     expect(parseModel(serializeModel(m))).toEqual(m);
@@ -51,7 +51,7 @@ describe("the four-object model", () => {
       to: "line",
     });
   });
-  test("catches duplicate identities, dangling endpoints, invalid ownership shapes and code links", () => {
+  test("catches duplicate identities, dangling endpoints, invalid ownership shapes and source links", () => {
     expect(
       parseModel(native.replace('id="line"', 'id="order"')).issues.some((i) =>
         i.message.includes("Duplicate"),
@@ -90,7 +90,7 @@ describe("the four-object model", () => {
   });
   test("rejects unsupported schema, malformed XML and entity declarations", () => {
     expect(() =>
-      parseModel(native.replace('schema="3.0"', 'schema="9.0"')),
+      parseModel(native.replace('schema="3.2"', 'schema="9.0"')),
     ).toThrow();
     expect(() => parseModel("<lexicon>")).toThrow();
     expect(() =>
@@ -137,6 +137,7 @@ describe("links into source", () => {
       );
       expect(
         await readCode(dir, {
+          kind: "code",
           file: "order.ts",
           symbol: "Order",
           role: "definition",
@@ -148,6 +149,7 @@ describe("links into source", () => {
         "class Order:\n    def total(self):\n        return 1\n\nclass Invoice:\n    def total(self):\n        return 2\n",
       );
       const link = {
+        kind: "code" as const,
         file: "order.py",
         symbol: "total",
         role: "implementation",
@@ -166,7 +168,7 @@ describe("links into source", () => {
       await mkdir(join(dir, "project"));
       await writeFile(join(dir, "secret.txt"), "outside");
       await symlink(join(dir, "secret.txt"), join(dir, "project/link.txt"));
-      const l = { file: "link.txt", role: "definition", description: "test" };
+      const l = { kind: "code" as const, file: "link.txt", role: "definition", description: "test" };
       await expect(readCode(join(dir, "project"), l)).rejects.toThrow("root");
       await writeFile(join(dir, "project/source.txt"), "a\nb");
       expect(
@@ -192,7 +194,7 @@ describe("links into source", () => {
 test("the checker reports mismatches without converting or writing the original", async () =>
   temp(async (dir) => {
     await mkdir(join(dir, "lexicon"));
-    const original = native.replace('schema="3.0"', 'schema="2.0"');
+    const original = native.replace('schema="3.2"', 'schema="2.0"');
     await writeFile(join(dir, "lexicon/model.xml"), original);
     const result = spawnSync(process.execPath, [resolve(import.meta.dir, "../server/cli.ts"), "check", dir], { encoding: "utf8" });
     expect(result.status).toBe(1);
@@ -201,11 +203,11 @@ test("the checker reports mismatches without converting or writing the original"
   }));
 
 test("optional code-link IDs round-trip and must be unique within their owner", () => {
-  const xml = `<lexicon schema="3.0" id="test"><name>Test</name><description>Test.</description><context id="ctx"><name>Context</name><description>Scope.</description><code-link id="definition" file="a.ts" role="definition">Definition.</code-link></context></lexicon>`;
+  const xml = `<lexicon schema="3.2" id="test"><name>Test</name><description>Test.</description><context id="ctx"><name>Context</name><description>Scope.</description><code-link kind="code" id="definition" file="a.ts" role="definition">Definition.</code-link></context></lexicon>`;
   const model = parseModel(xml);
   expect(model.items[0].codeLinks[0].id).toBe("definition");
   expect(parseModel(serializeModel(model)).items[0].codeLinks[0].id).toBe("definition");
-  const duplicate = xml.replace('</context>', '<code-link id="definition" file="b.ts" role="usage">Usage.</code-link></context>');
+  const duplicate = xml.replace('</context>', '<code-link kind="code" id="definition" file="b.ts" role="usage">Usage.</code-link></context>');
   expect(parseModel(duplicate).issues.some((i) => i.severity === "error")).toBe(true);
   expect(parseModel(xml.replace('id="definition"', 'id=""')).issues.some((i) => i.severity === "error")).toBe(true);
 });

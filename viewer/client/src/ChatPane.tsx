@@ -314,7 +314,7 @@ export default function ChatPane({
               <details className="chat-context-snapshot">
                 <summary>
                   {message.context.name} · {message.context.codeLinks.length}{" "}
-                  code links
+                  source links
                 </summary>
                 <button
                   className="quiet"
@@ -326,7 +326,7 @@ export default function ChatPane({
                   <div key={i}>
                     <code>
                       {link.file}
-                      {link.symbol
+                      {link.heading ? `#${link.heading}` : link.symbol
                         ? `#${link.symbol}`
                         : link.line
                           ? `:${link.line}`
@@ -468,7 +468,7 @@ export default function ChatPane({
               onChange={(e) => setIncludeContext(e.target.checked)}
             />
             <ObjectName type={selected.type} name={selected.name} size={14} />
-            <small>{selected.codeLinks.length} code links</small>
+            <small>{selected.codeLinks.length} source links</small>
           </label>
         )}
         <div className="chat-input-wrap">

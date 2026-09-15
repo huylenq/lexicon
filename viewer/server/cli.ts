@@ -27,7 +27,7 @@ try {
       for (const link of item.codeLinks) {
         try {
           const result = await readCode(codeRoot, link);
-          if (["missing-symbol", "ambiguous-symbol"].includes(result.status))
+          if (["missing-symbol", "ambiguous-symbol", "missing-heading"].includes(result.status))
             throw new Error(result.status);
           if (result.status === "unsupported") {
             unchecked++;
@@ -38,12 +38,12 @@ try {
         } catch (error) {
           broken++;
           console.error(
-            `broken: ${item.id}: ${link.file}#${link.symbol || ""}: ${(error as Error).message}`,
+            `broken: ${item.id}: ${link.file}#${link.heading || link.symbol || ""}: ${(error as Error).message}`,
           );
         }
       }
     console.log(
-      `${model.items.length} objects; ${checked} code links checked; ${unchecked} unchecked; ${broken} broken; ${errors.length} model errors.`,
+      `${model.items.length} objects; ${checked} source links checked; ${unchecked} unchecked; ${broken} broken; ${errors.length} model errors.`,
     );
     console.log(
       "These checks establish structure and target resolution. Review relationship claims and rule evidence against source.",

@@ -142,14 +142,16 @@ export function applyPatch(model: Model, raw: unknown): Model {
     for (const link of item.codeLinks) {
       if (
         !object(link) ||
+        !["code", "document"].includes(String(link.kind)) ||
         [link.file, link.role, link.description].some(
           (s) => typeof s !== "string",
         ) ||
         (link.symbol !== undefined && typeof link.symbol !== "string") ||
+        (link.heading !== undefined && typeof link.heading !== "string") ||
         (link.id !== undefined && typeof link.id !== "string")
       )
         throw new Error("Invalid code link.");
-      keys(link, ["id", "file", "role", "description", "symbol", "line"]);
+      keys(link, ["kind", "id", "file", "role", "description", "symbol", "heading", "line"]);
     }
     if (ids.has(item.id) || removes.includes(item.id))
       throw new Error(`Conflicting operations for ${item.id}.`);
@@ -200,9 +202,9 @@ export async function validateChangedLinks(
     for (const link of item.codeLinks) {
       if (existing.has(JSON.stringify(link))) continue;
       const result = await readCode(codeRoot, link);
-      if (["missing-symbol", "ambiguous-symbol"].includes(result.status))
+      if (["missing-symbol", "ambiguous-symbol", "missing-heading"].includes(result.status))
         throw new Error(
-          `Code link ${link.file}#${link.symbol}: ${result.status}.`,
+          `Source link ${link.file}#${link.heading || link.symbol}: ${result.status}.`,
         );
       if (result.status === "unsupported")
         warnings.push(`Symbol not checked: ${link.file}#${link.symbol}.`);

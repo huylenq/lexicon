@@ -1,4 +1,4 @@
-import type { CodeLink, ModelItem } from "./model";
+import type { SourceLink, ModelItem } from "./model";
 
 export const providers = ["codex", "grok", "claude", "pi", "omp", "hermes"] as const;
 export type Provider = (typeof providers)[number];
@@ -24,7 +24,7 @@ export interface ChatContext {
   id: string;
   name: string;
   type: ModelItem["type"];
-  codeLinks: CodeLink[];
+  codeLinks: SourceLink[];
 }
 export interface ModelPatch {
   project?: { name?: string; description?: string };

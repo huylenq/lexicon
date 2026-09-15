@@ -35,9 +35,9 @@ test("invalid ownership, cycles, and dangling links cannot be saved", () => {
 });
 
 test("only the installed schema is readable and writable", () => {
-  for (const schema of ["2.0", "3.0-prototype", "9.0"])
-    expect(() => parseModel(xml.replace('schema="3.0"', `schema="${schema}"`))).toThrow("Expected");
-  expect(() => serializeModel({ ...model(), schema: "2.0" } as unknown as Model)).toThrow("Only schema 3.0");
+  for (const schema of ["2.0", "3.0-prototype", "3.0", "3.1", "9.0"])
+    expect(() => parseModel(xml.replace('schema="3.2"', `schema="${schema}"`))).toThrow("Expected");
+  expect(() => serializeModel({ ...model(), schema: "2.0" } as unknown as Model)).toThrow("Only schema 3.2");
 });
 
 test("a parent move preserves identity, evidence and relationships without implicit cascading deletion", () => {

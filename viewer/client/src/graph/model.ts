@@ -1,5 +1,5 @@
-import type { CodeLink, Flow, Model, ModelItem } from "../../../shared/model";
-import { codeTargetId as targetId, codeLinkKey, parentOf, dimensionOf, isModelElement, typeNames, type ModelElement, type ElementDimension } from "../../../shared/model";
+import type { SourceLink, Flow, Model, ModelItem } from "../../../shared/model";
+import { sourceTargetId as targetId, sourceLinkKey, legacySourceLinkKey, legacySourceTargetId, parentOf, dimensionOf, isModelElement, typeNames, type ModelElement, type ElementDimension } from "../../../shared/model";
 
 export type GraphSelection =
   | { kind: "item"; id: string }
@@ -10,10 +10,10 @@ export type Mapping = {
   id: string;
   owner: ModelItem;
   index: number;
-  link: CodeLink;
+  link: SourceLink;
   target: string;
 };
-export type Target = { id: string; link: CodeLink; mappings: Mapping[] };
+export type Target = { id: string; link: SourceLink; mappings: Mapping[] };
 export type GraphIndex = ReturnType<typeof indexModel>;
 export function descendantIds(index: GraphIndex, id: string): Set<string> {
   const ids = new Set([id]);
@@ -37,11 +37,12 @@ export function indexModel(model: Model) {
   const targets = new Map<string, Target>();
   const mappings = new Map<string, Mapping>();
   const legacyMappings = new Map<string, string>();
+  const legacyTargets = new Map<string, string>();
   for (const owner of items.values()) {
     const occurrences = new Map<string, number>();
     owner.codeLinks.forEach((link, index) => {
       const id = targetId(link);
-      const key = codeLinkKey(link), count = occurrences.get(key) || 0;
+      const key = sourceLinkKey(link), count = occurrences.get(key) || 0;
       occurrences.set(key, count + 1);
       const mapping = {
         id: mappingId(owner.id, count ? `${key}:${count + 1}` : key),
@@ -52,11 +53,18 @@ export function indexModel(model: Model) {
       };
       mappings.set(mapping.id, mapping);
       legacyMappings.set(mappingId(owner.id, index), mapping.id);
+      const previousKey = legacySourceLinkKey(link);
+      if (previousKey !== key) legacyMappings.set(mappingId(owner.id, previousKey), mapping.id);
+      const previousTarget = legacySourceTargetId(link);
+      if (previousTarget !== id) legacyTargets.set(previousTarget, id);
       if (!targets.has(id)) targets.set(id, { id, link, mappings: [] });
       targets.get(id)!.mappings.push(mapping);
     });
   }
-  return { items, targets, mappings, legacyMappings };
+  // Existing canonical targets/mappings win over ambiguous old document aliases.
+  for (const id of targets.keys()) legacyTargets.delete(id);
+  for (const id of mappings.keys()) legacyMappings.delete(id);
+  return { items, targets, mappings, legacyMappings, legacyTargets };
 }
 
 export type GraphVertex = {
@@ -150,7 +158,7 @@ export function projectGraph(index: GraphIndex, options: GraphOptions) {
       kind: "code",
       parentId: fileId(target.link.file),
       title:
-        target.link.symbol ||
+        target.link.heading || target.link.symbol ||
         (target.link.line ? `Line ${target.link.line}` : "Whole file"),
       subtitle: target.link.file,
       selection: { kind: "code", id },

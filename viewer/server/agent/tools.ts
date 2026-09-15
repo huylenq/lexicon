@@ -2,10 +2,17 @@
 const string = { type: "string", minLength: 1 };
 const object = (properties: Record<string, unknown>, required: string[] = []) => ({ type: "object" as const, properties, required, additionalProperties: false });
 const projectId = { ...string, description: "ID from lexicon_projects; never a filesystem path." };
+const sourceFields = { id: string, file: string, role: string, description: string };
+const requiredSource = ["kind", "file", "role", "description"];
+const sourceLink = { oneOf: [
+  object({ ...sourceFields, kind: { const: "code" }, symbol: string, line: { type: "integer", minimum: 1 } }, requiredSource),
+  object({ ...sourceFields, kind: { const: "document" }, heading: string }, [...requiredSource, "heading"]),
+  object({ ...sourceFields, kind: { const: "document" }, line: { type: "integer", minimum: 1 } }, requiredSource),
+] };
 const itemFields = {
   name: string, description: string, parent: string, classification: { type: "string" }, from: string, to: string,
   annotations: { type: "array", items: object({ kind: string, text: string, evidence: { enum: ["intended", "observed", "enforced"] } }, ["kind", "text"]) },
-  codeLinks: { type: "array", items: object({ id: string, file: string, symbol: string, line: { type: "integer", minimum: 1 }, role: string, description: string }, ["file", "role", "description"]) },
+  codeLinks: { type: "array", items: sourceLink },
   steps: { type: "array", items: object({ id: string, relationship: string, label: string }, ["id", "relationship", "label"]) },
 };
 const item = object({ id: string, type: { enum: ["context", "concept", "person", "system", "container", "component", "relationship", "flow"] }, ...itemFields }, ["id", "type", "name", "description"]);

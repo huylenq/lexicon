@@ -7,7 +7,7 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 import type { ViewerSession } from "../shared/agent";
 
 test.use({ serviceWorkers: "block" });
-const xml = '<lexicon schema="3.0" id="voice"><name>Voice Trial</name><description>Agent integration trial.</description><context id="scope"><name>Ordering</name><description>Order management.</description><concept id="order"><name>Order</name><description>A purchase.</description><code-link file="order.ts" symbol="Order" role="representation">Stores a purchase.</code-link></concept></context></lexicon>';
+const xml = '<lexicon schema="3.2" id="voice"><name>Voice Trial</name><description>Agent integration trial.</description><context id="scope"><name>Ordering</name><description>Order management.</description><concept id="order"><name>Order</name><description>A purchase.</description><code-link kind="code" file="order.ts" symbol="Order" role="representation">Stores a purchase.</code-link></concept></context></lexicon>';
 
 test("MCP creates and updates visible items, targets one viewer, observes selection, and undoes exact XML", async ({ page, context, request, baseURL }, testInfo) => {
   const root = await mkdtemp(join(tmpdir(), "lexicon-agent-browser-"));
@@ -128,7 +128,7 @@ test("embedded chat targets its originating tab and shares exact undo with MCP",
     await expect(other.locator("main [data-reader-card].active h1")).toHaveText("Ordering");
     const afterCreate = await readFile(join(root, "lexicon/model.xml"), "utf8");
     await writeFile(join(root, "main.rs"), "fn main() {}");
-    await send([{ name: "lexicon_edit", arguments: { action: "update", itemId: "marker", fields: { name: "Updated Marker", codeLinks: [{ file: "main.rs", symbol: "main", role: "implementation", description: "Rust entry" }] } } }, { name: "lexicon_navigate", arguments: { action: "select", itemId: "marker" } }, { name: "lexicon_navigate", arguments: { action: "fit" } }]);
+    await send([{ name: "lexicon_edit", arguments: { action: "update", itemId: "marker", fields: { name: "Updated Marker", codeLinks: [{ kind: "code", file: "main.rs", symbol: "main", role: "implementation", description: "Rust entry" }] } } }, { name: "lexicon_navigate", arguments: { action: "select", itemId: "marker" } }, { name: "lexicon_navigate", arguments: { action: "fit" } }]);
     await expect(chat.getByText("Viewer confirmed: fit", { exact: true })).toBeVisible();
     await expect(chat.getByText("Symbol not checked: main.rs#main.", { exact: true })).toBeVisible();
     await expect(page.locator("main [data-reader-card].active h1")).toHaveText("Updated Marker");

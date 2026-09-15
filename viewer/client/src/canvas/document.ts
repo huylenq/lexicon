@@ -76,6 +76,14 @@ export function migrateModelReferences(
 ): TLStoreSnapshot {
   const remap = new Map<string, string>();
   const records = Object.values(snapshot.store).map((record) => {
+    if (record.typeName === "shape" && record.type === "lexicon-object") {
+      const graphId = index.legacyTargets.get(record.props.graphId);
+      if (graphId) {
+        const id = isPrimary(record) ? modelShapeId(graphId, typeof record.meta.lexiconProjection === "string" ? record.meta.lexiconProjection : undefined) : record.id;
+        remap.set(record.id, id);
+        return { ...record, id, props: { ...record.props, graphId } };
+      }
+    }
     // Older browser snapshots stored collapsed frames separately from their full size.
     // Restore that size before containment runs; current canvases always show concepts.
     if (record.typeName === "shape" && record.type === "lexicon-object" && record.props.group) {

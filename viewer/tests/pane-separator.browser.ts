@@ -4,13 +4,13 @@ test.use({ reducedMotion: "reduce", serviceWorkers: "block" });
 
 for (const pane of [
   { label: "Resize canvas and reader", container: ".reader-workspace", edge: "left", min: 25, max: 75, step: 2 },
-  { label: "Resize code workspace", container: ".pane-area", edge: "right", min: 25, max: 60, step: 2 },
+  { label: "Resize source workspace", container: ".pane-area", edge: "right", min: 25, max: 60, step: 2 },
   { label: "Resize Agent and reader", container: ".reader", edge: "right", min: 280, max: 720, step: 16 },
 ] as const) {
   test(`${pane.label} preserves pointer limits and keyboard direction`, async ({ page }) => {
     await page.goto("/p/shop?item=order");
     await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
-    if (pane.label === "Resize code workspace") {
+    if (pane.label === "Resize source workspace") {
       await page.locator("[data-reader-card].active .code-links button").first().click();
     } else if (pane.label === "Resize Agent and reader") {
       await page.getByRole("button", { name: "Agent", exact: true }).click();

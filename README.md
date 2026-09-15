@@ -25,7 +25,7 @@ Open **http://127.0.0.1:5374**. The repository's worked examples live in `exampl
 
 For development, run `mise run viewer` from this repository, then open **http://127.0.0.1:5373**.
 
-The reader provides context browsing, search across meaning and code symbols, incoming and outgoing relationships with separate links for each endpoint and relationship, and a source pane with declaration highlighting. Browser addresses preserve the selected item and code link. Refresh reads the current files. Unsupported schemas open with Agent available for explicit migration; only schema 3.0 is parsed.
+The reader provides context browsing, search across meaning and code symbols, incoming and outgoing relationships with separate links for each endpoint and relationship, and a source pane with declaration highlighting. Browser addresses preserve the selected item and code link. Refresh reads the current files. Unsupported schemas open with Agent available for explicit migration; only schema 3.2 is parsed.
 
 Projects open in **Canvas**, with concepts grouped by context alongside notes, drawings, and media. Expand code into shared target nodes or focus on a neighborhood; selections update the reader. The [viewer guide](viewer/README.md#canvas) covers navigation and saved layouts. The **Diagram / Atlas** toggle changes the presentation within this same tldraw canvas.
 
@@ -112,3 +112,9 @@ The runtime contract lives in `viewer/shared/model.ts`; the XML parser and struc
 The [pre-lean implementation](quarantine/pre-lean-b089f1c/README.md) is preserved as browsable source for future distillation.
 
 MIT licensed. Earlier design history remains in [CHANGELOG.md](CHANGELOG.md) and Git.
+
+### Document source links
+
+The Sources pane reads implementation code and supporting Markdown documents. Markdown supports rendered and raw views, a heading navigator, and stable owner-local mapping IDs. Existing `<code-link>` XML remains supported; use `heading="section-anchor"` and `role="specification"` to link a documented requirement. See [Source links](MODEL.md#source-links) and the [document source example](examples/document-sources/README.md). Document evidence establishes what is specified, not what is implemented or enforced.
+
+Source links have an explicit `kind`: `code` for implementation source and symbol lookup, or `document` for written evidence and document navigation. Kind, locator, role, and evidence qualification stay separate; see [Source-link taxonomy](MODEL.md#taxonomy). Schema 3.2 models require migration from earlier versions.

@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import type { CodeExcerpt } from "../../shared/model";
+import type { SourceExcerpt } from "../../shared/model";
 import type { Mapping, Target } from "./graph/model";
 import { request, ErrorNotice } from "./ui";
 import Icon from "./Icon";
 import ObjectName from "./ObjectName";
 import { readerLink } from "./readerNavigation";
 import type { ReaderOpenMode } from "./readerState";
+import DocumentSource from "./DocumentSource";
+import { sourceKind, sourceLabel, sourceLines } from "../../shared/source";
 export default function CodePane({
   projectId,
   target,
@@ -37,7 +39,7 @@ export default function CodePane({
   canBack: boolean;
   canForward: boolean;
 }) {
-  const [result, setResult] = useState<CodeExcerpt>();
+  const [result, setResult] = useState<SourceExcerpt>();
   const [error, setError] = useState("");
   const [whole, setWhole] = useState(false);
   const heading = useRef<HTMLDivElement>(null);
@@ -53,7 +55,7 @@ export default function CodePane({
     setWhole(false);
     scroll.current?.scrollTo(0, 0);
     if (!target) return;
-    request<CodeExcerpt>(
+    request<SourceExcerpt>(
       `/api/projects/${projectId}/code?target=${encodeURIComponent(target.id)}`,
     )
       .then((r) => {
@@ -66,7 +68,7 @@ export default function CodePane({
       active = false;
     };
   }, [projectId, target]);
-  const lines = result?.text.split("\n") || [];
+  const lines = result ? sourceLines(result.text) : [];
   const start =
     whole || !result?.startLine ? 0 : Math.max(0, result.startLine - 5);
   const end =
@@ -74,13 +76,13 @@ export default function CodePane({
       ? lines.length
       : Math.min(lines.length, result.endLine + 4, start + 250);
   return (
-    <aside id="code-pane" className="code-pane" aria-label="Code workspace" hidden={!open}>
+    <aside id="code-pane" className="code-pane" aria-label="Source workspace" hidden={!open}>
       <div className="code-pane-heading" ref={heading} tabIndex={-1}>
-        <span className="pane-title">Code</span>
+        <span className="pane-title">Sources</span>
         <div className="code-navigation">
           <button
             className="quiet"
-            aria-label="Previous code location"
+            aria-label="Previous source location"
             disabled={!canBack}
             onClick={onBack}
           >
@@ -88,7 +90,7 @@ export default function CodePane({
           </button>
           <button
             className="quiet"
-            aria-label="Next code location"
+            aria-label="Next source location"
             disabled={!canForward}
             onClick={onForward}
           >
@@ -96,8 +98,8 @@ export default function CodePane({
           </button>
           <button
             className="quiet icon-button pane-close"
-            title="Hide Code"
-            aria-label="Close code pane"
+            title="Hide Sources"
+            aria-label="Close source pane"
             onClick={onClose}
           >
             <Icon name="close" />
@@ -111,27 +113,27 @@ export default function CodePane({
         <div className="code-empty">
           <h2>
             {targetId
-              ? "Code target unavailable"
-              : "Explore the implementation"}
+              ? "Source target unavailable"
+              : "Explore the sources"}
           </h2>
           <p>
             {targetId
-              ? "This target is no longer linked in the model. Choose another code link from Browse or Canvas."
-              : "Choose a code link in the reader or a code card in Canvas. Your code location stays here as you explore the domain."}
+              ? "This target is no longer linked in the model. Choose another source link from Browse or Canvas."
+              : "Choose a source link in the reader or a source card in Canvas. Read implementation code and supporting documents alongside the model."}
           </p>
         </div>
       ) : (
         <>
-          <nav className="code-breadcrumb" aria-label="Code location">
+          <nav className="code-breadcrumb" aria-label="Source location">
+            <span className="source-kind">{sourceKind(link)}</span>
             <code>{link.file}</code>
             <h2>
-              <ObjectName type="code" name={link.symbol ||
-                (link.line ? `Line ${link.line}` : link.file.split("/").pop() || link.file)} />
+              <ObjectName type="code" name={sourceLabel(link)} />
             </h2>
           </nav>
           <div className="code-target-actions">
             <button className="quiet" onClick={onLocate}>
-              Locate code in canvas
+              Locate source in canvas
             </button>
           </div>
           {mapping && (
@@ -146,7 +148,7 @@ export default function CodePane({
               <p>{mapping.link.description}</p>
             </div>
           )}
-          <details className="code-mappings" key={targetId}>
+          <details className="code-mappings" key={`mappings:${targetId}`}>
             <summary>Mapped from · {target!.mappings.length}</summary>
             <div className="code-mapping-list">
               {target!.mappings.map((m) => (
@@ -175,7 +177,7 @@ export default function CodePane({
               Opening source…
             </p>
           )}
-          {result && (
+          {result?.kind === "document" ? <DocumentSource key={`document:${targetId}`} result={result} open={open} /> : result && (
             <>
               <div className="code-controls">
                 <span>

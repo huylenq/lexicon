@@ -1,3 +1,4 @@
+import { legacySourceTargetId } from "../../shared/model";
 import { useEffect, useState } from "react";
 import type { ReaderSetParams } from "./readerNavigation";
 import type { ReaderOpenMode } from "./readerState";
@@ -14,7 +15,11 @@ export function normalizeNavigation(
   p.delete("canvas"); // Both former renderer links now open the same tldraw canvas.
   const stableMapping = (id: string) => index.legacyMappings.get(id) || id;
   if (p.has("codeMapping")) p.set("codeMapping", stableMapping(p.get("codeMapping")!));
-  const code = p.get("code");
+  let code = p.get("code");
+  const selectedMapping = index.mappings.get(p.get("codeMapping") || "");
+  const migratedTarget = selectedMapping && code === legacySourceTargetId(selectedMapping.link)
+    ? selectedMapping.target : index.legacyTargets.get(code || "");
+  if (migratedTarget) { code = migratedTarget; p.set("code", code); }
   if (code && !code.startsWith("code:")) {
     const mapping = index.mappings.get(
       stableMapping(mappingId(code, Number(p.get("link") || 0))),
@@ -35,7 +40,7 @@ export function normalizeNavigation(
     p.set("selection", JSON.stringify(selection));
   }
   if (selection?.kind === "code") {
-    p.set("code", selection.id);
+    p.set("code", index.legacyTargets.get(selection.id) || selection.id);
     p.delete("codeMapping");
     p.delete("selection");
     p.set("focus", "code");

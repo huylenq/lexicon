@@ -22,7 +22,7 @@ import {
 const root = await mkdtemp(join(tmpdir(), "lexicon-chat-model-"));
 afterAll(() => rm(root, { recursive: true, force: true }));
 const xml =
-  '<lexicon schema="3.0" id="shop"><name>Shop</name><description>Orders.</description><context id="ordering"><name>Ordering</name><description>Accept orders.</description><concept id="order"><name>Order</name><description>An order.</description></concept></context><relationship id="owns" from="ordering" to="order"><name>owns</name><description>Owns orders.</description></relationship></lexicon>';
+  '<lexicon schema="3.2" id="shop"><name>Shop</name><description>Orders.</description><context id="ordering"><name>Ordering</name><description>Accept orders.</description><concept id="order"><name>Order</name><description>An order.</description></concept></context><relationship id="owns" from="ordering" to="order"><name>owns</name><description>Owns orders.</description></relationship></lexicon>';
 
 test("incremental renaming preserves unrelated objects and stable relationship endpoints", () => {
   const model = parseModel(xml),
@@ -78,6 +78,7 @@ test("new source links must resolve, including symbols, before a model can be sa
           ...order,
           codeLinks: [
             {
+              kind: "code",
               file: "order.ts",
               symbol,
               role: "representation",

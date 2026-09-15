@@ -1,3 +1,4 @@
+import { sourceKind, sourceLabel } from "../../shared/source";
 import type { GraphIndex, GraphSelection, Mapping } from "./graph/model";
 import { Paragraph } from "./ui";
 import Icon from "./Icon";
@@ -33,7 +34,7 @@ export default function SelectionReading({
   const mappingCard = (m: Mapping) => (
     <div className="mapping-card" key={m.id}>
       <span className="eyebrow">
-        {m.link.role}
+        {sourceKind(m.link)} · {m.link.role}
       </span>
       <button
         className="mapping-owner"
@@ -47,8 +48,8 @@ export default function SelectionReading({
         className="mapping-target"
         {...readerLink(mode => onSelect({ kind: "mapping", id: m.id }, mode))}
       >
-        <ObjectName type="code-link" name={m.link.symbol || m.link.file} size={14} />
-        {m.link.line && !m.link.symbol ? `:${m.link.line}` : ""} <Icon name="open" size={14} />
+        <ObjectName type="code-link" name={sourceLabel(m.link)} size={14} />
+        {m.link.line && !m.link.symbol && !m.link.heading ? `:${m.link.line}` : ""} <Icon name="open" size={14} />
       </button>
       {selection.kind === "bundle" && (
         <button
@@ -64,7 +65,7 @@ export default function SelectionReading({
     <div className="selection-reading">
       <div className="eyebrow">
         {selection.kind === "mapping"
-          ? "Domain to implementation"
+          ? "Model to source"
           : "Connection summary"}
       </div>
       <h1>

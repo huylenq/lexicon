@@ -336,7 +336,7 @@ function ConnectionCard({ shape }: { shape: ConnectionShape }) {
             // Dispatch the native shape gesture so dragging and modifier taps still work.
             editor.dispatch({ ...getPointerInfo(editor, event), type: "pointer", name: "pointer_down", target: "shape", shape });
           }}
-          aria-label={`${connection?.kind === "mapping" ? "Read code mapping" : "Read relationship"}: ${connection?.label || "Removed relationship"}`}
+          aria-label={`${connection?.kind === "mapping" ? "Read source mapping" : "Read relationship"}: ${connection?.label || "Removed relationship"}`}
           onClick={(event) => {
             if (event.detail === 0)
               editor.setCurrentTool("select").select(shape.id).focus();

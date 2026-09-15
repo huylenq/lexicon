@@ -1,38 +1,60 @@
 /** The model contract shared by the parser, reader, and command line. */
-export const MODEL_SCHEMA = "3.0" as const;
+export const MODEL_SCHEMA = "3.2" as const;
 export interface Annotation {
   kind: string;
   text: string;
   evidence?: "observed" | "intended" | "enforced";
 }
-export interface CodeLink {
+export interface SourceLinkBase {
   /** Stable within its owning object. Recommended for authored links. */
   id?: string;
   file: string;
-  symbol?: string;
-  line?: number;
   role: string;
   description: string;
 }
+/** Implementation source. Symbol lookup and future syntax navigation belong here. */
+export interface CodeLink extends SourceLinkBase {
+  kind: "code";
+  symbol?: string;
+  line?: number;
+  heading?: never;
+}
+/** Documentary evidence. A section and a raw line are alternative locators. */
+export type DocumentLink = SourceLinkBase & { kind: "document"; symbol?: never } & (
+  | { heading: string; line?: never }
+  | { heading?: never; line?: number }
+);
+export type SourceLink = CodeLink | DocumentLink;
+export type SourceKind = SourceLink["kind"];
 /** Source identity is independent of the model items that map to it. */
-export const codeTargetId = (
-  link: Pick<CodeLink, "file" | "symbol" | "line">,
-) =>
-  `code:${JSON.stringify([link.file, link.symbol ? "symbol" : link.line ? "line" : "file", link.symbol || link.line || ""])}`;
-/** Inferred keys survive reordering; explicit IDs also survive target edits. */
-export function codeLinkKey(link: CodeLink): string {
-  if (link.id) return link.id;
+export const sourceTargetId = (
+  link: Pick<SourceLink, "kind" | "file" | "symbol" | "line" | "heading">,
+) => {
+  const selector = link.heading ? "heading" : link.symbol ? "symbol" : link.line ? "line" : "file";
+  const typedSelector = link.kind === "document" && selector !== "heading" ? `document-${selector}` : selector;
+  return `code:${JSON.stringify([link.file, typedSelector, link.heading || link.symbol || link.line || ""])}`;
+};
+/** Schema-3.1 document file/line identities are read aliases, never new writes. */
+export const legacySourceTargetId = (link: SourceLink) =>
+  `code:${JSON.stringify([link.file, link.heading ? "heading" : link.symbol ? "symbol" : link.line ? "line" : "file", link.heading || link.symbol || link.line || ""])}`;
+function inferredLinkKey(target: string, role: string) {
   let hash = 0xcbf29ce484222325n;
-  for (const byte of new TextEncoder().encode(JSON.stringify([codeTargetId(link), link.role])))
+  for (const byte of new TextEncoder().encode(JSON.stringify([target, role])))
     hash = BigInt.asUintN(64, (hash ^ BigInt(byte)) * 0x100000001b3n);
   return `link-${hash.toString(36)}`;
 }
+/** Inferred keys survive reordering; explicit IDs also survive target edits. */
+export const sourceLinkKey = (link: SourceLink) => link.id || inferredLinkKey(sourceTargetId(link), link.role);
+export const legacySourceLinkKey = (link: SourceLink) => link.id || inferredLinkKey(legacySourceTargetId(link), link.role);
+/** Compatibility exports for existing code-target consumers. */
+export const codeTargetId = sourceTargetId;
+export const codeLinkKey = sourceLinkKey;
 export interface Item {
   id: string;
   name: string;
   description: string;
   annotations: Annotation[];
-  codeLinks: CodeLink[];
+  codeLinks: SourceLink[];
 }
 export interface Context extends Item {
   type: "context";
@@ -80,7 +102,7 @@ export const isArchitecture = (item: ModelItem): item is ArchitectureElement =>
 export type Dimension = "domain" | "architecture" | "code";
 export type ElementDimension = Exclude<Dimension, "code">;
 export const elementDimensions: readonly ElementDimension[] = ["domain", "architecture"];
-/** Relationships and flows can span dimensions; source targets use CodeLinks. */
+/** Relationships and flows can span dimensions; source targets use SourceLinks. */
 export const dimensionOf = (item: ModelItem): ElementDimension | undefined =>
   isModelElement(item) ? (isArchitecture(item) ? "architecture" : "domain") : undefined;
 
@@ -124,19 +146,23 @@ export interface Project {
   root: string;
   example?: boolean;
 }
-export interface CodeExcerpt {
+interface SourceExcerptBase {
   file: string;
   text: string;
   startLine?: number;
   endLine?: number;
-  status:
-    | "symbol"
-    | "line"
-    | "file"
-    | "missing-symbol"
-    | "ambiguous-symbol"
-    | "unsupported";
 }
+export interface CodeExcerpt extends SourceExcerptBase {
+  kind: "code";
+  status: "symbol" | "line" | "file" | "missing-symbol" | "ambiguous-symbol" | "unsupported";
+}
+export interface DocumentExcerpt extends SourceExcerptBase {
+  kind: "document";
+  format: "markdown" | "text";
+  headings: import("./source").MarkdownHeading[];
+  status: "heading" | "missing-heading" | "line" | "file";
+}
+export type SourceExcerpt = CodeExcerpt | DocumentExcerpt;
 export const related = (model: Model, id: string): Relationship[] =>
   model.items.filter(
     (item): item is Relationship =>

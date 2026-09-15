@@ -265,10 +265,10 @@ test("clearing native selection survives projection changes and browser history 
   await page.mouse.click(group.x - 20, group.y + 80);
   await expect.poll(() => selectedObjects(page)).toEqual([]);
   await expect(page.locator("[data-reader-card].active")).toHaveAttribute("data-reader-card", "item:order");
-  await page.getByRole("button", { name: "Show all code", exact: true }).click();
+  await page.getByRole("button", { name: "Show all sources", exact: true }).click();
   await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
   await expect.poll(() => selectedObjects(page)).toEqual([]);
-  await page.getByRole("button", { name: "All code shown", exact: true }).click();
+  await page.getByRole("button", { name: "All sources shown", exact: true }).click();
   await page.getByRole("button", { name: "Refresh", exact: true }).click();
   await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
   await expect.poll(() => selectedObjects(page)).toEqual([]);
@@ -298,7 +298,7 @@ test("project links open one tldraw canvas with Diagram and Atlas modes and a st
   const stage = page.locator(".canvas-stage");
   const before = await stage.boundingBox();
   const toolbar = page.locator(".toolbar");
-  for (const [label, icon] of [["Fit model", "fit"], ["Locate", "locate"], ["Show all code", "code"], ["Arrange", "graph"]]) {
+  for (const [label, icon] of [["Fit model", "fit"], ["Locate", "locate"], ["Show all sources", "code"], ["Arrange", "graph"]]) {
     await expect(toolbar.getByRole("button", { name: label, exact: true }).locator("use")).toHaveAttribute("href", `/icons.svg#${icon}`);
   }
   await page.getByRole("button", { name: "concept: Order", exact: true }).click();
@@ -331,11 +331,11 @@ test("project links open one tldraw canvas with Diagram and Atlas modes and a st
     await expect(page).toHaveURL(new RegExp(`/p/${projectId}\\?item=order$`));
   }
   await page.setViewportSize({ width: 1024, height: 900 });
-  await page.getByRole("button", { name: "Toggle code workspace", exact: true }).click();
+  await page.getByRole("button", { name: "Toggle source workspace", exact: true }).click();
   const paneBox = (await toolbar.boundingBox())!;
   const actionsBox = (await toolbar.locator(".toolbar-actions").boundingBox())!;
   expect(actionsBox.x + actionsBox.width).toBeLessThanOrEqual(paneBox.x + paneBox.width);
-  await page.getByRole("button", { name: "Toggle code workspace", exact: true }).click();
+  await page.getByRole("button", { name: "Toggle source workspace", exact: true }).click();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole("button", { name: "Toggle reader", exact: true }).click();
   await expect(toolbar.getByRole("button", { name: "Arrange", exact: true })).toBeVisible();
@@ -353,16 +353,16 @@ test("model context actions toggle all code owned by a context and restore the c
   const camera = () => page.locator(".tl-html-layer").evaluate((element) => (element as HTMLElement).style.transform);
   const context = page.getByRole("button", { name: "context: Ordering", exact: true });
   await context.click({ button: "right" });
-  await page.getByRole("menuitem", { name: "Expand code", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Expand sources", exact: true }).click();
   await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
   await expect(page.locator(".model-count")).toHaveText("3 concepts · 3 code");
   await context.click({ button: "right" });
-  await page.getByRole("menuitem", { name: "Hide code", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Hide sources", exact: true }).click();
   await expect(page.locator(".model-count")).toHaveText("3 concepts · 0 code");
   await page.getByRole("button", { name: "concept: Order", exact: true }).click();
-  await page.locator("[data-reader-card].active").getByRole("button", { name: "Toggle code in canvas", exact: true }).click();
+  await page.locator("[data-reader-card].active").getByRole("button", { name: "Toggle sources in canvas", exact: true }).click();
   await expect(page.locator(".model-count")).toHaveText("3 concepts · 1 code");
-  await page.locator("[data-reader-card].active").getByRole("button", { name: "Toggle code in canvas", exact: true }).click();
+  await page.locator("[data-reader-card].active").getByRole("button", { name: "Toggle sources in canvas", exact: true }).click();
   await expect(page.locator(".model-count")).toHaveText("3 concepts · 0 code");
   const area = (await page.locator(".canvas-stage").boundingBox())!;
   await page.getByRole("button", { name: /^Hand —/ }).click();
@@ -513,13 +513,13 @@ test("model references preserve context, relationship, code, history, and search
   await page.goBack();
   await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Order");
   await page.goForward();
-  await page.locator("[data-reader-card].active").getByRole("button", { name: "Toggle code in canvas", exact: true }).click();
+  await page.locator("[data-reader-card].active").getByRole("button", { name: "Toggle sources in canvas", exact: true }).click();
   await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
   await page.getByRole("button", { name: "Fit model", exact: true }).click();
   await page.getByRole("button", { name: "code: Order", exact: true }).click();
   await expect(page.locator("#code-pane")).toContainText("checkout.ts");
   await expect(page.locator("#code-pane")).toContainText("lines");
-  await page.getByRole("button", { name: "Toggle code workspace", exact: true }).click();
+  await page.getByRole("button", { name: "Toggle source workspace", exact: true }).click();
   await page.getByRole("button", { name: "Toggle navigation", exact: true }).click();
   await page.getByRole("textbox", { name: "Search model" }).fill("Order Line");
   await expect(page.locator('[data-model-id="item:order"]')).toHaveClass(/canvas-dimmed/);
@@ -892,7 +892,7 @@ test("a 300-concept model opens, saves, and keeps the complete document while cu
     `<concept id="c${c}n${n}"><name>Concept ${c} ${n}</name><description>Benchmark concept.</description></concept>`).join("")}</context>`).join("");
   const relations = Array.from({ length: 20 }, (_, c) => Array.from({ length: 14 }, (_, n) =>
     `<relationship id="r${c}n${n}" from="c${c}n${n}" to="c${c}n${n+1}"><name>feeds</name><description>Benchmark connection.</description></relationship>`).join("")).join("");
-  await writeFile(join(root, "lexicon/model.xml"), `<lexicon schema="3.0" id="benchmark"><name>Canvas benchmark</name><description>300 concepts, 20 contexts, 280 relationships.</description>${contexts}${relations}</lexicon>`);
+  await writeFile(join(root, "lexicon/model.xml"), `<lexicon schema="3.2" id="benchmark"><name>Canvas benchmark</name><description>300 concepts, 20 contexts, 280 relationships.</description>${contexts}${relations}</lexicon>`);
   const started = Date.now();
   await page.goto(`/p/${projectId}`);
   await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible({ timeout: 15_000 });

@@ -12,17 +12,17 @@ import {
 } from "../client/src/graph/model";
 import { connectionPath } from "../client/src/graph/layout";
 
-const xml = `<lexicon schema="3.0" id="shop"><name>Shop</name><description>Example.</description>
+const xml = `<lexicon schema="3.2" id="shop"><name>Shop</name><description>Example.</description>
 <context id="sales"><name>Sales</name><description>Sells.</description>
 <concept id="order"><name>Order</name><description>A purchase.</description>
-<code-link file="order.ts" symbol="Order" role="representation">Stores orders.</code-link>
-<code-link file="order.ts" symbol="Order" role="validation">Validates orders.</code-link></concept>
+<code-link kind="code" file="order.ts" symbol="Order" role="representation">Stores orders.</code-link>
+<code-link kind="code" file="order.ts" symbol="Order" role="validation">Validates orders.</code-link></concept>
 <concept id="line"><name>Line</name><description>An item.</description></concept></context>
 <context id="fulfillment"><name>Fulfillment</name><description>Delivers.</description>
 <concept id="shipment"><name>Shipment</name><description>A delivery.</description>
-<code-link file="order.ts" symbol="Order" role="usage">Reads order data.</code-link></concept></context>
+<code-link kind="code" file="order.ts" symbol="Order" role="usage">Reads order data.</code-link></concept></context>
 <relationship id="contains" from="order" to="line"><name>contains</name><description>Owns lines.</description>
-<code-link file="order.ts" symbol="Order" role="enforcement">Enforces membership.</code-link></relationship>
+<code-link kind="code" file="order.ts" symbol="Order" role="enforcement">Enforces membership.</code-link></relationship>
 <relationship id="sends" from="order" to="shipment"><name>sends</name><description>Sends orders.</description></relationship>
 <relationship id="fulfills" from="line" to="shipment"><name>fulfills</name><description>Fulfills items.</description></relationship>
 <relationship id="returns" from="shipment" to="order"><name>returns</name><description>Returns results.</description></relationship>
@@ -64,6 +64,7 @@ describe("domain graph projection", () => {
   });
   test("identity honors symbol precedence and preserves file, symbol, and line distinctions", () => {
     const base = {
+      kind: "code" as const,
       file: "order.ts",
       role: "definition",
       description: "Example",

@@ -16,7 +16,9 @@ For example, a commerce model can trace checkout perfectly while omitting the di
 
 ## Correctness: does the evidence support the meaning?
 
-Inspect the source behind consequential claims, including connecting callsites and relevant declaration bodies. Verify the endpoints' roles, direction, creation/consumption order, and activation conditions. A declaration proves that a type exists; an integration claim needs evidence of the bridge. Separate similarly shaped concepts with different identities or lifetimes, and explain their code correspondence.
+Check each link’s explicit kind and locator: code owns symbol lookup; documents own headings or text locations. File extensions select reader support, not evidence kind. For documentary evidence, check the cited heading or passage, source version, and applicable conditions. A resolving document link proves location, not implementation or enforcement. Document-only models must retain intended behavior, reported gaps, and contradictions as such.
+
+For implementation evidence, inspect the source behind consequential claims, including connecting callsites and relevant declaration bodies. Verify the endpoints' roles, direction, creation/consumption order, and activation conditions. A declaration proves that a type exists; an integration claim needs evidence of the bridge. Separate similarly shaped concepts with different identities or lifetimes, and explain their code correspondence.
 
 Check semantic composition against `MODEL.md`: are domain ideas distinguished from software responsibilities, and are their correspondences explained? For every Flow, identify the trigger, relevant preconditions, and outcome. Check each occurrence's action, direction, participants, and order against connecting source. A valid reference to a static association or implementation mapping does not establish an interaction. Review important alternative outcomes within the requested scope, without treating every model as requiring a Flow or architecture inventory.
 
@@ -24,6 +26,6 @@ For rules, distinguish intended consistency, observed behavior, and enforced che
 
 Qualify unknowns honestly. An unsupported integration may remain unresolved even when both endpoints exist. A file-level link is appropriate for an unsupported symbol language, but still requires semantic inspection. Classifications should explain real identity, value semantics, consistency, or responsibility.
 
-After edits, run structural/code-link checks and exercise the reader when available: overview, context, concept, relationship, and implementation. Check that the explanation and linked code let the reader answer the intended questions. Report coverage findings separately from correctness and tooling results.
+After edits, run structural/code-link checks and exercise the reader when available: overview, context, concept, relationship, and linked sources (code and documents as applicable). Check that the explanation and linked code let the reader answer the intended questions. Report coverage findings separately from correctness and tooling results.
 
 When an independent review is available, have it form its own view from project purpose and source before seeing the author's conclusions. Its first question is “What pivotal thing did this model miss?” Self-review uses the same question. Review findings should refine the shared model; no separate permanent decision log is needed.

@@ -27,7 +27,7 @@ afterAll(async () => {
 });
 const req = (path: string, init?: RequestInit) =>
   app.request(`http://localhost${path}`, init);
-const xml = `<lexicon schema="3.0" id="tiny"><name>Tiny</name><description>A test model.</description><context id="scope"><name>Scope</name><description>A meaning.</description><concept id="thing"><name>Thing</name><description>The modeled thing.</description><code-link file="thing.ts" role="definition" symbol="Thing">Its representation.</code-link></concept></context></lexicon>`;
+const xml = `<lexicon schema="3.2" id="tiny"><name>Tiny</name><description>A test model.</description><context id="scope"><name>Scope</name><description>A meaning.</description><concept id="thing"><name>Thing</name><description>The modeled thing.</description><code-link kind="code" file="thing.ts" role="definition" symbol="Thing">Its representation.</code-link></concept></context></lexicon>`;
 
 test("chat uses the installed workflow texts and keeps initialization out of existing-model refinement", async () => {
   const project = { id: "prompt", root: scratch, artifactRoot: scratch, example: false };
@@ -94,8 +94,8 @@ test("registration validates a project; removal preserves its model", async () =
   await writeFile(
     join(root, "lexicon/model.xml"),
     xml.replace(
-      '<code-link file="thing.ts"',
-      '<code-link file="other.ts" role="usage">Another link.</code-link><code-link file="thing.ts"',
+      '<code-link kind="code" file="thing.ts"',
+      '<code-link kind="code" file="other.ts" role="usage">Another link.</code-link><code-link kind="code" file="thing.ts"',
     ),
   );
   expect(
@@ -283,9 +283,9 @@ test("canvas model commands share validated model edits, exact undo, and stale-w
 });
 
 const migration = (candidate: string) => `Preserved the model.\n\`\`\`lexicon-migration\n${candidate}\n\`\`\``;
-const oldXml = xml.replace('schema="3.0"', 'schema="2.0"');
+const oldXml = xml.replace('schema="3.2"', 'schema="2.0"').replaceAll(' kind="code"', '');
 test("unsupported and malformed documents register and load without semantic data or canvas writes", async () => {
-  for (const original of [oldXml, xml.replace('schema="3.0"', 'schema="9.0"'), '<lexicon schema="3.0">']) {
+  for (const original of [oldXml, xml.replace('schema="3.2"', 'schema="9.0"'), '<lexicon schema="3.2">']) {
     const p = await chatFixture("unavailable-" + crypto.randomUUID());
     await writeFile(join(p.root, "lexicon/model.xml"), original);
     await writeFile(join(p.root, "lexicon/canvas.json"), "preserved presentation");
@@ -294,7 +294,7 @@ test("unsupported and malformed documents register and load without semantic dat
     const registered = await response.json();
     const loaded = await (await req(`/api/projects/${registered.id}/model`)).json();
     expect(loaded.model).toBeUndefined();
-    expect(loaded.problem.expectedSchema).toBe("3.0");
+    expect(loaded.problem.expectedSchema).toBe("3.2");
     expect(loaded.modelRevision).toBe(fingerprint(original));
     expect((await req(`/api/projects/${registered.id}/chat`)).status).toBe(200);
     expect((await req(`/api/projects/${registered.id}/canvas`, { method: "PUT", headers: { "content-type": "application/json" }, body: "{}" })).status).toBe(400);
@@ -311,20 +311,22 @@ test("unsupported and malformed documents register and load without semantic dat
   }
 });
 test("agent migration validates current XML and restores unsupported bytes through persisted undo", async () => {
-  for (const version of ["2.0", "3.0-prototype"]) {
+  for (const version of ["2.0", "3.0-prototype", "3.0", "3.1"]) {
     const p = await chatFixture("migration-" + version);
-    const original = xml.replace('schema="3.0"', `schema="${version}"`) + '\n<!-- original spacing -->\n';
+    const original = xml.replace('schema="3.2"', `schema="${version}"`).replaceAll(' kind="code"', '') + '\n<!-- original spacing -->\n';
     await writeFile(join(p.root, "lexicon/model.xml"), original);
     await writeFile(join(p.root, "lexicon/canvas.json"), "authored notes");
     const service = fakeChat(async input => {
-      expect(input.prompt).toContain(`Schema ${version} to 3.0`);
+      if (!["3.0", "3.1"].includes(version)) expect(input.prompt).toContain(`Schema ${version} to 3.0`);
+      if (version !== "3.1") expect(input.prompt).toContain("Schema 3.0 to 3.1");
+      expect(input.prompt).toContain("Schema 3.1 to 3.2");
       expect(input.prompt).toContain("lexicon-migration");
       return migration(xml);
     });
-    await service.start(p, { text: "Migrate the existing model to schema 3.0.", provider: "codex", modelRevision: fingerprint(original) });
+    await service.start(p, { text: "Migrate the existing model to schema 3.2.", provider: "codex", modelRevision: fingerprint(original) });
     const result = await untilChat(service, p.id, s => !s.running);
     expect(result.messages.at(-1)?.error).toBeUndefined();
-    expect(result.messages.at(-1)?.change?.migrated).toEqual({ from: version, to: "3.0" });
+    expect(result.messages.at(-1)?.change?.migrated).toEqual({ from: version, to: "3.2" });
     expect(parseModel(await readFile(join(p.root, "lexicon/model.xml"), "utf8"))).toEqual(parseModel(xml));
     const recovered = fakeChat(async () => "unused");
     await recovered.undo(p);
@@ -341,7 +343,7 @@ test("migration rejects invalid candidates, ordinary patches, missing deltas, an
     [oldXml, migration(xml.replace('id="thing"', 'id="scope"')), "Duplicate ID"],
     [oldXml, '```lexicon-patch\n{"project":{"name":"Wrong"}}\n```', "needs migration"],
     [xml, migration(xml), "already uses the current schema"],
-    [xml.replace('schema="3.0"', 'schema="9.0"'), migration(xml), "No migration instructions"],
+    [xml.replace('schema="3.2"', 'schema="9.0"'), migration(xml), "No migration instructions"],
   ];
   for (const [original, output, error] of cases) {
     const p = await chatFixture("bad-migration-" + crypto.randomUUID());
@@ -400,7 +402,7 @@ test("external agent edits share revision checks, link validation, read-only exa
   expect((await edit({ action: "create", item: { type: "concept", id: "refund", parent: "scope", name: "Duplicate", description: "Duplicate." } })).status).toBe(400);
   expect((await edit({ action: "create", item: { type: "relationship", id: "bad", from: "refund", to: "absent", name: "fails", description: "Invalid." } })).status).toBe(400);
   expect((await edit({ action: "update", itemId: "thing", fields: { id: "new-id" } })).status).toBe(400);
-  expect((await edit({ action: "update", itemId: "thing", fields: { codeLinks: [{ file: "missing.ts", role: "definition", description: "Invented." }] } })).status).toBe(400);
+  expect((await edit({ action: "update", itemId: "thing", fields: { codeLinks: [{ kind: "code", file: "missing.ts", role: "definition", description: "Invented." }] } })).status).toBe(400);
   const changed = await edit({ action: "update", itemId: "thing", fields: { description: "Updated description only." } });
   expect(changed.status).toBe(200);
   const changedReceipt = await changed.json();

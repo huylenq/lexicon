@@ -114,7 +114,7 @@ export function CanvasInspector({
     return (
       props.model.items.find((i) => i.id === id)?.name ||
       (shape.props.graphId.startsWith("mapping:")
-        ? "Code link"
+        ? "Source link"
         : "Missing model reference")
     );
   };

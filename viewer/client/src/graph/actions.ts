@@ -35,9 +35,9 @@ export function selectionName(index: GraphIndex, selection?: GraphSelection) {
   return selection?.kind === "item"
     ? index.items.get(selection.id)?.name
     : selection?.kind === "code"
-      ? index.targets.get(selection.id)?.link.symbol || "Code target"
+      ? index.targets.get(selection.id)?.link.heading || index.targets.get(selection.id)?.link.symbol || "Source target"
       : selection?.kind === "mapping"
-        ? "Code mapping"
+        ? "Source mapping"
         : selection
           ? "Connection summary"
           : undefined;

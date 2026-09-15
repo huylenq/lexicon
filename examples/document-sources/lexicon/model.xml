@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<lexicon schema="3.2" id="document-sources">
+  <name>Document Sources</name>
+  <description>Explore a written approval policy alongside a data representation. Requirements are documentary evidence; this example does not implement the approval workflow.</description>
+  <context id="ordering">
+    <name>Ordering</name>
+    <description>Review orders before submission under an agreed approval policy.</description>
+    <code-link kind="document" id="overview" file="README.md" role="reference">Explains the scope of this worked example.</code-link>
+    <concept id="order">
+      <name>Order</name>
+      <description>A proposed purchase whose total may require review.</description>
+      <annotation kind="scope" evidence="intended">The policy is specified; the TypeScript interface only represents data.</annotation>
+      <code-link kind="document" id="approval-policy" file="README.md" heading="approval-policy" role="specification">Specifies the required human decision and its meaning.</code-link>
+      <code-link kind="code" id="representation" file="order.ts" symbol="Order" role="representation">Defines order and review fields, without enforcing approval.</code-link>
+    </concept>
+    <concept id="review">
+      <name>Review Decision</name>
+      <description>A reviewer’s approval or rejection, identity, and explanation.</description>
+      <code-link kind="document" id="audit-details" file="README.md" heading="audit-details" role="specification">Specifies the evidence retained for a review decision.</code-link>
+    </concept>
+  </context>
+  <relationship id="order-review" from="order" to="review">
+    <name>requires review under the approval policy</name>
+    <description>The documented policy requires a human decision for orders above the agreed limit. This example establishes the requirement, not an implemented workflow.</description>
+    <code-link kind="document" id="review-limit" file="README.md" heading="review-limits" role="specification">Leaves the applicable limit to deployment agreement.</code-link>
+  </relationship>
+</lexicon>

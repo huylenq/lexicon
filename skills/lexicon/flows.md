@@ -4,9 +4,9 @@ The bundle's `MODEL.md` governs Flow syntax and semantic composition; `contract.
 
 A flow describes one scenario as an ordered list of interactions. Its sequence diagram reuses existing participants and relationships. This follows the [C4 dynamic diagram](https://c4model.com/diagrams/dynamic) approach and Structurizr's [ordered relationship occurrences](https://docs.structurizr.com/dsl/cookbook/dynamic-view/).
 
-Use the existing Explain / Initialize / Refine workflow. Trace the requested path in source before modeling it. Check the entrypoint, calls, their order, conditions, and outcome. Reuse participants and relationships; add a relationship only when the inspected interaction needs one. A containment or implementation mapping does not by itself prove a runtime interaction. Explain domain names that differ from code symbols.
+Use the existing Explain / Initialize / Refine workflow. Trace the requested path in source before modeling it. For an explicitly document-only model, link the documented interactions with a documentary role and mark the scenario as intended; do not claim runtime verification. Check the entrypoint, calls, their order, conditions, and outcome. Reuse participants and relationships; add a relationship only when the inspected interaction needs one. A containment or implementation mapping does not by itself prove a runtime interaction. Explain domain names that differ from code symbols.
 
-In `schema="3.0"`, add a root-level flow with the usual name, description, annotations, and code links:
+In `schema="3.2"`, add a root-level flow with the usual name, description, annotations, and code links:
 
 ```xml
 <flow id="place-order">

@@ -119,7 +119,7 @@ test("context and path metaphors survive model refresh and code expansion", asyn
   await page.getByRole("button", { name: "Read relationship: contains", exact: true }).click();
   await page.getByLabel("Path", { exact: true }).selectOption("trail");
   await expect(page.locator('[data-map-road="relation:contains"]')).toHaveAttribute("data-path-kind", "trail");
-  await page.getByRole("button", { name: "Show all code", exact: true }).click();
+  await page.getByRole("button", { name: "Show all sources", exact: true }).click();
   await expect(page.locator('[data-map-road^="mapping:"]')).toHaveCount(0);
   await expect(page.locator('[data-map-road="relation:contains"]')).toHaveAttribute("data-path-kind", "trail");
   await page.getByRole("button", { name: "Refresh", exact: true }).click();

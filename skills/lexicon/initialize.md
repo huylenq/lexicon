@@ -4,7 +4,9 @@ Use this workflow for an authorized first model. A broad initialization should h
 
 ## 1. Discover the system before choosing a path
 
-Read active project orientation and sample implementation across its defining responsibilities. Use documentation to discover claims and vocabulary; inspect source to distinguish implemented behavior from intentions, obsolete descriptions, and future plans. Entry points show how work starts. Stored records, domain types, decision logic, policy checks, and writers show what the work means and what survives it. Look beyond the easiest supported language or most visible runtime package.
+When the user explicitly asks for a document-only model, use the supplied documents as the evidence boundary. Capture their version, intent, gaps, and contradictions; link Markdown sections using documentary roles. Do not infer working implementations or inspect repositories to fill gaps outside that scope. The discovery and review questions below still apply to what the documents specify.
+
+For an implementation-backed model, read active project orientation and sample implementation across its defining responsibilities. Use documentation to discover claims and vocabulary; inspect source to distinguish implemented behavior from intentions, obsolete descriptions, and future plans. Entry points show how work starts. Stored records, domain types, decision logic, policy checks, and writers show what the work means and what survives it. Look beyond the easiest supported language or most visible runtime package.
 
 Investigate these perspectives where applicable:
 
@@ -43,3 +45,5 @@ Read the bundle's `MODEL.md` for the format, semantic type hierarchy, and compos
 The project description should explain the system and the model's scope in language a newcomer can use. Record significant uncertainty beside the affected concept or relationship. Keep temporary discovery notes temporary; the shared model carries the result.
 
 Apply both passes in [review.md](review.md). First ask whether the right things were modeled, then whether the model is correct. Completion means a reader can explain the system's defining ideas, what persists, and what governs change, with evidence for essential connections. Object counts, a connected graph, and directory coverage are not completion targets. Further detail grows through human questions and refinement.
+
+Every source link requires `kind="code"` or `kind="document"`. Choose it from the evidence being modeled. Code symbols and document headings are different locators; do not turn a document into code by assigning an implementation role.

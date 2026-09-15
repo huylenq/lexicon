@@ -46,6 +46,8 @@ Identity survives changes to names and code locations. Code links support many-t
 
 Coverage grows from human questions. Start with the concepts needed to understand a subsystem, then test whether their relationships and code links help a reader explain it.
 
+Source links can also point to specifications and design documents. Documentary evidence explains intended behavior and rationale; it does not prove implemented or enforced behavior. This broadens the evidence available to the model without adding a semantic dimension.
+
 Code-link explanations make the correspondence between domain names and implementation names explicit. Rule annotations distinguish intended consistency, observed behavior, and enforced checks.
 
 Worked example: [Shop domain, architecture, and flows](examples/shop/README.md).

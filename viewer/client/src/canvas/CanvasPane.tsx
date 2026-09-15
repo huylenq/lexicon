@@ -67,8 +67,8 @@ const overrides = {
       "tool.lexicon-object": "Model reference",
       "tool.lexicon-connection": "Model relationship",
       "lexicon.focus": "Focus",
-      "lexicon.expand-code": "Expand code",
-      "lexicon.hide-code": "Hide code",
+      "lexicon.expand-code": "Expand sources",
+      "lexicon.hide-code": "Hide sources",
     },
   },
 };
@@ -756,11 +756,11 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
           />
           <CanvasButton
             icon="code"
-            label={workspace.allCode ? "All code shown" : "Show all code"}
+            label={workspace.allCode ? "All sources shown" : "Show all sources"}
             title={
               workspace.allCode
-                ? "Hide all code (return to individual expansions)"
-                : "Show all code"
+                ? "Hide all sources (return to individual expansions)"
+                : "Show all sources"
             }
             aria-pressed={workspace.allCode}
             disabled={!editor || loading}

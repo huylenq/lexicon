@@ -1,10 +1,11 @@
+import { isMarkdownFile } from "../shared/source";
 import { fromXml } from "xast-util-from-xml";
 import type { Element, Root } from "xast";
 import { readFile, stat } from "node:fs/promises";
 import { join, basename } from "node:path";
 import type {
   Annotation,
-  CodeLink,
+  SourceLink,
   Issue,
   Item,
   Model,
@@ -79,6 +80,16 @@ export function validateModel(model: Model): Model {
           item: item.id,
           message: `Code link must stay within the code root: ${link.file}`,
         });
+      if (!["code", "document"].includes(link.kind))
+        model.issues.push({ severity: "error", item: item.id, message: "Source links require kind code or document." });
+      if (link.kind === "code" && link.heading !== undefined)
+        model.issues.push({ severity: "error", item: item.id, message: "Code links cannot use heading targets." });
+      if (link.kind === "document" && link.symbol !== undefined)
+        model.issues.push({ severity: "error", item: item.id, message: "Document links cannot use symbol targets." });
+      if (link.heading !== undefined &&
+        (!isMarkdownFile(link.file) || !link.heading || /[\s#]/.test(link.heading) || link.symbol !== undefined || link.line !== undefined))
+        model.issues.push({ severity: "error", item: item.id,
+          message: "A Markdown heading needs an anchor without # or whitespace, and cannot also specify symbol or line." });
       if (
         link.line !== undefined &&
         (!Number.isInteger(link.line) || link.line < 1)
@@ -164,7 +175,7 @@ export function parseModel(xml: string): Model {
     flow: ["id"],
     step: ["id", "relationship"],
     annotation: ["kind", "evidence"],
-    "code-link": ["id", "file", "symbol", "line", "role"],
+    "code-link": ["kind", "id", "file", "symbol", "heading", "line", "role"],
     name: [],
     description: [],
   };
@@ -231,16 +242,18 @@ export function parseModel(xml: string): Model {
         ...(evidence ? { evidence: evidence as Annotation["evidence"] } : {}),
       };
     });
-    const codeLinks: CodeLink[] = children(e, "code-link").map((c) => ({
+    const codeLinks: SourceLink[] = children(e, "code-link").map((c) => ({
+      kind: c.attributes.kind || "",
       ...(c.attributes.id !== undefined ? { id: c.attributes.id || "" } : {}),
       file: c.attributes.file || "",
       role: c.attributes.role || "",
       description: prose(c),
-      ...(c.attributes.symbol ? { symbol: c.attributes.symbol } : {}),
+      ...(c.attributes.heading !== undefined ? { heading: c.attributes.heading || "" } : {}),
+      ...(c.attributes.symbol !== undefined ? { symbol: c.attributes.symbol } : {}),
       ...(c.attributes.line !== undefined
         ? { line: Number(c.attributes.line) }
         : {}),
-    }));
+    } as SourceLink));
     return {
       id: e.attributes.id || "",
       name: field(e, "name"),
@@ -385,7 +398,7 @@ export function serializeModel(model: Model): string {
       );
     for (const l of item.codeLinks)
       lines.push(
-        `${pad}  <code-link${l.id ? ` id="${esc(l.id)}"` : ""} file="${esc(l.file)}" role="${esc(l.role)}"${l.symbol ? ` symbol="${esc(l.symbol)}"` : ""}${l.line ? ` line="${l.line}"` : ""}>${esc(l.description)}</code-link>`,
+        `${pad}  <code-link kind="${l.kind}"${l.id ? ` id="${esc(l.id)}"` : ""} file="${esc(l.file)}" role="${esc(l.role)}"${l.heading ? ` heading="${esc(l.heading)}"` : ""}${l.symbol ? ` symbol="${esc(l.symbol)}"` : ""}${l.line ? ` line="${l.line}"` : ""}>${esc(l.description)}</code-link>`,
       );
     if (item.type === "flow")
       for (const step of item.steps)

@@ -18,7 +18,7 @@ test("delete one recovery copy without changing the canvas or other backups", as
   let id = "";
   try {
     await mkdir(join(root, "lexicon"));
-    await writeFile(join(root, "lexicon/model.xml"), `<lexicon schema="3.0" id="recovery"><name>Recovery</name><description>Recovery test.</description></lexicon>`);
+    await writeFile(join(root, "lexicon/model.xml"), `<lexicon schema="3.2" id="recovery"><name>Recovery</name><description>Recovery test.</description></lexicon>`);
     id = (await (await request.post("/api/projects", { data: { root } })).json()).id;
     await page.goto(`/p/${id}`);
     await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();

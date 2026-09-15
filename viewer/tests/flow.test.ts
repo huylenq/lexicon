@@ -56,13 +56,13 @@ test("flows are scenarios, not relationship endpoints or structural parents", ()
 });
 
 test("a domain-only flow uses the same schema without requiring architecture", () => {
-  const oldXml = '<lexicon schema="3.0" id="demo"><name>Demo</name><description>Example.</description><context id="c"><name>Context</name><description>Meaning.</description><concept id="a"><name>A</name><description>First participant.</description></concept><concept id="b"><name>B</name><description>Second participant.</description></concept></context><relationship id="r" from="a" to="b"><name>calls</name><description>An interaction.</description></relationship></lexicon>';
+  const oldXml = '<lexicon schema="3.2" id="demo"><name>Demo</name><description>Example.</description><context id="c"><name>Context</name><description>Meaning.</description><concept id="a"><name>A</name><description>First participant.</description></concept><concept id="b"><name>B</name><description>Second participant.</description></concept></context><relationship id="r" from="a" to="b"><name>calls</name><description>An interaction.</description></relationship></lexicon>';
   const old = parseModel(oldXml);
-  expect(serializeModel(old)).toContain('schema="3.0"');
+  expect(serializeModel(old)).toContain('schema="3.2"');
   const next = applyPatch(old, { upsert: [{ ...flow(), codeLinks: [], steps: [{ id: "call", relationship: "r", label: "Start work" }] }] });
-  expect(next.schema).toBe("3.0");
+  expect(next.schema).toBe("3.2");
   expect(parseModel(serializeModel(next)).issues).toEqual([]);
-  expect(() => parseModel(serializeModel(next).replace('schema="3.0"', 'schema="2.0"'))).toThrow();
+  expect(() => parseModel(serializeModel(next).replace('schema="3.2"', 'schema="2.0"'))).toThrow();
   expect(old).toEqual(parseModel(oldXml));
 });
 

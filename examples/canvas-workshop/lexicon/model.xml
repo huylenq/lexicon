@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<lexicon schema="3.0" id="canvas-workshop">
+<lexicon schema="3.2" id="canvas-workshop">
   <name>Checkout workshop</name>
   <description>A small, illustrative checkout model for trying the canvas. Follow an Order through its lines and price calculation, then attach questions, sketches, or interface examples. The source is a local teaching fixture, not a production checkout.</description>
   <context id="ordering">
@@ -9,28 +9,28 @@
       <name>Order</name>
       <description>A purchase containing the lines whose prices contribute to its total.</description>
       <annotation kind="rule" evidence="enforced">An order must contain at least one line before its total is calculated.</annotation>
-      <code-link file="checkout.ts" symbol="total" role="enforcement">The total function checks that the order has a line before summing prices.</code-link>
+      <code-link kind="code" file="checkout.ts" symbol="total" role="enforcement">The total function checks that the order has a line before summing prices.</code-link>
     </concept>
     <concept id="order-line" classification="value">
       <name>Order Line</name>
       <description>A product price and quantity purchased together.</description>
-      <code-link file="checkout.ts" symbol="OrderLine" role="representation">The type carries a unit price and quantity.</code-link>
+      <code-link kind="code" file="checkout.ts" symbol="OrderLine" role="representation">The type carries a unit price and quantity.</code-link>
     </concept>
     <concept id="order-total" classification="value">
       <name>Order Total</name>
       <description>The sum of every line's unit price multiplied by quantity. Taxes and discounts are outside this example.</description>
-      <code-link file="checkout.ts" symbol="total" role="implementation">The total function produces this number.</code-link>
+      <code-link kind="code" file="checkout.ts" symbol="total" role="implementation">The total function produces this number.</code-link>
     </concept>
   </context>
   <relationship id="contains" from="order" to="order-line">
     <name>contains</name>
     <description>The Order carries its lines in the lines property.</description>
-    <code-link file="checkout.ts" symbol="Order" role="representation">The lines property connects the Order to OrderLine values.</code-link>
+    <code-link kind="code" file="checkout.ts" symbol="Order" role="representation">The lines property connects the Order to OrderLine values.</code-link>
   </relationship>
   <relationship id="calculates" from="order-line" to="order-total">
     <name>contributes to</name>
     <description>The total calculation sums the extended price of each line.</description>
-    <code-link file="checkout.ts" symbol="total" role="implementation">The reduce callback adds each price multiplied by quantity.</code-link>
+    <code-link kind="code" file="checkout.ts" symbol="total" role="implementation">The reduce callback adds each price multiplied by quantity.</code-link>
   </relationship>
   <system id="workshop-system">
     <name>Checkout Teaching Fixture</name>
@@ -42,24 +42,24 @@
       <component id="total-calculator">
         <name>Total Calculator</name>
         <description>The callable total function checks for an empty order and sums extended line prices.</description>
-        <code-link id="source" file="checkout.ts" symbol="total" role="implementation">Implements the Total Calculator interface.</code-link>
+        <code-link kind="code" id="source" file="checkout.ts" symbol="total" role="implementation">Implements the Total Calculator interface.</code-link>
       </component>
     </container>
   </system>
   <relationship id="calculator-reads-order" from="total-calculator" to="order">
     <name>reads lines from</name>
     <description>The total function receives an Order record and checks its lines length before reducing the collection. The Order participant represents that input record.</description>
-    <code-link id="source" file="checkout.ts" symbol="total" role="implementation">The total function receives an Order record and checks its lines length before reducing the collection. The Order participant represents that input record.</code-link>
+    <code-link kind="code" id="source" file="checkout.ts" symbol="total" role="implementation">The total function receives an Order record and checks its lines length before reducing the collection. The Order participant represents that input record.</code-link>
   </relationship>
   <relationship id="calculator-produces-total" from="total-calculator" to="order-total">
     <name>calculates</name>
     <description>For a nonempty order, total reduces unitPrice times quantity to the numeric Order Total. This is a computation, without persistence or a separate total service.</description>
-    <code-link id="source" file="checkout.ts" symbol="total" role="implementation">For a nonempty order, total reduces unitPrice times quantity to the numeric Order Total. This is a computation, without persistence or a separate total service.</code-link>
+    <code-link kind="code" id="source" file="checkout.ts" symbol="total" role="implementation">For a nonempty order, total reduces unitPrice times quantity to the numeric Order Total. This is a computation, without persistence or a separate total service.</code-link>
   </relationship>
   <flow id="calculate-total">
     <name>Calculate an Order Total</name>
     <description>A caller invokes total with a nonempty Order. It reads the lines and returns their summed extended prices.</description>
-    <code-link id="source" file="checkout.ts" symbol="total" role="implementation">Defines the scenario ordering and outcome.</code-link>
+    <code-link kind="code" id="source" file="checkout.ts" symbol="total" role="implementation">Defines the scenario ordering and outcome.</code-link>
     <annotation kind="scope" evidence="observed">Caller orchestration is outside the fixture. Prices and quantities have TypeScript number types but no runtime positivity or finiteness checks.</annotation>
     <step id="read" relationship="calculator-reads-order">Read nonempty order lines</step>
     <step id="sum" relationship="calculator-produces-total">Sum unit price times quantity</step>
@@ -67,7 +67,7 @@
   <flow id="reject-empty-order">
     <name>Reject an Empty Order</name>
     <description>A caller invokes total with an empty lines array. The length check throws before any total is calculated.</description>
-    <code-link id="source" file="checkout.ts" symbol="total" role="implementation">Defines the scenario ordering and outcome.</code-link>
+    <code-link kind="code" id="source" file="checkout.ts" symbol="total" role="implementation">Defines the scenario ordering and outcome.</code-link>
     <step id="check" relationship="calculator-reads-order">Read lines and reject the empty order</step>
   </flow>
 </lexicon>

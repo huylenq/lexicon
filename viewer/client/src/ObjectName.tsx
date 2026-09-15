@@ -23,7 +23,7 @@ function appearance(type: ObjectKind, classification?: string) {
     icon: type === "concept" && tone ? classifications[tone] || "concept" : type,
     label: type === "concept" && classification
       ? "Concept · " + classification
-      : { ...typeNames, "code-link": "Code link", code: "Code" }[type],
+      : { ...typeNames, "code-link": "Source link", code: "Source" }[type],
   };
 }
 

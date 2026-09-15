@@ -316,7 +316,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
           i.description,
           i.id,
           ...i.annotations.map((a) => a.text),
-          ...i.codeLinks.map((l) => `${l.file} ${l.symbol || ""}`),
+          ...i.codeLinks.map((l) => `${l.file} ${l.heading || l.symbol || ""} ${l.role} ${l.description}`),
           ...(i.type === "flow" ? i.steps.map(step => step.label) : []),
         ]
           .join(" ")
@@ -349,7 +349,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
     const item = card.kind === "item" ? model?.items.find(i => i.id === card.id) : undefined;
     return item ? (item.type === "relationship"
       ? [model?.items.find(i => i.id === item.from)?.name || item.from, item.name, model?.items.find(i => i.id === item.to)?.name || item.to].join(" ")
-      : item.name) : card.kind === "overview" ? model?.name || "Overview" : card.kind === "item" ? "Unavailable item" : card.kind === "mapping" ? "Code mapping" : "Connections";
+      : item.name) : card.kind === "overview" ? model?.name || "Overview" : card.kind === "item" ? "Unavailable item" : card.kind === "mapping" ? "Source mapping" : "Connections";
   };
   const activeCard = reading.stack.cards.find(card => cardKey(card) === reading.stack.active);
   const breadcrumbItem = activeCard?.kind === "item" ? model?.items.find(i => i.id === activeCard.id) : undefined;
@@ -443,9 +443,9 @@ function ReaderProject({ projectId }: { projectId: string }) {
           <button
             ref={codeToggle}
             className="quiet icon-button pane-toggle code-toggle"
-            title={codeNavigation.open && (!compact || mobileCode) ? "Hide Code" : "Show Code"}
+            title={codeNavigation.open && (!compact || mobileCode) ? "Hide Sources" : "Show Sources"}
             aria-controls="code-pane"
-            aria-label="Toggle code workspace"
+            aria-label="Toggle source workspace"
             aria-pressed={codeNavigation.open && (!compact || mobileCode)}
             onClick={() => {
               if (
@@ -506,7 +506,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
               </div>
               <div className="nav-list">{matches.map(itemButton)}</div>
               {!matches.length && (
-                <p className="hint">Try a domain name, code symbol, or phrase.</p>
+                <p className="hint">Try a domain name, code symbol, document heading, or phrase.</p>
               )}
             </div>
           ) : (
@@ -603,7 +603,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
               {!model && loading && <p className="empty" role="status">Opening the model…</p>}</>} />}
         </div>
         {model && codeNavigation.open && (
-          <PaneSeparator className="code-divider" label="Resize code workspace"
+          <PaneSeparator className="code-divider" label="Resize source workspace"
             container={paneArea} edge="right" unit="percent" min={25} max={60} step={2}
             value={workspace.codeWidth} onChange={update => setWorkspace(w => ({ ...w, codeWidth: update(w.codeWidth) }))} />
         )}

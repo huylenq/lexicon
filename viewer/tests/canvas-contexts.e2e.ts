@@ -149,7 +149,7 @@ test("context roads meet their coast and empty contexts and renamed inner nodes 
   await expect(card(page, "delivery")).toHaveAttribute("data-context-boundary", "rectangle");
   await expect(page.getByRole("button", { name: "context: Delivery", exact: true })).toBeVisible();
   const before = await snapshot(page);
-  await page.getByRole("button", { name: "Show all code", exact: true }).click();
+  await page.getByRole("button", { name: "Show all sources", exact: true }).click();
   const after = await snapshot(page);
   expect(object(after, "ordering").props.territory).toEqual(object(before, "ordering").props.territory);
   await enclosesNodes(page);
@@ -172,7 +172,7 @@ test("border editing survives code expansion and model refresh, and ends on sele
   const edit = page.getByRole("button", { name: "Edit border", exact: true });
   const finish = page.getByRole("button", { name: "Finish border editing", exact: true });
   await edit.click();
-  await page.getByRole("button", { name: "Show all code", exact: true }).click();
+  await page.getByRole("button", { name: "Show all sources", exact: true }).click();
   await snapshot(page);
   await expect(finish).toBeVisible();
   await writeFile(join(root, "lexicon/model.xml"), xml.replace("<name>Order</name>", "<name>Purchase Order</name>"));

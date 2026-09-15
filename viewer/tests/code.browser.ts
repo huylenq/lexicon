@@ -1,20 +1,20 @@
 import { expect, test, type Page } from "@playwright/test";
 
 const codePane = (page: Page) =>
-  page.getByRole("complementary", { name: "Code workspace" });
+  page.getByRole("complementary", { name: "Source workspace" });
 const browse = (page: Page, name: string) =>
   page.locator(".sidebar .nav-item").filter({ has: page.getByText(name, { exact: true }) }).click();
 const toggle = (page: Page) =>
-  page.getByRole("button", { name: "Toggle code workspace", exact: true });
+  page.getByRole("button", { name: "Toggle source workspace", exact: true });
 
-test("Browse and Canvas share one persistent, independently resizable Code workspace", async ({
+test("Browse and Canvas share one persistent, independently resizable Source workspace", async ({
   page,
 }) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto("/p/shop");
   await toggle(page).click();
-  await expect(codePane(page)).toContainText("Explore the implementation");
+  await expect(codePane(page)).toContainText("Explore the sources");
   await browse(page, "Order");
   await page.locator("main [data-reader-card].active .code-links button").first().click();
   await expect(page.locator(".code-scroll")).toBeVisible();
@@ -40,7 +40,7 @@ test("Browse and Canvas share one persistent, independently resizable Code works
   expect(new URL(page.url()).searchParams.get("code")).toBe(target);
   await expect(page.locator(".code-pane")).toHaveCount(1);
   await expect(page.locator("main .code-pane")).toHaveCount(0);
-  await page.getByRole("separator", { name: "Resize code workspace" }).focus();
+  await page.getByRole("separator", { name: "Resize source workspace" }).focus();
   await page.keyboard.press("ArrowLeft");
   expect((await codePane(page).boundingBox())!.width).toBeGreaterThan(
     codeBox.width,
@@ -94,7 +94,7 @@ test("code nodes preserve the reader; mapping edges open explanation and the sam
   await expect(page.getByRole("button", { name: "concept: Order", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Fit model", exact: true }).click();
   await page.getByRole("button", { name: "concept: Order", exact: true }).click({ button: "right" });
-  await page.getByRole("menuitem", { name: "Expand code", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Expand sources", exact: true }).click();
   await expect(page.locator(".canvas-card[data-model-id^='code:']")).toHaveCount(1);
   await page.getByRole("button", { name: "Fit model", exact: true }).click();
   const codeObject = page.locator(".canvas-card[data-model-id^='code:'] .canvas-object-title");
@@ -105,7 +105,7 @@ test("code nodes preserve the reader; mapping edges open explanation and the sam
   await expect(page.locator(".code-scroll")).toBeVisible();
   await page.getByRole("button", { name: "Fit model", exact: true }).click();
   await page
-    .getByRole("button", { name: "Read code mapping: definition", exact: true })
+    .getByRole("button", { name: "Read source mapping: definition", exact: true })
     .click();
   await expect(page.locator("main")).toContainText("Mapping explanation");
   await expect(codePane(page)).toContainText("Order");
@@ -126,12 +126,12 @@ test("Code history changes source independently of domain navigation and survive
   await page.locator("main [data-reader-card].active .code-links button").first().click();
   const second = new URL(page.url()).searchParams.get("code");
   expect(second).not.toBe(first);
-  await page.getByRole("button", { name: "Previous code location" }).click();
+  await page.getByRole("button", { name: "Previous source location" }).click();
   expect(new URL(page.url()).searchParams.get("code")).toBe(first);
   await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Shop API");
   await toggle(page).click();
   await toggle(page).click();
-  await page.getByRole("button", { name: "Next code location" }).click();
+  await page.getByRole("button", { name: "Next source location" }).click();
   expect(new URL(page.url()).searchParams.get("code")).toBe(second);
   await page.goBack();
   expect(new URL(page.url()).searchParams.get("code")).toBe(first);
@@ -148,7 +148,7 @@ test("earlier shared links resolve to Code; missing targets stay dismissible", a
   expect(target).toMatch(/^code:/);
   expect(new URL(page.url()).searchParams.has("canvas")).toBe(false);
   await expect(
-    page.getByRole("button", { name: "Previous code location" }),
+    page.getByRole("button", { name: "Previous source location" }),
   ).toBeDisabled();
   await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Order");
   await page.goto(
@@ -163,8 +163,8 @@ test("earlier shared links resolve to Code; missing targets stay dismissible", a
   await expect(page.locator(".code-scroll")).toBeVisible();
   await expect(page.locator("main .code-pane")).toHaveCount(0);
   await page.goto("/p/shop?code=code:missing");
-  await expect(codePane(page)).toContainText("Code target unavailable");
-  await page.getByRole("button", { name: "Close code pane" }).click();
+  await expect(codePane(page)).toContainText("Source target unavailable");
+  await page.getByRole("button", { name: "Close source pane" }).click();
   await expect(codePane(page)).toBeHidden();
 });
 
@@ -184,7 +184,7 @@ test("on narrow screens Code has its own full-screen surface and returns to the 
   await expect(codePane(page)).toBeHidden();
   await toggle(page).click();
   await expect(codePane(page)).toBeVisible();
-  await page.getByRole("button", { name: "Close code pane" }).click();
+  await page.getByRole("button", { name: "Close source pane" }).click();
   await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Order");
   expect(
     await page.evaluate(

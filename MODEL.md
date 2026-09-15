@@ -1,6 +1,6 @@
 # The Lexicon model
 
-A project has a stable ID, name, description, and one shared semantic document: `lexicon/model.xml`, rooted at `<lexicon schema="3.0">`. The parser, validator, edit protocol, and viewer use only this current schema. Other versions open a document-status screen with Agent available for discussion and explicit migration. See [Migration](MIGRATION.md).
+A project has a stable ID, name, description, and one shared semantic document: `lexicon/model.xml`, rooted at `<lexicon schema="3.2">`. The parser, validator, edit protocol, and viewer use only this current schema. Other versions open a document-status screen with Agent available for discussion and explicit migration. See [Migration](MIGRATION.md).
 
 | Item | XML | Meaning |
 |---|---|---|
@@ -23,12 +23,12 @@ Domain Context and Concept draw on DDD. The four software-structure types follow
 |---|---|
 | Dimension | Domain meaning, software architecture, or code; each describes a different aspect of the system |
 | Relationship | An authored connection between model elements, within or across domain and architecture |
-| Code link | An owned mapping from a model item to a source target, with a role and explanation |
+| Source link | An owned mapping to code or documentary evidence, with a role and explanation; stored as `code-link` |
 | View | A presentation chosen to answer a question about the shared model |
 | Layer | A visual plane presenting a dimension in the Layers view |
 | Page | A tldraw presentation container holding shapes and layout |
 
-Domain and architecture membership follows an element's existing type. Code targets are reached through CodeLinks; they are not a new Element type. Relationships can cross dimensions, and Flows order occurrences of relationships. Neither is assigned wholesale to one dimension. This distinction adds no XML fields or schema version.
+Domain and architecture membership follows an element's existing type. Source targets are reached through SourceLinks; they are not a new Element type. Relationships can cross dimensions, and Flows order occurrences of relationships. Neither is assigned wholesale to one dimension.
 
 Pages organize presentation. Their names and positions do not determine semantic membership. The Layers presentation stores separate Domain and Architecture pages in the project canvas, shown by two editors. Each view has its own visual references to the same semantic identities, so its placements remain independent. Domain appears above Architecture for reading; that arrangement implies no dependency or containment. Code is currently available through source links and the code workspace; a code plane remains future work.
 
@@ -65,7 +65,7 @@ ModelItem
 | Relationship | Explain a directed connection, what connects the endpoints, and applicable conditions | Exactly two Element endpoints; may cross domain, architecture, and containment boundaries |
 | Flow | Explain one scenario's trigger, relevant preconditions, ordered interactions, and outcome | Owns one or more ordered FlowSteps referencing Relationships |
 
-Annotations and CodeLinks are owned metadata on any item. FlowSteps are owned occurrences, not Elements or independent ModelItems. Containment does not imply a runtime call, aggregate membership, or consistency enforcement. Domain and architecture elements may correspond through an explained Relationship without sharing identity or parentage.
+Annotations and SourceLinks are owned metadata on any item. FlowSteps are owned occurrences, not Elements or independent ModelItems. Containment does not imply a runtime call, aggregate membership, or consistency enforcement. Domain and architecture elements may correspond through an explained Relationship without sharing identity or parentage.
 
 ### Relationship meaning and scenario obligations
 
@@ -97,15 +97,61 @@ Concept classification is an optional label. DDD classifications such as `entity
 
 An aggregate is represented by a concept classified `aggregate`, relationships to its members, and an annotation describing its consistency rules. State which rules the implementation enforces. A shared-kernel relationship should explain the model being shared and the coordination it requires. Data transfer alone establishes a dependency.
 
-## Code links
+## Source links
 
-A code link may have an `id`, unique within its owning object. Give new links stable IDs and preserve them when changing a file, symbol, role, or explanation. Canvas annotations and shared links use this identity. Links without IDs get a deterministic reference from their target and role; changing either can require reattaching their canvas annotations. Opening a model never writes IDs into XML.
+Source links connect model items to implementation code or supporting documents. Schema 3.2 requires an explicit migration from earlier schemas. Older viewers reject the new schema so they cannot silently discard source kinds or locators during edits. `SourceLink` is the union of `CodeLink` and `DocumentLink`; each has an explicit, required `kind`. Documents add evidence without becoming a new domain or architecture element.
 
-A link requires a repository-relative file, a role, and explanation text. Add a `symbol` for a declaration, or a positive, one-based `line` for a location. With both present, the symbol is authoritative. Without either, the reader opens the file.
+### Taxonomy
 
-Roles are descriptive labels: definition, representation, implementation, enforcement, usage. Explain discrepancies between a domain name and its code name. A concept may link to several files; a file may implement several concepts. Relationships also carry links.
+Kind, locator, role, and evidence qualification answer different questions:
+
+| Aspect | CodeLink | DocumentLink |
+|---|---|---|
+| Required kind | `code` | `document` |
+| Meaning | Implementation source | Written evidence, specifications, or rationale |
+| Locators | Whole file, `symbol`, or `line`; symbol takes precedence when both are present | Whole file, `heading`, or `line`; heading and line are mutually exclusive |
+| Reader capabilities | Raw source and supported tree-sitter declaration lookup; future symbol navigation belongs here | Rendered Markdown and heading navigation, or raw text for other text documents |
+| Typical roles | definition, representation, implementation, enforcement, usage | specification, rationale, reference |
+
+`kind` is authored, not inferred from a filename or role. The file extension chooses a supported syntax grammar for code or a document renderer after kind has been established. A Markdown file marked `code` opens as source; a TypeScript file marked `document` opens as documentary text without symbol lookup. Document links reject `symbol`; code links reject `heading`. Markdown heading support is limited to `.md`, `.markdown`, and `.mdown`; other text documents support file and line locators. Binary documents such as PDFs still require transcription.
+
+Roles remain descriptive strings, independent of kind. Evidence qualification (`intended`, `observed`, `enforced`) remains an annotation on the model claim. Neither a source kind nor a role proves that behavior is implemented or enforced.
+
+```xml
+<code-link kind="code" id="approval-check" file="src/approval.ts"
+           symbol="approve" role="enforcement">Checks the approval threshold.</code-link>
+<code-link kind="document" id="approval-policy" file="docs/policy.md"
+           heading="approval" role="specification">States the approval requirement.</code-link>
+```
+
+The persisted element remains `<code-link>` and the API array remains `codeLinks`, containing `SourceLink` values. They are compatibility field names, not declarations that every member is a CodeLink. The resolver returns `CodeExcerpt | DocumentExcerpt` and dispatches on `kind` before applying source-specific capabilities.
+
+Code and document targets at the same file/line are distinct. Code target identities and Markdown heading identities stay unchanged; document file and line targets use `document-file` and `document-line` locator tags. The viewer resolves unambiguous old document target URLs and remaps canvas references, including attached bindings. An explicit mapping ID disambiguates old URLs when both kinds now target the same location.
+
+A source link may have an `id`, unique within its owning object. Give new links stable IDs and preserve them when changing a file, locator, role, or explanation. Canvas annotations and shared links use this identity. Links without IDs get a deterministic reference from their target and role; changing either can require reattaching their canvas annotations. Opening a model never writes IDs into XML.
+
+A link requires `kind`, a repository-relative file, a role, and explanation text. For code, add a `symbol` for a declaration, or a positive, one-based `line` for a location. With both present, the symbol is authoritative. For documents, choose a Markdown `heading` or a `line`. Without a locator, the reader opens the whole file.
+
+Roles are descriptive labels: definition, representation, implementation, enforcement, usage, specification, rationale, or reference. Use documentary roles for requirements and design explanations; a document alone does not establish observed behavior or an enforced check. Explain discrepancies between a domain name and its code name. A concept may link to several files; a file may implement several concepts. Relationships also carry links.
 
 The reader locates Python and TypeScript/TSX declarations. Qualify repeated names, such as `Order.total`. Missing or ambiguous symbols are shown explicitly; unsupported languages open at file level with a notice. The checker counts those unsupported symbol links as unchecked. Source reads resolve symlinks and stay inside the selected code root. Text files have a 2 MB reading limit.
+
+### Markdown documents
+
+Document links to local `.md`, `.markdown`, and `.mdown` files open as rendered CommonMark/GFM with a heading navigator and a raw-text view. A `line` target opens raw text at that line. An optional `heading` selects a document section; it is exclusive with `symbol` and `line`. Keep `file` as a path, without a fragment:
+
+```xml
+<code-link kind="document" id="approval-spec" file="docs/requirements.md"
+           heading="human-approval" role="specification">
+  Defines when a reviewer must approve the proposed action.
+</code-link>
+```
+
+Heading anchors come from visible heading text: lowercase; remove punctuation except underscores and hyphens; replace whitespace with hyphens. Unicode letters and numbers are retained. Empty anchors become `section`; repeated or colliding anchors receive `-1`, `-2`, and so on in document order. For example, `## Human **Approval**` becomes `human-approval`. ATX and setext headings are supported; headings inside code fences are ignored. Renaming a heading can break its anchor; a stable link `id` preserves the mapping identity when its target is repaired. Missing headings are reported by the reader and fail CLI/edit validation.
+
+Rendered documents do not execute raw HTML or load images. Same-document heading links navigate within the pane; external HTTP(S)/mailto links are explicit links, and other relative links display as text. The source reader still only opens model-declared targets inside the selected project source root, with the existing 2 MB text-file limit. PDF files need a faithful Markdown transcription before linking; preserve PDF provenance and page markers in that transcription.
+
+For a document-only model, state the source document, version, and scope. Label prescribed behavior as intended and retain gaps or contradictions. Use implementation/enforcement claims only when supported by inspected code or checks; linking a policy that says a control is required does not prove that control exists.
 
 ## Flows and sequence diagrams
 
@@ -125,7 +171,7 @@ One model supplies the reader, graph filters, and derived sequence diagrams. The
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<lexicon schema="3.0" id="shop">
+<lexicon schema="3.2" id="shop">
   <name>Shop</name>
   <description>Accept and fulfill customer purchases.</description>
   <context id="ordering">
@@ -135,7 +181,7 @@ One model supplies the reader, graph filters, and derived sequence diagrams. The
       <name>Order</name>
       <description>A purchase whose items and total are considered together.</description>
       <annotation kind="rule" evidence="intended">The total follows the current items.</annotation>
-      <code-link file="src/order.ts" symbol="Order" role="representation">Gathers the purchased items.</code-link>
+      <code-link kind="code" file="src/order.ts" symbol="Order" role="representation">Gathers the purchased items.</code-link>
     </concept>
     <concept id="order-line" classification="value">
       <name>Order Line</name>

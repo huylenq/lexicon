@@ -6,7 +6,7 @@ user-invocable: true
 
 # Lexicon
 
-Reduce the understanding someone must reconstruct from code. Contexts establish meaning, concepts name ideas, relationships explain connections, and code links show their implementation. Human judgment governs names, boundaries, and emphasis.
+Reduce the understanding someone must reconstruct from code. Contexts establish meaning, concepts name ideas, relationships explain connections, and source links connect them to implementation code or documentary evidence. Human judgment governs names, boundaries, and emphasis.
 
 Domain meaning, software architecture, and code are distinct dimensions of the same system. Keep domain and architecture boundaries independent; explain their correspondence with relationships and ground either in code links. Flows describe scenarios across existing participants. Canvas layers and pages present those meanings without defining them.
 
@@ -32,7 +32,9 @@ Do not switch to filesystem writes merely because an MCP operation failed or is 
 
 Inspect project instructions and existing artifacts before editing. For a linked Git worktree, inspect implementation in the selected checkout and check the primary worktree for model artifacts. Use the caller's explicit artifact root when supplied. Preserve unrelated work and project registrations.
 
-Read the bundle's `MODEL.md` and [contract.md](contract.md) before authoring; it defines XML, naming, annotations, and code-link conventions. Contexts group consistent meaning and responsibility. A domain concept may span several files, and a file may implement several concepts. Explain discrepancies between domain names and code symbols. Use DDD classifications when they clarify identity, consistency, or responsibility.
+Read the bundle's `MODEL.md` and [contract.md](contract.md) before authoring; it defines XML, naming, annotations, and source-link conventions (retaining `code-link` XML and `codeLinks` API fields). Contexts group consistent meaning and responsibility. A domain concept may span several files, and a file may implement several concepts. Explain discrepancies between domain names and code symbols. Use DDD classifications when they clarify identity, consistency, or responsibility.
+
+For document-backed modeling, inspect the relevant source documents and preserve their version, provenance, and scope. Give documentary links `kind="document"` and implementation links `kind="code"`; kind is independent of role and is never inferred by the viewer. Code links own tree-sitter/symbol capabilities; document links own heading and document-reading capabilities. Use source links with roles such as `specification`, `rationale`, or `reference`; Markdown supports file, line, or `heading` targets as defined in `MODEL.md`. A document establishes what is specified, not what code implements or enforces. When the user asks for a document-only model, do not inspect code or invent implementation links. For a PDF transcription, preserve page markers and distinguish faithful source text from synthesis.
 
 For standalone skill use, write scoped edits to `<artifact-root>/lexicon/model.xml`. Connected MCP operations use the inspected project's server-owned artifact root and revision. Embedded chat delivers its structured patch for the server to apply. Project prose stays where it is. Do not introduce personal models or a separate modeling-decision log.
 

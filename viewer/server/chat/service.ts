@@ -565,7 +565,7 @@ Exploratory questions get discussion without an edit. Explicit edit requests get
 ${guidance("contract.md")}
 ${model?.items.length === 0 ? guidance("initialize.md") : ""}
 ${guidance("review.md")}
-The workflow's references to writing and checking are carried out by the Lexicon server in this session. Inspect new linked files/symbols. Use only the delivery protocol and your read-only source tools.
+The workflow's references to writing and checking are carried out by the Lexicon server in this session. Every source link requires kind code or document. Code links support symbol lookup; document links support headings and text, never symbols. Inspect new linked files, symbols, and Markdown headings. Document links establish documentary evidence, not verified implementation or enforcement. Use only the delivery protocol and your read-only source tools.
 ${model ? `For an explicit model edit, explain it briefly then append EXACTLY ONE fenced block with language lexicon-patch containing JSON:
 {"project":{"name":"optional project name","description":"optional explanation"},"upsert":[{"type":"context","id":"stable-id","name":"Name","description":"Meaning","annotations":[],"codeLinks":[]}],"remove":["explicitly-removed-id"]}
 The model uses the current schema. Never output an XML replacement or migration block.` : `${guidance("migrations/README.md")}
