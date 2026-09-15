@@ -1,16 +1,9 @@
 import type { ReactNode } from "react";
 import type { Projection } from "./graph/model";
-import Icon from "./Icon";
+import ObjectName from "./ObjectName";
+import { typeNames } from "../../shared/model";
 
-const objectLegend = [
-  ["context", "context", "Context"],
-  ["concept", "concept", "Concept"],
-  ["entity", "entity", "Entity"],
-  ["value", "value", "Value"],
-  ["aggregate", "aggregate", "Aggregate"],
-  ["service", "service", "Service"],
-  ["event", "event", "Event"],
-] as const;
+const classifications = ["entity", "value", "aggregate", "service", "event"] as const;
 
 export default function ModelLegend({
   projection,
@@ -23,16 +16,15 @@ export default function ModelLegend({
     <div className="model-legend" aria-label="Model legend and counts">
       <span className="model-object-legend" aria-label="Object icon legend">
         {(["person", "system", "container", "component"] as const).filter(kind => projection.nodes.some(n => n.kind === kind)).map(kind =>
-          <span className="model-object-key object-name" key={kind}><Icon name={kind} size={13} />{kind === "system" ? "Software System" : kind[0].toUpperCase() + kind.slice(1)}</span>
+          <span className="model-object-key" key={kind}><ObjectName type={kind} name={typeNames[kind]} size={13} /></span>
         )}
-        {objectLegend.map(([tone, icon, label]) => (
-          <span
-            className="model-object-key object-name"
-            data-tone={tone}
-            key={tone}
-          >
-            <Icon name={icon} size={13} className="type-icon" />
-            {label}
+        {(["context", "concept"] as const).map(kind => (
+          <span className="model-object-key" key={kind}><ObjectName type={kind} name={typeNames[kind]} size={13} /></span>
+        ))}
+        {classifications.map(classification => (
+          <span className="model-object-key" key={classification}>
+            <ObjectName type="concept" classification={classification}
+              name={classification[0].toUpperCase() + classification.slice(1)} size={13} />
           </span>
         ))}
       </span>

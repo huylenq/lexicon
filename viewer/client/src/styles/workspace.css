@@ -97,7 +97,7 @@
   align-items: center;
   gap: 16px;
 }
-.model-object-key.object-name {
+.model-object-key .object-name {
   align-items: center;
   gap: 5px;
   color: var(--muted);
@@ -109,7 +109,7 @@
 .model-legend i {
   display: inline-block;
   width: 17px;
-  border-top: 1px solid var(--type-relationship);
+  border-top: 1px solid var(--canvas-relationship);
   vertical-align: middle;
   margin-right: 5px;
 }

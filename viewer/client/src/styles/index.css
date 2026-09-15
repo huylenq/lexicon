@@ -40,7 +40,12 @@
   --type-event: #b82c72;
   --type-context: var(--muted);
   --type-concept: #465bb6;
+  --type-person: #64748b;
+  --type-system: #115e59;
+  --type-container: #0e7490;
+  --type-component: #408078;
   --type-relationship: #b34c16;
+  --canvas-relationship: #7a8997;
   --type-code: #007568;
   --syntax-string: #277453;
   --syntax-keyword: #7950a8;
@@ -67,7 +72,12 @@
   --type-event: #ff7eb6;
   --type-context: var(--muted);
   --type-concept: #9fb9fa;
+  --type-person: #a6b2c4;
+  --type-system: #5eead4;
+  --type-container: #67d5e8;
+  --type-component: #a0d6cc;
   --type-relationship: #ffa16b;
+  --canvas-relationship: #566573;
   --type-code: #57dfd4;
   --syntax-string: #65dfa1;
   --syntax-keyword: #c095ff;
@@ -997,6 +1007,14 @@ article section {
   flex-shrink: 0;
 }
 .nav-item:has(> .object-name) { --object-color: var(--type-concept); }
+.object-name[data-tone="person"],
+.nav-item:has(> .object-name[data-tone="person"]) { --object-color: var(--type-person); }
+.object-name[data-tone="system"],
+.nav-item:has(> .object-name[data-tone="system"]) { --object-color: var(--type-system); }
+.object-name[data-tone="container"],
+.nav-item:has(> .object-name[data-tone="container"]) { --object-color: var(--type-container); }
+.object-name[data-tone="component"],
+.nav-item:has(> .object-name[data-tone="component"]) { --object-color: var(--type-component); }
 .object-name[data-tone="entity"],
 .nav-item:has(> .object-name[data-tone="entity"]) { --object-color: var(--type-entity); }
 .object-name[data-tone="value"],
