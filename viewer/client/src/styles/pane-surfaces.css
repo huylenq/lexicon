@@ -56,20 +56,6 @@
 
   .reader .chat-heading { border-color: var(--pane-rule); }
 
-  .reader .code-divider::after,
-  .reader > .chat-divider::after {
-    background: transparent;
-    top: 12px;
-    bottom: 12px;
-  }
-
-  .reader .code-divider:hover::after,
-  .reader .code-divider:focus-visible::after,
-  .reader > .chat-divider:hover::after,
-  .reader > .chat-divider:focus-visible::after {
-    background: var(--muted);
-  }
-
   .reader .reader-stack {
     --panel: #181818;
     --line: var(--pane-edge);

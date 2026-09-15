@@ -394,18 +394,7 @@
     cursor: col-resize;
     touch-action: none;
   }
-  .chat-divider::after {
-    content: "";
-    position: absolute;
-    inset: 0 auto 0 50%;
-    width: 1px;
-    background: var(--line);
-    transform: translateX(-50%);
-  }
-  .chat-divider:hover,
-  .chat-divider:focus-visible { background: var(--accent-soft); }
-  .chat-divider:hover::after,
-  .chat-divider:focus-visible::after { background: var(--accent); }
+
 }
 @media (max-width: 1000px) {
   .chat-heading .chat-attach-toggle { display: none; }

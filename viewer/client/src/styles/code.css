@@ -210,20 +210,6 @@
   touch-action: none;
   position: relative;
 }
-.code-divider::after {
-  content: "";
-  position: absolute;
-  inset: 0 auto 0 50%;
-  width: 1px;
-  background: var(--line);
-  transform: translateX(-50%);
-}
-.code-divider:hover,
-.code-divider:focus-visible {
-  background: var(--accent-soft);
-}
-.code-divider:hover::after,
-.code-divider:focus-visible::after { background: var(--accent); }
 .with-code .canvas-slot {
   min-width: 200px;
 }

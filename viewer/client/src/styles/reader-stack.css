@@ -23,7 +23,6 @@
   width: 7px;
   z-index: 6;
 }
-.reader-workspace > .canvas-divider::after { content: none; }
 :root[data-theme="dark"] .reader-stack {
   --panel: #202020;
   --line: #383838;

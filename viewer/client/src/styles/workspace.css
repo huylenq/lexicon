@@ -35,22 +35,33 @@
   position: relative;
   z-index: 2;
 }
-.canvas-divider:hover,
-.canvas-divider:focus-visible {
-  background: var(--accent-soft);
-}
-.canvas-divider::after {
+/* Keep the full divider draggable; only the centered grip is painted. */
+:is(.canvas-divider, .code-divider, .chat-divider)::after {
   content: "";
-  width: 1px;
-  height: 100%;
-  background: var(--line);
   position: absolute;
-  top: 0;
+  top: 50%;
   left: 50%;
-  transform: translateX(-50%);
+  width: 3px;
+  height: 32px;
+  border-radius: 999px;
+  background: var(--muted);
+  opacity: 0;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
 }
-.canvas-divider:hover::after,
-.canvas-divider:focus-visible::after { background: var(--accent); }
+:is(.canvas-divider, .code-divider, .chat-divider):focus-visible {
+  outline: none;
+}
+:is(.canvas-divider, .code-divider, .chat-divider):is(:hover, :active, :focus-visible)::after {
+  opacity: 1;
+}
+:is(.canvas-divider, .code-divider, .chat-divider):is(:active, :focus-visible)::after {
+  background: var(--accent);
+}
+:is(.canvas-divider, .code-divider, .chat-divider):focus-visible::after {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
 
 .canvas-pane {
   position: relative;
