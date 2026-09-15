@@ -285,6 +285,8 @@ export class LexiconObjectUtil extends BaseBoxShapeUtil<ObjectShape> {
 
 function ConnectionCard({ shape }: { shape: ConnectionShape }) {
   const editor = useEditor();
+  const hovered = useValue("Hovered relationship", () => editor.getHoveredShapeId() === shape.id, [editor, shape.id]);
+  const selected = useValue("Selected relationship", () => editor.getSelectedShapeIds().includes(shape.id), [editor, shape.id]);
   const model = useCanvasPresentation(editor);
   const connection = model.connections.get(shape.props.graphId);
   const p = shape.props;
@@ -300,6 +302,8 @@ function ConnectionCard({ shape }: { shape: ConnectionShape }) {
   return (
     <svg
       className={`tl-svg-container canvas-connection ${connection?.kind === "mapping" ? "canvas-mapping" : ""} ${!model.matches(p.graphId) ? "canvas-dimmed" : ""}`}
+      data-hovered={hovered || undefined}
+      data-selected={selected || undefined}
       data-atlas-road={model.mapEnabled && connection?.kind === "relationship" && isPrimary(shape) && choice(shape.meta.lexiconPath, paths, "road") !== "none" || undefined}
     >
       <path
@@ -462,7 +466,17 @@ export class LexiconConnectionUtil extends ShapeUtil<ConnectionShape> {
   }
   getIndicatorPath(shape: ConnectionShape) {
     const road = shapeRoad(this.editor, shape);
-    return new Path2D(road ? pathFor(road.outline, true) : connectionDrawing(shape, this.editor).path);
+    const label = road || shape.props;
+    const bounds = this.getGeometry(shape).bounds;
+    // Indicators render above shape content. Exclude the label so hover and
+    // selection highlights cannot strike through its text.
+    const clipPath = new Path2D();
+    clipPath.rect(bounds.minX - 100, bounds.minY - 100, bounds.width + 200, bounds.height + 200);
+    clipPath.rect(label.labelX - shape.props.labelWidth / 2, label.labelY - 15, shape.props.labelWidth, 30);
+    return {
+      path: new Path2D(road ? pathFor(road.outline, true) : connectionDrawing(shape, this.editor).path),
+      clipPath,
+    };
   }
 }
 

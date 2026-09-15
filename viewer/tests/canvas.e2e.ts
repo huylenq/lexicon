@@ -57,6 +57,41 @@ async function drag(page: Page, from: { x: number; y: number }, to: { x: number;
   await page.mouse.up();
 }
 
+test("relationship hover and selection highlight the label border and preserve its text", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await open(page);
+  await page.getByRole("radio", { name: "Domain", exact: true }).check();
+  await page.getByRole("radio", { name: "Standard", exact: true }).check();
+  await page.getByRole("button", { name: "Fit model", exact: true }).click();
+  const label = page.getByRole("button", { name: "Read relationship: contains", exact: true });
+  const box = (await label.boundingBox())!;
+  const clip = { x: box.x + 6, y: box.y + 6, width: box.width - 12, height: box.height - 12 };
+  await page.mouse.move(0, 0);
+  const normalColor = await label.evaluate(el => getComputedStyle(el).color);
+  const normalBorder = await label.evaluate(el => getComputedStyle(el).borderColor);
+  const before = await page.screenshot({ clip });
+  await label.hover();
+  await expect.poll(() => label.evaluate(el => getComputedStyle(el).borderColor)).not.toBe(normalBorder);
+  const highlighted = await page.screenshot({ clip });
+  expect(highlighted.equals(before)).toBe(true);
+  // Moving onto the route keeps the label's highlight and unobscured text.
+  await page.mouse.move(box.x + box.width / 2, box.y - 10);
+  await expect(page.locator(".canvas-connection").filter({ has: label })).toHaveAttribute("data-hovered", "true");
+  expect((await page.screenshot({ clip })).equals(highlighted)).toBe(true);
+  await page.mouse.move(0, 0);
+  await expect.poll(() => label.evaluate(el => getComputedStyle(el).color)).toBe(normalColor);
+  await expect.poll(() => label.evaluate(el => getComputedStyle(el).borderColor)).toBe(normalBorder);
+  // Selection keeps the border highlighted after the pointer leaves.
+  await label.focus();
+  await label.press("Enter");
+  await page.mouse.move(0, 0);
+  await expect(page.locator(".canvas-connection").filter({ has: label })).toHaveAttribute("data-selected", "true");
+  await expect.poll(() => label.evaluate(el => getComputedStyle(el).borderColor)).not.toBe(normalBorder);
+  await expect.poll(() => label.evaluate(el => getComputedStyle(el).color)).toBe(normalColor);
+  await page.keyboard.press("Escape");
+  await expect.poll(() => label.evaluate(el => getComputedStyle(el).borderColor)).toBe(normalBorder);
+});
+
 test("native label gestures add and toggle selections, including relationship labels", async ({ page }) => {
   await open(page);
   const order = page.getByRole("button", { name: "concept: Order", exact: true });
