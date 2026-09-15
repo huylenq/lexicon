@@ -19,7 +19,7 @@ import type {
 import { isModelShape, isPrimary, modelShapeId as referenceId } from "./references";
 import { relationshipRoute } from "./routes";
 import { createRelationshipRouter, type RelationshipRoute } from "./scene-routing";
-import { objectFrame, objectSizes } from "./sizing";
+import { connectionLabelWidth, objectFrame, objectSizes } from "./sizing";
 import { contextPreferences, diagramContextFrame, contextLabelFrame, isContext } from "./contexts";
 
 /** Use exact orthogonal hit geometry for relationships; code mappings retain curves. */
@@ -32,9 +32,10 @@ export function connectionGeometry(
   orthogonal = true,
   obstacles?: Box[],
   routed?: RelationshipRoute,
+  labelWidth = Math.min(320, Math.max(90, label.length * 7 + 24)),
 ) {
   if (orthogonal) {
-    const route = routed || relationshipRoute(source, target, lane, self, obstacles, Math.min(320, Math.max(90, label.length * 7 + 24)));
+    const route = routed || relationshipRoute(source, target, lane, self, obstacles, labelWidth);
     const x = Math.min(...route.points.map((p) => p.x));
     const y = Math.min(...route.points.map((p) => p.y));
     const points = route.points.map((p) => ({ x: p.x - x, y: p.y - y }));
@@ -45,7 +46,7 @@ export function connectionGeometry(
         points,
         labelX: route.x - x,
         labelY: route.y - y,
-        labelWidth: Math.min(320, Math.max(90, label.length * 7 + 24)),
+        labelWidth: labelWidth,
       },
     };
   }
@@ -82,7 +83,7 @@ export function connectionGeometry(
       points: points.map((p) => ({ x: p.x - x, y: p.y - y })),
       labelX: route.x - x,
       labelY: route.y - y,
-      labelWidth: Math.min(320, Math.max(90, label.length * 7 + 24)),
+      labelWidth: labelWidth,
     },
   };
 }
@@ -156,7 +157,7 @@ export function createProjection(
       const lane = lanes.get(edge.id) || 0;
       return [{ id: edge.id, sourceId: edge.source, targetId: edge.target, source, target,
         lane: edge.source < edge.target ? lane : -lane,
-        labelWidth: Math.min(320, Math.max(90, edge.label.length * 7 + 24)) }];
+        labelWidth: connectionLabelWidth(editor, edge.label) }];
     }), obstacles, incremental);
     for (const edge of connections) {
       if (edge.source.startsWith("anchor:")) {
@@ -189,6 +190,7 @@ export function createProjection(
         edge.kind === "relationship",
         obstacles.filter(o => o.id !== edge.source && o.id !== edge.target),
         routed.get(edge.id),
+        connectionLabelWidth(editor, edge.label),
       );
       const id = modelShapeId(edge.id);
       const shape = editor.getShape<ConnectionShape>(id);
