@@ -14,6 +14,25 @@ const openPinned = async (page: Page, id: string) => {
 };
 const scroll = (page: Page) => page.locator("main").evaluate(el => el.scrollTop);
 
+test("bottom tiles use the available workspace height with the Agent launcher docked", async ({ page }) => {
+  await openPinned(page, "order");
+  await page.getByRole("button", { name: "Agent", exact: true }).click();
+  await page.getByRole("button", { name: "Dock launcher in toolbar", exact: true }).click();
+  await page.getByRole("button", { name: "Agent", exact: true }).click();
+  for (const name of ["Order Line", "Customer", "Shop"]) await browse(page, name);
+  for (const size of [{ width: 1600, height: 700 }, { width: 1200, height: 900 }]) {
+    await page.setViewportSize(size);
+    await page.locator("main").evaluate(el => { el.scrollTop = 0; });
+    const bottom = page.getByRole("group", { name: "Collapsed cards below" });
+    await expect(bottom).toBeVisible();
+    await expect.poll(() => bottom.evaluate(el => {
+      const workspace = el.closest(".reader-workspace")!;
+      const innerBottom = workspace.getBoundingClientRect().top + workspace.clientTop + workspace.clientHeight;
+      return innerBottom - el.getBoundingClientRect().bottom;
+    })).toBeCloseTo(15, 0);
+  }
+});
+
 test("Back interrupts reader travel without overwriting the restored position", async ({ page }) => {
   await openPinned(page, "order");
   for (const name of ["Order Line", "Customer", "Shop", "Shop API"]) await browse(page, name);
@@ -335,13 +354,19 @@ test("selection border stays attached when native scrolling outruns scroll handl
       return [0, 140, 60, 0].map(amount => {
         main.scrollTop = (el as HTMLElement).offsetTop + amount;
         const edge = getComputedStyle(header, "::before");
+        const clipTop = parseFloat(getComputedStyle(main).clip.slice(5));
+        const outlineTop = header.getBoundingClientRect().top + parseFloat(edge.top);
         return { position: getComputedStyle(header).position, top: edge.top,
           width: edge.borderTopWidth, radius: edge.borderTopLeftRadius,
-          shadow: getComputedStyle(header).boxShadow };
+          shadow: getComputedStyle(header).boxShadow,
+          clearance: outlineTop - main.getBoundingClientRect().top - clipTop };
       });
     } finally { window.removeEventListener("scroll", stop, true); }
   });
-  for (const edge of result) expect(edge).toEqual({ position: "sticky", top: "-1px", width: "1px", radius: "10px", shadow: "none" });
+  for (const { clearance, ...edge } of result) {
+    expect(edge).toEqual({ position: "sticky", top: "-1px", width: "1px", radius: "10px", shadow: "none" });
+    expect(clearance).toBeGreaterThanOrEqual(0);
+  }
   await selected.evaluate(el => { el.closest("main")!.scrollTop = (el as HTMLElement).offsetTop + 140; });
   await page.screenshot({ path: test.info().outputPath("reader-native-border.png") });
 });
@@ -492,6 +517,13 @@ test("expanded bodies are clipped out of the transparent collapsed rail", async 
     return true;
   })).toBe(true);
   await expect(rail).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+  const outlineClearance = await card(page, "item:api").locator(":scope > header").evaluate(header => {
+    const main = header.closest("main")!;
+    const clipTop = parseFloat(getComputedStyle(main).clip.slice(5));
+    return header.getBoundingClientRect().top + parseFloat(getComputedStyle(header, "::before").top)
+      - main.getBoundingClientRect().top - clipTop;
+  });
+  expect(outlineClearance).toBeGreaterThanOrEqual(0);
   // Simulate scrolling outrunning JS: no scroll handler can refresh geometry.
   // The viewport must still clip bodies at every intermediate position.
   const leaked = await page.evaluate(() => {

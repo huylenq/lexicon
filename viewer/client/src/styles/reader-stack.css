@@ -176,8 +176,10 @@
 .reader-collapsed-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr)); gap: 8px; overflow-y: auto; overscroll-behavior: contain; align-content: start; }
 .reader-collapsed-grid > .reader-collapsed-card { min-width: 0; transform-origin: top left; }
 @media (min-width: 1001px) {
-  .canvas-workspace > .reader-stack { bottom: 64px; }
-  .canvas-workspace > .canvas-divider { bottom: 72px; }
+  /* Only the floating Agent launcher needs bottom clearance. A docked
+     launcher leaves the full Reader height available for cards and morphs. */
+  .reader:has(> .assistant-launcher) .canvas-workspace > .reader-stack { bottom: 64px; }
+  .reader:has(> .assistant-launcher) .canvas-workspace > .canvas-divider { bottom: 72px; }
 }
 /* Measure the full canvas workspace; let its menus layer above the reader. */
 .reader-workspace { container-type: inline-size; }

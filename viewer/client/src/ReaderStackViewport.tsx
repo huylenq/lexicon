@@ -300,7 +300,9 @@ export default function ReaderStackViewport({ reading, model, layoutKey, notice,
       onFocusCapture={event => {
         if (!(event.target as Element).closest("[data-reader-link], [data-close-card], [data-pin-card]")) reading.open(card, { reveal: false });
       }}>
-      {renderCardHeader(card, false, { top: Math.max(stickyTop, morphBoundary) })}
+      {/* The outline extends one border above the header's box. Keep that
+          painted edge inside the scrollport's clip, including below a rail. */}
+      {renderCardHeader(card, false, { top: `calc(${Math.max(stickyTop, morphBoundary)}px + var(--card-border-width))` })}
       {body}
     </section>;
   };
