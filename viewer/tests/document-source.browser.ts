@@ -191,13 +191,13 @@ test('code and document links to the same path have independent selection and re
     const pane = page.getByRole('complementary', { name: 'Source workspace' });
     const links = page.locator('main [data-reader-card].active .code-links button');
     for (let i = 0; i < 2; i++) {
-      await links.filter({ hasText: 'Document · reference' }).click();
+      await links.filter({ has: page.getByRole('img', { name: 'Document', exact: true }) }).filter({ hasText: 'reference' }).click();
       await expect(pane.getByLabel('Document source text')).toContainText('export interface Order');
       await expect(pane.getByLabel('Source code', { exact: true })).toHaveCount(0);
       await expect(pane.locator('.tok-keyword')).toHaveCount(0);
       await expect(page.locator('main [data-reader-card].active .code-links button.selected')).toHaveCount(1);
       const documentTarget = new URL(page.url()).searchParams.get('code');
-      await links.filter({ hasText: 'Code · representation' }).click();
+      await links.filter({ has: page.getByRole('img', { name: 'Code', exact: true }) }).filter({ hasText: 'representation' }).click();
       await expect(pane.getByLabel('Source code', { exact: true })).toContainText('export interface Order');
       await expect(pane.getByLabel('Document source text')).toHaveCount(0);
       expect(await pane.locator('.tok-keyword').count()).toBeGreaterThan(0);

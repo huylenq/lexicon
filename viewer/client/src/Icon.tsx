@@ -19,6 +19,7 @@ export type IconName =
   | "panel-right"
   | "graph"
   | "code"
+  | "document"
   | "overview"
   | "layers"
   | "ink"

@@ -1,4 +1,4 @@
-import { sourceKind, sourceLabel } from "../../shared/source";
+import { sourceLabel } from "../../shared/source";
 import { Link } from "react-router-dom";
 import { related, flowsFor, parentOf, isArchitecture, isModelElement, typeNames, type Model } from "../../shared/model";
 import type { GraphIndex, GraphSelection, Target } from "./graph/model";
@@ -316,10 +316,10 @@ export default function ReaderCardBody({ card, model, graphIndex, params, loadin
                             }
                           >
                             <span className="code-role">
-                              <span>{sourceKind(l)} · {l.role}</span> <Icon name="open" size={14} />
+                              <span>{l.role}</span> <Icon name="open" size={14} />
                             </span>
                             <strong>
-                              <ObjectName type="code-link" name={sourceLabel(l)} size={14} />
+                              <ObjectName type={l.kind} name={sourceLabel(l)} size={14} />
                             </strong>
                             <code>
                               {l.file}

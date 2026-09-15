@@ -2,7 +2,7 @@ import { useTooltip } from "./useTooltip";
 import Icon, { type IconName } from "./Icon";
 import { typeNames, type ModelItem } from "../../shared/model";
 
-export type ObjectKind = ModelItem["type"] | "code-link" | "code";
+export type ObjectKind = ModelItem["type"] | "code-link" | "code" | "document";
 
 const classifications: Record<string, IconName> = {
   entity: "entity", value: "value", aggregate: "aggregate",
@@ -12,7 +12,7 @@ const classifications: Record<string, IconName> = {
 export function objectTone(type: ObjectKind, classification?: string) {
   const normalized = classification?.trim().toLowerCase().replace(/[\s_-]+/g, "-");
   const tone = normalized === "value-object" ? "value" : normalized;
-  return type === "concept" && tone && classifications[tone] ? tone : type;
+  return type === "document" ? "code-link" : type === "concept" && tone && classifications[tone] ? tone : type;
 }
 
 function appearance(type: ObjectKind, classification?: string) {
@@ -23,7 +23,7 @@ function appearance(type: ObjectKind, classification?: string) {
     icon: type === "concept" && tone ? classifications[tone] || "concept" : type,
     label: type === "concept" && classification
       ? "Concept · " + classification
-      : { ...typeNames, "code-link": "Source link", code: "Source" }[type],
+      : { ...typeNames, "code-link": "Source link", code: "Code", document: "Document" }[type],
   };
 }
 
