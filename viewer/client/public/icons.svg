@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="760" height="904" viewBox="0 0 760 904" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="1024" viewBox="0 0 760 1024" role="img" aria-labelledby="title desc">
 <title id="title">Lexicon icon set</title>
-<desc id="desc">Original icons on a 20-unit grid. Four model objects, five DDD classifications, annotations, and viewer controls. Each glyph is shown at 28 and 16 pixels. Reuse symbols by their IDs.</desc>
+<desc id="desc">Original icons on a 20-unit grid. Domain and software structure, five DDD classifications, annotations, and viewer controls. Each glyph is shown at 28 and 16 pixels. Reuse symbols by their IDs.</desc>
 <defs>
 <symbol id="flow" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v14M17 3v14M3 7h11m-3-3 3 3-3 3M17 13H6m3-3-3 3 3 3"/></g></symbol>
 <symbol id="context" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="3.5" width="15" height="13" rx="3" stroke-dasharray="2 2.5"/><circle cx="7" cy="10" r="1.5"/><circle cx="13" cy="10" r="1.5"/><path d="M8.5 10h3"/></g></symbol>
@@ -35,15 +35,15 @@
 <symbol id="locate" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="5.5"/><circle cx="10" cy="10" r="1.5"/><path d="M10 1v3m0 12v3M1 10h3m12 0h3"/></g></symbol>
 <symbol id="panel-right" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="3.5" width="15" height="13" rx="2"/><path d="M12.5 3.5v13"/><path d="M14.5 6h1m-1 4h1m-1 4h1"/></g></symbol>
 
-<symbol id="person" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="5" r="3"/><path d="M4 18v-3a6 6 0 0 1 12 0v3"/></g></symbol>
-<symbol id="system" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="16" height="14" rx="2"/><path d="M2 7h16M6 11h3v3H6zM12 11h3v3h-3z"/></g></symbol>
-<symbol id="container" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="2" width="14" height="16" rx="2"/><path d="M3 7h14M3 12h14M6 5h1M6 10h1M6 15h1"/></g></symbol>
-<symbol id="component" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v14H6v-3m0-8V3"/><path d="M2 6h7v3H2zM2 11h7v3H2z"/></g></symbol>
+<symbol id="person" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="5.5" r="3"/><path d="M4 17.5v-2a6 6 0 0 1 12 0v2Z"/></g></symbol>
+<symbol id="system" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="6.5" y="2" width="7" height="5" rx="1"/><path d="M10 7v3M5 13v-3h10v3"/><rect x="2" y="13" width="6" height="5" rx="1"/><rect x="12" y="13" width="6" height="5" rx="1"/></g></symbol>
+<symbol id="container" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="16" height="14" rx="2"/><path d="M2 7h16M6 10.5l2 1.5-2 1.5M11 13.5h3"/></g></symbol>
+<symbol id="component" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5h2.5C8 5 8 4.5 8 4a2 2 0 0 1 4 0c0 .5 0 1 .5 1H15a2 2 0 0 1 2 2v1c0 .5-.5.5-1 .5a2 2 0 0 0 0 4c.5 0 1 0 1 .5v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"/></g></symbol>
 <symbol id="layers" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m10 2 8 4-8 4-8-4 8-4Zm-8 8 8 4 8-4M2 14l8 4 8-4"/></g></symbol>
 <symbol id="ink" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 5 5-7 8-7 1 1-7 8-7ZM3 17l6-6M10 5l5 5"/><circle cx="10" cy="10" r="1.5"/></g></symbol>
 <symbol id="village" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m2 10 5-5 5 5M3 9v8h8V9M7 17v-4m5-8 3-3 3 3m-5-1v7h4V4M14 17h4m-2-3v3"/></g></symbol>
 </defs>
-<rect width="760" height="904" rx="12" fill="#fff"/>
+<rect width="760" height="1024" rx="12" fill="#fff"/>
 <g font-family="-apple-system, BlinkMacSystemFont, sans-serif" fill="#242424" color="#242424">
 <text x="32" y="40" font-size="22" font-weight="600">Lexicon icons</text>
 <text x="32" y="64" font-size="12" fill="#666">20-unit grid · 1.5-unit strokes · currentColor · 28px / 16px previews</text>
@@ -84,5 +84,10 @@
 <g transform="translate(176 796)"><use href="#layers" width="28" height="28"/><use href="#layers" x="40" y="6" width="16" height="16"/><text y="49" font-size="12">Layers</text></g>
 <g transform="translate(320 796)"><use href="#ink" width="28" height="28"/><use href="#ink" x="40" y="6" width="16" height="16"/><text y="49" font-size="12">Ink</text></g>
 <g transform="translate(464 796)"><use href="#village" width="28" height="28"/><use href="#village" x="40" y="6" width="16" height="16"/><text y="49" font-size="12">Village</text></g>
+<text x="32" y="902" font-size="11" fill="#666" letter-spacing="1">SOFTWARE STRUCTURE</text>
+<g transform="translate(32 922)"><use href="#person" width="28" height="28"/><use href="#person" x="40" y="6" width="16" height="16"/><text y="49" font-size="12">Person</text></g>
+<g transform="translate(176 922)"><use href="#system" width="28" height="28"/><use href="#system" x="40" y="6" width="16" height="16"/><text y="49" font-size="12">Software system</text></g>
+<g transform="translate(320 922)"><use href="#container" width="28" height="28"/><use href="#container" x="40" y="6" width="16" height="16"/><text y="49" font-size="12">Container</text></g>
+<g transform="translate(464 922)"><use href="#component" width="28" height="28"/><use href="#component" x="40" y="6" width="16" height="16"/><text y="49" font-size="12">Component</text></g>
 </g>
 </svg>
