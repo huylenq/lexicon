@@ -737,17 +737,17 @@ article section {
 }
 .code-links {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
-  gap: 12px;
+  grid-template-columns: 1fr;
+  gap: 4px;
 }
 .code-links button {
   display: flex;
   flex-direction: column;
   text-align: left;
-  padding: 14px;
+  padding: 8px 10px;
   border: 1px solid var(--line);
   background: var(--panel);
-  border-radius: 7px;
+  border-radius: 5px;
   min-width: 0;
 }
 .code-links button:hover,
@@ -755,31 +755,45 @@ article section {
   border-color: var(--accent);
   background: var(--accent-soft);
 }
+.source-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+.source-heading > .icon {
+  flex-shrink: 0;
+  align-self: center;
+}
 .code-role {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.4px;
   color: var(--accent);
-  display: flex;
-  justify-content: space-between;
-  width: 100%;
-  line-height: 1.7;
+  flex-shrink: 0;
+  max-width: 40%;
+  overflow-wrap: anywhere;
+  line-height: 1.4;
 }
 .code-links strong {
   font-family: var(--font-code);
   font-size: 12px;
-  margin: 8px 0 6px;
+  flex: 1;
+  min-width: 0;
+  margin: 0;
   overflow-wrap: anywhere;
 }
 .code-links code {
+  margin-top: 2px;
   font-size: 11px;
   color: var(--muted);
   overflow-wrap: anywhere;
 }
 .code-links p {
   font-size: 12px;
-  line-height: 1.6;
-  margin: 12px 0 0;
+  line-height: 1.45;
+  margin: 4px 0 0;
 }
 .issues {
   padding: 14px 16px;

@@ -245,12 +245,13 @@ export default function ReaderCardBody({ card, model, graphIndex, params, loadin
                                 : ""
                             }
                           >
-                            <span className="code-role">
-                              <span>{l.role}</span> <Icon name="open" size={14} />
+                            <span className="source-heading">
+                              <strong>
+                                <ObjectName type={l.kind} name={sourceLabel(l)} size={14} />
+                              </strong>
+                              <span className="code-role">{l.role}</span>
+                              <Icon name="open" size={14} />
                             </span>
-                            <strong>
-                              <ObjectName type={l.kind} name={sourceLabel(l)} size={14} />
-                            </strong>
                             <code>
                               {l.file}
                               {l.heading ? `#${l.heading}` : l.line ? `:${l.line}` : ""}
