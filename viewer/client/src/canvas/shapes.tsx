@@ -145,6 +145,10 @@ export class LexiconObjectUtil extends BaseBoxShapeUtil<ObjectShape> {
   override isFrameLike(shape: ObjectShape) {
     return shape.props.group;
   }
+  override hideInMinimap(shape: ObjectShape) {
+    // The minimap fills bounds; enclosing groups would cover their cards.
+    return shape.props.group;
+  }
   override canEdit() {
     return false;
   }
@@ -344,6 +348,10 @@ function ConnectionCard({ shape }: { shape: ConnectionShape }) {
 export class LexiconConnectionUtil extends ShapeUtil<ConnectionShape> {
   static override type = "lexicon-connection" as const;
   static override props = connectionProps;
+  override hideInMinimap() {
+    // A routed connection's bounding rectangle can cover most of the diagram.
+    return true;
+  }
   getDefaultProps() {
     return {
       graphId: "",
