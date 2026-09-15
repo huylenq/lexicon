@@ -51,11 +51,13 @@ import { CanvasInspector, noteText } from "./CanvasInspector";
 import { canvasThemes, syncCanvasTheme } from "./theme";
 import { InkMapBackground, MapStylePanel } from "./terrain/InkMap";
 import { EdgeAppearance } from "./EdgeAppearance";
+import { MinimapGroups } from "./MinimapGroups";
 import { useSyncCanvasPresentation } from "./presentation";
 import "tldraw/tldraw.css";
 import "./canvas.css";
 
 const shapeUtils = [LexiconObjectUtil, LexiconConnectionUtil];
+const overlayUtils = [MinimapGroups];
 const bindingUtils = [LexiconNoteBindingUtil];
 const assetUrls = getAssetUrlsByImport();
 const tldrawOptions = { camera: { wheelBehavior: "zoom" as const } };
@@ -1025,6 +1027,7 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
               assetUrls={assetUrls}
               themes={canvasThemes}
               shapeUtils={shapeUtils}
+              overlayUtils={overlayUtils}
               bindingUtils={bindingUtils}
               overrides={overrides}
               options={tldrawOptions}
