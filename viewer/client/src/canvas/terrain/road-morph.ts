@@ -1,5 +1,5 @@
 import type { Point } from "../../graph/layout";
-import { endpointOffset, matchRouteTracks, mixPoint, offsetPoint, routeFractionAt, routeStops, sameRoute } from "../route-morph";
+import { endpointOffset, matchRouteTracks, mixPoint, offsetPoint, routeFractionAt, routeStops, sameRoute, sampleRoute } from "../route-morph";
 import type { RoadGeometry } from "./generate";
 
 export type RoadFrame = { tracks: Point[][]; marks: Point[][]; direction: RoadGeometry["direction"]; texture?: string };
@@ -10,6 +10,11 @@ export function roadFrame(geometry: RoadGeometry): RoadFrame {
     { x: numbers[i], y: numbers[i + 1] }, { x: numbers[i] + numbers[i + 2], y: numbers[i + 1] + numbers[i + 3] },
   ]);
   return { tracks: [geometry.points, ...geometry.banks, ...geometry.ruts], marks, direction: geometry.direction, texture: geometry.texture };
+}
+function directionOnRoute(points: Point[], fraction: number, stops = routeStops(points)): RoadFrame["direction"] {
+  const i = Math.max(1, stops.findIndex(stop => stop >= fraction));
+  const a = points[i - 1], b = points[i] || a;
+  return { ...sampleRoute(points, stops, fraction), angle: Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI };
 }
 const collapsed = (mark: Point[]) => { const center = mixPoint(mark[0], mark[1], .5); return [center, center]; };
 
@@ -28,19 +33,24 @@ export const roadMorph = {
       const offset = endpointOffset(center, target, routeFractionAt(middle, center, stops));
       return mark.map(p => offsetPoint(p, offset));
     });
-    return { tracks: from.tracks.map(track => track.map((p, i) => offsetPoint(p, offsets[i]))), marks,
-      direction: { ...offsetPoint(from.direction, offsets.at(-1)!), angle: from.direction.angle } };
+    const tracks = from.tracks.map(track => track.map((p, i) => offsetPoint(p, offsets[i])));
+    return { tracks, marks, direction: directionOnRoute(tracks[0], routeFractionAt(from.direction, center, stops), stops) };
   },
   prepare(from: RoadFrame, to: RoadFrame) {
     const [a, b] = matchRouteTracks(from.tracks, to.tracks);
     const count = Math.max(from.marks.length, to.marks.length);
     const marksA = Array.from({ length: count }, (_, i) => from.marks[i] || collapsed(to.marks[i]));
     const marksB = Array.from({ length: count }, (_, i) => to.marks[i] || collapsed(from.marks[i]));
-    const angle = ((to.direction.angle - from.direction.angle + 540) % 360) - 180;
-    return (t: number): RoadFrame => t === 0 ? from : t === 1 ? to : {
-      tracks: a.map((track, i) => track.map((p, j) => mixPoint(p, b[i][j], t))),
-      marks: marksA.map((mark, i) => mark.map((p, j) => mixPoint(p, marksB[i][j], t))),
-      direction: { ...mixPoint(from.direction, to.direction, t), angle: from.direction.angle + angle * t },
+    const fromFraction = routeFractionAt(from.direction, a[0]);
+    const toFraction = routeFractionAt(to.direction, b[0]);
+    return (t: number): RoadFrame => {
+      if (t === 0) return from;
+      if (t === 1) return to;
+      const tracks = a.map((track, i) => track.map((p, j) => mixPoint(p, b[i][j], t)));
+      return { tracks,
+        marks: marksA.map((mark, i) => mark.map((p, j) => mixPoint(p, marksB[i][j], t))),
+        direction: directionOnRoute(tracks[0], fromFraction + (toFraction - fromFraction) * t),
+      };
     };
   },
 };

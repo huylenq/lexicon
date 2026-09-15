@@ -88,3 +88,18 @@ test("large endpoint moves do not fold a straight attachment back on itself", ()
   expect(attached.label).toEqual(to.label);
   for (let i = 1; i < attached.points.length; i++) expect(attached.points[i].x).toBeGreaterThanOrEqual(attached.points[i - 1].x);
 });
+
+test("Atlas arrows stay on the displayed road and follow its tangent during dragging and morphing", () => {
+  const from = roadFrame(roadGeometry("review", [{ x: 0, y: 0 }, { x: 200, y: 0 }], "road"));
+  const to = roadFrame(roadGeometry("review", [{ x: 0, y: 0 }, { x: 0, y: 200 }], "road"));
+  const attached = roadMorph.attach(from, to);
+  const tween = roadMorph.prepare(attached, to);
+  for (const frame of [attached, ...[0, .1, .5, .9, 1].map(tween)]) {
+    const points = frame.tracks[0], arrow = frame.direction;
+    const segments = points.slice(1).map((b, i) => ({ a: points[i], b, distance: pointDistance(arrow, points[i], b) }));
+    const segment = segments.sort((a, b) => a.distance - b.distance)[0];
+    expect(segment.distance).toBeLessThan(.001);
+    const angle = Math.atan2(segment.b.y - segment.a.y, segment.b.x - segment.a.x) * 180 / Math.PI;
+    expect(Math.abs(((arrow.angle - angle + 540) % 360) - 180)).toBeLessThan(.001);
+  }
+});
