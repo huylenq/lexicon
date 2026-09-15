@@ -57,6 +57,95 @@ async function drag(page: Page, from: { x: number; y: number }, to: { x: number;
   await page.mouse.up();
 }
 
+test("hover accents direct neighbors and clears them when the pointer leaves", async ({ page }) => {
+  await open(page);
+  await page.getByRole("radio", { name: "Domain", exact: true }).check();
+  await page.getByRole("radio", { name: "Standard", exact: true }).check();
+  const contains = page.locator('.canvas-connection').filter({ has: page.locator('[data-connection-id="relation:contains"]') });
+  const calculates = page.locator('.canvas-connection').filter({ has: page.locator('[data-connection-id="relation:calculates"]') });
+  const hover = async (name: string) => {
+    const button = page.getByRole("button", { name: `concept: ${name}`, exact: true });
+    await button.hover();
+  };
+  await hover("Order");
+  await expect(card(page, "order-line")).toHaveAttribute("data-neighbor", "true");
+  await expect(card(page, "order-total")).not.toHaveAttribute("data-neighbor", "true");
+  await expect(card(page, "order")).not.toHaveAttribute("data-neighbor", "true");
+  const accent = await card(page, "order").evaluate(el => getComputedStyle(el).getPropertyValue("--accent").trim());
+  expect(await card(page, "order-line").evaluate(el => getComputedStyle(el).outlineColor)).not.toBe(accent);
+  await expect(card(page, "order-line")).toHaveCSS("outline-style", "solid");
+  await expect(contains).toHaveAttribute("data-neighbor", "true");
+  await expect(calculates).not.toHaveAttribute("data-neighbor", "true");
+  const neighborColor = await card(page, "order-line").evaluate(el => getComputedStyle(el).outlineColor);
+  await expect(contains.locator('[data-route-current] > path').first()).toHaveCSS("stroke", neighborColor);
+  await expect(contains.locator('.canvas-connection-label')).toHaveCSS("border-top-color", neighborColor);
+  await hover("Order Line");
+  await expect(card(page, "order")).toHaveAttribute("data-neighbor", "true");
+  await expect(card(page, "order-total")).toHaveAttribute("data-neighbor", "true");
+  await expect(calculates).toHaveAttribute("data-neighbor", "true");
+  await expect(card(page, "order-line")).not.toHaveAttribute("data-neighbor", "true");
+  await page.screenshot({ path: test.info().outputPath("neighbors.png") });
+  await page.mouse.move(700, 850);
+  await expect.poll(() => selectedObjects(page)).toEqual([]);
+  await expect(page.locator('[data-neighbor="true"]')).toHaveCount(0);
+  await page.getByRole("button", { name: "concept: Order", exact: true }).click();
+  await page.mouse.move(700, 850);
+  await expect(card(page, "order")).toHaveAttribute("data-selected", "true");
+  await expect(page.locator('[data-neighbor="true"]')).toHaveCount(0);
+  const toggle = page.getByRole("button", { name: "Highlight neighbors on selection", exact: true });
+  await expect(toggle).toHaveAttribute("aria-pressed", "false");
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-pressed", "true");
+  await expect(contains).toHaveAttribute("data-neighbor", "true");
+  await expect(card(page, "order-line")).toHaveAttribute("data-neighbor", "true");
+  await expect(card(page, "order-total")).not.toHaveAttribute("data-neighbor", "true");
+  await hover("Order Line");
+  await expect(card(page, "order-total")).toHaveAttribute("data-neighbor", "true");
+  await page.mouse.move(700, 850);
+  await expect(card(page, "order-total")).not.toHaveAttribute("data-neighbor", "true");
+  await expect(card(page, "order-line")).toHaveAttribute("data-neighbor", "true");
+  await page.reload();
+  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  await expect(toggle).toHaveAttribute("aria-pressed", "true");
+  await toggle.click();
+  await expect(page.locator('[data-neighbor="true"]')).toHaveCount(0);
+  await hover("Order");
+  await expect(card(page, "order-line")).toHaveAttribute("data-neighbor", "true");
+  expect(await readFile(join(root, "lexicon/model.xml"), "utf8")).toBe(original);
+});
+
+test("edges highlight only their endpoints on hover and optional selection", async ({ page }) => {
+  await open(page);
+  await page.getByRole("radio", { name: "Domain", exact: true }).check();
+  await page.getByRole("radio", { name: "Standard", exact: true }).check();
+  const edge = page.locator('[data-connection-id="relation:contains"]');
+  const endpoints = page.locator('[data-model-id][data-neighbor="true"]');
+  const expectEndpoints = async () => {
+    await expect(endpoints).toHaveCount(2);
+    await expect(card(page, "order")).toHaveAttribute("data-neighbor", "true");
+    await expect(card(page, "order-line")).toHaveAttribute("data-neighbor", "true");
+    await expect(card(page, "order-total")).not.toHaveAttribute("data-neighbor", "true");
+  };
+  await edge.hover();
+  await expectEndpoints();
+  const labelBox = (await edge.boundingBox())!;
+  await page.mouse.move(labelBox.x + labelBox.width / 2, labelBox.y - 10);
+  await expect(page.locator(".canvas-connection").filter({ has: edge })).toHaveAttribute("data-hovered", "true");
+  await expectEndpoints();
+  await page.mouse.move(700, 850);
+  await expect(endpoints).toHaveCount(0);
+  await edge.click();
+  await page.mouse.move(700, 850);
+  await expect(endpoints).toHaveCount(0);
+  const toggle = page.getByRole("button", { name: "Highlight neighbors on selection", exact: true });
+  await toggle.click();
+  await expectEndpoints();
+  await toggle.click();
+  await expect(endpoints).toHaveCount(0);
+  await edge.hover();
+  await expectEndpoints();
+});
+
 test("relationship hover and selection highlight the label border and preserve its text", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await open(page);

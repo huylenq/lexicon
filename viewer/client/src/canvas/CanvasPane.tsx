@@ -52,6 +52,7 @@ import { CanvasInspector, noteText } from "./CanvasInspector";
 import { canvasThemes, syncCanvasTheme } from "./theme";
 import { InkMapBackground, MapStylePanel } from "./terrain/InkMap";
 import { EdgeAppearance } from "./EdgeAppearance";
+import { NeighborHighlight } from "./NeighborHighlight";
 import { MinimapGroups } from "./MinimapGroups";
 import { useSyncCanvasPresentation } from "./presentation";
 import "tldraw/tldraw.css";
@@ -788,6 +789,7 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
             onClick={addNote}
           />
           <span className="canvas-inspector-toggles" ref={setInspectorHost} />
+          <NeighborHighlight />
           {!mapEnabled && <EdgeAppearance />}
           <details className="canvas-file-menu">
             <summary

@@ -2,6 +2,8 @@ import { memo, useId, useMemo } from "react";
 import { useGeometryMorph } from "../useRouteMorph";
 import { roadFrame, roadMorph } from "./road-morph";
 import { useEditor, useValue } from "tldraw";
+import { isNeighborConnection } from "../NeighborHighlight";
+import { canvasPresentation } from "../presentation";
 import { VillageBuilding } from "./VillageSprites";
 import { VillageLandscape } from "./VillageLandscape";
 import { InkScenery } from "./InkScenery";
@@ -60,11 +62,13 @@ const DistrictGround = memo(function DistrictGround({ district, detail, skin, pr
 });
 
 function RoadDrawing({ road, detail, opacity, dragging }: { road: MapScene["roads"][number]; detail: boolean; opacity: number; dragging: boolean }) {
+  const editor = useEditor();
+  const neighbor = useValue("Highlighted neighbor road", () => isNeighborConnection(editor, canvasPresentation(editor).get().connections.get(road.id)), [editor, road.id]);
   const frame = useMemo(() => roadFrame(road.geometry), [road.geometry]);
   const morph = useGeometryMorph(frame, roadMorph, dragging);
   const { tracks, marks, direction, texture } = morph.value;
   const banks = tracks.slice(1, 3), ruts = tracks.slice(3, 5);
-  return <g data-map-road={road.id} data-path-kind={road.kind} opacity={opacity}>
+  return <g data-map-road={road.id} data-path-kind={road.kind} data-neighbor={neighbor || undefined} opacity={opacity}>
     <g data-route-current="true" data-route-morphing={morph.animating || undefined}>
       <path d={pathFor([...banks[0], ...[...banks[1]].reverse()], true)} className="map-road-ground" />
       {banks.map((points, i) => <path key={i} d={pathFor(points)} className={`map-road-bank map-${road.kind}`} />)}

@@ -57,6 +57,10 @@
 .canvas-group .object-name-text { max-width: 220px; }
 .canvas-territory-selection { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
 .canvas-territory-selection path { fill: none; stroke: none; }
+.canvas-object[data-neighbor="true"] { --neighbor-accent: color-mix(in srgb, var(--accent) 45%, var(--paper)); outline: 2px solid var(--neighbor-accent); outline-offset: -2px; }
+.canvas-object[data-context-boundary="territory"][data-neighbor="true"] { outline: none; }
+.canvas-object[data-neighbor="true"] .canvas-territory-selection > path:first-child { stroke: var(--neighbor-accent); stroke-width: 2; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+.canvas-object[data-neighbor="true"] .atlas-region-text { fill: var(--neighbor-accent); }
 .canvas-object[data-context-boundary="territory"][data-selected="true"] { outline: none; }
 .canvas-object[data-selected="true"] .canvas-territory-selection path { stroke: var(--accent); stroke-width: 2; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
 .canvas-object[data-selected="true"] .canvas-territory-selection .canvas-territory-cage { stroke-width: 1; stroke-dasharray: 3 5; opacity: .45; }
@@ -64,6 +68,8 @@
 .canvas-object[data-missing] { border-style: dashed; color: var(--muted); }
 .canvas-connection { color: var(--canvas-relationship); overflow: visible; }
 .canvas-connection.canvas-mapping { color: var(--type-code); }
+.canvas-connection[data-neighbor="true"] { color: color-mix(in srgb, var(--accent) 45%, var(--paper)); }
+.canvas-connection[data-neighbor="true"] .canvas-connection-label { border-color: color-mix(in srgb, var(--accent) 45%, var(--paper)); }
 .canvas-connection-label { pointer-events: auto; display: block; width: 100%; height: 28px; border: 1px solid var(--line); border-radius: 5px; padding: 3px 7px; color: var(--ink); background: var(--paper); font: 11px system-ui, sans-serif; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
 .canvas-connection:is([data-hovered="true"], [data-selected="true"]) { color: var(--accent); }
 .canvas-connection:is([data-hovered="true"], [data-selected="true"]) .canvas-connection-label { border-color: var(--accent); }

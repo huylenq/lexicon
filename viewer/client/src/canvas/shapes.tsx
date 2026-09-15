@@ -38,6 +38,7 @@ import { roadCoveredAt, roadInput, shapeRoad, visibleObjectFrame } from "./terra
 import { canvasPresentation, useCanvasPresentation } from "./presentation";
 import { contextControlTerritory, contextNameCurve, contextLabelFrame, contextPreferences, contextTerritory, isContext } from "./contexts";
 import { moveBorderVertex, territoryEdit } from "./territory";
+import { neighborAnchors, neighborEdges, isNeighborConnection, hoverNeighborLabel } from "./NeighborHighlight";
 
 function ObjectCard({ shape }: { shape: ObjectShape }) {
   const namePathId = `land-name-${useId().replace(/:/g, "")}`;
@@ -48,6 +49,18 @@ function ObjectCard({ shape }: { shape: ObjectShape }) {
     () => editor.getSelectedShapeIds().includes(shape.id),
     [editor, shape.id],
   );
+  const neighbor = useValue("Neighbor of hovered or selected model reference", () => {
+    const references = new Set(neighborAnchors(editor).map(shape => shape.props.graphId));
+    const id = shape.props.graphId;
+    if (neighborEdges(editor).some(edge => {
+      const connection = model.connections.get(edge.props.graphId);
+      return connection?.source === id || connection?.target === id;
+    })) return true;
+    return [...model.connections.values()].some(connection =>
+      connection.source !== connection.target && (
+        (connection.source === id && references.has(connection.target)) ||
+        (connection.target === id && references.has(connection.source))));
+  }, [editor, shape.props.graphId, model.connections]);
   const vertex = model.vertices.get(shape.props.graphId);
   const missing = !vertex;
   const primary = isPrimary(shape);
@@ -68,6 +81,7 @@ function ObjectCard({ shape }: { shape: ObjectShape }) {
       data-map-building={primary && vertex && isAtlasLandmark(vertex.kind) && landmarkFor({ classification: vertex.subtitle, landmark: shape.meta.lexiconLandmark, elementKind: vertex.kind }) !== "none" ? "true" : undefined}
       data-missing={missing || undefined}
       data-selected={selected || undefined}
+      data-neighbor={neighbor || undefined}
     >
       {boundary?.points && <svg className="canvas-territory-selection" aria-hidden="true">
         <path d={pathFor(boundary.points.map(p => ({ x: p.x - frame.x, y: p.y - frame.y })), true)} />
@@ -80,6 +94,8 @@ function ObjectCard({ shape }: { shape: ObjectShape }) {
       } : undefined}>
         <button
           className={`canvas-object-title ${boundary?.curve ? "atlas-context-name" : ""}`}
+          onPointerEnter={() => hoverNeighborLabel(editor, shape.id)}
+          onPointerLeave={() => hoverNeighborLabel(editor)}
           aria-label={`${vertex?.kind || "Missing object"}: ${vertex?.title || shape.props.graphId}`}
           onClick={(event) => {
             // Pointer gestures belong to tldraw; retain keyboard activation.
@@ -290,6 +306,7 @@ function ConnectionCard({ shape }: { shape: ConnectionShape }) {
   const selected = useValue("Selected relationship", () => editor.getSelectedShapeIds().includes(shape.id), [editor, shape.id]);
   const model = useCanvasPresentation(editor);
   const connection = model.connections.get(shape.props.graphId);
+  const neighbor = useValue("Highlighted neighbor connection", () => isNeighborConnection(editor, connection), [editor, connection]);
   const p = shape.props;
   const road = useValue("Visible relationship route", () => roadInput(editor, shape), [editor, shape]);
   const drawing = useValue("Rounded relationship drawing", () => connectionDrawing(shape, editor), [editor, shape]);
@@ -308,6 +325,7 @@ function ConnectionCard({ shape }: { shape: ConnectionShape }) {
       className={`tl-svg-container canvas-connection ${connection?.kind === "mapping" ? "canvas-mapping" : ""} ${!model.matches(p.graphId) ? "canvas-dimmed" : ""}`}
       data-hovered={hovered || undefined}
       data-selected={selected || undefined}
+      data-neighbor={neighbor || undefined}
       data-atlas-road={isAtlasRoad(shape, model) || undefined}
     >
       <g data-route-current="true" data-route-morphing={morph.animating || undefined}>
@@ -334,6 +352,8 @@ function ConnectionCard({ shape }: { shape: ConnectionShape }) {
       >
         <button
           className="canvas-connection-label"
+          onPointerEnter={() => hoverNeighborLabel(editor, shape.id)}
+          onPointerLeave={() => hoverNeighborLabel(editor)}
           data-connection-id={p.graphId}
           onPointerDown={event => {
             if (event.button !== 0 && event.button !== 1) return;

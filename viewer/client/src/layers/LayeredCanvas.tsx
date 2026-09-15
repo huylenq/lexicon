@@ -4,6 +4,7 @@ import ModelLegend from "../ModelLegend";
 import { createPortal } from "react-dom";
 import { CanvasViewControls } from "../canvas/CanvasViewControls";
 import { Toolbar, CanvasButton } from "../canvas/Toolbar";
+import { NeighborHighlight } from "../canvas/NeighborHighlight";
 import type { CanvasPaneProps } from "../canvas/types";
 import { Box, getSnapshot, loadSnapshot, type TLStoreSnapshot, type TLRecord, react } from "tldraw";
 import type { Relationship } from "../../../shared/model";
@@ -277,6 +278,7 @@ export default function LayeredCanvas(props: CanvasPaneProps & { onFlat: () => v
         <CanvasButton icon="locate" label="Locate" disabled={!item} onClick={() => {
           if (item) locate(item.id);
         }} />
+        <NeighborHighlight />
         <CanvasButton icon="graph" label="Arrange" disabled={!ready || projecting} onClick={() => void arrange()} />
         <CanvasButton icon="arrow-left" label="Undo" disabled={!ready || projecting || !history.current.canUndo} onClick={() => void travel("undo")} />
         <CanvasButton icon="arrow-right" label="Redo" disabled={!ready || projecting || !history.current.canRedo} onClick={() => void travel("redo")} />
