@@ -17,17 +17,15 @@ type Props = {
   loading: boolean;
   allCode: boolean;
   codeTarget?: Target;
-  copied: boolean;
   onSelect: (id?: string, mode?: ReaderOpenMode) => void;
   onSelectGraph: (selection: GraphSelection, mode?: ReaderOpenMode) => void;
   onCanvasAction: (action: "locate" | "expand", selection: GraphSelection) => void;
   onCode: (id: string, index: number) => void;
   onOpenChat: () => void;
-  onCopy: (card: ReaderCard) => void;
 };
 
-export default function ReaderCardBody({ card, model, graphIndex, params, loading, allCode, codeTarget, copied,
-  onSelect: select, onSelectGraph: selectGraph, onCanvasAction: graphAction, onCode: code, onOpenChat, onCopy }: Props) {
+export default function ReaderCardBody({ card, model, graphIndex, params, loading, allCode, codeTarget,
+  onSelect: select, onSelectGraph: selectGraph, onCanvasAction: graphAction, onCode: code, onOpenChat }: Props) {
   const contexts = model?.items.filter(i => i.type === "context") || [];
   const relationships = model?.items.filter(i => i.type === "relationship") || [];
   const architectureRoots = model?.items.filter(i => isArchitecture(i) && !parentOf(i)) || [];
@@ -343,15 +341,6 @@ export default function ReaderCardBody({ card, model, graphIndex, params, loadin
                   </button>
                 )}</div>
               </section>}
-              <div className="item-footer">
-                <code>{item?.id || model.id}</code>
-                <button
-                  className="quiet"
-                  onClick={() => onCopy(card)}
-                >
-                  <Icon name={copied ? "check" : "copy"} /> {copied ? "Copied" : "Copy link"}
-                </button>
-              </div>
             </>
           )}
         </article>

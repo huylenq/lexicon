@@ -350,6 +350,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
     <ReaderCardHeader card={card} item={card.kind === "item" ? graphIndex?.items.get(card.id) : undefined}
       title={titleForCard(card)} preview={reading.stack.preview === cardKey(card)} collapsed={collapsed} style={style}
       onOpen={(mode, reveal = true) => reading.open(card, { mode, reveal })}
+      copied={copied === cardKey(card)} onCopy={() => copyCardLink(card)}
       onClose={() => reading.close(cardKey(card))} />
   );
   const copyCardLink = async (card: ReaderCard) => {
@@ -366,10 +367,10 @@ function ReaderProject({ projectId }: { projectId: string }) {
   // Scroll geometry changes only the wrappers. Keep Markdown and model-derived
   // content stable; refresh handlers whenever navigation or their inputs change.
   const cardBodies = useMemo(() => new Map(reading.stack.cards.map(card => [cardKey(card), <ReaderCardBody card={card} model={model} graphIndex={graphIndex} params={params}
-      loading={loading} allCode={workspace.allCode} codeTarget={codeNavigation.target} copied={copied === cardKey(card)}
+      loading={loading} allCode={workspace.allCode} codeTarget={codeNavigation.target}
       onSelect={select} onSelectGraph={selectGraph} onCanvasAction={graphAction} onCode={code}
-      onOpenChat={() => setChatOpen(true)} onCopy={copyCardLink} />])),
-    [reading.stack, routeLocation, model, loading, workspace.allCode, copied]);
+      onOpenChat={() => setChatOpen(true)} />])),
+    [reading.stack, routeLocation, model, loading, workspace.allCode]);
   const launcher = (
     <button ref={chatToggle} className={`quiet agent-toggle assistant-launcher${assistantWindow.docked ? " assistant-docked" : ""}${assistantWindow.dragging ? " dragging" : ""}`} style={assistantWindow.launcherStyle} {...assistantWindow.handlers("launcher")} aria-label="Agent" aria-controls="chat-pane" aria-pressed={chatOpen}
           title={chatOpen ? "Minimize Agent" : agentRunning ? "Open Agent · Working" : "Open Agent"}

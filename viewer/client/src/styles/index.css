@@ -813,19 +813,6 @@ article section {
   line-height: 1.6;
   margin: 12px 0 0;
 }
-.item-footer {
-  margin-top: 28px;
-  padding-top: 20px;
-  border-top: 1px solid var(--line);
-  color: var(--muted);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.item-footer code {
-  font-size: 10px;
-  overflow-wrap: anywhere;
-}
 .issues {
   padding: 14px 16px;
   border: 1px solid var(--line);

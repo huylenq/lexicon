@@ -226,3 +226,11 @@
 .reader-top-overlay .reader-sticky-titles { position: relative; }
 .reader-top-overlay .reader-sticky-list,
 .reader-top-overlay .reader-morph { pointer-events: auto; }
+
+
+.reader-card-copy { opacity: 0; pointer-events: none; }
+.reader-card-header:hover .reader-card-copy,
+.reader-card-header:focus-within .reader-card-copy { opacity: 1; pointer-events: auto; }
+@media (hover: none) {
+  .reader-card-copy { opacity: 1; pointer-events: auto; }
+}

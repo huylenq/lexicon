@@ -3,6 +3,7 @@ import type { ModelItem } from "../../shared/model";
 import type { ReaderCard, ReaderOpenMode } from "./readerState";
 import { readerLink } from "./readerNavigation";
 import Icon from "./Icon";
+import { useTooltip } from "./useTooltip";
 import ObjectName, { objectTone } from "./ObjectName";
 
 type Props = {
@@ -14,9 +15,13 @@ type Props = {
   style?: CSSProperties;
   onOpen: (mode: ReaderOpenMode, reveal?: boolean) => void;
   onClose: () => void;
+  copied: boolean;
+  onCopy: () => void;
 };
 
-export default function ReaderCardHeader({ card, item, title, preview, collapsed, style, onOpen, onClose }: Props) {
+export default function ReaderCardHeader({ card, item, title, preview, collapsed, style, onOpen, onClose, copied, onCopy }: Props) {
+  const copyLabel = copied ? "Copied" : "Copy link";
+  const copyTip = useTooltip<HTMLButtonElement>(copyLabel);
   const tone = item
     ? objectTone(item.type, item.type === "concept" ? item.classification : undefined)
     : card.kind === "mapping" ? "code-link" : card.kind === "bundle" ? "relationship" : undefined;
@@ -29,6 +34,13 @@ export default function ReaderCardHeader({ card, item, title, preview, collapsed
       {preview && <button className="reader-preview-badge" data-pin-card aria-label={`Pin ${title}`}
         title="Preview · dismissed when you open another item. Click to keep it."
         onClick={() => onOpen("pinned", false)}>Preview</button>}
+      <button ref={copyTip.anchor} className="quiet icon-button reader-card-copy" aria-label={copyLabel}
+        aria-describedby={copyTip.describedBy} onPointerEnter={copyTip.onPointerEnter}
+        onPointerLeave={copyTip.onPointerLeave} onFocus={copyTip.onFocus} onBlur={copyTip.onBlur}
+        onClick={onCopy}>
+        <Icon name={copied ? "check" : "copy"} />
+      </button>
+      {copyTip.tooltip}
       <button className="quiet icon-button" data-close-card aria-label={`Close ${collapsed ? "collapsed " : ""}${title}`} onClick={onClose}><Icon name="close" /></button>
     </header>
   );
