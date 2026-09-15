@@ -63,12 +63,12 @@ test("edge rounding is a browser preference independent of selection and canvas 
     await page.getByLabel("Edge appearance", { exact: true }).click();
     await expect(radius).toBeVisible();
     await page.screenshot({ path: "../output/rounded-orthogonal-narrow.png" });
-    await dragRadius(180);
-    await expect(radius).toHaveAttribute("aria-valuenow", "128");
+    await dragRadius(300);
+    await expect(radius).toHaveAttribute("aria-valuenow", "256");
     await expect(page.locator(".edge-preview-line")).toHaveAttribute("d", /Q/);
     await radius.focus();
     await radius.press("ArrowLeft");
-    await expect(radius).toHaveAttribute("aria-valuenow", "127");
+    await expect(radius).toHaveAttribute("aria-valuenow", "255");
     await radius.press("Escape");
     await expect(radius).not.toBeVisible();
     expect(await readFile(join(root, "lexicon/model.xml"), "utf8")).toBe(original);

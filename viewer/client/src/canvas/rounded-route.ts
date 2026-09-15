@@ -3,7 +3,7 @@ import { atom, type Editor } from "tldraw";
 import { labelBox } from "./route-labels";
 import type { Box, Point } from "../graph/layout";
 
-export const maxCornerRadius = 128;
+export const maxCornerRadius = 256;
 export function cornerRadius(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.min(maxCornerRadius, value)) : 0;
 }

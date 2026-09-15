@@ -3,9 +3,9 @@ import { useValue } from "tldraw";
 import { edgeCornerRadius, maxCornerRadius, roundedRoute, setEdgeCornerRadius } from "./rounded-route";
 
 function Curve({ radius }: { radius: number }) {
-  const { path } = roundedRoute([{ x: 20, y: 70 }, { x: 72, y: 70 }, { x: 72, y: 26 }, { x: 180, y: 26 }], radius / maxCornerRadius * 22);
+  const { path } = roundedRoute([{ x: 20, y: 70 }, { x: 100, y: 70 }, { x: 100, y: 26 }, { x: 180, y: 26 }], radius / maxCornerRadius * 22);
   return <svg viewBox="0 0 200 96" aria-hidden="true">
-    <path className="edge-preview-guide" d="M 20 70 H 72 V 26 H 180" />
+    <path className="edge-preview-guide" d="M 20 70 H 100 V 26 H 180" />
     <path className="edge-preview-line" d={path} />
     <circle cx="20" cy="70" r="4" /><circle cx="180" cy="26" r="4" />
   </svg>;
