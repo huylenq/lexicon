@@ -718,48 +718,6 @@ article section {
   margin: 12px 0;
   line-height: 1.65;
 }
-.relation-list {
-  border-top: 1px solid var(--line);
-}
-.relation-row {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  border-bottom: 1px solid var(--line);
-  padding: 12px 0;
-  width: 100%;
-  text-align: left;
-  font-size: 13px;
-}
-.relation-direction {
-  font-size: 10px;
-  letter-spacing: 0.4px;
-  color: var(--muted);
-  flex: 0 0 64px;
-}
-.relation-sentence {
-  flex: 1;
-  line-height: 1.7;
-}
-.relation-sentence a {
-  text-decoration: none;
-  overflow-wrap: anywhere;
-}
-.relation-sentence .object-name {
-  gap: 5px;
-  margin-inline: 2px;
-}
-.relation-sentence a:hover,
-.relation-sentence a:focus-visible {
-  color: var(--accent);
-}
-.relation-sentence .relation-name {
-  color: var(--accent);
-  text-decoration: underline;
-  text-decoration-color: var(--muted);
-  text-underline-offset: 3px;
-}
-
 .relationship-endpoints {
   display: flex;
   align-items: center;
@@ -938,13 +896,6 @@ article section {
   }
   .stats b {
     font-size: 18px;
-  }
-  .relation-row {
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-  .relation-direction {
-    flex-basis: 100%;
   }
   footer {
     gap: 24px;

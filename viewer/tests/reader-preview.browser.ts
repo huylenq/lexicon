@@ -9,11 +9,13 @@ const active = (page: Page) => page.locator("[data-reader-card].active");
 
 test("left click replaces one Preview through context, concept, relationship, search, and breadcrumb", async ({ page }) => {
   await page.goto("/p/shop");
-  await active(page).locator(".context-card").filter({ hasText: "Ordering" }).click();
+  await active(page).locator(".context-card").filter({ has: page.getByRole("heading", { name: "Context Ordering", exact: true }) }).click();
   await expect(preview(page)).toHaveAttribute("data-reader-card", "item:ordering");
   await active(page).locator(".concept-list button").filter({ has: page.getByText("Order", { exact: true }) }).click();
   await expect(preview(page)).toHaveAttribute("data-reader-card", "item:order");
-  await active(page).getByRole("link", { name: "Read relationship: contains", exact: true }).click();
+  await active(page).getByRole("button", { name: "Locate in canvas", exact: true }).click();
+  await page.getByRole("button", { name: "Fit model", exact: true }).click();
+  await page.getByRole("button", { name: "Read relationship: contains", exact: true }).click();
   await expect(preview(page)).toHaveAttribute("data-reader-card", "item:order-lines");
   await expect(cards(page)).toHaveCount(1);
   await page.getByRole("textbox", { name: "Search model" }).fill("Shop API");
@@ -52,15 +54,19 @@ test("middle and Command clicks dismiss Preview, promote it in place, and reveal
   await browse(page, "Order").click({ modifiers: ["Meta"] });
   await expect(preview(page)).toHaveCount(0);
   await expect(card(page, "item:customer")).toHaveCount(0);
-  await active(page).getByRole("link", { name: "Read relationship: contains", exact: true }).click({ modifiers: ["Meta"] });
+  await active(page).getByRole("button", { name: "Locate in canvas", exact: true }).click();
+  await page.getByRole("button", { name: "Fit model", exact: true }).click();
+  await page.getByRole("button", { name: "Read relationship: contains", exact: true }).click({ modifiers: ["Meta"] });
   await expect(active(page)).toHaveAttribute("data-reader-mode", "pinned");
   await expect(cards(page)).toHaveCount(4);
   await browse(page, "Customer").click();
   await browse(page, "Order Line").click({ button: "middle" });
   await expect(preview(page)).toHaveCount(0);
   await expect(card(page, "item:customer")).toHaveCount(0);
-  await active(page).getByRole("link", { name: "Read relationship: contains", exact: true }).click();
-  await active(page).getByRole("link", { name: "Open Order Line", exact: true }).click({ button: "middle" });
+  await active(page).getByRole("button", { name: "Locate in canvas", exact: true }).click();
+  await page.getByRole("button", { name: "Fit model", exact: true }).click();
+  await page.getByRole("button", { name: "Read relationship: contains", exact: true }).click();
+  await active(page).locator(".relationship-endpoints").getByRole("link", { name: "Open Order Line", exact: true }).click({ button: "middle" });
   await expect(active(page)).toHaveAttribute("data-reader-card", "item:order-line");
   await expect(cards(page)).toHaveCount(4);
   expect(page.context().pages()).toHaveLength(1);

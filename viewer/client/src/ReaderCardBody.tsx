@@ -1,6 +1,6 @@
 import { sourceLabel } from "../../shared/source";
 import { Link } from "react-router-dom";
-import { related, flowsFor, parentOf, isArchitecture, isModelElement, typeNames, type Model } from "../../shared/model";
+import { flowsFor, parentOf, isArchitecture, typeNames, type Model } from "../../shared/model";
 import type { GraphIndex, GraphSelection, Target } from "./graph/model";
 import type { ReaderCard, ReaderOpenMode } from "./readerState";
 import { cardParams, readerLink } from "./readerNavigation";
@@ -17,30 +17,25 @@ type Props = {
   graphIndex?: GraphIndex;
   params: URLSearchParams;
   loading: boolean;
-  allCode: boolean;
   codeTarget?: Target;
   onSelect: (id?: string, mode?: ReaderOpenMode) => void;
   onSelectGraph: (selection: GraphSelection, mode?: ReaderOpenMode) => void;
-  onCanvasAction: (action: "locate" | "expand", selection: GraphSelection) => void;
   onCode: (id: string, index: number) => void;
   onOpenChat: () => void;
 };
 
-export default function ReaderCardBody({ card, model, graphIndex, params, loading, allCode, codeTarget,
-  onSelect: select, onSelectGraph: selectGraph, onCanvasAction: graphAction, onCode: code, onOpenChat }: Props) {
+export default function ReaderCardBody({ card, model, graphIndex, params, loading, codeTarget,
+  onSelect: select, onSelectGraph: selectGraph, onCode: code, onOpenChat }: Props) {
   const contexts = model?.items.filter(i => i.type === "context") || [];
   const relationships = model?.items.filter(i => i.type === "relationship") || [];
   const architectureRoots = model?.items.filter(i => isArchitecture(i) && !parentOf(i)) || [];
-  const itemLink = (id: string, label: string, relationship = false) => {
+  const itemLink = (id: string, label: string) => {
     const linked = model?.items.find((i) => i.id === id);
     const p = cardParams(params, { kind: "item", id });
     return (
       <Link
         to={`?${p}`}
-        className={relationship ? "relation-name" : "relation-entity"}
-        aria-label={
-          relationship ? `Read relationship: ${label}` : `Open ${label}`
-        }
+        aria-label={`Open ${label}`}
         {...readerLink(mode => select(id, mode))}
       >
         {linked ? <ObjectName type={linked.type} name={label} size={14}
@@ -50,35 +45,9 @@ export default function ReaderCardBody({ card, model, graphIndex, params, loadin
   };
   const item = card.kind === "item" ? model?.items.find(i => i.id === card.id) : undefined;
   const specialSelection = card.kind !== "item" && card.kind !== "overview" ? card : undefined;
-  const readerSelection = card.kind === "overview" ? undefined : card;
-  const owner = item ? model?.items.find(i => i.id === parentOf(item)) : undefined;
   const flows = model ? item ? flowsFor(model, item.id) : model.items.filter(i => i.type === "flow") : [];
   return (
     <>
-      {owner && <nav className="reader-card-owner" aria-label={item?.type === "concept" ? "Owning context" : "Containing object"}>{itemLink(owner.id, owner.name)}</nav>}
-      {readerSelection && item?.type !== "flow" && (
-        <div className="reader-canvas-actions">
-          <button
-            className="quiet"
-            onClick={() => graphAction("locate", readerSelection)}
-          >
-            Locate in canvas
-          </button>
-          {item && (
-            <button
-              className="quiet"
-              disabled={allCode}
-              title={allCode ? "Turn off Show all sources to change individual expansions" : undefined}
-              onClick={() =>
-                graphAction("expand", { kind: "item", id: item.id })
-              }
-            >
-              Toggle sources in canvas
-            </button>
-          )}
-        </div>
-      )}
-
       {!model && loading && (
         <p className="empty" role="status">
           Opening the model…
@@ -251,46 +220,6 @@ export default function ReaderCardBody({ card, model, graphIndex, params, loadin
                           <Paragraph text={a.text} />
                         </div>
                       ))}
-                    </section>
-                  )}
-                  {isModelElement(item) && (
-                    <section>
-                      <div className="section-heading">
-                        <h2 className="object-label"><Icon name="relationship" />Relationships</h2>
-                        <span className="muted">
-                          {related(model, item.id).length} connections
-                        </span>
-                      </div>
-                      <div className="relation-list">
-                        {related(model, item.id).map((r) => (
-                          <div className="relation-row" key={r.id}>
-                            <span className="relation-direction">
-                              {r.from === item.id
-                                ? "OUTGOING"
-                                : "INCOMING"}
-                            </span>
-                            <span className="relation-sentence">
-                              {itemLink(
-                                r.from,
-                                model.items.find((i) => i.id === r.from)
-                                  ?.name || r.from,
-                              )}{" "}
-                              {itemLink(r.id, r.name, true)}{" "}
-                              {itemLink(
-                                r.to,
-                                model.items.find((i) => i.id === r.to)
-                                  ?.name || r.to,
-                              )}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                      {!related(model, item.id).length && (
-                        <p className="empty">
-                          Relationships can be added when they help
-                          explain this concept.
-                        </p>
-                      )}
                     </section>
                   )}
                   {item.codeLinks.length > 0 && (

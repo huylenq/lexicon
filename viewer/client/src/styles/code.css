@@ -220,8 +220,7 @@
   font-size: clamp(24px, 2.2vw, 30px);
   overflow-wrap: anywhere;
 }
-.with-code .reader-toolbar,
-.with-code .reader-canvas-actions {
+.with-code .reader-toolbar {
   padding-inline: 18px;
   flex-wrap: wrap;
 }

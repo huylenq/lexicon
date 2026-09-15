@@ -134,11 +134,6 @@
 .back-to-canvas {
   display: none;
 }
-.reader-canvas-actions {
-  display: flex;
-  padding: 4px 20px 0;
-  gap: 6px;
-}
 .with-canvas .reading-pane article {
   padding: 24px clamp(20px, 2vw, 28px);
 }

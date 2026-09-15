@@ -323,7 +323,7 @@ export default function ReaderStackViewport({ reading, model, layoutKey, notice,
                 const card = reading.stack.cards.find(card => cardKey(card) === bottomMorph.key);
                 return card && <section key={`${bottomMorph.key}:${cardMode(bottomMorph.key)}`} data-bottom-morph-card={bottomMorph.key} data-reader-mode={cardMode(bottomMorph.key)} className={`reader-card reader-morph ${reading.stack.active === bottomMorph.key ? "active" : ""}`}
                   style={{ left: bottomMorph.x, bottom: bottomMorph.bottom - bottomMorph.bodyHeight, width: bottomMorph.width, "--morph-progress": bottomMorph.progress } as CSSProperties}>
-                  {renderCardHeader(card, true)}
+                  {renderCardHeader(card, bottomMorph.progress > 0)}
                   <div className="reader-morph-body" data-expanded={bottomMorph.progress === 0 || undefined}
                     {...(bottomMorph.progress > 0 ? { inert: "" } : {})} style={{ height: bottomMorph.bodyHeight,
                     "--body-scale-x": (bottomMorph.width - 2) / Number(bottomMorph.bodyStyle.width) } as CSSProperties}>
@@ -356,7 +356,7 @@ export default function ReaderStackViewport({ reading, model, layoutKey, notice,
                 const card = reading.stack.cards.find(card => cardKey(card) === morph.key);
                 return card && <section key={`${morph.key}:${cardMode(morph.key)}`} data-morph-card={morph.key} data-reader-mode={cardMode(morph.key)} className={`reader-card reader-morph ${reading.stack.active === morph.key ? "active" : ""}`}
                   style={{ left: morph.x, top: morph.y, width: morph.width, "--morph-progress": morph.progress } as CSSProperties}>
-                  {renderCardHeader(card, true)}
+                  {renderCardHeader(card, morph.progress > 0)}
                   <div className="reader-morph-body" data-expanded={morph.progress === 0 || undefined}
                     {...(morph.progress > 0 ? { inert: "" } : {})} style={{ height: morph.bodyHeight,
                     "--body-scale-x": (morph.width - 2) / Number(morph.bodyStyle.width) } as CSSProperties}>

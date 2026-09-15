@@ -142,9 +142,7 @@
   letter-spacing: .06em;
   text-transform: uppercase;
 }
-.reader-card-owner { padding: 12px 24px 0; font-size: 12px; }
 .reader-stack .reader-card article { padding: 20px 24px 28px; }
-.reader-stack .reader-canvas-actions { padding: 8px 24px; }
 .reader-stack .context-grid { grid-template-columns: 1fr; }
 .reader-stack .reader-card-body .empty h1 { font-size: 22px; }
 @media (max-width: 1000px) {
@@ -229,9 +227,5 @@
 .reader-top-overlay .reader-morph { pointer-events: auto; }
 
 
-.reader-card-copy { opacity: 0; pointer-events: none; }
-.reader-card-header:hover .reader-card-copy,
-.reader-card-header:focus-within .reader-card-copy { opacity: 1; pointer-events: auto; }
-@media (hover: none) {
-  .reader-card-copy { opacity: 1; pointer-events: auto; }
-}
+
+.reader-card-canvas-action[aria-disabled="true"] { opacity: .4; cursor: default; }

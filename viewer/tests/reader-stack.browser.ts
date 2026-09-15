@@ -199,6 +199,8 @@ test("bottom morph keeps its whole surface above the occupied rows", async ({ pa
 });
 
 test("overflowing card fades over 24 pixels above the bottom tile gap", async ({ page }) => {
+  // Keep the first card taller than the viewport as Reader content changes.
+  await page.setViewportSize({ width: 1600, height: 700 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await openPinned(page, "order");
   for (const name of ["Order Line", "Customer", "Shop"]) await browse(page, name);
@@ -397,7 +399,9 @@ test("one stack pins from old cards, reveals duplicates, closes individually and
   await card(page, "item:ordering").getByRole("button", { name: /^Concept · entity Order / }).click();
   await expect(active(page)).toHaveAttribute("data-reader-card", "item:order");
   expect(await keys(page)).toEqual(["item:order", "item:order-line", "item:ordering"]);
-  await card(page, "item:order").getByRole("link", { name: "Read relationship: contains", exact: true }).click({ modifiers: ["Meta"] });
+  await active(page).getByRole("button", { name: "Locate in canvas", exact: true }).click();
+  await page.getByRole("button", { name: "Fit model", exact: true }).click();
+  await page.getByRole("button", { name: "Read relationship: contains", exact: true }).click({ modifiers: ["Meta"] });
   expect(await keys(page)).toEqual(["item:order", "item:order-line", "item:ordering", "item:order-lines"]);
   await page.getByRole("button", { name: "Close Order", exact: true }).click();
   expect(await keys(page)).toEqual(["item:order-line", "item:ordering", "item:order-lines"]);
