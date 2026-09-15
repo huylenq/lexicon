@@ -57,6 +57,11 @@ test("reader history branches correctly and pane close buttons preserve navigati
   await page.keyboard.press("/");
   await expect(page.getByRole("textbox", { name: "Search model" })).toBeFocused();
   await expect(browse).toHaveAttribute("aria-pressed", "true");
+  await browse.focus();
+  await page.keyboard.press("Meta+/");
+  await expect(browse).toHaveAttribute("aria-pressed", "false");
+  await page.keyboard.press("Meta+/");
+  await expect(browse).toHaveAttribute("aria-pressed", "true");
 
   await expect(page.locator(".canvas-card[data-model-id^='item:']")).toHaveCount(3);
   await expect(page.getByText("Arranging the canvas…")).toBeHidden();

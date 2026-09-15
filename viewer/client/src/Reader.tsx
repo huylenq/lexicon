@@ -172,15 +172,23 @@ function ReaderProject({ projectId }: { projectId: string }) {
   }, [menu]);
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
+      const editingText =
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        (e.target instanceof Element && !!e.target.closest("[contenteditable='true']"));
+      if (e.metaKey && e.key === "/" && !editingText) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (compact) setMenu((open) => !open);
+        else setWorkspace((w) => ({ ...w, sidebar: !w.sidebar }));
+        return;
+      }
       if (
         e.key === "/" &&
-        !(
-          e.target instanceof HTMLInputElement ||
-          e.target instanceof HTMLTextAreaElement ||
-          (e.target instanceof Element && !!e.target.closest("[contenteditable='true'], .tl-container"))
-        )
+        !editingText
       ) {
         e.preventDefault();
+        e.stopPropagation();
         setMenu(true);
         setWorkspace((w) => ({ ...w, sidebar: true }));
         search.current?.focus();
@@ -197,7 +205,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
     };
     window.addEventListener("keydown", key, true);
     return () => window.removeEventListener("keydown", key, true);
-  }, [params, setParams, codeNavigation.open]);
+  }, [compact, params, setParams, setWorkspace, codeNavigation.open]);
   const select = (id?: string, mode: ReaderOpenMode = "preview") => {
     reading.open(id ? { kind: "item", id } : { kind: "overview" }, { mode });
     setMobileCode(false);

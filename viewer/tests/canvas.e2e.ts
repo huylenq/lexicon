@@ -528,6 +528,19 @@ test("model references preserve context, relationship, code, history, and search
   expect(errors).toEqual([]);
 });
 
+test("slash focuses Browse from the tldraw canvas", async ({ page }) => {
+  await open(page);
+  const canvas = page.getByRole("application", { name: "tldraw" });
+  await canvas.focus();
+  await page.keyboard.press("/");
+  await expect(page.getByRole("textbox", { name: "Search model" })).toBeFocused();
+  await canvas.focus();
+  const theme = await canvas.getAttribute("class");
+  await page.keyboard.press("Meta+/");
+  await expect(page.getByRole("button", { name: "Toggle navigation" })).toHaveAttribute("aria-pressed", "false");
+  expect(await canvas.getAttribute("class")).toBe(theme);
+});
+
 test("restoring outlying concepts fits their context without moving them, including after reload", async ({ page }) => {
   await open(page);
   const saved = (await exportDocument(page)).data;
