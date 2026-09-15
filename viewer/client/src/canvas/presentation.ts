@@ -60,3 +60,15 @@ export function useSyncCanvasPresentation(editor: Editor | undefined, model: Mod
     });
   }, [editor]);
 }
+
+/** Only relationships between the two semantic dimensions receive cross-dimension styling. */
+export function isCrossDimensionConnection(view: CanvasPresentation, connection?: GraphConnection) {
+  if (connection?.kind !== "relationship") return false;
+  const dimension = (id: string) => {
+    const kind = view.vertices.get(id)?.kind;
+    if (kind === "context" || kind === "concept") return "domain";
+    if (kind === "person" || kind === "system" || kind === "container" || kind === "component") return "architecture";
+  };
+  const from = dimension(connection.source), to = dimension(connection.target);
+  return !!from && !!to && from !== to;
+}

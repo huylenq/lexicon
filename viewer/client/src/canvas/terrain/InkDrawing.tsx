@@ -3,7 +3,7 @@ import { useGeometryMorph } from "../useRouteMorph";
 import { roadFrame, roadMorph } from "./road-morph";
 import { useEditor, useValue } from "tldraw";
 import { isNeighborConnection } from "../NeighborHighlight";
-import { canvasPresentation } from "../presentation";
+import { canvasPresentation, isCrossDimensionConnection } from "../presentation";
 import { VillageBuilding } from "./VillageSprites";
 import { VillageLandscape } from "./VillageLandscape";
 import { InkScenery } from "./InkScenery";
@@ -64,17 +64,23 @@ const DistrictGround = memo(function DistrictGround({ district, detail, skin, pr
 function RoadDrawing({ road, detail, opacity, dragging }: { road: MapScene["roads"][number]; detail: boolean; opacity: number; dragging: boolean }) {
   const editor = useEditor();
   const neighbor = useValue("Highlighted neighbor road", () => isNeighborConnection(editor, canvasPresentation(editor).get().connections.get(road.id)), [editor, road.id]);
+  const crossDimension = useValue("Cross-dimension road", () => {
+    const view = canvasPresentation(editor).get();
+    return isCrossDimensionConnection(view, view.connections.get(road.id));
+  }, [editor, road.id]);
   const frame = useMemo(() => roadFrame(road.geometry), [road.geometry]);
   const morph = useGeometryMorph(frame, roadMorph, dragging);
   const { tracks, marks, direction, texture } = morph.value;
   const banks = tracks.slice(1, 3), ruts = tracks.slice(3, 5);
   return <g data-map-road={road.id} data-path-kind={road.kind} data-neighbor={neighbor || undefined} opacity={opacity}>
     <g data-route-current="true" data-route-morphing={morph.animating || undefined}>
+      {crossDimension ? <path d={pathFor(tracks[0])} fill="none" stroke="var(--map-ink)" strokeWidth={1.8} strokeDasharray="6 5" /> : <>
       <path d={pathFor([...banks[0], ...[...banks[1]].reverse()], true)} className="map-road-ground" />
       {banks.map((points, i) => <path key={i} d={pathFor(points)} className={`map-road-bank map-${road.kind}`} />)}
       {detail && <>
         {road.kind === "road" && ruts.map((points, i) => <path key={i} d={pathFor(points)} className="map-road-rut" />)}
         <path d={texture ?? marks.map(mark => pathFor(mark)).join(" ")} className="map-road-grain" />
+      </>}
       </>}
       <path className="map-road-direction" d="M-4,-3 L2,0 L-4,3"
         transform={`translate(${direction.x},${direction.y}) rotate(${direction.angle})`} />

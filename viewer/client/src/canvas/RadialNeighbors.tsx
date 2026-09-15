@@ -34,6 +34,12 @@ function readNeighbors(editor: Editor): Neighbors | undefined {
 
 export function RadialNeighbors() {
   const editor = useEditor();
+  const enabled = useValue("Cross-dimension navigation", () => !!canvasPresentation(editor).get().onOpenDimension, [editor]);
+  return enabled ? <ActiveRadialNeighbors /> : null;
+}
+
+function ActiveRadialNeighbors() {
+  const editor = useEditor();
   const live = useValue("Cross-dimension neighbors", () => readNeighbors(editor), [editor]);
   const [neighbors, setNeighbors] = useState<Neighbors>();
   const [inside, setInside] = useState(false);

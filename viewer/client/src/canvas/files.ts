@@ -19,7 +19,7 @@ import { canvasSchema } from "../../../shared/canvas-schema";
 import type { GraphConnection, GraphIndex } from "../graph/model";
 import type { CanvasApi } from "./api";
 import { captureCanvas, migrateModelReferences } from "./document";
-import { modelShapeId } from "./references";
+import { primaryShapesOnPage } from "./references";
 
 function download(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
@@ -66,14 +66,11 @@ export async function exportCanvasSelection(
     editor.visitDescendants(id, (child) => {
       ids.add(child);
     });
-  // Semantic edges live on the page, outside their concepts' context container.
+  // Semantic edges live on the active page, outside their concepts' context container.
+  const references = primaryShapesOnPage(editor);
   for (const edge of connections) {
-    if (
-      ids.has(modelShapeId(edge.source)) &&
-      ids.has(modelShapeId(edge.target)) &&
-      editor.getShape(modelShapeId(edge.id))
-    )
-      ids.add(modelShapeId(edge.id));
+    const source = references.get(edge.source), target = references.get(edge.target), shape = references.get(edge.id);
+    if (source && target && shape && ids.has(source.id) && ids.has(target.id)) ids.add(shape.id);
   }
   const result = await editor.toImage([...ids], {
     format: "png",

@@ -1,0 +1,22 @@
+.combined-regions { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.combined-region {
+  --dimension-color: #7467b8;
+  position: absolute; box-sizing: border-box; border-radius: 18px;
+  border: 1px solid color-mix(in srgb, var(--dimension-color) 38%, transparent);
+  background: color-mix(in srgb, var(--dimension-color) 5%, transparent);
+}
+.combined-region[data-dimension="architecture"] { --dimension-color: #238b85; }
+.combined-handles h2 {
+  margin: 12px 18px; font: 650 18px/24px system-ui, sans-serif; letter-spacing: .01em;
+  color: color-mix(in srgb, var(--dimension-color) 75%, var(--ink));
+}
+[data-theme="dark"] .combined-region { background: color-mix(in srgb, var(--dimension-color) 8%, transparent); }
+[data-theme="dark"] .combined-handles h2 { color: color-mix(in srgb, var(--dimension-color) 55%, white); }
+
+.combined-handles { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.combined-handles h2 { position: absolute; margin: 0; --dimension-color: #7467b8; }
+.combined-handles h2[data-dimension="architecture"] { --dimension-color: #238b85; }
+.combined-handles button { pointer-events: auto; touch-action: none; user-select: none; cursor: grab; border: 0; background: transparent; color: inherit; font: inherit; padding: 0; }
+.combined-handles button:active { cursor: grabbing; }
+.combined-handles button:focus-visible { outline: 2px solid currentColor; outline-offset: 4px; border-radius: 3px; }
+.combined-handles button span { opacity: .6; }

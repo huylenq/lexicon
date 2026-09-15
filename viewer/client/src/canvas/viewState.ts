@@ -2,14 +2,13 @@ import { isArchitecture, type ElementDimension, type Model } from "../../../shar
 import type { Workspace } from "../graph/storage";
 
 export type CanvasPresentation = "flat" | "layers";
+export type CanvasDimension = ElementDimension | "all";
 export type CanvasSkin = "standard" | "ink" | "village";
 
 /** Resolve active 2D choices without overwriting unavailable saved preferences. */
 export function resolveCanvasView(model: Model, workspace: Workspace) {
   const hasArchitecture = model.items.some(isArchitecture);
-  // Older workspaces can request the retired combined flat view.
-  const dimension: ElementDimension = !hasArchitecture || workspace.view === "domain"
-    ? "domain" : "architecture";
+  const dimension: CanvasDimension = !hasArchitecture ? "domain" : workspace.view ?? "domain";
   const atlasAvailable = true;
   const skin: CanvasSkin = atlasAvailable && (workspace.map ?? true)
     ? workspace.atlasSkin ?? "ink" : "standard";

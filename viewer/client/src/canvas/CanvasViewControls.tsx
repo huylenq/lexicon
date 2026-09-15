@@ -1,13 +1,12 @@
-import type { ElementDimension } from "../../../shared/model";
 import { CanvasToggleGroup } from "./Toolbar";
-import type { CanvasPresentation, CanvasSkin, CanvasView } from "./viewState";
+import type { CanvasDimension, CanvasPresentation, CanvasSkin, CanvasView } from "./viewState";
 
 type CanvasViewControlsProps = {
   onPresentation: (presentation: CanvasPresentation) => void;
 } & ({
   presentation: "flat";
   view: CanvasView;
-  onDimension: (dimension: ElementDimension) => void;
+  onDimension: (dimension: CanvasDimension) => void;
   onSkin: (skin: CanvasSkin) => void;
 } | {
   presentation: "layers";
@@ -20,9 +19,10 @@ export function CanvasViewControls(props: CanvasViewControlsProps) {
     <CanvasToggleGroup iconOnly className="canvas-presentation" label="Canvas presentation"
       value={props.presentation} onChange={props.onPresentation}
       options={[{ value: "flat", label: "2D", icon: "overview" }, { value: "layers", label: "Layers", icon: "layers" }]} />
-    <CanvasToggleGroup<ElementDimension> iconOnly label="Dimension" value={flat?.view.dimension} disabled={!flat}
+    <CanvasToggleGroup<CanvasDimension> iconOnly label="Dimension" value={flat?.view.dimension} disabled={!flat}
       onChange={value => flat?.onDimension(value)}
       options={[
+        { value: "all", label: "Combined", icon: "overview", disabled: !flat?.view.hasArchitecture },
         { value: "domain", label: "Domain", icon: "context" },
         { value: "architecture", label: "Architecture", icon: "component", disabled: !flat?.view.hasArchitecture },
       ]} />

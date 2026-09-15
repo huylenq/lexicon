@@ -1,10 +1,9 @@
 import { computed, type Editor } from "tldraw";
 import type { Box, Point } from "../../graph/layout";
-import type { ObjectShape } from "../../../../shared/canvas-schema";
 import { canvasPresentation } from "../presentation";
 import { contextFrame, contextLabelFrame, contextTerritory, isContext } from "../contexts";
 import { objectFrame } from "../sizing";
-import { isPrimary, modelShapeId } from "../references";
+import { isPrimary, primaryShapesOnPage } from "../references";
 import { relationshipRoute } from "../routes";
 import { createRelationshipRouter, type SceneRelationship, type SceneObstacles, type SceneObstacle, type RelationshipRoute } from "../scene-routing";
 import { borderPort } from "../territory";
@@ -24,14 +23,14 @@ type Endpoint = { frame: Box; box: Box; landmark?: ReturnType<typeof landmarkPla
 type RoadDetails = { source: Endpoint; target: Endpoint; kind: PathKind };
 type AtlasView = ReturnType<ReturnType<typeof canvasPresentation>["get"]>;
 
-function collectLandmarks(editor: Editor, view: AtlasView) {
+function collectLandmarks(editor: Editor, view: AtlasView, shapes: ReturnType<typeof primaryShapesOnPage>) {
   const endpoints = new Map<string, Endpoint>(), obstacles: SceneObstacles = { paths: [], labels: [] };
   const addSharedObstacle = (obstacle: SceneObstacle) => {
     obstacles.paths.push(obstacle);
     obstacles.labels.push(obstacle);
   };
   for (const [id, vertex] of view.vertices) {
-    const shape = editor.getShape<ObjectShape>(modelShapeId(id));
+    const shape = shapes.get(id);
     if (!shape || shape.type !== "lexicon-object" || !isPrimary(shape) || editor.isShapeHidden(shape)) continue;
     const context = isContext(shape), transform = editor.getShapePageTransform(shape);
     const local = context ? contextFrame(editor, shape, true) : objectFrame(editor, shape, vertex, true);
@@ -89,10 +88,10 @@ function dockedRoute(source: Endpoint, target: Endpoint, lane: number, self: boo
   return preferred;
 }
 
-function collectRoads(editor: Editor, view: AtlasView, endpoints: Map<string, Endpoint>) {
+function collectRoads(editor: Editor, view: AtlasView, endpoints: Map<string, Endpoint>, shapes: ReturnType<typeof primaryShapesOnPage>) {
   const edges: SceneRelationship[] = [], details = new Map<string, RoadDetails>();
   for (const edge of view.connections.values()) {
-    const shape = editor.getShape(modelShapeId(edge.id));
+    const shape = shapes.get(edge.id);
     if (edge.kind !== "relationship" || shape?.type !== "lexicon-connection" || !isPrimary(shape) || editor.isShapeHidden(shape)) continue;
     const kind = choice(shape.meta.lexiconPath, paths, "road");
     if (kind === "none") continue;
@@ -122,8 +121,9 @@ function createAtlasRouting(editor: Editor) {
   return computed("Atlas relationship routes", () => {
     const view = canvasPresentation(editor).get();
     if (!view.mapEnabled) return new Map<string, AtlasRoute>();
-    const { endpoints, obstacles } = collectLandmarks(editor, view);
-    const { edges, details } = collectRoads(editor, view, endpoints);
+    const shapes = primaryShapesOnPage(editor);
+    const { endpoints, obstacles } = collectLandmarks(editor, view, shapes);
+    const { edges, details } = collectRoads(editor, view, endpoints, shapes);
     const dragging = editor.inputs.getIsDragging();
     const key = JSON.stringify([edges, obstacles, [...details].map(([id, d]) => [id, d.kind, d.source.coast, d.target.coast]), dragging]);
     if (key === previousKey) return previous;

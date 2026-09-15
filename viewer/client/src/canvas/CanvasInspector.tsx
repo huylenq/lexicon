@@ -14,7 +14,7 @@ import type { Annotation } from "../../../shared/model";
 import type { CanvasModelCommand } from "../../../shared/canvas";
 import { canvasApi } from "./api";
 import { exportCanvasSelection } from "./files";
-import { isModelShape, modelShapeId } from "./references";
+import { isModelShape, primaryShapesOnPage } from "./references";
 import { indexModel, projectGraph } from "../graph/model";
 import { CanvasButton } from "./Toolbar";
 
@@ -150,10 +150,10 @@ export function CanvasInspector({
   const attach = () => {
     if (!note || !targetId) return;
     const target = props.model.items.find((i) => i.id === targetId);
-    const id = modelShapeId(
+    const id = primaryShapesOnPage(editor).get(
       `${target?.type === "relationship" ? "relation" : "item"}:${targetId}`,
-    );
-    if (!editor.getShape(id)) {
+    )?.id;
+    if (!id) {
       setError("Open this model object on the canvas first.");
       return;
     }

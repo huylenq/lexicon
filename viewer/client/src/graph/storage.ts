@@ -10,6 +10,7 @@ export type Workspace = GraphOptions & {
   codeWidth: number;
   chatWidth: number;
   map?: boolean;
+  crossDimensionRelationships?: boolean;
   atlasSkin?: "ink" | "village";
 };
 export const defaults = (): Workspace => ({
@@ -36,7 +37,7 @@ export function readWorkspace(key: string): Workspace {
       result.expanded = value.expanded.filter(
         (s: unknown) => typeof s === "string",
       );
-    for (const name of ["sidebar", "allCode", "map"] as const)
+    for (const name of ["sidebar", "allCode", "map", "crossDimensionRelationships"] as const)
       if (typeof value[name] === "boolean") result[name] = value[name];
     if (value.atlasSkin === "ink" || value.atlasSkin === "village")
       result.atlasSkin = value.atlasSkin;

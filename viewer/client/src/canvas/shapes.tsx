@@ -35,7 +35,7 @@ import {
 import { isPrimary } from "./references";
 import { isAtlasLandmark, landmarkFor, pathFor } from "./terrain/generate";
 import { roadCoveredAt, roadInput, shapeRoad, visibleObjectFrame } from "./terrain/view";
-import { canvasPresentation, useCanvasPresentation } from "./presentation";
+import { canvasPresentation, useCanvasPresentation, isCrossDimensionConnection } from "./presentation";
 import { contextControlTerritory, contextNameCurve, contextLabelFrame, contextPreferences, contextTerritory, isContext } from "./contexts";
 import { moveBorderVertex, territoryEdit } from "./territory";
 import { neighborAnchors, neighborEdges, isNeighborConnection, hoverNeighborLabel } from "./NeighborHighlight";
@@ -334,7 +334,7 @@ function ConnectionCard({ shape }: { shape: ConnectionShape }) {
         fill="none"
         stroke="currentColor"
         strokeWidth={1.8}
-        strokeDasharray={connection?.kind === "mapping" ? "6 5" : undefined}
+        strokeDasharray={connection?.kind === "mapping" || isCrossDimensionConnection(model, connection) ? "6 5" : undefined}
       />
       <path
         id={marker}

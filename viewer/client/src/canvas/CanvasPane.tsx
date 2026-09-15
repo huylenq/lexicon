@@ -43,6 +43,7 @@ import {
   LexiconNoteBindingUtil,
   LexiconObjectUtil,
 } from "./shapes";
+import { openFlatPage, flatPageIds, separateDimensions, dimensionRoots } from "./combined";
 import { createProjection } from "./projection";
 import { isModelShape, modelShapeId } from "./references";
 import { canvasApi } from "./api";
@@ -50,9 +51,10 @@ import { exportCanvasFile, readCanvasFile } from "./files";
 import { useProjectCanvas } from "./useProjectCanvas";
 import { CanvasInspector, noteText } from "./CanvasInspector";
 import { canvasThemes, syncCanvasTheme } from "./theme";
-import { InkMapBackground, MapStylePanel } from "./terrain/InkMap";
+import { MapStylePanel } from "./terrain/InkMap";
 import { EdgeAppearance } from "./EdgeAppearance";
 import { NeighborHighlight } from "./NeighborHighlight";
+import { CombinedBackground, CombinedHandles } from "./CombinedBackground";
 import { RadialNeighbors } from "./RadialNeighbors";
 import { MinimapGroups } from "./MinimapGroups";
 import { useSyncCanvasPresentation } from "./presentation";
@@ -87,14 +89,15 @@ function CanvasStylePanel() {
   );
   return shown ? <DefaultStylePanel /> : <MapStylePanel />;
 }
+function CanvasForeground() { return <><RadialNeighbors /><CombinedHandles /></>; }
 const components = {
   Toolbar: DockedToolbar,
   PageMenu: null,
   SharePanel: null,
   StylePanel: CanvasStylePanel,
   ContextMenu: CanvasContextMenu,
-  Background: InkMapBackground,
-  InFrontOfTheCanvas: RadialNeighbors,
+  Background: CombinedBackground,
+  InFrontOfTheCanvas: CanvasForeground,
 };
 const visibility = (shape: TLShape) =>
   shape.meta.lexiconHidden ? ("hidden" as const) : ("inherit" as const);
@@ -138,6 +141,9 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
     command,
     statusHost,
   } = props;
+  const combined = workspace.view === "all";
+  const showCrossDimensionRelationships = workspace.crossDimensionRelationships !== false;
+  const seedCombined = useRef(false);
   const mapEnabled = props.view.skin !== "standard";
   const [editor, setEditor] = useState<Editor>();
   const [toolHost, setToolHost] = useState<HTMLDivElement | null>(null);
@@ -194,8 +200,16 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
     [index],
   );
   const projected = useMemo(
-    () => projectGraph(index, workspace),
-    [index, workspace.expanded, workspace.allCode, workspace.view],
+    () => {
+      const graph = projectGraph(index, workspace);
+      if (!combined || showCrossDimensionRelationships) return graph;
+      const dimensions = new Map(model.items.map(item => [`item:${item.id}`, dimensionOf(item)]));
+      return { ...graph, connections: graph.connections.filter(edge => {
+        const from = dimensions.get(edge.source), to = dimensions.get(edge.target);
+        return edge.kind !== "relationship" || !from || !to || from === to;
+      }) };
+    },
+    [index, workspace.expanded, workspace.allCode, workspace.view, showCrossDimensionRelationships],
   );
   const vertices = useMemo(
     () =>
@@ -248,9 +262,9 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
       same(e.selection),
     );
     return vertex
-      ? modelShapeId(vertex.id)
+      ? modelShapeId(vertex.id, latest.current.workspace.view === "all" ? "combined" : latest.current.workspace.view || "domain")
       : edge
-        ? modelShapeId(edge.id)
+        ? modelShapeId(edge.id, latest.current.workspace.view === "all" ? "combined" : latest.current.workspace.view || "domain")
         : undefined;
   };
   const selectedShapes = useValue(
@@ -306,7 +320,7 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
     const owner = index.items.get(chosen.kind === "item" ? chosen.id : expand[0]);
     const endpoint = owner?.type === "relationship" ? index.items.get(owner.from) : owner;
     const view = endpoint && dimensionOf(endpoint);
-    if (chosen.kind === "item" && owner?.type === "relationship" &&
+    if (workspace.view !== "all" && chosen.kind === "item" && owner?.type === "relationship" &&
       view !== dimensionOf(index.items.get(owner.to)!)) {
       props.onLayers();
       return;
@@ -315,7 +329,9 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
     setFocus(undefined);
     setWorkspace((current) => ({
       ...current,
-      view: view ?? workspace.view,
+      view: current.view === "all" ? "all" : view ?? current.view,
+      ...(current.view === "all" && owner?.type === "relationship" && view !== dimensionOf(index.items.get(owner.to)!)
+        ? { crossDimensionRelationships: true } : {}),
       expanded: [...new Set([...current.expanded, ...expand])],
     }));
     setRevision((n) => n + 1);
@@ -357,22 +373,18 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
         const { x, y, zoom } = legacy.viewport;
         pendingCamera.current = { x: x / zoom, y: y / zoom, z: zoom };
       }
-      // Layers pages have their own visual references. Restore an ordinary page
-      // even when the most recent shared recovery session came from Layers.
-      const ordinary = instance.getPages().find(page => !["page:layers-domain", "page:layers-architecture"].includes(page.id));
-      if (!ordinary) instance.createPage({ id: "page:lexicon-canvas" as TLPageId, name: "Canvas" });
-      if (!ordinary || ["page:layers-domain", "page:layers-architecture"].includes(instance.getCurrentPageId()))
-        instance.setCurrentPage(ordinary?.id || "page:lexicon-canvas" as TLPageId);
+      const page = openFlatPage(instance, latest.current.workspace.view || "domain", latest.current.model);
+      seedCombined.current = page.created;
       syncCanvasTheme(instance);
       const observer = new MutationObserver(() => syncCanvasTheme(instance));
       observer.observe(document.documentElement, {
         attributes: true,
         attributeFilter: ["data-theme"],
       });
-      projection.current = createProjection(instance, legacy?.positions);
+      projection.current = createProjection(instance, page.created ? page.positions : legacy?.positions, "DOWN", page.scope);
       const stopStorage = storageRef.current.mount(
         instance,
-        projection.current.write,
+        fn => projection.current!.write(fn),
       );
       setEditor(instance);
       let lastSelected = "";
@@ -493,6 +505,13 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
 
   useEffect(() => {
     if (!editor || !projection.current) return;
+    if (editor.getCurrentPageId() !== flatPageIds[workspace.view || "domain"]) {
+      projection.current.dispose();
+      const page = openFlatPage(editor, workspace.view || "domain", model);
+      seedCombined.current = page.created;
+      projection.current = createProjection(editor, page.positions, "DOWN", page.scope);
+      initialFit.current = true;
+    }
     let active = true;
     setLoading(true);
     const arrange = rearrangeNext.current;
@@ -501,6 +520,11 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
       .update(full, projected, arrange, focused)
       .then((applied) => {
         if (!active || !applied) return;
+        if (seedCombined.current || (arrange && latest.current.workspace.view === "all")) {
+          separateDimensions(editor, latest.current.model);
+          seedCombined.current = false;
+          initialFit.current = true;
+        }
         setLoading(false);
         storageRef.current.ready();
         if (arrange) initialFit.current = true;
@@ -686,7 +710,7 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
   openDimensionRef.current = (id, from) => { props.onNavigateDimension(id, from); reveal({ kind: "item", id }); };
   const onOpenDimension = useCallback((id: string, from: string) => openDimensionRef.current(id, from), []);
   useSyncCanvasPresentation(editor, { modelId: model.id, mapEnabled, atlasSkin: workspace.atlasSkin ?? "ink",
-    vertices, connections, matches, onOpenDimension });
+    vertices, connections, matches, onOpenDimension: combined && showCrossDimensionRelationships ? undefined : onOpenDimension });
 
   const saveLabel = {
     loading: "Opening canvas…",
@@ -784,6 +808,20 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
               setRevision((n) => n + 1);
             }}
           />
+          {combined && <>
+            <CanvasButton icon="relationship" label="Cross-dimension relationships"
+              title="Show cross-dimension relationships; when hidden, hover nodes for radial neighbors"
+              aria-pressed={showCrossDimensionRelationships} disabled={!editor || loading}
+              onClick={() => setWorkspace(w => ({ ...w, crossDimensionRelationships: !(w.crossDimensionRelationships !== false) }))} />
+            <CanvasButton icon="layers" label="Separate dimensions" disabled={!editor || loading}
+              onClick={() => { if (editor) { separateDimensions(editor, model); fit(); } }} />
+            {(["domain", "architecture"] as const).map(dimension => <CanvasButton key={dimension}
+              icon={dimension === "domain" ? "context" : "component"}
+              label={`Move ${dimension === "domain" ? "Domain" : "Architecture"}`}
+              title="Select the dimension’s top-level shapes, then drag to move them together"
+              disabled={!editor || loading}
+              onClick={() => { if (editor) editor.select(...dimensionRoots(editor, model, dimension).map(shape => shape.id)); }} />)}
+          </>}
           <CanvasButton
             icon="plus"
             label="Add note"

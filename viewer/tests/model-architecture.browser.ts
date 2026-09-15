@@ -21,6 +21,173 @@ test.afterEach(async ({ request }) => {
   await rm(root, { recursive: true, force: true });
 });
 
+test("combined 2D keeps domain and architecture visible through locate and reload", async ({ page }) => {
+  await page.goto(`/p/${id}`);
+  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  const order = page.getByRole("button", { name: "concept: Order", exact: true });
+  const ghosts = page.getByRole("group", { name: "Cross-dimension neighbors", exact: true });
+  await order.hover();
+  await expect(ghosts).toBeVisible();
+  await page.getByRole("radio", { name: "Combined", exact: true }).check();
+  await expect(ghosts).toHaveCount(0);
+  await order.hover();
+  await expect(ghosts).toHaveCount(0);
+  const card = (item: string) => page.locator(`[data-model-id="item:${item}"]`);
+  await expect(card("order")).toBeVisible();
+  await expect(card("checkout")).toBeVisible();
+  await page.locator(".sidebar .nav-item").filter({ hasText: /^Order$/ }).click();
+  await page.getByRole("button", { name: "Locate in canvas", exact: true }).click();
+  await expect(page.getByRole("radio", { name: "Combined", exact: true })).toBeChecked();
+  await page.reload();
+  await expect(page.getByRole("radio", { name: "Combined", exact: true })).toBeChecked();
+  await page.getByRole("button", { name: "Fit model", exact: true }).click();
+  await expect(card("order")).toBeVisible();
+  await expect(card("checkout")).toBeVisible();
+  await page.getByRole("radio", { name: "Domain", exact: true }).check();
+  await order.hover();
+  await expect(ghosts).toBeVisible();
+  expect(await readFile(join(root, "lexicon/model.xml"), "utf8")).toBe(xml);
+});
+
+test("Combined toggles cross-dimension connections and radial navigation", async ({ page }) => {
+  await page.goto(`/p/${id}`);
+  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  await page.getByRole("radio", { name: "Combined", exact: true }).check();
+  const toggle = page.getByRole("button", { name: "Cross-dimension relationships", exact: true });
+  const cross = page.locator('.canvas-connection-label').filter({ hasText: /^creates$/ });
+  const within = page.locator('.canvas-connection-label').filter({ hasText: /^contains$/ });
+  const ghosts = page.getByRole("group", { name: "Cross-dimension neighbors", exact: true });
+  await expect(toggle).toHaveAttribute("aria-pressed", "true");
+  await expect(cross).toBeVisible();
+  await expect(page.locator('svg.canvas-connection').filter({ has: cross }).locator('[data-route-current] > path').first()).toHaveAttribute("stroke-dasharray", "6 5");
+  await expect(page.locator('svg.canvas-connection').filter({ has: within }).locator('[data-route-current] > path').first()).not.toHaveAttribute("stroke-dasharray");
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-pressed", "false");
+  await expect(cross).toBeHidden();
+  await expect(within).toBeVisible();
+  await page.getByRole("button", { name: "concept: Order", exact: true }).hover();
+  await expect(ghosts).toBeVisible();
+  await ghosts.getByRole("button", { name: "Go to Order Handling", exact: true }).click();
+  await expect(page.getByRole("radio", { name: "Combined", exact: true })).toBeChecked();
+  await expect(page.locator('main [data-reader-card].active h1')).toHaveText("Order Handling");
+  await page.reload();
+  await expect(toggle).toHaveAttribute("aria-pressed", "false");
+  await page.getByRole("button", { name: "Fit model", exact: true }).click();
+  await expect(cross).toBeHidden();
+  await toggle.click();
+  await expect(cross).toBeVisible();
+  await expect(ghosts).toHaveCount(0);
+  expect(await readFile(join(root, "lexicon/model.xml"), "utf8")).toBe(xml);
+});
+
+test("Locate reveals a hidden cross-dimension relationship", async ({ page }) => {
+  await page.goto(`/p/${id}`);
+  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  await page.getByRole("radio", { name: "Combined", exact: true }).check();
+  const toggle = page.getByRole("button", { name: "Cross-dimension relationships", exact: true });
+  await toggle.click();
+  await page.getByPlaceholder("Find...").fill("creates");
+  await page.locator(".sidebar .nav-item").filter({ hasText: /^creates$/ }).click();
+  await page.getByPlaceholder("Find...").fill("");
+  await page.getByRole("button", { name: "Locate in canvas", exact: true }).click();
+  await expect(toggle).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator('.canvas-connection-label').filter({ hasText: /^creates$/ })).toBeVisible();
+});
+
+for (const skin of ["Atlas · Ink", "Atlas · Village"]) test(`Combined ${skin} routes follow its own placements`, async ({ page }) => {
+  await page.goto(`/p/${id}`);
+  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  await page.getByRole("radio", { name: "Architecture", exact: true }).check();
+  await page.getByRole("radio", { name: "Combined", exact: true }).check();
+  await page.getByRole("radio", { name: skin, exact: true }).check();
+  const road = page.locator('[data-map-road="relation:customer-orders"] .map-road-ground');
+  await expect(road).toBeVisible();
+  const before = await road.getAttribute("d");
+  const handle = page.getByRole("button", { name: "Drag Architecture", exact: true });
+  await handle.focus();
+  await handle.press("Shift+ArrowRight");
+  await expect(road).not.toHaveAttribute("d", before!);
+});
+
+test("Combined note attachment targets the visible page", async ({ page, request }) => {
+  await page.goto(`/p/${id}`);
+  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  await page.getByRole("radio", { name: "Combined", exact: true }).check();
+  await page.getByRole("button", { name: "Add note", exact: true }).click();
+  const note = page.locator('.tl-container [contenteditable="true"]');
+  await note.fill("Combined attachment regression");
+  await note.press("Escape");
+  await page.getByRole("button", { name: "Selection actions", exact: true }).click();
+  await page.getByRole("combobox", { name: "Note attachment", exact: true }).selectOption("order");
+  await page.getByRole("button", { name: "Attach", exact: true }).click();
+  await expect(page.getByText("Attached to Order", { exact: true })).toBeVisible();
+  await expect.poll(async () => {
+    const store = (await (await request.get(`/api/projects/${id}/canvas`)).json()).document?.snapshot.store || {};
+    const binding: any = Object.values(store).find((record: any) => record.type === "lexicon-note");
+    return binding && store[binding.toId]?.meta.lexiconProjection;
+  }).toBe("combined");
+});
+
+test("Combined separates and moves dimensions without changing ordinary placements", async ({ page, request }) => {
+  await page.goto(`/p/${id}`);
+  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  const store = async () => (await (await request.get(`/api/projects/${id}/canvas`)).json()).document?.snapshot.store;
+  const placements = (records: any, scope: string = "domain") => Object.values(records || {})
+    .filter((shape: any) => shape.type === "lexicon-object" && shape.meta.lexiconProjection === scope)
+    .map((shape: any) => [shape.props.graphId, shape.x, shape.y]).sort();
+  await expect.poll(async () => placements(await store()).length).toBeGreaterThan(0);
+  const ordinary = placements(await store());
+  await page.getByRole("radio", { name: "Combined", exact: true }).check();
+  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  if (await page.locator('main').isVisible()) await page.getByRole('button', { name: 'Toggle reader', exact: true }).click();
+  const card = (item: string) => page.locator(`[data-model-id="item:${item}"]`);
+  const gap = async () => {
+    const a = (await card("ordering").boundingBox())!, b = (await card("shop").boundingBox())!;
+    return b.x - (a.x + a.width);
+  };
+  await expect.poll(gap).toBeGreaterThan(0);
+  await expect(page.locator(".combined-handles").getByRole("heading", { name: /Domain/ })).toBeVisible();
+  await expect(page.locator(".combined-handles").getByRole("heading", { name: /Architecture/ })).toBeVisible();
+  const region = (dimension: string) => page.locator(`.combined-region[data-dimension="${dimension}"]`);
+  const domainRegion = (await region("domain").boundingBox())!;
+  const architectureRegion = (await region("architecture").boundingBox())!;
+  expect(architectureRegion.x).toBeGreaterThan(domainRegion.x + domainRegion.width);
+  await expect.poll(async () => placements(await store(), "combined").length).toBeGreaterThan(0);
+  const before = placements(await store(), "combined");
+  const target = (await page.getByRole("button", { name: "Drag Architecture", exact: true }).boundingBox())!;
+  await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(target.x + target.width / 2 + 70, target.y + target.height / 2 + 45, { steps: 12 });
+  await page.mouse.up();
+  await expect.poll(async () => placements(await store(), "combined")).not.toEqual(before);
+  const moved = placements(await store(), "combined");
+  const delta = (item: string) => {
+    const a = before.find((row: any) => row[0] === `item:${item}`)!;
+    const b = moved.find((row: any) => row[0] === `item:${item}`)!;
+    return [Number(b[1]) - Number(a[1]), Number(b[2]) - Number(a[2])];
+  };
+  expect(delta("customer")[0]).toBeCloseTo(delta("shop")[0]);
+  expect(delta("customer")[1]).toBeCloseTo(delta("shop")[1]);
+  for (const child of ["checkout", "repository", "order"]) {
+    expect(moved.find((row: any) => row[0] === `item:${child}`)).toEqual(before.find((row: any) => row[0] === `item:${child}`));
+  }
+  await page.getByRole('button', { name: 'Separate dimensions', exact: true }).click();
+  await expect.poll(gap).toBeGreaterThan(0);
+  await expect.poll(async () => placements(await store())).toEqual(ordinary);
+  await page.getByRole('radio', { name: 'Domain', exact: true }).check();
+  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  await page.getByRole('radio', { name: 'Combined', exact: true }).check();
+  await expect.poll(gap).toBeGreaterThan(0);
+  await page.reload();
+  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  await page.getByRole('button', { name: 'Fit model', exact: true }).click();
+  await expect.poll(gap).toBeGreaterThan(0);
+  await page.getByRole("button", { name: "Use dark theme", exact: true }).click();
+  await page.screenshot({ path: test.info().outputPath("combined-separated.png") });
+  expect(placements(await store())).toEqual(ordinary);
+  expect(await readFile(join(root, "lexicon/model.xml"), "utf8")).toBe(xml);
+});
+
 test("read domain and architecture through the same search, relationship, source, and history controls", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
@@ -91,7 +258,7 @@ test("nested boundaries and shared canvas survive filters, a drawing move, and r
   await expect(page.getByRole("radio", { name: "Standard", exact: true })).toBeChecked();
   await expect(page.getByRole("radio", { name: "Atlas · Ink", exact: true })).toBeEnabled();
   await expect(page.getByRole("radio", { name: "Atlas · Village", exact: true })).toBeEnabled();
-  await expect(page.getByRole("group", { name: "Dimension", exact: true }).getByRole("radio")).toHaveCount(2);
+  await expect(page.getByRole("group", { name: "Dimension", exact: true }).getByRole("radio")).toHaveCount(3);
   await expect.poll(canvas).toEqual(before);
   await page.getByRole("radio", { name: "Layers", exact: true }).check();
   await expect(page.locator('.layers-stage[data-ready="true"]')).toBeVisible();
@@ -535,4 +702,93 @@ test("Layers redraws text at high viewer zoom", async ({ page }) => {
   await expect.poll(async () => Number(await page.locator('.layer-editor').first().getAttribute('data-render-scale'))).toBeGreaterThan(4);
   await page.waitForTimeout(1200); // Allow the compositor to rasterize the higher-resolution planes.
   await page.screenshot({ path: test.info().outputPath('layers-high-zoom.png') });
+});
+
+
+test("2D drawings stay on their dimension page through switching and reload", async ({ page, request }) => {
+  await page.goto(`/p/${id}`);
+  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  const add = async (text: string) => {
+    await page.getByRole("button", { name: "Add note", exact: true }).click();
+    const input = page.locator('.tl-container [contenteditable="true"]');
+    await input.fill(text);
+    await input.press("Escape");
+  };
+  await add("Domain drawing");
+  await page.getByRole("button", { name: /^Undo —/ }).click();
+  await expect(page.locator(".tl-shape").getByText("Domain drawing", { exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: /^Redo —/ }).click();
+  await expect(page.locator(".tl-shape").getByText("Domain drawing", { exact: true })).toBeVisible();
+  await page.getByRole("radio", { name: "Architecture", exact: true }).check();
+  await expect(page.locator(".tl-shape").getByText("Domain drawing", { exact: true })).toHaveCount(0);
+  await add("Architecture drawing");
+  await expect.poll(async () => {
+    const store = (await (await request.get(`/api/projects/${id}/canvas`)).json()).document?.snapshot.store || {};
+    return Object.values(store).filter((r: any) => r.type === "note").map((r: any) => r.parentId).sort();
+  }).toEqual(["page:lexicon-architecture", "page:lexicon-domain"]);
+  await page.reload();
+  await expect(page.locator(".tl-shape").getByText("Architecture drawing", { exact: true })).toBeVisible();
+  await expect(page.locator(".tl-shape").getByText("Domain drawing", { exact: true })).toHaveCount(0);
+  await page.getByRole("radio", { name: "Domain", exact: true }).check();
+  await expect(page.locator(".tl-shape").getByText("Domain drawing", { exact: true })).toBeVisible();
+  await expect(page.locator(".tl-shape").getByText("Architecture drawing", { exact: true })).toHaveCount(0);
+  await page.getByRole("radio", { name: "Combined", exact: true }).check();
+  await expect(page.locator(".tl-shape").getByText("Domain drawing", { exact: true })).toHaveCount(0);
+  await expect(page.locator(".tl-shape").getByText("Architecture drawing", { exact: true })).toHaveCount(0);
+  await add("Combined drawing");
+  await page.getByRole("radio", { name: "Domain", exact: true }).check();
+  await expect(page.locator(".tl-shape").getByText("Combined drawing", { exact: true })).toHaveCount(0);
+  await page.getByRole("radio", { name: "Combined", exact: true }).check();
+  await expect(page.locator(".tl-shape").getByText("Combined drawing", { exact: true })).toBeVisible();
+  await expect(page.locator('[data-save-status="saved"]')).toBeVisible();
+  await page.reload();
+  await expect(page.locator(".tl-shape").getByText("Combined drawing", { exact: true })).toBeVisible();
+  expect(await readFile(join(root, "lexicon/model.xml"), "utf8")).toBe(xml);
+});
+
+test("legacy shared drawings migrate once and retain their original recovery page", async ({ page, request }) => {
+  await page.goto(`/p/${id}`);
+  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  await page.getByRole("button", { name: "Add note", exact: true }).click();
+  const input = page.locator('.tl-container [contenteditable="true"]');
+  await input.fill("Legacy architecture note");
+  await input.press("Escape");
+  await page.getByRole("button", { name: "Selection actions", exact: true }).click();
+  await page.getByRole("combobox", { name: "Note attachment", exact: true }).selectOption("checkout");
+  await page.getByRole("button", { name: "Attach", exact: true }).click();
+  const canvas = async () => (await (await request.get(`/api/projects/${id}/canvas`)).json()).document;
+  await expect.poll(async () => Object.values((await canvas())?.snapshot.store || {}).some((r: any) => r.type === "lexicon-note")).toBe(true);
+  const document = await canvas();
+  await page.goto("about:blank");
+  const store: Record<string, any> = {};
+  const legacyId = (value: string) => value.replace("shape:lexicon-view:domain:", "shape:lexicon:").replace("page:lexicon-domain", "page:legacy");
+  for (const record of Object.values(document.snapshot.store) as any[]) {
+    if (record.typeName === "page" && record.id !== "page:lexicon-domain") continue;
+    const next = { ...record, id: legacyId(record.id) };
+    if (record.typeName === "shape") {
+      next.parentId = legacyId(record.parentId);
+      next.meta = { ...record.meta }; delete next.meta.lexiconProjection;
+    }
+    if (record.typeName === "binding") { next.fromId = legacyId(record.fromId); next.toId = legacyId(record.toId); }
+    store[next.id] = next;
+  }
+  document.snapshot.store = store;
+  await writeFile(join(root, "lexicon/canvas.json"), JSON.stringify(document));
+  await page.goto(`/p/${id}`);
+  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  await expect(page.locator(".tl-shape").getByText("Legacy architecture note", { exact: true })).toHaveCount(0);
+  await page.getByRole("radio", { name: "Architecture", exact: true }).check();
+  await expect(page.locator(".tl-shape").getByText("Legacy architecture note", { exact: true })).toHaveCount(1);
+  await expect.poll(async () => (await canvas())?.snapshot.store["page:legacy"]?.name).toBe("Legacy canvas (recovery)");
+  const saved = await canvas();
+  const notes = Object.values(saved.snapshot.store).filter((r: any) => r.type === "note") as any[];
+  expect(notes).toHaveLength(2);
+  const oldNote = notes.find(r => r.parentId === "page:legacy");
+  const migratedNote = notes.find(r => r.parentId === "page:lexicon-architecture");
+  expect(migratedNote).toMatchObject({ x: oldNote.x, y: oldNote.y, props: oldNote.props });
+  const binding: any = Object.values(saved.snapshot.store).find((r: any) => r.typeName === "binding" && r.fromId === migratedNote.id);
+  expect(saved.snapshot.store[binding.toId].meta.lexiconProjection).toBe("architecture");
+  await page.reload();
+  await expect(page.locator(".tl-shape").getByText("Legacy architecture note", { exact: true })).toHaveCount(1);
+  expect(Object.values((await canvas()).snapshot.store).filter((r: any) => r.type === "note")).toHaveLength(2);
 });

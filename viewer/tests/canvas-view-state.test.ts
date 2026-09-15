@@ -9,9 +9,9 @@ const model = (architecture: boolean) => parseModel(`<lexicon schema="3.2" id="t
   ${architecture ? '<system id="system"><name>System</name><description>Structure.</description></system>' : ''}
 </lexicon>`);
 
-test("legacy combined views resolve to an available single dimension without rewriting preferences", () => {
+test("combined views preserve both dimensions when architecture is available", () => {
   const workspace = { ...defaults(), view: "all" as const };
-  expect(resolveCanvasView(model(true), workspace).dimension).toBe("architecture");
+  expect(resolveCanvasView(model(true), workspace).dimension).toBe("all");
   expect(resolveCanvasView(model(false), workspace).dimension).toBe("domain");
   expect(workspace.view).toBe("all");
 });
