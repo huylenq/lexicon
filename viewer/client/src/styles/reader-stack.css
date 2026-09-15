@@ -143,6 +143,7 @@
   text-transform: uppercase;
 }
 .reader-stack .reader-card article { padding: 20px 24px 28px; }
+.reader-stack .reader-card article > .prose { max-width: none; }
 .reader-stack .context-grid { grid-template-columns: 1fr; }
 .reader-stack .reader-card-body .empty h1 { font-size: 22px; }
 @media (max-width: 1000px) {

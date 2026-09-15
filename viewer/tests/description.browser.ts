@@ -23,6 +23,24 @@ test("inline descriptions navigate with icons and wrap on narrow screens", async
   await expect(prose).toBeVisible();
 });
 
+test("Reader card descriptions use the available card width", async ({ page }) => {
+  await page.goto("/p/shop?item=order");
+  const divider = page.getByRole("separator", { name: "Resize canvas and reader", exact: true });
+  await divider.click();
+  for (let i = 0; i < 20; i++) await divider.press("ArrowLeft");
+  await expect(divider).toHaveAttribute("aria-valuenow", "25");
+
+  const prose = page.locator("[data-reader-card].active article > .prose");
+  await expect(prose).toBeVisible();
+  const widths = await prose.evaluate(el => {
+    const article = el.parentElement!;
+    const style = getComputedStyle(article);
+    const contentWidth = article.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+    return { renderedWidth: el.clientWidth, contentWidth };
+  });
+  expect(widths.renderedWidth).toBeCloseTo(widths.contentWidth, 0);
+});
+
 test("Shop example descriptions link domain meaning to implementation and scenarios", async ({ page }) => {
   await page.goto("/p/shop?item=order");
   const active = page.locator("[data-reader-card].active");
