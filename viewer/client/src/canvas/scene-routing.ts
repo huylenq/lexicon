@@ -65,7 +65,11 @@ function allocatePorts(edges: SceneRelationship[]) {
       const { box, verticalSide } = port;
       const size = verticalSide ? box.height : box.width;
       const inset = Math.min(...list.map(p => p.edge.portInset ?? defaultPortInset), size / 4);
-      const position = inset + (size - 2 * inset) * i / (list.length - 1);
+      // Leave an empty slot at each end; crowded sides still respect corner clearance.
+      const hasSelfLoop = list.some(p => p.edge.sourceId === p.edge.targetId);
+      // A loop needs enough separation for its label on the returning segment.
+      const margin = Math.max(inset, Math.min(size / (list.length + 1), hasSelfLoop ? size / 4 : Infinity));
+      const position = margin + (size - 2 * margin) * i / (list.length - 1);
       ports.get(port.edge.id)![port.end] = verticalSide
         ? { x: port.point.x, y: box.y + position }
         : { x: box.x + position, y: port.point.y };

@@ -19,6 +19,29 @@ function sharedLength(a: ReturnType<typeof routeRuns>, b: ReturnType<typeof rout
   return length;
 }
 describe("scene relationship lanes", () => {
+  test("ports use interior slots on every side and follow neighboring node order", () => {
+    const box = { x: 300, y: 300, width: 300, height: 120 };
+    for (const side of ["top", "bottom", "left", "right"]) for (const count of [1, 2, 3, 4]) {
+      const vertical = side === "left" || side === "right";
+      const scene: SceneRelationship[] = Array.from({ length: count }, (_, i) => ({
+        id: `edge-${count - i}`, sourceId: `neighbor-${i}`, targetId: "card",
+        source: vertical
+          ? { x: side === "left" ? -300 : 900, y: 300 + i * 10, width: 60, height: 60 }
+          : { x: 300 + i * 10, y: side === "top" ? -300 : 900, width: 60, height: 60 },
+        target: box, lane: 0, labelWidth: 0,
+      }));
+      const routes = routeRelationships(scene, []);
+      scene.forEach((edge, i) => {
+        const point = routes.get(edge.id)!.points.at(-1)!;
+        expect(vertical ? point.y : point.x).toBeCloseTo(
+          (vertical ? box.y : box.x) + (vertical ? box.height : box.width) * (i + 1) / (count + 1),
+        );
+        expect(vertical ? point.x : point.y).toBe(
+          side === "left" ? box.x : side === "right" ? box.x + box.width : side === "top" ? box.y : box.y + box.height,
+        );
+      });
+    }
+  });
   test("parallel detours have distinct ports and do not share long runs", () => {
     const routes = [...routeRelationships(edges, [obstacle]).values()];
     expect(new Set(routes.map(r => JSON.stringify(r.points[0]))).size).toBe(3);
