@@ -687,19 +687,10 @@ article section {
   color: var(--muted);
   margin-bottom: 0;
 }
-.annotation {
-  border-left: 2px solid var(--line);
-  padding: 2px 0 2px 14px;
-  margin: 16px 0;
-}
 .annotation-label {
-  display: flex;
   align-items: center;
+  justify-content: flex-start;
   gap: 10px;
-  color: var(--muted);
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
 }
 .evidence {
   padding: 4px 7px;
@@ -714,6 +705,7 @@ article section {
   background: var(--soft);
 }
 .annotation .prose {
+  color: var(--ink);
   font-size: 13px;
   margin: 12px 0;
   line-height: 1.65;

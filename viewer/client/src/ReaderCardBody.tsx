@@ -204,24 +204,19 @@ export default function ReaderCardBody({ card, model, graphIndex, params, loadin
               )}
               {item && (
                 <>
-                  {item.annotations.length > 0 && (
-                    <section>
-                      <h2 className="object-label"><Icon name="annotation" />Notes</h2>
-                      {item.annotations.map((a, index) => (
-                        <div className="annotation" key={index}>
-                          <div className="annotation-label">
-                            <span className="object-label"><Icon name="annotation" size={14} />{a.kind}</span>
-                            {a.evidence && (
-                              <span className={`evidence ${a.evidence}`}>
-                                {a.evidence}
-                              </span>
-                            )}
-                          </div>
-                          <Paragraph text={a.text} />
-                        </div>
-                      ))}
+                  {item.annotations.map((a, index) => (
+                    <section className="annotation" key={index}>
+                      <div className="section-heading annotation-label">
+                        <h2 className="object-label"><Icon name="annotation" />{a.kind.charAt(0).toUpperCase() + a.kind.slice(1)}</h2>
+                        {a.evidence && (
+                          <span className={`evidence ${a.evidence}`}>
+                            {a.evidence}
+                          </span>
+                        )}
+                      </div>
+                      <Paragraph text={a.text} />
                     </section>
-                  )}
+                  ))}
                   {item.codeLinks.length > 0 && (
                     <section>
                       <div className="section-heading">
