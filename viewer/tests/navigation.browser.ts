@@ -122,7 +122,8 @@ test("native canvas navigation remains reachable beside Browse on short and narr
   for (const size of [{ width: 1600, height: 1000 }, { width: 1600, height: 420 }, { width: 390, height: 480 }]) {
     await page.setViewportSize(size);
     const shelf = page.locator("#browse-pane");
-    if (!await shelf.isVisible()) await page.getByRole("button", { name: "Toggle navigation", exact: true }).click();
+    const toggle = page.getByRole("button", { name: "Toggle navigation", exact: true });
+    if (await toggle.getAttribute("aria-pressed") === "false") await toggle.click();
     const fit = page.getByRole("button", { name: "Fit model", exact: true });
     await expect(fit).toBeInViewport();
     await fit.click();
@@ -145,7 +146,9 @@ test("Browse search preserves shelf height and input position as results change"
   for (const size of [{ width: 1600, height: 1000 }, { width: 390, height: 480 }]) {
     await page.setViewportSize(size);
     const shelf = page.locator("#browse-pane");
-    if (!await shelf.isVisible()) await page.getByRole("button", { name: "Toggle navigation", exact: true }).click();
+    const toggle = page.getByRole("button", { name: "Toggle navigation", exact: true });
+    if (await toggle.getAttribute("aria-pressed") === "false") await toggle.click();
+    await expect(shelf).toHaveCSS("translate", "none");
     const search = page.getByRole("textbox", { name: "Search model" });
     const beforeShelf = await shelf.boundingBox();
     const beforeInput = await search.boundingBox();

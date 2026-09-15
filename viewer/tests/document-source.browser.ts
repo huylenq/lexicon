@@ -65,6 +65,7 @@ test("documents retain source identity through headings, history, search, canvas
   await expect(pane.getByLabel('Document content')).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(pane).toBeVisible();
+  await expect(pane).toHaveCSS('translate', 'none');
   expect((await pane.boundingBox())!.width).toBe(390);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await pane.getByRole('button', { name: 'Back to reader', exact: true }).click();

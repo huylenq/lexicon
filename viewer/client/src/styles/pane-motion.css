@@ -1,0 +1,83 @@
+/* Discrete display transitions keep mounted panes painted through their exit.
+   No transform/opacity remains after opening, preserving Reader backdrop blur. */
+@media (prefers-reduced-motion: no-preference) {
+  .reader > .sidebar,
+  .pane-area > .code-pane,
+  .reader-workspace > .reader-stack,
+  .reader > .chat-pane {
+    --pane-enter-x: 0px;
+    --pane-enter-y: 8px;
+    opacity: 1;
+    translate: none;
+    transition:
+      opacity 220ms cubic-bezier(.22, 1, .36, 1),
+      translate 220ms cubic-bezier(.22, 1, .36, 1),
+      display 220ms allow-discrete;
+  }
+
+  .reader > .sidebar {
+    --pane-enter-x: -8px;
+    --pane-enter-y: 0px;
+  }
+
+  .pane-area > .code-pane {
+    --pane-enter-x: 8px;
+    --pane-enter-y: 0px;
+  }
+
+  .reader.without-sidebar > .sidebar:not(.open),
+  .pane-area > .code-pane[hidden],
+  .reader-workspace.reader-hidden > .reader-stack,
+  .reader > .chat-pane[hidden] {
+    opacity: 0;
+    translate: var(--pane-enter-x) var(--pane-enter-y);
+    pointer-events: none;
+    & * { pointer-events: none; }
+  }
+
+  @media (max-width: 1000px) {
+    /* Overlap outgoing/incoming mobile surfaces instead of squeezing both
+       into half the screen while their display transitions overlap. */
+    .reader > .pane-area {
+      display: grid;
+      grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+    }
+
+    .pane-area > .reader-workspace,
+    .pane-area > .code-pane {
+      grid-area: 1 / 1;
+    }
+
+    /* Sources replaces the entire workspace on narrow screens. Transition
+       that ancestor too so its display toggle cannot cut off Reader's exit. */
+    .reader .reader-workspace {
+      opacity: 1;
+      transition: opacity 220ms, display 220ms allow-discrete;
+    }
+
+    .reader > .sidebar:not(.open),
+    .reader:not(.mobile-code) .pane-area > .code-pane,
+    .reader.mobile-canvas .reading-pane,
+    .reader.with-code.mobile-code .reader-workspace {
+      opacity: 0;
+      pointer-events: none;
+      & * { pointer-events: none; }
+    }
+
+    .reader > .sidebar:not(.open),
+    .reader:not(.mobile-code) .pane-area > .code-pane,
+    .reader.mobile-canvas .reading-pane {
+      translate: var(--pane-enter-x) var(--pane-enter-y);
+    }
+  }
+
+  @starting-style {
+    .reader > .sidebar,
+    .pane-area > .code-pane,
+    .reader-workspace > .reader-stack,
+    .reader > .chat-pane {
+      opacity: 0;
+      translate: var(--pane-enter-x) var(--pane-enter-y);
+    }
+  }
+}

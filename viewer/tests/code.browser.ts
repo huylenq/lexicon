@@ -56,6 +56,7 @@ test("Browse and Canvas share one persistent, independently resizable Source wor
   await toggle(page).click();
   await expect(page.locator(".code-breadcrumb")).toHaveText(path);
   await page.setViewportSize({ width: 1024, height: 1000 });
+  await expect(codePane(page)).toHaveCSS("translate", "none");
   const compactReader = (await page.locator("main").boundingBox())!;
   const compactCode = (await codePane(page).boundingBox())!;
   expect(compactCode.x).toBeGreaterThanOrEqual(
@@ -176,6 +177,7 @@ test("on narrow screens Code has its own full-screen surface and returns to the 
   await page.locator("main [data-reader-card].active .code-links button").first().click();
   await expect(codePane(page)).toBeVisible();
   await expect(page.locator("main")).toBeHidden();
+  await expect(codePane(page)).toHaveCSS("translate", "none");
   expect((await codePane(page).boundingBox())!.width).toBe(390);
   await page
     .getByRole("button", { name: "Back to reader", exact: true })

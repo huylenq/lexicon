@@ -127,6 +127,7 @@ test("chat switches between floating and attached layouts while preserving draft
     await expect(chat.getByRole("combobox", { name: "Reasoning effort" })).toBeVisible();
     await expect(chat.getByText("Reasoning", { exact: true })).toHaveCount(0);
     expect(await graph.boundingBox()).toEqual(graphBounds);
+    await expect(chat).toHaveCSS("translate", "none");
     const dockBounds = await chat.boundingBox();
     const launcherBounds = (await page.getByRole("button", { name: "Agent", exact: true }).boundingBox())!;
     expect(dockBounds!.x + dockBounds!.width + 10).toBe(launcherBounds.x);
@@ -157,6 +158,7 @@ test("chat switches between floating and attached layouts while preserving draft
     await expect(chat).toBeHidden();
     expect(await graph.boundingBox()).toEqual(graphBounds);
     await page.getByRole("button", { name: "Agent", exact: true }).click();
+    await expect(chat).toHaveCSS("translate", "none");
     expect(await chat.boundingBox()).toEqual(resizedBounds);
     await expect(input).toHaveValue("A draft to refine Order");
     await expect(input).toBeFocused();

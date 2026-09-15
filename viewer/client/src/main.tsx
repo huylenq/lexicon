@@ -6,6 +6,7 @@ import "./styles/index.css";
 import "./styles/pwa.css";
 import "./styles/pane-surfaces.css";
 import "./styles/glass.css";
+import "./styles/pane-motion.css";
 if (window.lexiconDesktop) document.documentElement.classList.add("desktop-shell");
 if (import.meta.env.PROD && !window.lexiconDesktop && "serviceWorker" in navigator) {
   window.addEventListener("load", () => {
