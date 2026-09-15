@@ -1,3 +1,4 @@
+import { paneShortcutOverrides } from "../canvas/paneShortcutOverrides";
 import { useCallback, useEffect, useRef } from "react";
 import { Tldraw, Box, react, type Editor, type TLStoreSnapshot, type TLEventInfo, type TLAssetStore, type TLShape, type TLShapeId } from "tldraw";
 import { getAssetUrlsByImport } from "@tldraw/assets/imports.vite";
@@ -131,7 +132,7 @@ export default function LayerEditor(props: {
   return <div className="layer-editor" ref={root} data-layer-editor={props.layer} data-render-scale={props.renderScale}
     style={{ width: props.width, height: props.height, left: (WIDTH - props.width / props.renderScale) / 2, top: (HEIGHT - props.height / props.renderScale) / 2, transformOrigin: "0 0", transform: `scale(${1 / props.renderScale})` }}
     onPointerDownCapture={() => latest.current.onFocus(props.layer)}>
-    <Tldraw assets={props.assets} snapshot={props.snapshot} assetUrls={assetUrls} shapeUtils={shapeUtils} bindingUtils={bindingUtils}
+    <Tldraw overrides={paneShortcutOverrides} assets={props.assets} snapshot={props.snapshot} assetUrls={assetUrls} shapeUtils={shapeUtils} bindingUtils={bindingUtils}
       themes={canvasThemes} components={components} hideUi onMount={mount}
       getShapeVisibility={visibility}
       licenseKey={import.meta.env.VITE_TLDRAW_LICENSE_KEY} />

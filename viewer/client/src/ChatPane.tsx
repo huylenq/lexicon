@@ -30,6 +30,7 @@ export default function ChatPane({
   projectId,
   window: assistantWindow,
   open,
+  focusRequest,
   attached,
   onToggleAttachment,
   selected,
@@ -46,6 +47,7 @@ export default function ChatPane({
   window: AssistantWindow;
   projectId: string;
   open: boolean;
+  focusRequest?: number;
   attached: boolean;
   onToggleAttachment: () => void;
   selected?: ModelItem;
@@ -140,7 +142,7 @@ export default function ChatPane({
   }, [open, check]);
   useEffect(() => {
     if (open) input.current?.focus();
-  }, [open]);
+  }, [open, focusRequest]);
   useEffect(() => onRunningChange(!!state?.running), [state?.running, onRunningChange]);
   useEffect(() => setIncludeContext(true), [selected?.id]);
   useEffect(() => setAnswers({}), [state?.pending?.id]);

@@ -1,3 +1,4 @@
+import { paneShortcutOverrides } from "./paneShortcutOverrides";
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { createPortal } from "react-dom";
@@ -62,6 +63,7 @@ const bindingUtils = [LexiconNoteBindingUtil];
 const assetUrls = getAssetUrlsByImport();
 const tldrawOptions = { camera: { wheelBehavior: "zoom" as const } };
 const overrides = {
+  ...paneShortcutOverrides,
   translations: {
     en: {
       "tool.lexicon-object": "Model reference",

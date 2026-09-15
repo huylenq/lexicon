@@ -50,17 +50,8 @@ export default function Reader() {
 }
 function ReaderProject({ projectId }: { projectId: string }) {
   const [chatOpen, setChatOpen] = useState(false);
+  const [chatFocusRequest, setChatFocusRequest] = useState(0);
   const [assistantHost, setAssistantHost] = useState<HTMLDivElement | null>(null);
-  useEffect(() => {
-    const key = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.code === "Backslash") {
-        event.preventDefault();
-        setChatOpen(open => !open);
-      }
-    };
-    window.addEventListener("keydown", key);
-    return () => window.removeEventListener("keydown", key);
-  }, []);
   const [agentAttached, setAgentAttached] = useState(() => {
     try { return localStorage.getItem(`lexicon.chat.attached.${projectId}`) === "true"; }
     catch { return false; }
@@ -166,17 +157,49 @@ function ReaderProject({ projectId }: { projectId: string }) {
       seq.current++;
     };
   }, [refresh]);
+  const toggleReader = () => {
+    if (compact && !mobileRead && reading.stack.visible) setMobileRead(true);
+    else { reading.toggle(); setMobileRead(true); }
+    setMobileCode(false);
+  };
+  const toggleSources = () => {
+    if (codeNavigation.open && (mobileCode || !compact)) closeCode();
+    else {
+      codeNavigation.visibility(true);
+      setMobileCode(true);
+    }
+  };
   const search = useRef<HTMLInputElement>(null);
   useEffect(() => {
     if (menu) search.current?.focus();
   }, [menu]);
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
+      if (e.isComposing || e.repeat) return;
       const editingText =
         e.target instanceof HTMLInputElement ||
         e.target instanceof HTMLTextAreaElement ||
-        (e.target instanceof Element && !!e.target.closest("[contenteditable='true']"));
-      if (e.metaKey && e.key === "/") {
+        (e.target instanceof Element && !!e.target.closest("[contenteditable]:not([contenteditable='false']), [role='textbox'], .cm-editor, .monaco-editor"));
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && e.code === "Backslash") {
+        e.preventDefault();
+        e.stopPropagation();
+        setChatOpen(open => !open);
+        return;
+      }
+      const bareKey = !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey;
+      const inDialog = e.target instanceof Element && !!e.target.closest('[role="dialog"], [role="menu"], select');
+      if (bareKey && !editingText && !inDialog && ["i", "s", "\\"].includes(e.key)) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.key === "i") toggleReader();
+        else if (e.key === "s") toggleSources();
+        else {
+          setChatOpen(true);
+          setChatFocusRequest(request => request + 1);
+        }
+        return;
+      }
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && e.key === "/") {
         e.preventDefault();
         e.stopPropagation();
         if (compact) setMenu((open) => !open);
@@ -184,7 +207,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
         return;
       }
       if (
-        e.key === "/" &&
+        e.key === "/" && bareKey && !inDialog &&
         !editingText
       ) {
         e.preventDefault();
@@ -205,7 +228,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
     };
     window.addEventListener("keydown", key, true);
     return () => window.removeEventListener("keydown", key, true);
-  }, [compact, params, setParams, setWorkspace, codeNavigation.open]);
+  }, [compact, params, setParams, setWorkspace, codeNavigation.open, mobileRead, mobileCode, reading]);
   const select = (id?: string, mode: ReaderOpenMode = "preview") => {
     reading.open(id ? { kind: "item", id } : { kind: "overview" }, { mode });
     setMobileCode(false);
@@ -381,7 +404,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
     [reading.stack, routeLocation, model, loading, workspace.allCode]);
   const launcher = (
     <button ref={chatToggle} className={`quiet agent-toggle assistant-launcher${assistantWindow.docked ? " assistant-docked" : ""}${assistantWindow.dragging ? " dragging" : ""}`} style={assistantWindow.launcherStyle} {...assistantWindow.handlers("launcher")} aria-label="Agent" aria-controls="chat-pane" aria-pressed={chatOpen}
-          title={chatOpen ? "Minimize Agent" : agentRunning ? "Open Agent · Working" : "Open Agent"}
+          title={`${chatOpen ? "Minimize Agent" : agentRunning ? "Open Agent · Working" : "Open Agent"} (${chatOpen ? "⌘\\" : "\\"})`}
           disabled={!data} onClick={event => { if (event.detail === 0) setChatOpen(open => !open); }}>
           <svg className="icon" width={19} height={19} viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
             <path d="M5.8 3.9 19.4 9c1.4.5 1.4 2.3-.1 2.7l-5.6 1.6c-.5.1-.9.5-1.1 1l-2.7 5.8c-.6 1.3-2.4 1.1-2.7-.3L3.8 6c-.4-1.5.5-2.7 2-2.1Z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
@@ -401,7 +424,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
       <header className="app-header">
         <button ref={browseToggle} className="quiet icon-button pane-toggle browse-toggle"
           aria-label="Toggle navigation" aria-pressed={browseVisible}
-          aria-controls="browse-pane" title={browseVisible ? "Hide Browse" : "Show Browse"}
+          aria-controls="browse-pane" title={browseVisible ? "Hide Browse (⌘/)" : "Show Browse (/)"}
           onClick={() => compact ? setMenu((m) => !m) : setWorkspace((w) => ({ ...w, sidebar: !w.sidebar }))}>
           <Icon name="browse" size={18} />
         </button>
@@ -434,31 +457,16 @@ function ReaderProject({ projectId }: { projectId: string }) {
         <div className="header-actions">
           <div className="pane-toggles" role="group" aria-label="Pane visibility">
           <button className="quiet icon-button pane-toggle" aria-label="Toggle reader" aria-controls="main-content"
-            aria-pressed={reading.stack.visible && (!compact || mobileRead)} title="Toggle reader"
-            onClick={() => {
-              if (compact && !mobileRead && reading.stack.visible) setMobileRead(true);
-              else { reading.toggle(); setMobileRead(true); }
-              setMobileCode(false);
-            }}><Icon name="overview" size={18} /></button>
+            aria-pressed={reading.stack.visible && (!compact || mobileRead)} title="Toggle reader (i)"
+            onClick={toggleReader}><Icon name="overview" size={18} /></button>
           <button
             ref={codeToggle}
             className="quiet icon-button pane-toggle code-toggle"
-            title={codeNavigation.open && (!compact || mobileCode) ? "Hide Sources" : "Show Sources"}
+            title={codeNavigation.open && (!compact || mobileCode) ? "Hide Sources (s)" : "Show Sources (s)"}
             aria-controls="code-pane"
             aria-label="Toggle source workspace"
             aria-pressed={codeNavigation.open && (!compact || mobileCode)}
-            onClick={() => {
-              if (
-                codeNavigation.open &&
-                (mobileCode ||
-                  !window.matchMedia("(max-width: 1000px)").matches)
-              )
-                closeCode();
-              else {
-                codeNavigation.visibility(true);
-                setMobileCode(true);
-              }
-            }}
+            onClick={toggleSources}
           >
             <Icon name="panel-right" size={18} />
           </button>
@@ -642,7 +650,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
         <div className="workspace-canvas-status" ref={setCanvasStatusHost} />
       </div>
       {assistantWindow.docked && assistantHost ? createPortal(launcher, assistantHost) : launcher}
-      {data && <ChatPane viewerSessionId={viewerSessionId} projectId={projectId} open={chatOpen} window={assistantWindow} selected={item} modelRevision={data.modelRevision}
+      {data && <ChatPane viewerSessionId={viewerSessionId} projectId={projectId} open={chatOpen} focusRequest={chatFocusRequest} window={assistantWindow} selected={item} modelRevision={data.modelRevision}
         attached={agentAttached && !compact} onToggleAttachment={() => setAgentAttached(value => !value)}
         onRunningChange={setAgentRunning}
         empty={data.model?.items.length === 0} problem={data.problem} example={data.project.example}
