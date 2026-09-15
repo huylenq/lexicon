@@ -373,7 +373,10 @@ export function createProjection(
             !!editor.getShape(modelShapeId(e.id)),
         ),
       };
-      const sizes = Object.fromEntries(full.nodes.filter(n => n.parentId || n.kind === "person").map(node => {
+      const parents = new Set(full.nodes.map(node => node.parentId).filter(Boolean));
+      const isGroup = (node: GraphVertex) => node.kind === "context" || node.kind === "file" ||
+        ((node.kind === "system" || node.kind === "container") && parents.has(node.id));
+      const sizes = Object.fromEntries(full.nodes.filter(n => n.parentId || !isGroup(n)).map(node => {
         const { reserve } = objectSizes(editor, node.title, node.kind);
         return [node.id, { width: reserve.w, height: reserve.h }];
       }));
@@ -408,7 +411,7 @@ export function createProjection(
           const existing = editor.getShape<ObjectShape>(modelShapeId(node.id));
           if (!existing) continue;
           if (saved[node.id]) Object.assign(layout[node.id], saved[node.id]);
-          if (existing.props.group) {
+          if (existing.props.group && isGroup(node)) {
             layout[node.id].width = Math.max(
               layout[node.id].width,
               existing.props.w,
@@ -470,7 +473,7 @@ export function createProjection(
             graphId: node.id,
             w: box.width,
             h: box.height,
-            group: ["context", "system", "container", "file"].includes(node.kind),
+            group: isGroup(node),
           };
           const meta = {
             ...(scope ? { lexiconProjection: scope } : {}),
