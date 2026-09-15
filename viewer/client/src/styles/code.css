@@ -271,7 +271,13 @@
 .document-markdown h1 { font-size: 24px; }
 .code-pane .document-markdown h2 { font-size: 20px; }
 .document-markdown h3 { font-size: 17px; }
-.document-markdown [data-selected] { background: var(--accent-soft); outline: 4px solid var(--accent-soft); }
+.document-selected-section {
+  display: flow-root;
+  margin-left: -12px;
+  padding-left: 12px;
+  background: var(--soft);
+  box-shadow: -3px 0 0 var(--accent), 0 0 0 4px var(--soft);
+}
 .document-markdown p { margin: .7em 0; }
 .document-markdown a { color: var(--accent); text-decoration: underline; }
 .document-markdown ul, .document-markdown ol { padding-left: 1.5em; }

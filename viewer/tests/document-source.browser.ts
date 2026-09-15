@@ -28,10 +28,33 @@ test("documents retain source identity through headings, history, search, canvas
   await active.locator('.code-links button').filter({ hasText: 'approval-policy' }).click();
   await expect(pane.getByRole('table')).toBeVisible();
   await expect(pane.locator('[data-heading="approval-policy"]')).toHaveAttribute('data-selected', 'true');
+  const section = pane.locator('.document-selected-section');
+  await expect(section.getByRole('table')).toBeVisible();
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate(theme => document.documentElement.dataset.theme = theme, theme);
+    const background = await section.evaluate(el => {
+      const probe = document.createElement('span');
+      probe.style.background = 'var(--soft)';
+      el.append(probe);
+      const color = getComputedStyle(probe).backgroundColor;
+      probe.remove();
+      return color;
+    });
+    await expect(section).toHaveCSS('background-color', background);
+    await pane.screenshot({ path: `/tmp/lexicon-document-highlight-${theme}.png` });
+  }
+  await expect(section.getByRole('heading', { name: 'Audit details' })).toHaveCount(1);
+  await expect(section.getByRole('heading', { name: 'Review limits' })).toHaveCount(0);
+  await pane.getByRole('button', { name: 'Raw text', exact: true }).click();
+  await expect(pane.locator('.source-line.highlighted').filter({ hasText: 'type Decision =' })).toHaveCount(1);
+  await expect(pane.locator('.source-line.highlighted').filter({ hasText: '## Review limits' })).toHaveCount(0);
+  await pane.getByRole('button', { name: 'Rendered', exact: true }).click();
   const target = new URL(page.url()).searchParams.get('code');
   expect(target).toBe('code:["README.md","heading","approval-policy"]');
   await pane.getByRole('link', { name: 'Audit details', exact: true }).click();
   await expect(pane.getByLabel('Document heading')).toHaveValue('audit-details');
+  await expect(section.getByRole('table')).toHaveCount(0);
+  await expect(section.locator('pre')).toContainText('type Decision');
   await pane.getByRole('button', { name: 'Raw text', exact: true }).click();
   await expect(pane.getByLabel('Document source text')).toContainText('### Audit details');
   await pane.getByRole('button', { name: 'Rendered', exact: true }).click();

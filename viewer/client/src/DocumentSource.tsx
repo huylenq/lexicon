@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import Markdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
+import type { Root } from "hast";
 import type { DocumentExcerpt } from "../../shared/model";
 import { sourceLines } from "../../shared/source";
 
@@ -14,6 +15,22 @@ export default function DocumentSource({ result, open }: { result: DocumentExcer
   const pendingFocus = useRef(true);
   const targetLine = selected ? headings.find(h => h.id === selected)?.startLine
     : result.status === "line" ? result.startLine : undefined;
+  const selectedHeading = headings.find(h => h.id === selected);
+  const targetEndLine = selectedHeading
+    ? (headings.find(h => h.startLine > selectedHeading.startLine && h.depth <= selectedHeading.depth)?.startLine ?? sourceLines(result.text).length + 1) - 1
+    : targetLine;
+  // Wrap the complete section so its background also covers space between blocks.
+  const highlightSection = () => (tree: Root) => {
+    if (!selectedHeading || targetEndLine === undefined) return;
+    const start = tree.children.findIndex(node => node.position?.start.line === selectedHeading.startLine);
+    if (start < 0) return;
+    let end = start + 1;
+    while (end < tree.children.length && (tree.children[end].position?.start.line ?? 0) <= targetEndLine) end++;
+    tree.children.splice(start, end - start, {
+      type: "element", tagName: "section", properties: { className: ["document-selected-section"] },
+      children: tree.children.slice(start, end).filter(node => node.type !== "doctype"),
+    });
+  };
   const headingsByLine = new Map(headings.map(h => [h.startLine, h]));
   useEffect(() => { pendingFocus.current = true; }, [selected, raw, targetLine]);
   useEffect(() => {
@@ -73,10 +90,10 @@ export default function DocumentSource({ result, open }: { result: DocumentExcer
     <div className={raw ? "code-scroll document-scroll" : "document-scroll"} ref={scroll} tabIndex={0}
       aria-label={raw ? "Document source text" : "Document content"}>
       {raw ? <pre>{sourceLines(result.text).map((line, i) => <div key={i} data-source-line={i + 1}
-        className={`source-line${i + 1 === targetLine ? " highlighted" : ""}`}>
+        className={`source-line${targetLine !== undefined && i + 1 >= targetLine && i + 1 <= (targetEndLine ?? targetLine) ? " highlighted" : ""}`}>
         <span className="line-number" aria-hidden="true">{i + 1}</span><code>{line}</code>
       </div>)}</pre> : <article className="document-markdown">
-        <Markdown remarkPlugins={[remarkGfm]} components={components} skipHtml>{result.text}</Markdown>
+        <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[highlightSection]} components={components} skipHtml>{result.text}</Markdown>
       </article>}
     </div>
   </>;
