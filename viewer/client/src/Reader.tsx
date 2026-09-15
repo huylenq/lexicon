@@ -176,7 +176,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
         e.target instanceof HTMLInputElement ||
         e.target instanceof HTMLTextAreaElement ||
         (e.target instanceof Element && !!e.target.closest("[contenteditable='true']"));
-      if (e.metaKey && e.key === "/" && !editingText) {
+      if (e.metaKey && e.key === "/") {
         e.preventDefault();
         e.stopPropagation();
         if (compact) setMenu((open) => !open);
