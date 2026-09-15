@@ -20,7 +20,8 @@ export const defaults = (): Workspace => ({
   width: 52,
   codeWidth: 38,
   chatWidth: 400,
-  map: true,
+  view: "domain",
+  map: false,
   atlasSkin: "ink",
 });
 // Retain the existing key so canvas preferences and earlier saved positions migrate.

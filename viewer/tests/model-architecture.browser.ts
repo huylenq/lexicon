@@ -26,7 +26,9 @@ test("read domain and architecture through the same search, relationship, source
   page.on("pageerror", error => errors.push(error.message));
   await page.goto(`/p/${id}`);
   await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
-  await expect(page.locator(".canvas-pane")).toHaveAttribute("data-map", "true");
+  await expect(page.locator(".canvas-pane")).toHaveAttribute("data-map", "false");
+  await expect(page.getByRole("radio", { name: "Domain", exact: true })).toBeChecked();
+  await expect(page.getByRole("radio", { name: "Standard", exact: true })).toBeChecked();
   const active = page.locator("main [data-reader-card].active");
   await page.locator(".sidebar .nav-item").filter({ hasText: /^Order$/ }).click();
   await expect(active.locator("h1")).toHaveText("Order");
@@ -58,6 +60,7 @@ test("nested boundaries and shared canvas survive filters, a drawing move, and r
   await page.goto(`/p/${id}`);
   await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
   await page.getByRole("radio", { name: "Standard", exact: true }).check();
+  await page.getByRole("radio", { name: "Architecture", exact: true }).check();
   await page.getByRole("button", { name: "Toggle navigation", exact: true }).click();
   await page.getByRole("button", { name: "Fit model", exact: true }).click();
   const card = (item: string) => page.locator(`[data-model-id="item:${item}"]`);

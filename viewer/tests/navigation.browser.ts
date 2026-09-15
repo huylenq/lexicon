@@ -64,13 +64,13 @@ test("reader history branches correctly and pane close buttons preserve navigati
   await page.keyboard.press("Meta+/");
   await expect(browse).toHaveAttribute("aria-pressed", "true");
 
-  await expect(page.locator(".canvas-card[data-model-id^='item:']")).toHaveCount(3);
+  await expect(page.locator(".canvas-card[data-model-id^='item:']")).toHaveCount(2);
   await expect(page.getByText("Arranging the canvas…")).toBeHidden();
   await page.getByRole("button", { name: "Fit model", exact: true }).click();
   await page.reload();
   await expect(canvas).toBeVisible();
   await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Ordering");
-  await expect(page.locator(".canvas-card[data-model-id^='item:']")).toHaveCount(3);
+  await expect(page.locator(".canvas-card[data-model-id^='item:']")).toHaveCount(2);
 
   await page.getByRole("button", { name: "Toggle source workspace" }).click();
   await page.getByRole("button", { name: "Close source pane", exact: true }).click();
@@ -100,7 +100,7 @@ test("Canvas stays present despite an older saved hidden state without duplicati
   await page.addInitScript(() => localStorage.setItem("lexicon:graph:v1:shop", JSON.stringify({ open: false })));
   await page.goto("/p/shop");
   await expect(page.getByRole("region", { name: "Model canvas" })).toBeVisible();
-  await expect(page.locator(".canvas-card[data-model-id^='item:']")).toHaveCount(5);
+  await expect(page.locator(".canvas-card[data-model-id^='item:']")).toHaveCount(2);
   await expect(page.getByRole("button", { name: "Switch to Graph", exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Close Canvas pane" })).toHaveCount(0);
   await expect(page.locator(".toolbar .pane-title, .toolbar .canvas-scope")).toHaveCount(0);
@@ -141,7 +141,7 @@ test("native canvas navigation remains reachable beside Browse on short and narr
 
 test("Browse search preserves shelf height and input position as results change", async ({ page }) => {
   await page.goto("/p/shop");
-  await expect(page.locator(".canvas-card[data-model-id^='item:']")).toHaveCount(5);
+  await expect(page.locator(".canvas-card[data-model-id^='item:']")).toHaveCount(2);
   for (const size of [{ width: 1600, height: 1000 }, { width: 390, height: 480 }]) {
     await page.setViewportSize(size);
     const shelf = page.locator("#browse-pane");
@@ -166,7 +166,7 @@ test("one shared status bar follows model counts and the floating Agent stays re
   await page.goto("/p/shop");
   const bar = page.getByRole("region", { name: "Workspace status", exact: true });
   const agent = page.getByRole("button", { name: "Agent", exact: true });
-  await expect(bar.locator(".model-count")).toHaveText("0 concepts · 5 architecture · 0 sources");
+  await expect(bar.locator(".model-count")).toHaveText("2 concepts · 0 sources");
   const objectLegend = bar.getByLabel("Object icon legend", { exact: true });
   await expect(objectLegend).toBeVisible();
   for (const [tone, label] of [["context", "Context"], ["concept", "Concept"], ["entity", "Entity"], ["value", "Value"], ["aggregate", "Aggregate"], ["service", "Service"], ["event", "Event"]]) {
@@ -183,7 +183,7 @@ test("one shared status bar follows model counts and the floating Agent stays re
   expect(bounds.width).toBe(viewport.width);
   expect(bounds.y + bounds.height).toBe(viewport.height);
   await page.getByRole("button", { name: "Show all sources", exact: true }).click();
-  await expect(bar.locator(".model-count")).toHaveText(/0 concepts · 5 architecture · \d+ sources/);
+  await expect(bar.locator(".model-count")).toHaveText(/2 concepts · \d+ sources/);
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(objectLegend).toBeHidden();
   await expect(bar.locator(".model-count")).toBeVisible();
