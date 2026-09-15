@@ -20,6 +20,7 @@ import {
   type TLHandle,
   type TLHandleDragInfo,
 } from "tldraw";
+import { useRouteMorph } from "./useRouteMorph";
 import { connectionDrawing } from "./rounded-route";
 import ObjectName from "../ObjectName";
 import {
@@ -293,9 +294,11 @@ function ConnectionCard({ shape }: { shape: ConnectionShape }) {
   const road = useValue("Visible relationship route", () => roadInput(editor, shape), [editor, shape]);
   const drawing = useValue("Rounded relationship drawing", () => connectionDrawing(shape, editor), [editor, shape]);
   const label = road || p;
+  const dragging = useValue("Dragging relationship endpoints", () => editor.inputs.getIsDragging(), [editor]);
+  const morph = useRouteMorph(road?.points || drawing.points, { x: label.labelX, y: label.labelY }, { x: shape.x, y: shape.y }, dragging, isPrimary(shape));
   const marker = `arrow-${encodeURIComponent(shape.id)}`;
-  const end = p.points.at(-1) || { x: 0, y: 0 };
-  const before = p.points.at(-2) || end;
+  const end = morph.points.at(-1) || { x: 0, y: 0 };
+  const before = morph.points.at(-2) || end;
   const angle =
     (Math.atan2(end.y - before.y, end.x - before.x) * 180) / Math.PI;
   // SVGContainer deliberately hides its subtree from accessibility. These labels are controls.
@@ -306,8 +309,9 @@ function ConnectionCard({ shape }: { shape: ConnectionShape }) {
       data-selected={selected || undefined}
       data-atlas-road={model.mapEnabled && connection?.kind === "relationship" && isPrimary(shape) && choice(shape.meta.lexiconPath, paths, "road") !== "none" || undefined}
     >
+      <g data-route-current="true" data-route-morphing={morph.animating || undefined}>
       <path
-        d={drawing.path}
+        d={morph.animating ? pathFor(morph.points) : drawing.path}
         fill="none"
         stroke="currentColor"
         strokeWidth={1.8}
@@ -322,8 +326,8 @@ function ConnectionCard({ shape }: { shape: ConnectionShape }) {
         transform={`translate(${end.x}, ${end.y}) rotate(${angle})`}
       />
       <foreignObject
-        x={label.labelX - p.labelWidth / 2}
-        y={label.labelY - 15}
+        x={morph.label.x - p.labelWidth / 2}
+        y={morph.label.y - 15}
         width={p.labelWidth}
         height={30}
       >
@@ -345,6 +349,7 @@ function ConnectionCard({ shape }: { shape: ConnectionShape }) {
           {connection?.label || "Removed relationship"}
         </button>
       </foreignObject>
+      </g>
     </svg>
   );
 }

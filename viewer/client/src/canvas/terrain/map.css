@@ -61,7 +61,7 @@
 .map-road-rut { fill: none; stroke: var(--map-ink); stroke-opacity: .18; stroke-width: .7; stroke-dasharray: 12 9 3 13; }
 .map-road-grain { fill: none; stroke: var(--map-ink); stroke-opacity: .3; stroke-width: 1; }
 .map-road-direction { fill: none; stroke: var(--map-ink); stroke-width: 1.2; }
-.canvas-connection[data-atlas-road="true"] > path { visibility: hidden; }
+.canvas-connection[data-atlas-road="true"] path { visibility: hidden; }
 .canvas-connection[data-atlas-road="true"] .canvas-connection-label { background: transparent; border-color: transparent; border-radius: 2px; color: var(--map-ink); font-style: italic; text-shadow: -2px 0 var(--map-ground), 2px 0 var(--map-ground), 0 -2px var(--map-ground), 0 2px var(--map-ground); }
 .map-bridge { fill: var(--map-roof); }
 .canvas-pane[data-map="true"] .canvas-object.canvas-group { background: transparent; border-color: color-mix(in srgb, var(--map-ink) 18%, transparent); }

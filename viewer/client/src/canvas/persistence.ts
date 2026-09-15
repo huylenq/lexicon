@@ -246,9 +246,12 @@ export function createCanvasPersistence({
       const next = await readRemote();
       if (closed || inFlight || blocked || next.revision === revision) return;
       const local = capture();
-      if (canonicalJson(local) === lastSaved && next.document && !next.issue) {
+      const localJson = canonicalJson(local);
+      if (localJson === lastSaved && next.document && !next.issue) {
         adopt(next);
-        install(next.document);
+        // A revision can change without changing the drawing (for example another tab saving).
+        // Keep the mounted scene intact instead of reinstalling an identical snapshot.
+        if (canonicalJson(next.document) !== localJson) install(next.document);
         await cache().catch(reportCacheFailure);
       } else if (await reconcile(next, local)) schedule();
     } catch {

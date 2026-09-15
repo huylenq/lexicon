@@ -75,7 +75,7 @@ test("Atlas road surfaces follow native selection and Diagram restores its conne
   const label = page.getByRole("button", { name: "Read relationship: rechecks", exact: true });
   const connector = page.locator('.canvas-connection').filter({ has: label });
   await expect(connector).toHaveAttribute("data-atlas-road", "true");
-  await expect(connector.locator(":scope > path").first()).toBeHidden();
+  await expect(connector.locator(":scope > [data-route-current] > path").first()).toBeHidden();
   const point = await road.locator(".map-road-rut").first().evaluate(element => {
     const path = element as SVGPathElement;
     const p = path.getPointAtLength(path.getTotalLength() * .4);
@@ -87,7 +87,7 @@ test("Atlas road surfaces follow native selection and Diagram restores its conne
   await expect(page.getByLabel("Path", { exact: true })).toBeVisible();
   await page.getByRole("radio", { name: "Standard", exact: true }).check();
   await expect(road).toHaveCount(0);
-  await expect(connector.locator(":scope > path").first()).toBeVisible();
+  await expect(connector.locator(":scope > [data-route-current] > path").first()).toBeVisible();
   await page.getByRole("radio", { name: "Atlas · Ink", exact: true }).check();
   await expect(road).toBeVisible();
   await expect(page.locator("main [data-reader-card].active > header h1")).toContainText("rechecks");
@@ -97,7 +97,7 @@ test("long names wrap inside fitted Diagram and Atlas frames", async ({ page }) 
   const title = "Purchase request reconciliation and fulfillment authorization";
   await writeFile(join(root, "lexicon/model.xml"), xml.replace("<name>Order</name>", `<name>${title}</name>`));
   await open(page);
-  for (const mode of ["Diagram", "Atlas"]) {
+  for (const mode of ["Standard", "Atlas · Ink"]) {
     await page.getByRole("radio", { name: mode, exact: true }).check();
     const result = await page.locator('[data-model-id="item:order"]').evaluate(element => {
       const frame = element.getBoundingClientRect(), text = element.querySelector(".object-name-text")!.getBoundingClientRect();
@@ -302,7 +302,7 @@ test("terrain boundaries have distinct structures and Ink has its own drawing vo
         });
       }
       if (terrain === "island") await expect(edge.locator(".map-water")).toBeAttached();
-      await page.locator(".tl-container").press("Escape");
+      await page.getByRole("application", { name: "tldraw", exact: true }).press("Escape");
       await expect(page.locator('[data-model-id="item:ordering"]')).not.toHaveAttribute("data-selected", "true");
       await page.mouse.move(100, 850);
       await page.screenshot({ path: info.outputPath(`${renderer}-${terrain}-boundary.png`) });
@@ -351,7 +351,8 @@ for (const skin of ["ink", "village"] as const) test(`${skin}: routed roads avoi
   await page.locator('input[aria-label="Restore canvas file"]').setInputFiles({ name: 'canvas.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(initial)) });
   await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
   await page.getByRole('button', { name: 'Fit model', exact: true }).click();
-  const road = page.locator('[data-map-road="relation:contains"] .map-road-ground');
+  const road = page.locator('[data-map-road="relation:contains"] [data-route-current] > .map-road-ground');
+  await expect(page.locator('[data-route-morphing="true"]')).toHaveCount(0);
   const before = await road.getAttribute('d');
   const a = (await page.locator('[data-model-id="item:order"]').boundingBox())!;
   const b = (await page.locator('[data-model-id="item:order-line"]').boundingBox())!;
@@ -361,7 +362,7 @@ for (const skin of ["ink", "village"] as const) test(`${skin}: routed roads avoi
   await expect(road).not.toHaveAttribute('d', before!);
   const inspect = () => page.locator('[data-map-road="relation:contains"]').evaluate(el => {
     const box = document.querySelector('[data-model-id="item:order-total"]')!.getBoundingClientRect();
-    const paths = [...el.querySelectorAll<SVGPathElement>('.map-road-bank')];
+    const paths = [...el.querySelectorAll<SVGPathElement>('[data-route-current] > .map-road-bank')];
     let blocked = 0;
     for (const path of paths) for (let i = 0; i <= 100; i++) {
       const p = path.getPointAtLength(path.getTotalLength() * i / 100).matrixTransform(path.getScreenCTM()!);
@@ -371,7 +372,7 @@ for (const skin of ["ink", "village"] as const) test(`${skin}: routed roads avoi
   });
   await expect.poll(inspect).toBe(0);
   const endpoints = await page.locator('[data-map-road="relation:contains"], [data-map-road="relation:validates"]').evaluateAll(es => es.map(el => {
-    const paths = [...el.querySelectorAll<SVGPathElement>('.map-road-bank')];
+    const paths = [...el.querySelectorAll<SVGPathElement>('[data-route-current] > .map-road-bank')];
     const ends = paths.map(p => p.getPointAtLength(p.getTotalLength()).matrixTransform(p.getScreenCTM()!));
     return { x: (ends[0].x + ends[1].x) / 2, y: (ends[0].y + ends[1].y) / 2 };
   }));

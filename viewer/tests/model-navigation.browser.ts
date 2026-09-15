@@ -54,7 +54,7 @@ test("a registered model with parallel edges, self-links, stale links, and inval
       }),
     ).toBeVisible();
     const paths = await page
-      .locator(".canvas-connection > path:first-child")
+      .locator(".canvas-connection > [data-route-current] > path:first-child")
       .evaluateAll((els) => els.map((el) => el.getAttribute("d")));
     expect(new Set(paths).size).toBe(3);
     await page

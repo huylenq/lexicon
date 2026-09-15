@@ -1,4 +1,7 @@
-import { memo, useId } from "react";
+import { memo, useId, useMemo } from "react";
+import { useGeometryMorph } from "../useRouteMorph";
+import { roadFrame, roadMorph } from "./road-morph";
+import { useEditor, useValue } from "tldraw";
 import { VillageBuilding } from "./VillageSprites";
 import { VillageLandscape } from "./VillageLandscape";
 import { InkScenery } from "./InkScenery";
@@ -56,7 +59,28 @@ const DistrictGround = memo(function DistrictGround({ district, detail, skin, pr
   </g>;
 });
 
+function RoadDrawing({ road, detail, opacity, dragging }: { road: MapScene["roads"][number]; detail: boolean; opacity: number; dragging: boolean }) {
+  const frame = useMemo(() => roadFrame(road.geometry), [road.geometry]);
+  const morph = useGeometryMorph(frame, roadMorph, dragging);
+  const { tracks, marks, direction, texture } = morph.value;
+  const banks = tracks.slice(1, 3), ruts = tracks.slice(3, 5);
+  return <g data-map-road={road.id} data-path-kind={road.kind} opacity={opacity}>
+    <g data-route-current="true" data-route-morphing={morph.animating || undefined}>
+      <path d={pathFor([...banks[0], ...[...banks[1]].reverse()], true)} className="map-road-ground" />
+      {banks.map((points, i) => <path key={i} d={pathFor(points)} className={`map-road-bank map-${road.kind}`} />)}
+      {detail && <>
+        {road.kind === "road" && ruts.map((points, i) => <path key={i} d={pathFor(points)} className="map-road-rut" />)}
+        <path d={texture ?? marks.map(mark => pathFor(mark)).join(" ")} className="map-road-grain" />
+      </>}
+      <path className="map-road-direction" d="M-4,-3 L2,0 L-4,3"
+        transform={`translate(${direction.x},${direction.y}) rotate(${direction.angle})`} />
+    </g>
+  </g>;
+}
+
 export const InkDrawing = memo(function InkDrawing({ scene, detail, matches, skin }: { skin: "ink" | "village"; scene: MapScene; detail: boolean; matches: (id: string) => boolean }) {
+  const editor = useEditor();
+  const dragging = useValue("Dragging Atlas endpoints", () => editor.inputs.getIsDragging(), [editor]);
   const prefix = useId().replace(/:/g, "");
   return <g className="map-drawing" data-detail={detail}>
     <defs>
@@ -71,16 +95,7 @@ export const InkDrawing = memo(function InkDrawing({ scene, detail, matches, ski
 
     </defs>
     {scene.districts.map(district => <DistrictGround key={district.id} district={district} detail={detail} skin={skin} prefix={prefix} />)}
-    {scene.roads.map(road => <g key={road.id} data-map-road={road.id} data-path-kind={road.kind} opacity={matches(road.id) ? 1 : .18}>
-      <path d={pathFor(road.geometry.outline, true)} className="map-road-ground" />
-      {road.geometry.banks.map((points, i) => <path key={i} d={pathFor(points)} className={`map-road-bank map-${road.kind}`} />)}
-      {detail && <>
-        {road.kind === "road" && road.geometry.ruts.map((points, i) => <path key={i} d={pathFor(points)} className="map-road-rut" />)}
-        <path d={road.geometry.texture} className="map-road-grain" />
-      </>}
-      <path className="map-road-direction" d="M-4,-3 L2,0 L-4,3"
-        transform={`translate(${road.geometry.direction.x},${road.geometry.direction.y}) rotate(${road.geometry.direction.angle})`} />
-    </g>)}
+    {scene.roads.map(road => <RoadDrawing key={road.id} road={road} detail={detail} opacity={matches(road.id) ? 1 : .18} dragging={dragging} />)}
     {scene.bridges.map(bridge => <g key={bridge.id} data-map-bridge={bridge.id} transform={`translate(${bridge.at.x},${bridge.at.y}) rotate(${bridge.angle})`}>
       <path d="M-19,-8 H19 V8 H-19 Z" className="map-bridge" />
       {[-14, -7, 0, 7, 14].map(x => <path key={x} d={`M${x},-7 V7`} className="map-hatch-line" />)}

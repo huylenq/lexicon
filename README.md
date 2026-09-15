@@ -1,18 +1,30 @@
 # Lexicon
 
-Lexicon reduces the effort of reconstructing how software works. It connects three dimensions: domain meaning, software architecture, and code. DDD informs domain meaning, C4 informs architecture, and flows explain runtime scenarios across their participants.
+Understand your codebase through the ideas it implements.
 
-Start with a context, understand its concepts, follow a relationship, and open the implementation behind it.
+Lexicon connects domain meaning, software architecture, and code in one shared model. Start with a question, explore the concepts and their relationships, then open the implementation behind them. Refine the model as your team learns.
 
-- [Manifesto](MANIFESTO.md): purpose and principles.
-- [Model](MODEL.md): the current schema and its XML representation.
-- [Migration](MIGRATION.md): bringing an earlier project forward.
+![Lexicon in dark mode showing the Shop architecture alongside its context and concept reader](docs/images/lexicon-shop.png)
 
-## Desktop app
+*The Shop example, with its architecture on the canvas and the project explanation alongside it.*
 
-Build or install the macOS app with the [desktop guide](viewer/desktop/README.md). It bundles the local server and links to newer releases when available.
+[Get started](#get-started) · [Model a project](#model-a-project) · [Agent setup](#use-with-an-agent) · [Manifesto](MANIFESTO.md) · [Model reference](MODEL.md)
 
-## Run the reader
+## Explore a system
+
+Browse concepts by context, follow relationships, and inspect the source behind each explanation. Search finds domain names and code symbols; code links open the relevant declaration. You can share an address to return to the same item and source link.
+
+The canvas holds the model alongside notes, drawings, and media. Switch between Diagram and Atlas, expand code links into shared target nodes, or focus on a neighborhood. Layers places Domain above Architecture so you can follow the connections between them. Canvas layout stays separate from model meaning.
+
+Domain concepts draw on DDD, software structure uses C4, and flows show the order of interactions in a scenario. The [viewer guide](viewer/README.md#canvas) covers navigation and saved layouts; [Layers](LAYERS.md) describes that view's current limits.
+
+## Get started
+
+### macOS app
+
+Build or install the app with the [desktop guide](viewer/desktop/README.md). It bundles the local server and links to newer releases when available.
+
+### Run locally
 
 ```sh
 cd viewer
@@ -21,15 +33,11 @@ bun run build:client
 bun start
 ```
 
-Open **http://127.0.0.1:5374**. The repository's worked examples live in `examples/`. The library includes a self-contained Shop example with domain, C4, and sequence views.
+Open http://127.0.0.1:5374 and try Shop from the library. It's a self-contained example with domain, C4, and sequence views; its files live in `examples/`.
 
-For development, run `mise run viewer` from this repository, then open **http://127.0.0.1:5373**.
+For development, run `mise run viewer` from this repository and open http://127.0.0.1:5373.
 
-The reader provides context browsing, search across meaning and code symbols, incoming and outgoing relationships with separate links for each endpoint and relationship, and a source pane with declaration highlighting. Browser addresses preserve the selected item and code link. Refresh reads the current files. Unsupported schemas open with Agent available for explicit migration; only schema 3.2 is parsed.
-
-Projects open in **Canvas**, with concepts grouped by context alongside notes, drawings, and media. Expand code into shared target nodes or focus on a neighborhood; selections update the reader. The [viewer guide](viewer/README.md#canvas) covers navigation and saved layouts. The **Diagram / Atlas** toggle changes the presentation within this same tldraw canvas.
-
-The canvas toolbar offers **Layers**, a presentation in the existing canvas pane with Domain above Architecture and explained relationships between them. Focus either plane or follow a connection to its endpoints and source evidence. Its Domain and Architecture pages save in the project canvas, with shared undo and model refresh. See [Layers](LAYERS.md) for the promotion stages and current limits.
+Refresh reloads the current files. Only schema 3.2 is parsed. If a project uses an older schema, Agent stays available so you can request a [migration](MIGRATION.md).
 
 ## Model a project
 
@@ -40,9 +48,9 @@ project/
     docs/           # project prose; organize it as needed
 ```
 
-Use [the minimal example](MODEL.md#minimal-example) to start with one useful question about your codebase. Keep domain names meaningful; explain their correspondence to implementation names in code links.
+Start with one useful question about your codebase and [a minimal model](MODEL.md#minimal-example). Use the names people use when discussing the domain, and explain how those names map to implementation symbols in the code links.
 
-You can also add an unmodeled project folder in the reader and open **Agent**. Ask about the implementation or request a model change. Select Codex, Grok, or Claude using your local login. The conversation refines one shared model, with validation and undo; the [viewer guide](viewer/README.md#chat) explains the workflow.
+You can also add a project folder without a model and open Agent. Ask about the implementation, then request model changes when you're ready. Codex, Grok, and Claude use your local login. Changes are validated and can be undone. See the [conversation guide](viewer/README.md#chat) for details.
 
 Check the structure and linked source:
 
@@ -51,11 +59,13 @@ cd viewer
 bun run check /absolute/path/to/project
 ```
 
-For an artifact root separate from the code checkout, add `--code-root /path/to/code`. The command reports model errors, broken links, and unsupported symbol lookups separately. Python and TypeScript/TSX declarations are supported; other file types can use file or line links.
+If the model lives outside the code checkout, add `--code-root /path/to/code`. The checker reports model errors, broken links, and unsupported symbol lookups separately. It resolves Python and TypeScript/TSX declarations; other file types can use file or line links.
 
 ## Use with an agent
 
-For local development, link the skill into the shared agent directory from this checkout:
+### Shared local skill
+
+From this checkout, link the skill into the shared agent directory:
 
 ```sh
 mkdir -p ~/.agents/skills
@@ -64,7 +74,7 @@ cd viewer
 bun install --frozen-lockfile
 ```
 
-The link keeps the skill and its launcher attached to this checkout, including uncommitted edits. No copy, publish, build, or reinstall is needed after source changes. Keep the checkout at the linked location. If the destination already exists, inspect it before replacing it.
+The skill and launcher use this checkout directly, including uncommitted edits. Keep it at the linked location. Inspect any existing destination before replacing it.
 
 The launcher works from any working directory:
 
@@ -73,18 +83,20 @@ bun ~/.agents/skills/lexicon/scripts/lexicon.ts root
 bun ~/.agents/skills/lexicon/scripts/lexicon.ts check /path/to/project
 ```
 
-Agents that discover `~/.agents/skills/` can load the shared skill. Discovery and already-loaded prompt refresh depend on the agent: after editing instructions, ask the agent to reread `~/.agents/skills/lexicon/SKILL.md`; start a fresh session if it still shows old metadata or does not discover the new skill. Checker source is read on every command. Rerun dependency installation only when dependencies change.
+Agents that scan `~/.agents/skills/` can load the skill. After editing its instructions, ask your agent to reread `~/.agents/skills/lexicon/SKILL.md`. Start a fresh session if it still uses old instructions or cannot find the skill. The checker reads its source on every command; reinstall dependencies only when they change.
 
-For a local Claude Code installation, point its skill directory at the same source (inspect any existing destination first):
+### Claude Code
+
+Point Claude Code at the same skill, after inspecting any existing destination:
 
 ```sh
 mkdir -p ~/.claude/skills
 ln -s ~/.agents/skills/lexicon ~/.claude/skills/lexicon
 ```
 
-This exposes `/lexicon` without a separate plugin copy. Older `laxicon` adapters that point to the removed `skills/laxicon/` should be archived outside the discovery directory.
+This makes `/lexicon` available. If you still have an old `laxicon` adapter pointing to `skills/laxicon/`, move it outside the discovery directory.
 
-Install this repository as a Claude Code plugin:
+Or install the repository as a Claude Code plugin:
 
 ```text
 /plugin install github:huylenq/lexicon
@@ -92,11 +104,11 @@ Install this repository as a Claude Code plugin:
 
 Keep the full repository installed and run `bun install --frozen-lockfile` in its `viewer/` directory so the skill’s checker has its dependencies.
 
-Use `/lexicon:lexicon` to read, create, or update a model. The single [skill](skills/lexicon/SKILL.md) separates explanation, initialization, and incremental refinement. [Initialization](skills/lexicon/initialize.md) discovers the system's essential concepts before tracing their collaborations. [Review](skills/lexicon/review.md) checks coverage separately from source accuracy. Embedded chat reads these same workflow files on each turn; existing models receive refinement guidance without repeating initialization.
+The plugin exposes `/lexicon:lexicon` to read, create, or update a model. The [skill](skills/lexicon/SKILL.md) starts from the system's concepts and traces how they work together. It reviews coverage and source accuracy separately. Embedded chat uses the same workflow files and builds on the model you already have.
 
-## Agent integration
+### MCP clients
 
-Lexicon exposes model operations and live viewer navigation to compatible local MCP clients. See the [capability taxonomy and rationale](AGENT-CAPABILITIES.md) and [integration setup](viewer/AGENT-INTEGRATION.md).
+Compatible local MCP clients can inspect the model and navigate the live viewer. See [available capabilities](AGENT-CAPABILITIES.md) and [integration setup](viewer/AGENT-INTEGRATION.md).
 
 ## Development
 
