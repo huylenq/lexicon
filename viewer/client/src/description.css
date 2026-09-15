@@ -1,0 +1,6 @@
+.description-reference { text-decoration: underline; text-underline-offset: 3px; }
+.description-reference .object-name { display: inline; white-space: normal; }
+.description-reference .type-icon { display: inline-flex; vertical-align: -2px; margin-right: 3px; }
+.description-reference .object-name-text { white-space: normal; overflow-wrap: anywhere; }
+.description-reference:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+.description-missing { text-decoration: underline dotted; text-underline-offset: 3px; }

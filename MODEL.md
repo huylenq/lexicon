@@ -199,7 +199,7 @@ The sample code target is illustrative. Replace it with inspected source before 
 
 ## Authoring and checks
 
-Use two-space indentation and normal XML escaping. Descriptions and annotations contain plain text. Newlines are folded into spaces by the reader. The parser reports unknown structural elements, missing descriptions, duplicate identities, invalid evidence qualifiers, and unresolved endpoints. The checker also reads declared code targets.
+Use two-space indentation and normal XML escaping. Descriptions contain plain text with optional inline item references (see below). Annotations contain plain text. Newlines are folded into spaces by the reader. The parser reports unknown structural elements, missing descriptions, duplicate identities, invalid evidence qualifiers, and unresolved endpoints. The checker also reads declared code targets.
 
 Keep a project model in its chosen artifact root. The viewer first reads the registered folder; when it lacks a model, it checks the primary Git worktree. CLI callers specify roots explicitly. Source inspection stays rooted in the selected code checkout.
 
@@ -208,3 +208,15 @@ The shared TypeScript contract and executable validation are maintained together
 Structural and code-link checks establish that the model is well formed and its declared targets resolve. Semantic review asks whether those targets support the explanations. For an integration relationship, inspect the mechanism connecting both endpoints; finding each endpoint is insufficient. For an enforced rule, inspect the check and retain its conditions and failure outcome.
 
 Annotations can explain lifecycle transitions, authority limits, uncertainty, and consistency rules without introducing new object types. Add structure when a worked example exposes meaning these objects cannot express clearly. The [initialization workflow](skills/lexicon/initialize.md) covers concept selection; [semantic review](skills/lexicon/review.md) assesses coverage separately from correctness.
+
+### Inline connections in descriptions
+
+Explain an item's connections as part of its description: what it needs from another item, how their responsibilities meet, and why that matters. Use `[[item-id]]` to display the referenced item's current name, or `[[item-id|wording]]` to fit the sentence. References can target any model item, including relationships and flows, using stable project-wide IDs.
+
+```xml
+<description>A purchase groups [[order-line|purchased lines]] so quantities and agreed prices can be considered together. The [[order-members|membership relationship]] explains ownership of those lines.</description>
+```
+
+The viewer renders references with the target's existing type or classification icon and item navigation. List previews show readable text; opening the item exposes clickable references. An unavailable target remains readable with a dotted underline and an unavailable-item hint. References are plain-text enrichment, so existing XML storage and schema remain unchanged.
+
+An inline mention does not create a Relationship, graph edge, containment claim, or Flow step. Author a Relationship when the connection itself needs an identity, evidence, annotations, or reuse in a Flow. Descriptions should elaborate the reason, conditions, or consequences of a connection, rather than enumerate linked neighbors or repeat mechanical edge labels. Do not force a reference into every description when no connection helps explain the item.

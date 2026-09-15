@@ -4,6 +4,8 @@ This small executable order API explains how the same model supports domain mean
 
 Open **Shop · Domain, architecture, and flows** in the library. Read Order, follow its “creates” relationship to Order Handling, then inspect Checkout.place. Domain names and implementation symbols differ deliberately. Order and Order Line both belong to Ordering; their “contains” relationship expresses membership without changing their structural parent.
 
+Descriptions now explain connections inline. In Order, follow the linked lines, Order Handling, and Order Repository to see how request contents, validation, and storage fit together. The links use each item’s icon; relationship items still carry their own explanations and source evidence.
+
 Follow Shop → Shop API → Order Handling to see C4 containment. Combined, Domain, and Architecture filter the shared canvas; Domain also supports Atlas. These are exploration filters rather than a full set of scoped C4 diagrams.
 
 Open **Place an Order**. Its ordered interactions reuse customer-orders, handles-order, and saves-order. Select a participant for its responsibility or a message for its relationship and code. Flow conditions explain validation and response behavior; the source rejects invalid quantities before storage. Open **Reject Invalid Quantities** for the validation failure path: it reuses the same elements and stops before storage.

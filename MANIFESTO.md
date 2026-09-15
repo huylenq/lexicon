@@ -34,7 +34,7 @@ Human judgment guides the abstractions. Implementation evidence grounds their ex
 
 ## The model
 
-The project supplies a name, a short explanation, and the objects needed to understand it. Contexts and Concepts describe domain meaning. Person, Software System, Container, and Component describe software structure. Relationships explain connections; Flows describe ordered occurrences of those relationships in a scenario. Each item can carry annotations and code links.
+The project supplies a name, a short explanation, and the objects needed to understand it. Contexts and Concepts describe domain meaning. Person, Software System, Container, and Component describe software structure. Relationships explain connections; Flows describe ordered occurrences of those relationships in a scenario. Each item can carry annotations and code links. Descriptions elaborate meaningful connections in prose, with inline references that let readers follow the explanation. These references complement relationship items without creating edges; their value comes from explaining why and how the items matter to one another.
 
 Structural containment is stored once. Concepts belong to contexts, containers to systems, and components to containers. Domain membership and consistency claims remain explained relationships and annotations. Views reuse the same identities; canvas drawings and layout remain separate authored presentation.
 

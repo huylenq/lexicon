@@ -5,6 +5,7 @@ import type { GraphIndex, GraphSelection, Target } from "./graph/model";
 import type { ReaderCard, ReaderOpenMode } from "./readerState";
 import { cardParams, readerLink } from "./readerNavigation";
 import { Paragraph } from "./ui";
+import Description from "./Description";
 import Icon from "./Icon";
 import ObjectName from "./ObjectName";
 import SelectionReading from "./SelectionReading";
@@ -136,7 +137,7 @@ export default function ReaderCardBody({ card, model, graphIndex, params, loadin
               )}
               {item && isArchitecture(item) && <div className="eyebrow">{typeNames[item.type]}</div>}
               {item?.type === "flow" && <div className="eyebrow">Flow · {item.steps.length} steps</div>}
-              <Paragraph text={item?.description || model.description} />
+              <p className="prose"><Description text={item?.description || model.description} model={model} params={params} onSelect={select} /></p>
               {item?.type === "flow" && <FlowSequence flow={item} model={model} params={params} onSelect={select} />}
               {!item && (
                 <>
@@ -168,7 +169,7 @@ export default function ReaderCardBody({ card, model, graphIndex, params, loadin
                         key={ctx.id}
                       >
                         <h3><ObjectName type="context" name={ctx.name} /></h3>
-                        <p>{ctx.description}</p>
+                        <p><Description text={ctx.description} model={model} /></p>
                         <span className="card-link">
                           {
                             model.items.filter(
@@ -189,7 +190,7 @@ export default function ReaderCardBody({ card, model, graphIndex, params, loadin
                 <div className="context-grid">{architectureRoots.map(root =>
                   <button className="context-card" key={root.id} {...readerLink(mode => select(root.id, mode))}>
                     <h3><ObjectName type={root.type} name={root.name} /></h3>
-                    <p>{root.description}</p>
+                    <p><Description text={root.description} model={model} /></p>
                   </button>
                 )}</div>
               </section>}
@@ -198,7 +199,7 @@ export default function ReaderCardBody({ card, model, graphIndex, params, loadin
                 <div className="concept-list">{model.items.filter(i => parentOf(i) === item.id).map(child =>
                   <button key={child.id} {...readerLink(mode => select(child.id, mode))}>
                     <h3><ObjectName type={child.type} name={child.name} /></h3>
-                    <p>{child.description}</p>
+                    <p><Description text={child.description} model={model} /></p>
                   </button>
                 )}</div>
               </section>}
@@ -218,7 +219,7 @@ export default function ReaderCardBody({ card, model, graphIndex, params, loadin
                               classification={i.type === "concept" ? i.classification : undefined} />
                             <Icon name="open" />
                           </h3>
-                          <p>{i.description}</p>
+                          <p><Description text={i.description} model={model} /></p>
                         </button>
                       ))}
                   </div>
@@ -338,7 +339,7 @@ export default function ReaderCardBody({ card, model, graphIndex, params, loadin
                 <div className="concept-list">{flows.map(flow =>
                   <button key={flow.id} {...readerLink(mode => select(flow.id, mode))}>
                     <h3><ObjectName type="flow" name={flow.name} /></h3>
-                    <p>{flow.description}</p>
+                    <p><Description text={flow.description} model={model} /></p>
                   </button>
                 )}</div>
               </section>}
