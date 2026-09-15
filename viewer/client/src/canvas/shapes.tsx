@@ -21,7 +21,7 @@ import {
   type TLHandleDragInfo,
 } from "tldraw";
 import { useRouteMorph } from "./useRouteMorph";
-import { connectionDrawing } from "./rounded-route";
+import { connectionDrawing, connectionExportDrawing, isAtlasRoad } from "./rounded-route";
 import ObjectName from "../ObjectName";
 import {
   objectProps,
@@ -33,7 +33,7 @@ import {
   type NoteBinding,
 } from "../../../shared/canvas-schema";
 import { isPrimary } from "./references";
-import { choice, isAtlasLandmark, landmarkFor, paths, pathFor } from "./terrain/generate";
+import { isAtlasLandmark, landmarkFor, pathFor } from "./terrain/generate";
 import { roadCoveredAt, roadInput, shapeRoad, visibleObjectFrame } from "./terrain/view";
 import { canvasPresentation, useCanvasPresentation } from "./presentation";
 import { contextControlTerritory, contextNameCurve, contextLabelFrame, contextPreferences, contextTerritory, isContext } from "./contexts";
@@ -295,7 +295,8 @@ function ConnectionCard({ shape }: { shape: ConnectionShape }) {
   const drawing = useValue("Rounded relationship drawing", () => connectionDrawing(shape, editor), [editor, shape]);
   const label = road || p;
   const dragging = useValue("Dragging relationship endpoints", () => editor.inputs.getIsDragging(), [editor]);
-  const morph = useRouteMorph(road?.points || drawing.points, { x: label.labelX, y: label.labelY }, { x: shape.x, y: shape.y }, dragging, isPrimary(shape));
+  // A morph must not reconnect underpass gaps or drift a bridge off its crossing.
+  const morph = useRouteMorph(road?.points || drawing.points, { x: label.labelX, y: label.labelY }, { x: shape.x, y: shape.y }, dragging, isPrimary(shape) && (!!road || !drawing.hitPaths));
   const marker = `arrow-${encodeURIComponent(shape.id)}`;
   const end = morph.points.at(-1) || { x: 0, y: 0 };
   const before = morph.points.at(-2) || end;
@@ -307,7 +308,7 @@ function ConnectionCard({ shape }: { shape: ConnectionShape }) {
       className={`tl-svg-container canvas-connection ${connection?.kind === "mapping" ? "canvas-mapping" : ""} ${!model.matches(p.graphId) ? "canvas-dimmed" : ""}`}
       data-hovered={hovered || undefined}
       data-selected={selected || undefined}
-      data-atlas-road={model.mapEnabled && connection?.kind === "relationship" && isPrimary(shape) && choice(shape.meta.lexiconPath, paths, "road") !== "none" || undefined}
+      data-atlas-road={isAtlasRoad(shape, model) || undefined}
     >
       <g data-route-current="true" data-route-morphing={morph.animating || undefined}>
       <path
@@ -402,11 +403,13 @@ export class LexiconConnectionUtil extends ShapeUtil<ConnectionShape> {
   getGeometry(shape: ConnectionShape) {
     const p = shape.props;
     const road = shapeRoad(this.editor, shape);
+    const drawing = road ? undefined : connectionDrawing(shape, this.editor);
+    const routeGeometry = road
+      ? [new Polygon2d({ points: road.outline.map(p => new Vec(p.x, p.y)), isFilled: true })]
+      : (drawing!.hitPaths || [drawing!.points]).map(points => new Polyline2d({ points: points.map(point => new Vec(point.x, point.y)) }));
     const geometry = new Group2d({
       children: [
-        road ? new Polygon2d({ points: road.outline.map(p => new Vec(p.x, p.y)), isFilled: true }) : new Polyline2d({
-          points: connectionDrawing(shape, this.editor).points.map((point) => new Vec(point.x, point.y)),
-        }),
+        ...routeGeometry,
         new Rectangle2d({
           x: (road || p).labelX - p.labelWidth / 2,
           y: (road || p).labelY - 15,
@@ -426,7 +429,8 @@ export class LexiconConnectionUtil extends ShapeUtil<ConnectionShape> {
   override getText(shape: ConnectionShape) {
     return String(shape.meta.lexiconLabel || "Model relationship");
   }
-  override toSvg(shape: ConnectionShape, ctx: SvgExportContext) {
+  override async toSvg(shape: ConnectionShape, ctx: SvgExportContext) {
+    const drawing = await connectionExportDrawing(shape, this.editor, ctx);
     const p = shape.props,
       end = p.points.at(-1)!,
       before = p.points.at(-2) || end;
@@ -436,7 +440,7 @@ export class LexiconConnectionUtil extends ShapeUtil<ConnectionShape> {
       paper = ctx.isDarkMode ? "#252b39" : "#fafbff";
     return (
       <g>
-        <path d={connectionDrawing(shape, this.editor).path} fill="none" stroke={ink} strokeWidth={1.8} />
+        <path d={drawing.path} fill="none" stroke={ink} strokeWidth={1.8} />
         <path
           d="M -9 -4 L 0 0 L -9 4"
           fill="none"

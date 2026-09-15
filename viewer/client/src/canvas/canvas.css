@@ -191,3 +191,9 @@
 .canvas-toggle-icons span { width: 30px; height: 26px; padding: 4px; justify-content: center; }
 /* Balance the optional lock with an equal empty column on the left. */
 .canvas-docked-tools .tlui-main-toolbar__left > .tlui-main-toolbar__tools { grid-column: 2; grid-row: 1; }
+
+.edge-hops-toggle { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); cursor: pointer; }
+.edge-hops-toggle > span { display: flex; flex-direction: column; gap: 4px; }
+.edge-hops-toggle strong { font-size: 12px; font-weight: 600; }
+.edge-hops-toggle small { color: var(--muted); font-size: 11px; }
+.edge-hops-toggle input { accent-color: var(--accent); }

@@ -13,7 +13,7 @@ type ModelPresentation = {
   connections: ReadonlyMap<string, GraphConnection>;
   matches: (id: string) => boolean;
 };
-type CanvasPresentation = ModelPresentation & { editingTerritory?: TLShapeId };
+export type CanvasPresentation = ModelPresentation & { editingTerritory?: TLShapeId };
 const presentations = new WeakMap<Editor, Atom<CanvasPresentation>>();
 
 /** One transient state for React rendering and native geometry; never part of the document. */

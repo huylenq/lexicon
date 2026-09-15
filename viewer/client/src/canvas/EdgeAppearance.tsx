@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useValue } from "tldraw";
-import { edgeCornerRadius, maxCornerRadius, roundedRoute, setEdgeCornerRadius } from "./rounded-route";
+import { edgeCornerRadius, edgeCrossingHops, maxCornerRadius, roundedRoute, setEdgeCornerRadius, setEdgeCrossingHops } from "./rounded-route";
 
 function Curve({ radius }: { radius: number }) {
   const { path } = roundedRoute([{ x: 20, y: 70 }, { x: 100, y: 70 }, { x: 100, y: 26 }, { x: 180, y: 26 }], radius / maxCornerRadius * 22);
@@ -13,6 +13,7 @@ function Curve({ radius }: { radius: number }) {
 
 export function EdgeAppearance() {
   const radius = useValue("Edge rounding preference", () => edgeCornerRadius.get(), []);
+  const hops = useValue("Edge crossing hops preference", () => edgeCrossingHops.get(), []);
   const menu = useRef<HTMLDetailsElement>(null);
   const drag = useRef<{ pointer: number; x: number; radius: number }>();
   useEffect(() => {
@@ -68,6 +69,10 @@ export function EdgeAppearance() {
           setEdgeCornerRadius(next);
         }}><Curve radius={radius} /></div>
       <div className="edge-radius-label"><span id="edge-drag-hint">Drag left or right</span><output>{radius}<span> px</span></output></div>
+      <label className="edge-hops-toggle">
+        <span><strong>Crossing hops</strong><small>Bridge crossing lines</small></span>
+        <input type="checkbox" checked={hops} onChange={event => setEdgeCrossingHops(event.target.checked)} />
+      </label>
     </div>
   </details>;
 }
