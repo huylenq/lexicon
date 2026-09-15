@@ -284,5 +284,5 @@
 .document-markdown pre { overflow: auto; padding: 12px; background: var(--code); border-radius: 6px; }
 .document-markdown code { font-family: var(--font-code); font-size: 12px; }
 .document-markdown table { display: block; max-width: 100%; overflow: auto; border-collapse: collapse; }
-.document-markdown th, .document-markdown td { border: 1px solid var(--line); padding: 6px 10px; text-align: left; }
+.document-markdown th, .document-markdown td { border: 1px solid var(--line); padding: 6px 10px; text-align: left; white-space: nowrap; overflow-wrap: normal; }
 .document-image-alt { color: var(--muted); font-style: italic; }
