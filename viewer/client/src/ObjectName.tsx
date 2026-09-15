@@ -15,7 +15,7 @@ export function objectTone(type: ObjectKind, classification?: string) {
   return type === "document" ? "code-link" : type === "concept" && tone && classifications[tone] ? tone : type;
 }
 
-function appearance(type: ObjectKind, classification?: string) {
+export function objectAppearance(type: ObjectKind, classification?: string) {
   const normalized = classification?.trim().toLowerCase().replace(/[\s_-]+/g, "-");
   const tone = normalized === "value-object" ? "value" : normalized;
   return {
@@ -34,7 +34,7 @@ export default function ObjectName({ type, classification, name, size = 16 }: {
   name: string;
   size?: number;
 }) {
-  const { tone, icon, label } = appearance(type, classification);
+  const { tone, icon, label } = objectAppearance(type, classification);
   const { anchor, describedBy, onPointerEnter, onPointerLeave, tooltip } = useTooltip<HTMLSpanElement>(label);
   return (
     <span className="object-name" data-tone={tone}>

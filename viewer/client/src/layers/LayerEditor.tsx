@@ -26,7 +26,7 @@ const visibility = (shape: TLShape) => shape.meta.lexiconHidden ? "hidden" as co
 
 export default function LayerEditor(props: {
   width: number; height: number; renderScale: number;
-  layer: Layer; graph: Projection; modelId: string; snapshot?: TLStoreSnapshot; assets: TLAssetStore;
+  layer: Layer; graph: Projection; fullGraph: Projection; modelId: string; snapshot?: TLStoreSnapshot; assets: TLAssetStore;
   onReady: (layer: Layer, handle?: LayerHandle) => void;
   onSelect: (id: string) => void; onFocus: (layer: Layer) => void; onError: (error: string) => void;
 }) {
@@ -58,7 +58,7 @@ export default function LayerEditor(props: {
     const themeObserver = new MutationObserver(() => syncCanvasTheme(editor));
     themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
     canvasPresentation(editor).set({ modelId: latest.current.modelId, mapEnabled: false,
-      vertices: new Map(graph.nodes.map(n => [n.id, n])), connections: new Map(graph.connections.map(e => [e.id, e])), matches: () => true });
+      vertices: new Map(latest.current.fullGraph.nodes.map(n => [n.id, n])), connections: new Map(latest.current.fullGraph.connections.map(e => [e.id, e])), matches: () => true });
     const projection = createProjection(editor, {}, "RIGHT", `layers-${layer}`);
     // tldraw 5.4 consumes this event after before-event. Convert once into the
     // editor's virtual flat screen; do not change its geometry or DOM transforms.

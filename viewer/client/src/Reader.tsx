@@ -257,6 +257,19 @@ function ReaderProject({ projectId }: { projectId: string }) {
     setMenu(false);
 
   };
+  const navigateDimension = (id: string, from: string) => {
+    // A hover origin need not be the Reader's active card. Save it on the entry
+    // being left, then push the destination with its own canvas location.
+    window.history.replaceState({ ...window.history.state, usr: {
+      ...window.history.state?.usr, canvasVisit: { projectId, id: from },
+    } }, "");
+    reading.setParams(cardParams(params, { kind: "item", id }), {
+      state: { canvasVisit: { projectId, id } },
+    });
+    setMobileRead(false);
+    setMobileCode(false);
+    setMenu(false);
+  };
   const code = (id: string, index: number) => {
     const mapping = graphIndex?.mappings.get(graphIndex.legacyMappings.get(mappingId(id, index)) || "");
     if (mapping) openCode({ target: mapping.target, mapping: mapping.id });
@@ -277,7 +290,11 @@ function ReaderProject({ projectId }: { projectId: string }) {
     : undefined;
   const [canvasClearedAt, setCanvasClearedAt] = useState<string>();
   useEffect(() => setCanvasClearedAt(undefined), [routeLocation.key]);
-  const graphSelection = canvasClearedAt === routeLocation.key ? undefined :
+  const canvasVisit = routeLocation.state?.canvasVisit;
+  const restoredCanvasId = navigationType === "POP" && canvasVisit?.projectId === projectId &&
+    typeof canvasVisit.id === "string" ? canvasVisit.id : undefined;
+  const graphSelection: GraphSelection | undefined = canvasClearedAt === routeLocation.key ? undefined :
+    restoredCanvasId ? { kind: "item", id: restoredCanvasId } :
     params.get("focus") === "code" ? codeSelection : readerSelection;
   const viewerSessionId = useAgentSession(projectId, data ? {
     selection: graphSelection || null,
@@ -328,6 +345,9 @@ function ReaderProject({ projectId }: { projectId: string }) {
       selection,
     }));
   };
+  useEffect(() => {
+    if (restoredCanvasId) graphAction("locate", { kind: "item", id: restoredCanvasId });
+  }, [routeLocation.key, restoredCanvasId]);
   const item = model?.items.find((i) => i.id === params.get("item"));
   const contexts = model?.items.filter((i) => i.type === "context") || [];
   const architecture = model?.items.filter(isArchitecture) || [];
@@ -584,6 +604,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
                   query={query}
                   matches={matches.map((i) => i.id)}
                   onSelect={selectGraph}
+                  onNavigateDimension={navigateDimension}
                   onClearSelection={() => setCanvasClearedAt(routeLocation.key)}
                   command={canvasCommand}
                 />

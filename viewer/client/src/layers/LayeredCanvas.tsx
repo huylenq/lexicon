@@ -161,7 +161,7 @@ export default function LayeredCanvas(props: CanvasPaneProps & { onFlat: () => v
         if (!handle.editor.getPage(pageIds[layer])) handle.editor.createPage({ id: pageIds[layer], name: layer === "domain" ? "Domain" : "Architecture" });
         handle.editor.setCurrentPage(pageIds[layer]);
         const state = canvasPresentation(handle.editor);
-        state.set({ ...state.get(), vertices: new Map(graphs[layer].nodes.map(n => [n.id, n])), connections: new Map(graphs[layer].connections.map(e => [e.id, e])) });
+        state.set({ ...state.get(), vertices: new Map(legend.nodes.map(n => [n.id, n])), connections: new Map(legend.connections.map(e => [e.id, e])) });
         await handle.projection.update(graphs[layer], graphs[layer]);
       }
       if (!active) return;
@@ -169,7 +169,7 @@ export default function LayeredCanvas(props: CanvasPaneProps & { onFlat: () => v
       storageRef.current.ready(); busy.current = false; setProjecting(false);
     })().catch(error => { if (active) { setError(String(error)); setProjecting(false); } });
     return () => { active = false; };
-  }, [handles, graphs, documentRevision]);
+  }, [handles, graphs, legend, documentRevision]);
 
   const travel = async (direction: "undo" | "redo") => {
     if (busy.current || !ready) return;
@@ -378,7 +378,7 @@ export default function LayeredCanvas(props: CanvasPaneProps & { onFlat: () => v
             aria-label={`${layer === "domain" ? "Domain" : "Architecture"} plane`}
             style={{ "--plane-opacity": `${surface}%`, transform: `translate3d(0,0px,${layer === "domain" ? gap / 2 : -gap / 2}px)` } as CSSProperties}>
             {handles[layer] && <PlaneSurface handle={handles[layer]!} />}
-            <LayerEditor renderScale={renderScale} width={planeWidth} height={planeHeight} layer={layer} graph={graphs[layer]} modelId={model.id} snapshot={boot.snapshot} assets={storage.assets} onReady={onReady} onSelect={choose} onFocus={focus} onError={setError} />
+            <LayerEditor renderScale={renderScale} width={planeWidth} height={planeHeight} layer={layer} graph={graphs[layer]} fullGraph={legend} modelId={model.id} snapshot={boot.snapshot} assets={storage.assets} onReady={onReady} onSelect={choose} onFocus={focus} onError={setError} />
             {handles[layer] && <EndpointMarkers handle={handles[layer]!} ids={endpointIds.filter(id => dimensionOf(index.items.get(id)!) === layer)} />}
           </section>)}
           {ready && gap > 4 && <Bridges edges={shownBridges} index={index} handles={handles as Record<Layer, LayerHandle>} gap={gap} tilt={tilt} rotation={rotation} roll={roll} selected={selected} onSelect={choose} onHover={setHoveredRelationship} />}

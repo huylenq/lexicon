@@ -1,0 +1,48 @@
+.radial-neighbors { position: fixed; inset: 0; pointer-events: none; z-index: 350; }
+.radial-neighbor.object-name {
+  position: absolute; display: flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; padding: 0; border-radius: 50%; pointer-events: auto;
+  background: var(--paper); border: 1px solid var(--line);
+  box-shadow: 0 2px 6px #0002; cursor: pointer;
+}
+.radial-neighbor:focus-visible {
+  outline: 2px solid var(--ink); outline-offset: 2px;
+}
+.radial-neighbor { animation: radial-enter 220ms cubic-bezier(.16, 1, .3, 1) backwards; }
+.radial-neighbors[data-exiting] .radial-neighbor { animation: radial-exit 160ms ease-in both; }
+@keyframes radial-enter {
+  from { opacity: 0; transform: translate(var(--radial-dx), var(--radial-dy)) scale(.65); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes radial-exit {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translate(var(--radial-dx), var(--radial-dy)) scale(.75); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .radial-neighbor, .radial-neighbors[data-exiting] .radial-neighbor { animation-duration: 1ms; }
+}
+
+/* The name unfolds behind a fixed 30px icon, so hover never moves its target. */
+.radial-neighbor { isolation: isolate; }
+.radial-neighbor:hover, .radial-neighbor:focus-visible { z-index: 1; }
+.radial-neighbor-name {
+  position: absolute; z-index: -1; left: 14px; top: -1px;
+  box-sizing: border-box; width: max-content; max-width: var(--radial-name-width);
+  min-height: 30px; padding: 5px 10px 5px 22px;
+  border: 1px solid var(--line); border-radius: 0 15px 15px 0; border-left-width: 0;
+  background: var(--paper); color: var(--ink); font: 500 13px/18px var(--font-sans, sans-serif);
+  text-align: left; white-space: normal; overflow-wrap: anywhere;
+  opacity: 0; clip-path: inset(0 100% 0 0); pointer-events: none;
+  transition: clip-path 200ms cubic-bezier(.16, 1, .3, 1), opacity 150ms ease;
+}
+.radial-neighbor[data-name-side="left"] .radial-neighbor-name {
+  left: auto; right: 14px; padding: 5px 22px 5px 10px;
+  border-radius: 15px 0 0 15px; border-left-width: 1px; border-right-width: 0; clip-path: inset(0 0 0 100%);
+}
+.radial-neighbor:hover .radial-neighbor-name,
+.radial-neighbor:focus-visible .radial-neighbor-name {
+  opacity: 1; clip-path: inset(0); pointer-events: auto;
+}
+@media (prefers-reduced-motion: reduce) {
+  .radial-neighbor-name { transition: none; }
+}

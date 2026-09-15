@@ -53,6 +53,7 @@ import { canvasThemes, syncCanvasTheme } from "./theme";
 import { InkMapBackground, MapStylePanel } from "./terrain/InkMap";
 import { EdgeAppearance } from "./EdgeAppearance";
 import { NeighborHighlight } from "./NeighborHighlight";
+import { RadialNeighbors } from "./RadialNeighbors";
 import { MinimapGroups } from "./MinimapGroups";
 import { useSyncCanvasPresentation } from "./presentation";
 import "tldraw/tldraw.css";
@@ -93,6 +94,7 @@ const components = {
   StylePanel: CanvasStylePanel,
   ContextMenu: CanvasContextMenu,
   Background: InkMapBackground,
+  InFrontOfTheCanvas: RadialNeighbors,
 };
 const visibility = (shape: TLShape) =>
   shape.meta.lexiconHidden ? ("hidden" as const) : ("inherit" as const);
@@ -680,8 +682,11 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
       ) || !!edge?.relationships.some((item) => matchSet.has(item))
     );
   }, [props.query, vertices, connections, matchSet]);
+  const openDimensionRef = useRef((id: string, from: string) => {});
+  openDimensionRef.current = (id, from) => { props.onNavigateDimension(id, from); reveal({ kind: "item", id }); };
+  const onOpenDimension = useCallback((id: string, from: string) => openDimensionRef.current(id, from), []);
   useSyncCanvasPresentation(editor, { modelId: model.id, mapEnabled, atlasSkin: workspace.atlasSkin ?? "ink",
-    vertices, connections, matches });
+    vertices, connections, matches, onOpenDimension });
 
   const saveLabel = {
     loading: "Opening canvas…",

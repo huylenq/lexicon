@@ -12,6 +12,7 @@ type ModelPresentation = {
   vertices: ReadonlyMap<string, GraphVertex>;
   connections: ReadonlyMap<string, GraphConnection>;
   matches: (id: string) => boolean;
+  onOpenDimension?: (id: string, from: string) => void;
 };
 export type CanvasPresentation = ModelPresentation & { editingTerritory?: TLShapeId };
 const presentations = new WeakMap<Editor, Atom<CanvasPresentation>>();
@@ -39,13 +40,13 @@ export function setBorderEditing(editor: Editor, id?: TLShapeId) {
 
 /** Publish model changes without interrupting a valid border-editing session. */
 export function useSyncCanvasPresentation(editor: Editor | undefined, model: ModelPresentation) {
-  const { modelId, mapEnabled, atlasSkin, vertices, connections, matches } = model;
+  const { modelId, mapEnabled, atlasSkin, vertices, connections, matches, onOpenDimension } = model;
   useLayoutEffect(() => {
     if (!editor) return;
     const state = canvasPresentation(editor), previous = state.get();
-    state.set({ modelId, mapEnabled, atlasSkin, vertices, connections, matches,
+    state.set({ modelId, mapEnabled, atlasSkin, vertices, connections, matches, onOpenDimension,
       editingTerritory: previous.modelId === modelId && mapEnabled ? previous.editingTerritory : undefined });
-  }, [editor, modelId, mapEnabled, atlasSkin, vertices, connections, matches]);
+  }, [editor, modelId, mapEnabled, atlasSkin, vertices, connections, matches, onOpenDimension]);
 
   useLayoutEffect(() => {
     if (!editor) return;

@@ -51,7 +51,7 @@ export function useReaderStack(projectId: string) {
     save(snapshot());
     current.current = next;
     setStack(next);
-    rawSetParams(p, { ...options, state: { ...location.state, ...options?.state, readerProject: projectId, readerStack: next } });
+    rawSetParams(p, { ...options, state: { ...location.state, canvasVisit: undefined, ...options?.state, readerProject: projectId, readerStack: next } });
   };
   const setParams: ReaderSetParams = (input, options) => {
     const p = createSearchParams(typeof input === "function" ? input(params) : input);

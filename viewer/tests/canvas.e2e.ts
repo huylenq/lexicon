@@ -146,6 +146,187 @@ test("edges highlight only their endpoints on hover and optional selection", asy
   await expectEndpoints();
 });
 
+test("radial neighbors allow pointer transfer, show names, and navigate without changing layout", async ({ page, request }) => {
+  await open(page);
+  await page.getByRole("radio", { name: "Domain", exact: true }).check();
+  await page.getByRole("radio", { name: "Standard", exact: true }).check();
+  await page.getByRole("button", { name: "Toggle reader", exact: true }).click();
+  await page.getByRole("button", { name: "Fit model", exact: true }).click();
+  await expect(page.locator('[data-save-status="saved"]')).toBeVisible();
+  const snapshot = async () => (await (await request.get(`/api/projects/${projectId}/canvas`)).json()).document.snapshot.store;
+  const before = await snapshot();
+  const geometry = () => page.locator('.canvas-object, .canvas-connection [data-route-current] > path').evaluateAll(elements => elements.map(el => {
+    const b = el.getBoundingClientRect();
+    return [el.getAttribute('data-model-id'), el.getAttribute('d'), b.x, b.y, b.width, b.height];
+  }));
+  const initial = await geometry();
+  const order = page.getByRole("button", { name: "concept: Order", exact: true });
+  await order.hover();
+  const ring = page.getByRole('group', { name: 'Cross-dimension neighbors', exact: true });
+  const icon = ring.getByRole('button', { name: 'Go to Total Calculator', exact: true });
+  await expect(icon).toBeVisible();
+  await expect(icon.locator('.radial-neighbor-name')).toHaveCSS('opacity', '0');
+  await expect(icon).toHaveCSS("animation-name", "radial-enter");
+  await expect(icon).toHaveCSS("transform", "none");
+  const sourceBox = (await order.boundingBox())!, iconBox = (await icon.boundingBox())!;
+  expect(iconBox.width).toBe(30);
+  expect(iconBox.x + iconBox.width <= sourceBox.x || iconBox.x >= sourceBox.x + sourceBox.width ||
+    iconBox.y + iconBox.height <= sourceBox.y || iconBox.y >= sourceBox.y + sourceBox.height).toBe(true);
+  // Leave the node and spend time in the gap before entering its satellite.
+  const dx = sourceBox.x + sourceBox.width / 2 - iconBox.x - 15;
+  const dy = sourceBox.y + sourceBox.height / 2 - iconBox.y - 15;
+  const length = Math.hypot(dx, dy);
+  await page.mouse.move(iconBox.x + 15 + dx / length * 22, iconBox.y + 15 + dy / length * 22);
+  await page.waitForTimeout(200);
+  await expect(icon).toBeVisible();
+  await icon.hover();
+  await page.waitForTimeout(600);
+  await expect(icon).toBeVisible();
+  await expect(icon.locator('.radial-neighbor-name')).toHaveText('Total Calculator');
+  await expect(icon.locator('.radial-neighbor-name')).toHaveCSS('opacity', '1');
+  await expect(page.getByRole('tooltip', { name: 'Total Calculator', exact: true })).toHaveCount(0);
+  expect(await icon.boundingBox()).toEqual(iconBox);
+  const occupied = await page.locator('.canvas-card, .canvas-connection-label, [data-route-current] > path').evaluateAll(elements => elements.flatMap(el => {
+    if (el instanceof SVGPathElement) {
+      const matrix = el.getScreenCTM();
+      if (!matrix) return [];
+      const length = el.getTotalLength();
+      return Array.from({ length: Math.ceil(length / 3) + 1 }, (_, i) => {
+        const p = el.getPointAtLength(Math.min(length, i * 3)).matrixTransform(matrix);
+        return { x: p.x - 2, y: p.y - 2, width: 4, height: 4 };
+      });
+    }
+    const b = el.getBoundingClientRect();
+    return b.width && b.height ? [{ x: b.x, y: b.y, width: b.width, height: b.height }] : [];
+  }));
+  const nameBox = (await icon.locator('.radial-neighbor-name').boundingBox())!;
+  for (const a of [iconBox, nameBox]) for (const b of occupied) {
+    expect(a.x + a.width <= b.x || a.x >= b.x + b.width || a.y + a.height <= b.y || a.y >= b.y + b.height).toBe(true);
+  }
+
+  await expect(card(page, 'order-line')).toHaveAttribute('data-neighbor', 'true');
+  await expect(page.locator('.canvas-connection').filter({ has: page.locator('[data-connection-id="relation:contains"]') })).toHaveAttribute('data-neighbor', 'true');
+  expect(await geometry()).toEqual(initial);
+  expect(await snapshot()).toEqual(before);
+  await page.screenshot({ path: test.info().outputPath('radial-neighbors.png') });
+  await page.mouse.move(0, 0);
+  await expect.poll(() => icon.evaluate(el => getComputedStyle(el).animationName).catch(() => "removed"), { intervals: [25] }).toBe('radial-exit');
+  await expect(ring).toHaveCount(0);
+  await order.hover();
+  await icon.click();
+  await expect(page.getByRole('radio', { name: 'Architecture', exact: true })).toBeChecked();
+  await expect(card(page, 'total-calculator')).toHaveAttribute('data-selected', 'true');
+  await expect(page.locator('main [data-reader-card].active > header h1')).toHaveText('Total Calculator');
+  await page.getByRole('button', { name: 'Go back', exact: true }).click();
+  await expect(page.getByRole('radio', { name: 'Domain', exact: true })).toBeChecked();
+  await expect(card(page, 'order')).toHaveAttribute('data-selected', 'true');
+  await page.getByRole('button', { name: 'Go forward', exact: true }).click();
+  await expect(page.getByRole('radio', { name: 'Architecture', exact: true })).toBeChecked();
+  await expect(card(page, 'total-calculator')).toHaveAttribute('data-selected', 'true');
+  await page.goBack();
+  await expect(page.getByRole('radio', { name: 'Domain', exact: true })).toBeChecked();
+  await expect(card(page, 'order')).toHaveAttribute('data-selected', 'true');
+  await page.goForward();
+  await expect(page.getByRole('radio', { name: 'Architecture', exact: true })).toBeChecked();
+  await expect(card(page, 'total-calculator')).toHaveAttribute('data-selected', 'true');
+
+  await page.getByRole('button', { name: 'component: Total Calculator', exact: true }).hover();
+  await expect(ring.locator('[data-radial-node]')).toHaveCount(2);
+  await ring.getByRole('button', { name: 'Go to Order Total', exact: true }).click();
+  await expect(page.getByRole('radio', { name: 'Domain', exact: true })).toBeChecked();
+  await expect(card(page, 'order-total')).toHaveAttribute('data-selected', 'true');
+  expect(await readFile(join(root, "lexicon/model.xml"), "utf8")).toBe(original);
+});
+
+test("radial names remeasure after a rename and viewport resize", async ({ page }) => {
+  await open(page);
+  await page.getByRole('radio', { name: 'Domain', exact: true }).check();
+  await page.getByRole('radio', { name: 'Standard', exact: true }).check();
+  await page.getByRole('button', { name: 'Highlight neighbors on selection', exact: true }).click();
+  const order = page.getByRole('button', { name: 'concept: Order', exact: true });
+  await order.focus(); await order.press('Enter');
+  await page.getByRole('button', { name: 'Toggle reader', exact: true }).click();
+  const icon = page.locator('[data-radial-node="item:total-calculator"]');
+  const label = icon.locator('.radial-neighbor-name');
+  await expect(icon).toBeVisible();
+  const shortWidth = (await label.boundingBox())!.width;
+  const name = 'Shared Knowledge Repository for Cross-Dimension Architecture and Domain Navigation';
+  await icon.evaluate(el => { el.setAttribute('data-original-instance', 'true'); });
+  await writeFile(join(root, 'lexicon/model.xml'), original.replace('<name>Total Calculator</name>', `<name>${name}</name>`));
+  await page.getByRole('button', { name: 'Refresh', exact: true }).click();
+  await expect(label).toHaveText(name);
+  await expect(icon).toHaveAttribute('data-original-instance', 'true');
+  await expect.poll(async () => (await label.boundingBox())!.width).toBeGreaterThan(shortWidth + 100);
+  await page.setViewportSize({ width: 320, height: 820 });
+  await expect.poll(async () => (await label.boundingBox())!.width).toBeLessThanOrEqual(266);
+  await icon.hover();
+  await expect(label).toHaveCSS('opacity', '1');
+  const b = (await label.boundingBox())!;
+  expect(b.x).toBeGreaterThanOrEqual(8);
+  expect(b.x + b.width).toBeLessThanOrEqual(312);
+  expect(await label.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  await expect.poll(async () => (await label.boundingBox())!.width).toBeGreaterThan(300);
+});
+
+for (const skin of ["Atlas · Ink", "Atlas · Village", "Layers"]) test(`radial neighbors respect ${skin}`, async ({ page }) => {
+  await open(page);
+  await page.getByRole("radio", { name: "Domain", exact: true }).check();
+  await page.getByRole("button", { name: "Toggle reader", exact: true }).click();
+  await page.getByRole("button", { name: "Use dark theme", exact: true }).click();
+  await page.getByRole("radio", { name: skin, exact: true }).check();
+  await expect(page.locator(skin === "Layers" ? '.layers-stage[data-ready="true"]' : '.canvas-stage[data-ready="true"]')).toBeVisible();
+  await page.getByRole("button", { name: "Highlight neighbors on selection", exact: true }).click();
+  const order = page.getByRole("button", { name: "concept: Order", exact: true });
+  await order.focus(); await order.press("Enter");
+  await page.mouse.move(0, 0);
+  const ring = page.getByRole('group', { name: 'Cross-dimension neighbors', exact: true });
+  const icon = ring.getByRole('button', { name: 'Go to Total Calculator', exact: true });
+  if (skin === 'Layers') {
+    await order.hover();
+    await expect(card(page, 'order')).toHaveAttribute('data-selected', 'true');
+    await expect(card(page, 'total-calculator')).toBeVisible();
+    await expect(ring).toHaveCount(0);
+    await page.getByRole('radio', { name: '2D', exact: true }).check();
+    await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+    await order.hover();
+    await expect(icon).toBeVisible();
+    return;
+  }
+  await expect(icon).toBeVisible();
+  await expect(icon).toHaveCSS('transform', 'none');
+  {
+    await page.setViewportSize({ width: 600, height: 820 });
+    await page.getByRole('button', { name: 'Toggle reader', exact: true }).click();
+    await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+    await order.hover();
+    await expect(icon).toBeVisible();
+    const box = (await icon.boundingBox())!;
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(600);
+    expect(box.y + box.height).toBeLessThanOrEqual(820);
+  }
+  await icon.hover();
+  await expect(icon.locator('.radial-neighbor-name')).toHaveText('Total Calculator');
+  await expect(icon.locator('.radial-neighbor-name')).toHaveCSS('opacity', '1');
+  await expect(page.getByRole('tooltip', { name: 'Total Calculator', exact: true })).toHaveCount(0);
+  await page.screenshot({ path: test.info().outputPath('radial-neighbors-skin.png') });
+  await page.getByRole('button', { name: 'Highlight neighbors on selection', exact: true }).click();
+  await page.mouse.move(0, 0);
+  await expect(ring).toHaveCount(0);
+  await order.hover();
+  await expect(icon).toBeVisible();
+  await page.mouse.move(0, 0);
+  await expect(ring).toHaveCount(0);
+  await order.hover();
+  await icon.click();
+  await expect(card(page, 'total-calculator')).toHaveAttribute('data-selected', 'true');
+  await page.getByRole('button', { name: 'Go back', exact: true }).click();
+  await expect(card(page, 'order')).toHaveAttribute('data-selected', 'true');
+  await expect(page.getByRole('radio', { name: skin, exact: true })).toBeChecked();
+  expect(await readFile(join(root, "lexicon/model.xml"), "utf8")).toBe(original);
+});
+
 test("relationship hover and selection highlight the label border and preserve its text", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await open(page);

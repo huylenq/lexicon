@@ -29,5 +29,6 @@ export type CanvasPaneProps = {
   matches: string[];
   onSelect: (selection: GraphSelection, mode?: ReaderOpenMode) => void;
   onClearSelection: () => void;
+  onNavigateDimension: (id: string, from: string) => void;
   command?: CanvasCommand;
 };
