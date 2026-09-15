@@ -69,7 +69,12 @@
   white-space: pre;
 }
 .source-line.highlighted {
+  background: var(--soft);
+}
+.source-line.highlighted .line-number {
   background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
 }
 .line-number {
   color: var(--muted);
