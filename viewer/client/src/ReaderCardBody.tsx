@@ -206,7 +206,7 @@ export default function ReaderCardBody({ card, model, graphIndex, params, loadin
                 <>
                   {item.annotations.length > 0 && (
                     <section>
-                      <h2>What matters here</h2>
+                      <h2 className="object-label"><Icon name="annotation" />Notes</h2>
                       {item.annotations.map((a, index) => (
                         <div className="annotation" key={index}>
                           <div className="annotation-label">
