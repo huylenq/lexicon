@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import type { TLRecord } from "tldraw";
-import { dimensionRecords } from "../client/src/canvas/combined";
+import { dimensionRecords, combinedRecords } from "../client/src/canvas/combined";
 import { modelShapeId } from "../client/src/canvas/references";
 import type { Model } from "../shared/model";
 
@@ -47,4 +47,26 @@ test("notes on architecture relationships follow both endpoints; mixed attachmen
   records.push({ id: "binding:two", typeName: "binding", type: "arrow", fromId: "shape:note", toId: modelShapeId("item:d"), props: {}, meta: {} } as TLRecord);
   expect(dimensionRecords(records, model, "architecture").some(r => r.typeName === "shape" && r.type === "note")).toBe(false);
   expect(dimensionRecords(records, model, "domain").some(r => r.typeName === "shape" && r.type === "note")).toBe(true);
+});
+
+
+test("Combined mirrors grouped drawings and bindings with only top-level offsets", () => {
+  const model = { items: [{ id: "domain", type: "context" }, { id: "architecture", type: "system" }] } as Model;
+  const shape = (id: string, type: string, parentId: string, props = {}) => ({ id, typeName: "shape", type, parentId, x: 123, y: 456, rotation: .2, meta: {}, props });
+  const target = modelShapeId("item:architecture", "architecture");
+  const records = [
+    { ...shape(target, "lexicon-object", "page:lexicon-architecture", { graphId: "item:architecture" }), meta: { lexiconProjection: "architecture" } },
+    shape("shape:group", "group", "page:lexicon-architecture"),
+    shape("shape:drawing", "draw", "shape:group", { segments: [] }),
+    shape("shape:image", "image", target, { assetId: "asset:photo" }),
+    { id: "binding:arrow", typeName: "binding", type: "arrow", fromId: "shape:drawing", toId: target, props: { terminal: "start" }, meta: {} },
+  ] as TLRecord[];
+  const before = JSON.stringify(records);
+  const result = combinedRecords(records, model, { domain: { x: 0, y: 0 }, architecture: { x: 1000, y: 200 } });
+  const group: any = result.find(r => r.typeName === "shape" && r.type === "group");
+  expect(group).toMatchObject({ x: 1123, y: 656, rotation: .2 });
+  expect(result.find(r => r.typeName === "shape" && r.type === "draw")).toMatchObject({ parentId: group.id, x: 123, y: 456, rotation: .2 });
+  expect(result.find(r => r.typeName === "shape" && r.type === "image")).toMatchObject({ parentId: modelShapeId("item:architecture", "combined"), props: { assetId: "asset:photo" } });
+  expect(result.find(r => r.typeName === "binding")).toMatchObject({ toId: modelShapeId("item:architecture", "combined") });
+  expect(JSON.stringify(records)).toBe(before);
 });

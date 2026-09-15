@@ -43,7 +43,8 @@ import {
   LexiconNoteBindingUtil,
   LexiconObjectUtil,
 } from "./shapes";
-import { openFlatPage, flatPageIds, separateDimensions, dimensionRoots } from "./combined";
+import { openFlatPage, flatPageIds, separateDimensions } from "./combined";
+import { syncCombined } from "./combined";
 import { createProjection } from "./projection";
 import { isModelShape, modelShapeId } from "./references";
 import { canvasApi } from "./api";
@@ -80,6 +81,7 @@ const overrides = {
 };
 function CanvasStylePanel() {
   const editor = useEditor();
+  const readonly = useValue("Canvas editability", () => editor.getIsReadonly(), [editor]);
   const shown = useValue(
     "Freeform styles",
     () =>
@@ -87,7 +89,7 @@ function CanvasStylePanel() {
       editor.getSelectedShapes().some((shape) => !isModelShape(shape)),
     [editor],
   );
-  return shown ? <DefaultStylePanel /> : <MapStylePanel />;
+  return readonly ? null : shown ? <DefaultStylePanel /> : <MapStylePanel />;
 }
 function CanvasForeground() { return <><RadialNeighbors /><CombinedHandles /></>; }
 const components = {
@@ -160,9 +162,10 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
   const [review, setReview] = useState<CanvasState>();
   const recoveryDialog = useRef<HTMLDialogElement>(null);
   const api = useMemo(() => canvasApi(props.projectId), [props.projectId]);
-  const storage = useProjectCanvas(props.projectId, model, projectKey, () =>
-    setRevision((n) => n + 1),
-  );
+  const storage = useProjectCanvas(props.projectId, model, projectKey, () => {
+    preparedCombinedSources.current = undefined;
+    setRevision((n) => n + 1);
+  });
   const storageRef = useRef(storage);
   storageRef.current = storage;
   const fileInput = useRef<HTMLInputElement>(null);
@@ -182,6 +185,7 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
     return () => { observer.disconnect(); host.style.removeProperty("--canvas-top-inset"); };
   }, []);
   const projection = useRef<ReturnType<typeof createProjection>>();
+  const projectionView = useRef<string>();
   const latest = useRef(props);
   latest.current = props;
   const echo = useRef<string>();
@@ -195,6 +199,7 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
   const restoreCamera = useRef<{ x: number; y: number; z: number }>();
   const pendingCamera = useRef<{ x: number; y: number; z: number }>();
   const index = useMemo(() => indexModel(model), [model]);
+  const preparedCombinedSources = useRef<typeof index>();
   const full = useMemo(
     () => projectGraph(index, { expanded: [], allCode: true }),
     [index],
@@ -374,7 +379,7 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
         pendingCamera.current = { x: x / zoom, y: y / zoom, z: zoom };
       }
       const page = openFlatPage(instance, latest.current.workspace.view || "domain", latest.current.model);
-      seedCombined.current = page.created;
+      seedCombined.current = latest.current.workspace.view === "all" && !instance.getPage(flatPageIds.all)?.meta.combinedOffsets;
       syncCanvasTheme(instance);
       const observer = new MutationObserver(() => syncCanvasTheme(instance));
       observer.observe(document.documentElement, {
@@ -382,6 +387,7 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
         attributeFilter: ["data-theme"],
       });
       projection.current = createProjection(instance, page.created ? page.positions : legacy?.positions, "DOWN", page.scope);
+      projectionView.current = latest.current.workspace.view || "domain";
       const stopStorage = storageRef.current.mount(
         instance,
         fn => projection.current!.write(fn),
@@ -503,22 +509,49 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
     [],
   );
 
+  useLayoutEffect(() => {
+    if (!editor) return;
+    editor.setCurrentTool("select");
+    editor.updateInstanceState({ isReadonly: combined });
+  }, [editor, combined]);
+
   useEffect(() => {
     if (!editor || !projection.current) return;
-    if (editor.getCurrentPageId() !== flatPageIds[workspace.view || "domain"]) {
+    if (projectionView.current !== (workspace.view || "domain") || editor.getCurrentPageId() !== flatPageIds[workspace.view || "domain"]) {
       projection.current.dispose();
       const page = openFlatPage(editor, workspace.view || "domain", model);
-      seedCombined.current = page.created;
+      seedCombined.current = workspace.view === "all" && !editor.getPage(flatPageIds.all)?.meta.combinedOffsets;
       projection.current = createProjection(editor, page.positions, "DOWN", page.scope);
+      projectionView.current = workspace.view || "domain";
       initialFit.current = true;
     }
     let active = true;
     setLoading(true);
     const arrange = rearrangeNext.current;
     rearrangeNext.current = false;
-    projection.current
-      .update(full, projected, arrange, focused)
-      .then((applied) => {
+    let preparing: ReturnType<typeof createProjection> | undefined;
+    const update = async () => {
+      if (combined) {
+        storageRef.current.pause();
+        projection.current!.dispose();
+        if (preparedCombinedSources.current !== index) {
+          for (const dimension of ["domain", "architecture"] as const) {
+            editor.setCurrentPage(flatPageIds[dimension]);
+            const source = createProjection(editor, {}, "DOWN", dimension);
+            preparing = source;
+            try { await source.update(full, projectGraph(index, { ...workspace, view: dimension })); }
+            finally { source.dispose(); preparing = undefined; }
+            if (!active) return false;
+          }
+          preparedCombinedSources.current = index;
+        }
+        editor.setCurrentPage(flatPageIds.all);
+        projection.current = createProjection(editor, {}, "DOWN", "combined");
+        projection.current.write(() => syncCombined(editor, model));
+      }
+      return projection.current!.update(full, projected, combined ? false : arrange, focused);
+    };
+    update().then((applied) => {
         if (!active || !applied) return;
         if (seedCombined.current || (arrange && latest.current.workspace.view === "all")) {
           separateDimensions(editor, latest.current.model);
@@ -565,6 +598,7 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
       });
     return () => {
       active = false;
+      preparing?.dispose();
     };
   }, [editor, full, projected, focused, revision]);
 
@@ -616,6 +650,7 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
   }, [command?.sequence, editor, loading]);
 
   const addNote = () => {
+    if (combined) return;
     if (!editor) return;
     const targetId = noteTarget?.id;
     const bounds = targetId && editor.getShapePageBounds(targetId);
@@ -801,8 +836,8 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
           <CanvasButton
             icon="graph"
             label="Arrange"
-            title="Rearrange model objects; keep freeform content"
-            disabled={!editor || loading}
+            title={combined ? "Arrange nodes in the Domain or Architecture view" : "Rearrange model objects; keep freeform content"}
+            disabled={combined || !editor || loading}
             onClick={() => {
               rearrangeNext.current = true;
               setRevision((n) => n + 1);
@@ -818,17 +853,17 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
             {(["domain", "architecture"] as const).map(dimension => <CanvasButton key={dimension}
               icon={dimension === "domain" ? "context" : "component"}
               label={`Move ${dimension === "domain" ? "Domain" : "Architecture"}`}
-              title="Select the dimension’s top-level shapes, then drag to move them together"
+              title="Drag the dimension heading to move it"
               disabled={!editor || loading}
-              onClick={() => { if (editor) editor.select(...dimensionRoots(editor, model, dimension).map(shape => shape.id)); }} />)}
+              onClick={() => editor?.getContainer().querySelector<HTMLButtonElement>(`button[aria-label="Drag ${dimension === "domain" ? "Domain" : "Architecture"}"]`)?.focus()} />)}
           </>}
           <CanvasButton
             icon="plus"
             label="Add note"
-            title={
+            title={combined ? "Add drawings and notes in Domain or Architecture" :
               noteTarget ? "Add a note attached to the selection" : "Add a note"
             }
-            disabled={!editor || loading}
+            disabled={combined || !editor || loading}
             onClick={addNote}
           />
           <span className="canvas-inspector-toggles" ref={setInspectorHost} />

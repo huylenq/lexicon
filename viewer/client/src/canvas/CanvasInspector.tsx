@@ -36,6 +36,7 @@ export function CanvasInspector({
   actionsHost: HTMLSpanElement | null;
   onLocateBounds: (bounds: Box) => void;
 }) {
+  const readonly = useValue("Read-only canvas", () => editor.getIsReadonly(), [editor]);
   const [params, setParams] = useSearchParams();
   const api = canvasApi(props.projectId);
   const [open, setOpen] = useState(false),
@@ -230,7 +231,7 @@ export function CanvasInspector({
             icon="more"
             label="Selection actions"
             aria-expanded={actionsOpen}
-            disabled={!selected.length && !changeId}
+            disabled={readonly || (!selected.length && !changeId)}
             onClick={() => {
               setActionsOpen(!actionsOpen);
               setOpen(false);
@@ -253,7 +254,7 @@ export function CanvasInspector({
           setActionsOpen(false);
         }}
       >
-        {actionsOpen && (
+        {actionsOpen && !readonly && (
           <div className="canvas-context-tools">
             {reference && <span>{name(reference)}</span>}
             {note && (

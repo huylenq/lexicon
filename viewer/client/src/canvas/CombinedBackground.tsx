@@ -1,8 +1,7 @@
 import { useRef, type PointerEvent } from "react";
-import { Box, useEditor, useValue, type TLShape } from "tldraw";
-import { combinedPage } from "./combined";
-import { canvasPresentation } from "./presentation";
-import { isPrimary } from "./references";
+import { Box, useEditor, useValue } from "tldraw";
+import { combinedPage, combinedOffset, moveCombinedDimension, type DimensionOffset } from "./combined";
+
 import { InkMapBackground } from "./terrain/InkMap";
 import "./combined-background.css";
 
@@ -11,14 +10,10 @@ function useRegions() {
   const editor = useEditor();
   return useValue("Combined dimension regions", () => {
     if (editor.getCurrentPageId() !== combinedPage) return [];
-    const view = canvasPresentation(editor).get();
     return (["domain", "architecture"] as const).flatMap(dimension => {
       const boxes = editor.getCurrentPageShapes().flatMap(shape => {
-        if (shape.type !== "lexicon-object" || !isPrimary(shape) || editor.isShapeHidden(shape)) return [];
-        const kind = view.vertices.get(shape.props.graphId)?.kind;
-        const member = dimension === "domain" ? kind === "context" || kind === "concept"
-          : kind === "person" || kind === "system" || kind === "container" || kind === "component";
-        const bounds = member && editor.getShapePageBounds(shape);
+        if (shape.type === "lexicon-connection" || editor.isShapeHidden(shape)) return [];
+        const bounds = shape.meta.combinedDimension === dimension && editor.getShapePageBounds(shape);
         return bounds ? [bounds] : [];
       });
       if (!boxes.length) return [];
@@ -46,16 +41,7 @@ export function CombinedBackground() {
 export function CombinedHandles() {
   const editor = useEditor();
   const regions = useRegions();
-  const drag = useRef<{ pointer: number; x: number; y: number; shapes: TLShape[]; mark?: string }>();
-  const roots = (dimension: string) => {
-    const vertices = canvasPresentation(editor).get().vertices;
-    return editor.getCurrentPageShapes().filter(shape => {
-      if (shape.parentId !== editor.getCurrentPageId() || shape.type !== "lexicon-object" || !isPrimary(shape)) return false;
-      const kind = vertices.get(shape.props.graphId)?.kind;
-      return dimension === "domain" ? kind === "concept" || kind === "context"
-        : kind === "person" || kind === "system" || kind === "container" || kind === "component";
-    });
-  };
+  const drag = useRef<{ pointer: number; x: number; y: number; offset: DimensionOffset; mark?: string }>();
   const finish = (event: PointerEvent<HTMLButtonElement>, cancel = false) => {
     event.stopPropagation();
     const current = drag.current;
@@ -78,7 +64,7 @@ export function CombinedHandles() {
           event.preventDefault();
           event.currentTarget.focus();
           const point = editor.screenToPage({ x: event.clientX, y: event.clientY });
-          drag.current = { pointer: event.pointerId, x: point.x, y: point.y, shapes: roots(region.dimension) };
+          drag.current = { pointer: event.pointerId, x: point.x, y: point.y, offset: combinedOffset(editor, region.dimension) };
           event.currentTarget.setPointerCapture(event.pointerId);
         }}
         onPointerMove={event => {
@@ -89,7 +75,7 @@ export function CombinedHandles() {
           const dx = point.x - current.x, dy = point.y - current.y;
           if (!current.mark && Math.hypot(dx, dy) * editor.getZoomLevel() < 3) return;
           current.mark ??= editor.markHistoryStoppingPoint("Move dimension");
-          editor.updateShapes(current.shapes.map(shape => ({ id: shape.id, type: shape.type, x: shape.x + dx, y: shape.y + dy })));
+          moveCombinedDimension(editor, region.dimension, { x: current.offset.x + dx, y: current.offset.y + dy });
         }}
         onPointerUp={event => finish(event)} onPointerCancel={event => finish(event, true)}
         onLostPointerCapture={event => finish(event, true)}
@@ -99,7 +85,8 @@ export function CombinedHandles() {
           event.preventDefault(); event.stopPropagation();
           const step = event.shiftKey ? 100 : 10;
           editor.markHistoryStoppingPoint("Move dimension");
-          editor.updateShapes(roots(region.dimension).map(shape => ({ id: shape.id, type: shape.type, x: shape.x + delta[0] * step, y: shape.y + delta[1] * step })));
+          const offset = combinedOffset(editor, region.dimension);
+          moveCombinedDimension(editor, region.dimension, { x: offset.x + delta[0] * step, y: offset.y + delta[1] * step });
           editor.markHistoryStoppingPoint();
         }}>
         {region.dimension === "domain" ? "Domain" : "Architecture"}<span aria-hidden="true"> ⠿</span>

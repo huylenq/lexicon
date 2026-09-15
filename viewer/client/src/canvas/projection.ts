@@ -1,3 +1,4 @@
+import { internalWrite } from "./internalWrite";
 import { type Editor, type TLShape, type TLShapeId } from "tldraw";
 import {
   anchorId,
@@ -123,7 +124,7 @@ export function createProjection(
     const previous = writing;
     writing = true;
     try {
-      editor.run(fn, { history: "ignore", ignoreShapeLock: true });
+      internalWrite(editor, () => editor.run(fn, { history: "ignore", ignoreShapeLock: true }));
     } finally {
       writing = previous;
     }

@@ -109,23 +109,74 @@ for (const skin of ["Atlas · Ink", "Atlas · Village"]) test(`Combined ${skin} 
   await expect(road).not.toHaveAttribute("d", before!);
 });
 
-test("Combined note attachment targets the visible page", async ({ page, request }) => {
+test("Combined mirrors layer drawings and current placements without allowing edits", async ({ page, request }) => {
   await page.goto(`/p/${id}`);
   await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
-  await page.getByRole("radio", { name: "Combined", exact: true }).check();
   await page.getByRole("button", { name: "Add note", exact: true }).click();
   const note = page.locator('.tl-container [contenteditable="true"]');
-  await note.fill("Combined attachment regression");
+  await note.fill("Domain drawing stays with its layer");
   await note.press("Escape");
   await page.getByRole("button", { name: "Selection actions", exact: true }).click();
   await page.getByRole("combobox", { name: "Note attachment", exact: true }).selectOption("order");
   await page.getByRole("button", { name: "Attach", exact: true }).click();
   await expect(page.getByText("Attached to Order", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Selection actions", exact: true }).click();
+  const store = async () => (await (await request.get(`/api/projects/${id}/canvas`)).json()).document?.snapshot.store || {};
+  await page.getByRole("radio", { name: "Combined", exact: true }).check();
+  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  await expect(page.getByRole("button", { name: "Add note", exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Arrange", exact: true })).toBeDisabled();
+  await expect(page.getByTestId("canvas").getByText("Domain drawing stays with its layer", { exact: true })).toBeVisible();
+  const verifyMirror = async () => {
+    const records: any = await store();
+    const offsets = records['page:lexicon-combined']?.meta.combinedOffsets;
+    const mirrors: any[] = Object.values(records).filter((r: any) => r.typeName === "shape" && r.meta.combinedSourceId);
+    if (!offsets || !mirrors.length) return false;
+    return mirrors.filter(shape => shape.type !== "lexicon-connection").every(shape => {
+      const source = records[shape.meta.combinedSourceId];
+      const offset = shape.parentId === 'page:lexicon-combined' ? offsets[shape.meta.combinedDimension] || { x: 0, y: 0 } : { x: 0, y: 0 };
+      return source && Math.abs(shape.x - source.x - offset.x) < .01 && Math.abs(shape.y - source.y - offset.y) < .01;
+    });
+  };
+  await expect.poll(verifyMirror).toBe(true);
+  const bindingMatches = async () => {
+    const records: any = await store();
+    const binding: any = Object.values(records).find((r: any) => r.type === "lexicon-note" && r.meta.combinedSourceId);
+    return binding && records[binding.toId]?.meta.lexiconProjection;
+  };
+  await expect.poll(bindingMatches).toBe("combined");
+  // A drawing shortcut and pointer gesture cannot create or move content in Combined.
+  const before: any = await store();
+  const shapeCount = Object.values(before).filter((r: any) => r.typeName === "shape").length;
+  await page.keyboard.press("d");
+  const stage = (await page.locator('.canvas-stage').boundingBox())!;
+  await page.mouse.move(stage.x + 120, stage.y + 180); await page.mouse.down();
+  await page.mouse.move(stage.x + 180, stage.y + 240, { steps: 8 }); await page.mouse.up();
+  await expect.poll(async () => Object.values(await store()).filter((r: any) => r.typeName === "shape").length).toBe(shapeCount);
+  // Edit the source after Combined has already been created.
+  await page.getByRole("radio", { name: "Domain", exact: true }).check();
+  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  const order = page.locator('[data-model-id="item:order"]');
+  const box = (await order.boundingBox())!;
+  await page.mouse.move(box.x + 8, box.y + box.height - 5); await page.mouse.down();
+  await page.mouse.move(box.x + 68, box.y + box.height + 25, { steps: 10 }); await page.mouse.up();
   await expect.poll(async () => {
-    const store = (await (await request.get(`/api/projects/${id}/canvas`)).json()).document?.snapshot.store || {};
-    const binding: any = Object.values(store).find((record: any) => record.type === "lexicon-note");
-    return binding && store[binding.toId]?.meta.lexiconProjection;
-  }).toBe("combined");
+    const records: any = await store();
+    return records['shape:lexicon-view:domain:item%3Aorder']?.x;
+  }).not.toBe(before['shape:lexicon-view:domain:item%3Aorder'].x);
+  await page.getByRole("radio", { name: "Combined", exact: true }).check();
+  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  await expect.poll(verifyMirror).toBe(true);
+  const handle = page.getByRole("button", { name: "Drag Domain", exact: true });
+  await handle.focus(); await handle.press("Shift+ArrowRight");
+  await expect.poll(verifyMirror).toBe(true);
+  await page.reload();
+  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  await expect.poll(verifyMirror).toBe(true);
+  await page.getByRole("button", { name: "Fit model", exact: true }).click();
+  await page.getByRole("button", { name: "Use dark theme", exact: true }).click();
+  await page.screenshot({ path: test.info().outputPath("combined-layer-drawings.png") });
+  expect(await readFile(join(root, "lexicon/model.xml"), "utf8")).toBe(xml);
 });
 
 test("Combined separates and moves dimensions without changing ordinary placements", async ({ page, request }) => {
@@ -143,7 +194,7 @@ test("Combined separates and moves dimensions without changing ordinary placemen
   const card = (item: string) => page.locator(`[data-model-id="item:${item}"]`);
   const gap = async () => {
     const a = (await card("ordering").boundingBox())!, b = (await card("shop").boundingBox())!;
-    return b.x - (a.x + a.width);
+    return a && b ? b.x - (a.x + a.width) : -Infinity;
   };
   await expect.poll(gap).toBeGreaterThan(0);
   await expect(page.locator(".combined-handles").getByRole("heading", { name: /Domain/ })).toBeVisible();
