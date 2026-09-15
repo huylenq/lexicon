@@ -4,7 +4,7 @@ import { boxPolygon, boxesMeet, indexRoads, pointBounds, roadSurface } from "./r
 import { containsBox, pointInPolygon } from "../territory";
 
 /** Presentation geometry only. Nothing generated here changes model or canvas positions. */
-export const landmarks = ["auto", "house", "hall", "workshop", "archive", "tower", "garden", "none"] as const;
+export const landmarks = ["auto", "house", "hall", "workshop", "archive", "tower", "garden", "traveler", "none"] as const;
 export const terrains = ["village", "woodland", "island", "highlands", "wetland"] as const;
 export const paths = ["road", "trail", "none"] as const;
 export type Landmark = Exclude<(typeof landmarks)[number], "auto">;
@@ -13,9 +13,10 @@ export type PathKind = (typeof paths)[number];
 type MapContext = {
   id: string; kind: "context"; bounds: Bounds;
   boundary: Point[]; label: Bounds; origin: Point; terrain?: unknown;
+  parentId?: string; bounded?: boolean;
 };
 type MapConcept = {
-  id: string; kind: "concept"; bounds: Bounds; classification?: string; landmark?: unknown;
+  id: string; kind: "concept"; bounds: Bounds; classification?: string; landmark?: unknown; elementKind?: string;
 };
 export type MapNode = MapContext | MapConcept;
 export type MapRoad = { id: string; points: Point[]; kind: PathKind; entrances?: [boolean, boolean] };
@@ -46,9 +47,14 @@ export type MapScene = {
 export function choice<T extends string>(value: unknown, options: readonly T[], fallback: T): T {
   return options.includes(value as T) ? value as T : fallback;
 }
-export function landmarkFor(node: Pick<MapConcept, "classification" | "landmark">): Landmark {
+export const isAtlasLandmark = (kind?: string) => kind === "concept" || kind === "component" || kind === "person";
+export const isAtlasTerritory = (kind?: string) => kind === "context" || kind === "system" || kind === "container";
+
+export function landmarkFor(node: Pick<MapConcept, "classification" | "landmark" | "elementKind">): Landmark {
   const selected = choice(node.landmark, landmarks, "auto");
   if (selected !== "auto") return selected;
+  if (node.elementKind === "person") return "traveler";
+  if (node.elementKind === "component") return "workshop";
   switch (node.classification?.toLowerCase()) {
     case "aggregate": return "hall";
     case "service": return "workshop";
@@ -61,6 +67,7 @@ export function landmarkFor(node: Pick<MapConcept, "classification" | "landmark"
 /** Bounds of the original SVG marks, including their chimneys, steps, and shadows. */
 export function landmarkFootprint(kind: Landmark): Bounds {
   switch (kind) {
+    case "traveler": return { x: -22, y: -28, w: 44, h: 56 };
     case "garden": return { x: -34, y: -19, w: 68, h: 39 };
     case "tower": return { x: -23, y: -36, w: 48, h: 58 };
     case "hall": return { x: -39, y: -27, w: 81, h: 54 };
@@ -76,7 +83,9 @@ export function landmarkPlacement(bounds: Bounds, kind: Landmark) {
   const origin = { x: bounds.x + bounds.w / 2 - (footprint.x + footprint.w / 2), y: bounds.y + 6 - footprint.y };
   const w = kind === "hall" || kind === "archive" ? 38 : kind === "garden" ? 30 : kind === "tower" ? 20 : 25;
   const h = kind === "garden" ? 15 : kind === "tower" || kind === "hall" || kind === "archive" ? 16 : 18;
-  return { origin, bounds, body: { x: origin.x - w, y: origin.y - h, w: w * 2, h: h * 2 } };
+  return { origin, bounds, body: kind === "traveler"
+    ? { x: origin.x - 10, y: origin.y - 10, w: 20, h: 32 }
+    : { x: origin.x - w, y: origin.y - h, w: w * 2, h: h * 2 } };
 }
 
 /** Extend the route into a landmark's wall or garden gate, skirting the label below it. */
@@ -245,7 +254,18 @@ function buildMap(seed: string, input: MapNode[], inputRoads: MapRoad[], extraOb
     });
   const roadIndex = indexRoads(roads);
   const obstacles = [...extraObstacles.filter(finiteBounds), ...nodes.map(n => n.kind === "context" ? n.label : n.bounds)];
-  const districts = nodes.filter(n => n.kind === "context").map(node => {
+  const regions = nodes.filter(n => n.kind === "context");
+  const ancestors = (node: MapContext) => {
+    const ids = new Set<string>();
+    let parent = node.parentId;
+    while (parent && !ids.has(parent)) {
+      ids.add(parent);
+      parent = regions.find(n => n.id === parent)?.parentId;
+    }
+    return ids;
+  };
+  // Paint enclosing territories first. Ancestors do not block their own interiors.
+  const districts = regions.sort((a, b) => ancestors(a).size - ancestors(b).size).map(node => {
     const b = node.bounds, terrain = choice(node.terrain, terrains, "village");
     const boundary = node.boundary;
     // Includes every scenery and projected-art clearance envelope, even when a
@@ -253,7 +273,8 @@ function buildMap(seed: string, input: MapNode[], inputRoads: MapRoad[], extraOb
     const envelope = pointBounds([...boxPolygon(b), ...boundary], 200);
     const localRoads = roadIndex.near(envelope);
     const localObstacles = obstacles.filter(o => boxesMeet(envelope, o));
-    const localForeign = nodes.filter(n => n.kind === "context" && n.id !== node.id && boxesMeet(envelope, n.bounds));
+    const parents = ancestors(node);
+    const localForeign = regions.filter(n => n.id !== node.id && !parents.has(n.id) && boxesMeet(envelope, n.bounds));
     const key = cache ? JSON.stringify([seed, node, localObstacles, localForeign.map(n => n.bounds),
       localRoads.map(r => cache.roads.get(r.id)!.key)]) : "";
     const cached = cache?.districts.get(node.id);
@@ -276,7 +297,7 @@ function buildMap(seed: string, input: MapNode[], inputRoads: MapRoad[], extraOb
       const radius = 5 + rand() * 10;
       const p = { x: origin.x + cx * step + 10 + rand() * 22, y: origin.y + cy * step + 10 + rand() * 22 };
       const within = pointInPolygon(p, boundary);
-      if (terrain === "island" && !containsBox(boundary, { x: p.x - radius, y: p.y - radius, w: radius * 2, h: radius * 2 })) continue;
+      if ((terrain === "island" || node.bounded) && !containsBox(boundary, { x: p.x - radius, y: p.y - radius, w: radius * 2, h: radius * 2 })) continue;
       const habitat = randomFor(`${seed}:${node.id}:ink-habitat:${Math.floor(cx / 3)}:${Math.floor(cy / 3)}`)();
       if (rand() > (terrain === "woodland" ? .3 + habitat * .6 : (within ? .08 : .15) + habitat * .55)) continue;
       if (blockers.some(o => inside(p, o, radius + 8)) || foreign.some(n => inside(p, n.bounds, radius + 14))) continue;
@@ -328,7 +349,7 @@ function landscapeFor(seed: string, node: MapContext, terrain: Terrain, allObsta
   const segments = roads.flatMap(road => road.geometry.points.slice(1).map((b, i) => ({ a: road.geometry.points[i], b })))
     .filter(({ a, b }) => overlaps(area, { x: Math.min(a.x, b.x) - 30, y: Math.min(a.y, b.y) - 30, w: Math.abs(a.x - b.x) + 60, h: Math.abs(a.y - b.y) + 60 }));
   const clear = (bounds: Bounds) => {
-    if (terrain === "island" && !containsBox(node.boundary, bounds)) return false;
+    if ((terrain === "island" || node.bounded) && !containsBox(node.boundary, bounds)) return false;
     if (blockers.some(b => overlaps(padded(bounds, 9), b))) return false;
     const center = { x: bounds.x + bounds.w / 2, y: bounds.y + bounds.h / 2 }, radius = Math.hypot(bounds.w, bounds.h) / 2;
     return !segments.some(({ a, b }) => distanceToSegment(center, a, b) < radius + 18);

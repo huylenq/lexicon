@@ -3,6 +3,7 @@ import { atom, react, useValue, type Atom, type Editor, type TLShapeId } from "t
 import type { GraphConnection, GraphVertex } from "../graph/model";
 import { isContext } from "./contexts";
 import { isPrimary } from "./references";
+import { isAtlasTerritory } from "./terrain/generate";
 
 type ModelPresentation = {
   modelId: string;
@@ -53,7 +54,7 @@ export function useSyncCanvasPresentation(editor: Editor | undefined, model: Mod
       if (!view.editingTerritory) return;
       const selected = editor.getSelectedShapes(), shape = selected[0];
       if (!view.mapEnabled || selected.length !== 1 || shape.id !== view.editingTerritory ||
-        !isContext(shape) || !isPrimary(shape) || view.vertices.get(shape.props.graphId)?.kind !== "context")
+        !isContext(shape) || !isPrimary(shape) || !isAtlasTerritory(view.vertices.get(shape.props.graphId)?.kind))
         setBorderEditing(editor);
     });
   }, [editor]);

@@ -3,7 +3,7 @@ import type { GraphVertex } from "../graph/model";
 import type { ObjectShape } from "../../../shared/canvas-schema";
 import { isPrimary } from "./references";
 import type { Bounds } from "../../../shared/canvas-geometry";
-import { landmarkFootprint, landmarkFor, landmarks } from "./terrain/generate";
+import { isAtlasLandmark, landmarkFootprint, landmarkFor, landmarks } from "./terrain/generate";
 
 const measurements = new WeakMap<Editor, Map<string, { w: number; h: number }>>();
 function labelSize(editor: Editor, title: string, fontSize: number) {
@@ -25,14 +25,14 @@ function labelSize(editor: Editor, title: string, fontSize: number) {
 export function objectSizes(editor: Editor, title: string, kind: string, landmark: unknown = "auto", classification?: string, copy = false) {
   const label = labelSize(editor, title, 14);
   const diagram = { w: label.w + 45, h: label.h + 22 + (kind === "code" || copy ? 16 : 0) };
-  const building = kind === "concept" && !copy ? landmarkFor({ landmark, classification }) : "none";
+  const building = isAtlasLandmark(kind) && !copy ? landmarkFor({ landmark, classification, elementKind: kind }) : "none";
   const mapLabel = labelSize(editor, title, 12), footprint = landmarkFootprint(building);
   const atlas = building === "none" ? diagram : {
     w: Math.max(mapLabel.w + 35, footprint.w + 12), h: footprint.h + mapLabel.h + 16,
   };
   // Reserve room for either presentation and every appearance choice. The visible
   // frame stays snug; switching mode never moves objects or rewrites the document.
-  const reserve = kind !== "concept" || copy ? diagram : {
+  const reserve = !isAtlasLandmark(kind) || copy ? diagram : {
     w: Math.max(diagram.w, mapLabel.w + 35, ...landmarks.filter(k => k !== "auto").map(k => landmarkFootprint(k).w + 12)),
     h: Math.max(diagram.h, mapLabel.h + 74),
   };

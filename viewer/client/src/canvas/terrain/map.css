@@ -169,6 +169,10 @@
   --atlas-region-spacing: 1px;
 }
 .canvas-pane[data-map="true"] .canvas-object[data-atlas-label="concept"],
+.canvas-pane[data-map="true"] .canvas-object[data-atlas-label="component"],
+.canvas-pane[data-map="true"] .canvas-object[data-atlas-label="person"],
+.canvas-pane[data-map="true"] .canvas-object[data-atlas-label="system"],
+.canvas-pane[data-map="true"] .canvas-object[data-atlas-label="container"],
 .canvas-pane[data-map="true"] .canvas-object[data-atlas-label="context"] {
   background: transparent; border-color: transparent; border-radius: 0; color: var(--map-ink);
 }

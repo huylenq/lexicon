@@ -8,7 +8,7 @@ import { isPrimary, modelShapeId } from "../references";
 import { relationshipRoute } from "../routes";
 import { createRelationshipRouter, type SceneRelationship, type SceneObstacles, type SceneObstacle, type RelationshipRoute } from "../scene-routing";
 import { borderPort } from "../territory";
-import { choice, dockRoad, landmarkFor, landmarkPlacement, paths, type PathKind } from "./generate";
+import { choice, dockRoad, isAtlasLandmark, landmarkFor, landmarkPlacement, paths, type PathKind } from "./generate";
 import { villageLandmarkPlacement } from "./village";
 
 type AtlasRoute = { kind: PathKind; points: Point[]; entrances: [boolean, boolean]; labelX: number; labelY: number };
@@ -43,7 +43,7 @@ function collectLandmarks(editor: Editor, view: AtlasView) {
       endpoints.set(id, { frame, box: frame, coast: contextTerritory(editor, shape).points.map(p => transform.applyToPoint(p)) });
       continue;
     }
-    const kind = vertex.kind === "concept" ? landmarkFor({ classification: vertex.subtitle, landmark: shape.meta.lexiconLandmark }) : "none";
+    const kind = isAtlasLandmark(vertex.kind) ? landmarkFor({ classification: vertex.subtitle, landmark: shape.meta.lexiconLandmark, elementKind: vertex.kind }) : "none";
     const landmark = kind === "none" ? undefined : (view.atlasSkin === "village" ? villageLandmarkPlacement : landmarkPlacement)(b, kind);
     const body = landmark?.body;
     const facade = body ? {

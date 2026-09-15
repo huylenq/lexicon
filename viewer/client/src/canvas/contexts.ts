@@ -10,11 +10,11 @@ export const isContext = (shape: TLShape): shape is ContextShape =>
   shape.type === "lexicon-object" && shape.props.group && shape.props.graphId.startsWith("item:");
 
 /** Only inner model nodes shape a context; notes, roads, and expanded code do not. */
-export function contextContents(editor: Editor, shape: ObjectShape): Bounds[] {
+export function contextContents(editor: Editor, shape: ObjectShape, atlas = false): Bounds[] {
   return editor.getSortedChildIdsForParent(shape.id).flatMap(id => {
     const child = editor.getShape(id);
     if (child?.type !== "lexicon-object") return [];
-    const box = child.props.group ? diagramContextFrame(editor, child) : { x: 0, y: 0, w: child.props.w, h: child.props.h };
+    const box = child.props.group ? contextFrame(editor, child, atlas) : { x: 0, y: 0, w: child.props.w, h: child.props.h };
     return [{ ...box, x: child.x + box.x, y: child.y + box.y }];
   });
 }
@@ -45,7 +45,7 @@ type Derived = { key: string; territory: Territory; control: Territory; preferen
 const derived = new WeakMap<Editor, WeakMap<ObjectShape, Derived>>();
 function derive(editor: Editor, shape: ObjectShape): Derived {
   // Read children before consulting the cache so tldraw tracks their geometry.
-  const boxes = contextContents(editor, shape), heading = atlasContextHeading(editor, shape);
+  const boxes = contextContents(editor, shape, true), heading = atlasContextHeading(editor, shape);
   const key = JSON.stringify([boxes, heading]);
   let cache = derived.get(editor);
   if (!cache) derived.set(editor, cache = new WeakMap());

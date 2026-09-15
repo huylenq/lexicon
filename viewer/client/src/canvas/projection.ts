@@ -373,7 +373,7 @@ export function createProjection(
             !!editor.getShape(modelShapeId(e.id)),
         ),
       };
-      const sizes = Object.fromEntries(full.nodes.filter(n => n.parentId).map(node => {
+      const sizes = Object.fromEntries(full.nodes.filter(n => n.parentId || n.kind === "person").map(node => {
         const { reserve } = objectSizes(editor, node.title, node.kind);
         return [node.id, { width: reserve.w, height: reserve.h }];
       }));

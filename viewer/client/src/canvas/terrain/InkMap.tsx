@@ -3,7 +3,7 @@ import { useEditor, useValue } from "tldraw";
 import { setBorderEditing, useCanvasPresentation } from "../presentation";
 import { isPrimary } from "../references";
 import type { Bounds } from "../../../../shared/canvas-geometry";
-import { choice, createMapGenerator, landmarks, paths, terrains, type MapNode, type MapRoad } from "./generate";
+import { choice, createMapGenerator, isAtlasLandmark, isAtlasTerritory, landmarks, paths, terrains, type MapNode, type MapRoad } from "./generate";
 import { InkDrawing } from "./InkDrawing";
 import { roadInput } from "./view";
 import { contextLabelFrame, contextTerritory, isContext } from "../contexts";
@@ -21,17 +21,18 @@ export function InkMapBackground() {
       const bounds = { x: box.x, y: box.y, w: box.w, h: box.h };
       if (shape.type === "lexicon-object" && isPrimary(shape)) {
         const vertex = model.vertices.get(shape.props.graphId);
-        if (vertex?.kind === "context" && isContext(shape)) {
+        if (vertex && isAtlasTerritory(vertex.kind) && isContext(shape)) {
           const transform = editor.getShapePageTransform(shape);
           const territory = contextTerritory(editor, shape), label = contextLabelFrame(editor, shape, true);
           nodes.push({ id: vertex.id, kind: "context", bounds,
             boundary: territory.points.map(p => transform.applyToPoint(p)),
             origin: transform.applyToPoint({ x: 0, y: 0 }),
-            label: { ...transform.applyToPoint(label), w: label.w, h: label.h }, terrain: shape.meta.lexiconTerrain });
+            label: { ...transform.applyToPoint(label), w: label.w, h: label.h }, terrain: shape.meta.lexiconTerrain,
+            parentId: vertex.parentId, bounded: vertex.kind !== "context" });
           continue;
         }
-        if (vertex?.kind === "concept") {
-          nodes.push({ id: vertex.id, kind: "concept", bounds, classification: vertex.subtitle, landmark: shape.meta.lexiconLandmark });
+        if (vertex && isAtlasLandmark(vertex.kind)) {
+          nodes.push({ id: vertex.id, kind: "concept", bounds, classification: vertex.subtitle, landmark: shape.meta.lexiconLandmark, elementKind: vertex.kind });
           continue;
         }
       }
@@ -73,7 +74,7 @@ export function MapStylePanel() {
   if (!model.mapEnabled || !shape || !isPrimary(shape)) return null;
   const vertex = shape.type === "lexicon-object" ? model.vertices.get(shape.props.graphId) : undefined;
   const connection = shape.type === "lexicon-connection" ? model.connections.get(shape.props.graphId) : undefined;
-  const category = vertex?.kind === "concept" ? "landmark" : vertex?.kind === "context" ? "terrain" : connection?.kind === "relationship" ? "path" : undefined;
+  const category = isAtlasLandmark(vertex?.kind) ? "landmark" : isAtlasTerritory(vertex?.kind) ? "terrain" : connection?.kind === "relationship" ? "path" : undefined;
   if (!category) return null;
   const options = category === "landmark" ? landmarks : category === "terrain" ? terrains : paths;
   const key = category === "landmark" ? "lexiconLandmark" : category === "terrain" ? "lexiconTerrain" : "lexiconPath";
@@ -90,7 +91,7 @@ export function MapStylePanel() {
       editor.markHistoryStoppingPoint("map appearance");
       editor.updateShape({ id: shape.id, type: shape.type, meta: { ...shape.meta, [key]: event.target.value } });
     }}>
-      {options.map(option => <option key={option} value={option}>{option === "auto" ? "By classification" : option[0].toUpperCase() + option.slice(1)}</option>)}
+      {options.map(option => <option key={option} value={option}>{option === "auto" ? vertex?.kind === "concept" ? "By classification" : "By element type" : option[0].toUpperCase() + option.slice(1)}</option>)}
     </select></label>
     {category === "terrain" && isContext(shape) && <>
       <button aria-pressed={editing} onClick={() => {

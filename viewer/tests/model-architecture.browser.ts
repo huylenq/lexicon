@@ -26,7 +26,7 @@ test("read domain and architecture through the same search, relationship, source
   page.on("pageerror", error => errors.push(error.message));
   await page.goto(`/p/${id}`);
   await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
-  await expect(page.locator(".canvas-pane")).toHaveAttribute("data-map", "false");
+  await expect(page.locator(".canvas-pane")).toHaveAttribute("data-map", "true");
   const active = page.locator("main [data-reader-card].active");
   await page.locator(".sidebar .nav-item").filter({ hasText: /^Order$/ }).click();
   await expect(active.locator("h1")).toHaveText("Order");
@@ -57,6 +57,7 @@ test("nested boundaries and shared canvas survive filters, a drawing move, and r
   page.on("pageerror", error => errors.push(error.message));
   await page.goto(`/p/${id}`);
   await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  await page.getByRole("radio", { name: "Standard", exact: true }).check();
   await page.getByRole("button", { name: "Toggle navigation", exact: true }).click();
   await page.getByRole("button", { name: "Fit model", exact: true }).click();
   const card = (item: string) => page.locator(`[data-model-id="item:${item}"]`);
@@ -78,14 +79,14 @@ test("nested boundaries and shared canvas survive filters, a drawing move, and r
   const before = await canvas();
   await page.getByRole("radio", { name: "Domain", exact: true }).check();
   await expect(card("checkout")).toBeHidden();
-  await expect(page.locator(".canvas-pane")).toHaveAttribute("data-map", "true");
+  await expect(page.locator(".canvas-pane")).toHaveAttribute("data-map", "false");
   await page.getByRole("radio", { name: "Architecture", exact: true }).check();
   await expect(card("order")).toBeHidden();
   await expect(card("checkout")).toBeVisible();
   await expect(page.getByRole("radio", { name: "Standard", exact: true })).toBeChecked();
-  await expect(page.getByRole("radio", { name: "Atlas · Ink", exact: true })).toBeDisabled();
-  await expect(page.getByRole("radio", { name: "Atlas · Village", exact: true })).toBeDisabled();
-  await expect(page.getByRole("group", { name: "Dimension", exact: true }).locator("label")).toHaveText(["Domain", "Architecture"]);
+  await expect(page.getByRole("radio", { name: "Atlas · Ink", exact: true })).toBeEnabled();
+  await expect(page.getByRole("radio", { name: "Atlas · Village", exact: true })).toBeEnabled();
+  await expect(page.getByRole("group", { name: "Dimension", exact: true }).getByRole("radio")).toHaveCount(2);
   await expect.poll(canvas).toEqual(before);
   await page.getByRole("radio", { name: "Layers", exact: true }).check();
   await expect(page.locator('.layers-stage[data-ready="true"]')).toBeVisible();
@@ -122,6 +123,67 @@ test("invalid containment produces a visible model notice", async ({ page }) => 
   await expect(notice).toBeVisible();
   await notice.locator("summary").click();
   await expect(notice).toContainText("Unknown attribute parent");
+});
+
+for (const skin of ["Ink", "Village"]) test(`Architecture Atlas ${skin} keeps nested territories, landmarks, roads, and saved edits`, async ({ page }, info) => {
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  await page.goto(`/p/${id}`);
+  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  await page.getByRole("radio", { name: "Architecture", exact: true }).check();
+  await page.getByRole("radio", { name: `Atlas · ${skin}`, exact: true }).check();
+  await page.getByRole("button", { name: "Toggle navigation", exact: true }).click();
+  await page.getByRole("button", { name: "Fit model", exact: true }).click();
+  const landmark = page.locator('[data-map-landmark="item:checkout"]');
+  await expect(landmark).toHaveAttribute("data-landmark-kind", "workshop");
+  await expect(page.locator('[data-map-landmark="item:customer"]')).toHaveAttribute("data-landmark-kind", "traveler");
+  await expect(page.locator('[data-map-district="item:shop"]')).toBeVisible();
+  await expect(page.locator('[data-map-district="item:api"]')).toBeVisible();
+  await expect(page.locator('[data-map-road="relation:saves-order"]')).toBeVisible();
+  const containment = () => page.locator('[data-map-district="item:shop"] .map-district').evaluate(el => {
+    const parent = el as SVGPathElement;
+    const child = document.querySelector('[data-map-district="item:api"] .map-district') as SVGPathElement;
+    return Array.from({ length: 160 }, (_, i) => child.getPointAtLength(child.getTotalLength() * i / 160))
+      .every(point => parent.isPointInFill(point));
+  });
+  expect(await containment()).toBe(true);
+  await page.getByRole("button", { name: "container: Shop API", exact: true }).click();
+  await expect(page.getByLabel("Terrain", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Edit border", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Finish border editing", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: "Finish border editing", exact: true }).click();
+  const node = page.getByRole("button", { name: "component: Order Handling", exact: true });
+  await node.click();
+  await page.getByLabel("Landmark", { exact: true }).selectOption("archive");
+  await page.getByLabel("Landmark", { exact: true }).press("Escape");
+  const before = await landmark.getAttribute("transform");
+  await page.keyboard.press("ArrowRight");
+  await expect(landmark).not.toHaveAttribute("transform", before!);
+  expect(await containment()).toBe(true);
+  await page.getByRole("button", { name: /^Undo —/ }).click();
+  await expect(landmark).toHaveAttribute("transform", before!);
+  await expect(landmark).toHaveAttribute("data-landmark-kind", "archive");
+  await expect(page.locator('[data-save-status="saved"]')).toBeVisible();
+  await page.reload();
+  await expect(landmark).toHaveAttribute("data-landmark-kind", "archive");
+  await page.getByRole("radio", { name: "Standard", exact: true }).check();
+  await expect(landmark).toHaveCount(0);
+  await page.getByRole("radio", { name: `Atlas · ${skin}`, exact: true }).check();
+  await expect(landmark).toHaveAttribute("transform", before!);
+  await page.getByRole("button", { name: "Fit model", exact: true }).click();
+  if (await page.locator("main").isVisible()) await page.getByRole("button", { name: "Toggle reader", exact: true }).click();
+  await page.screenshot({ path: info.outputPath(`architecture-atlas-${skin.toLowerCase()}.png`) });
+  await page.getByRole("button", { name: "Use dark theme", exact: true }).click();
+  await page.screenshot({ path: info.outputPath(`architecture-atlas-${skin.toLowerCase()}-dark.png`) });
+  await node.click();
+  const active = page.locator('main [data-reader-card].active');
+  await expect(active.locator("h1")).toHaveText("Order Handling");
+  await active.locator(".code-links button").first().click();
+  await expect(page.locator(".code-scroll")).toContainText("class Checkout");
+  await page.setViewportSize({ width: 430, height: 900 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(430);
+  expect(await readFile(join(root, "lexicon/model.xml"), "utf8")).toBe(xml);
+  expect(errors).toEqual([]);
 });
 
 test("a flow opens a sequence with participant, relationship, source, search, and history navigation", async ({ page }) => {

@@ -9,6 +9,13 @@ import { landmarkPlacement, pathFor, type District, type Landmark, type MapScene
 /** Original vector marks, procedurally placed. No generated bitmap or third-party artwork. */
 function Building({ kind, variant }: { kind: Landmark; variant: number }) {
   if (kind === "none") return null;
+  if (kind === "traveler") return <g className="map-traveler">
+    <ellipse cx="1" cy="24" rx="18" ry="4" className="map-shadow" />
+    <circle cx="0" cy="-19" r="7" className="map-ground" />
+    <path d="M-6,-11 Q-15,-4 -13,14 L12,14 Q14,-4 6,-11 Z" className="map-roof" />
+    <path d="M-5,14 L-8,24 M5,14 L8,24 M-11,-3 L-18,8 M11,-3 L17,5 M18,-12 L18,26" />
+    <path d="M-9,-21 Q0,-32 9,-21 Z" className="map-roof" />
+  </g>;
   if (kind === "garden") return <g className="map-garden">
     <path d="M-29,-15 L28,-14 L30,15 L-30,16 Z" className="map-ground" />
     {[-21, -11, -1, 9, 19].map(x => <path key={x} d={`M${x},-9 l1,19 m-3,-14 l5,-2 m-5,8 l5,-2`} />)}

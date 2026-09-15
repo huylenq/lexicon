@@ -11,7 +11,7 @@ export const villageCrops = {
 /** Native roads meet the illustrated facade inside the unchanged model frame. */
 export function villageLandmarkPlacement(bounds: Bounds, kind: Landmark) {
   const placement = landmarkPlacement(bounds, kind);
-  if (kind === "none") return placement;
+  if (kind === "none" || kind === "traveler") return placement;
   const frame = landmarkFootprint(kind), crop = villageCrops[kind];
   const scale = Math.min(frame.w / crop[2], frame.h / crop[3]);
   const w = crop[2] * scale, h = crop[3] * scale;

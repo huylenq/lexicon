@@ -32,7 +32,7 @@ import {
   type NoteBinding,
 } from "../../../shared/canvas-schema";
 import { isPrimary } from "./references";
-import { choice, landmarkFor, paths, pathFor } from "./terrain/generate";
+import { choice, isAtlasLandmark, landmarkFor, paths, pathFor } from "./terrain/generate";
 import { roadCoveredAt, roadInput, shapeRoad, visibleObjectFrame } from "./terrain/view";
 import { canvasPresentation, useCanvasPresentation } from "./presentation";
 import { contextControlTerritory, contextNameCurve, contextLabelFrame, contextPreferences, contextTerritory, isContext } from "./contexts";
@@ -64,7 +64,7 @@ function ObjectCard({ shape }: { shape: ObjectShape }) {
       data-model-id={shape.props.graphId}
       data-atlas-label={model.mapEnabled && vertex ? vertex.kind : undefined}
       data-context-boundary={boundary ? model.mapEnabled ? "territory" : "rectangle" : undefined}
-      data-map-building={primary && vertex?.kind === "concept" && landmarkFor({ classification: vertex.subtitle, landmark: shape.meta.lexiconLandmark }) !== "none" ? "true" : undefined}
+      data-map-building={primary && vertex && isAtlasLandmark(vertex.kind) && landmarkFor({ classification: vertex.subtitle, landmark: shape.meta.lexiconLandmark, elementKind: vertex.kind }) !== "none" ? "true" : undefined}
       data-missing={missing || undefined}
       data-selected={selected || undefined}
     >
@@ -95,7 +95,7 @@ function ObjectCard({ shape }: { shape: ObjectShape }) {
                 <textPath href={`#${namePathId}`} startOffset="50%">{vertex.title}</textPath>
               </text>
             </svg>
-          ) : model.mapEnabled && vertex?.kind === "concept" ? (
+          ) : model.mapEnabled && vertex && isAtlasLandmark(vertex.kind) ? (
             <span className="atlas-concept-name object-name-text">{vertex.title}</span>
           ) : vertex ? (
             <ObjectName

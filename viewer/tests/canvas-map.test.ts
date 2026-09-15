@@ -17,6 +17,24 @@ function translate(node: MapNode, x: number, y: number): MapNode {
     boundary: node.boundary.map(p => ({ x: p.x + x, y: p.y + y })) };
 }
 describe("procedural map constraints", () => {
+  test("architecture territories paint outside-in and retain scenery within nested containers", () => {
+    const region = (id: string, x: number, y: number, size: number, parentId?: string): MapNode => ({
+      id, kind: "context", parentId, bounded: true, bounds: { x, y, w: size, h: size },
+      origin: { x, y }, label: { x, y, w: 100, h: 40 },
+      boundary: [{ x, y }, { x: x + size, y }, { x: x + size, y: y + size }, { x, y: y + size }],
+    });
+    const input = [region("a-container", 150, 150, 600, "z-system"), region("z-system", 0, 0, 1000)];
+    const scene = generateMap("architecture", input, []);
+    expect(scene.districts.map(d => d.id)).toEqual(["z-system", "a-container"]);
+    expect(generateMap("architecture", [...input].reverse(), [])).toEqual(scene);
+    expect(scene.districts[1].ornaments.length).toBeGreaterThan(0);
+    for (const district of scene.districts)
+      for (const ornament of district.ornaments)
+        expect(pointInPolygon(ornament, district.boundary)).toBe(true);
+    expect(landmarkFor({ elementKind: "person" })).toBe("traveler");
+    expect(landmarkFor({ elementKind: "component" })).toBe("workshop");
+    expect(landmarkFor({ elementKind: "component", landmark: "archive" })).toBe("archive");
+  });
   test("node identity, not iteration order or neighbor count, determines the landmark", () => {
     const initial = generateMap("shop", nodes, []);
     const extra: MapNode = { ...translate(context, 1900, 0), id: "distant" };

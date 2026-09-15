@@ -16,6 +16,10 @@ export async function arrangeGraph(
   const layout: Layout = {};
   const groups = graph.nodes.filter((n) => !n.parentId);
   async function arrangeGroup(group: Projection["nodes"][number]) {
+    // Nested architecture territories need room for their own coast and heading
+    // inside the enclosing territory, in either skin. Saved positions still win.
+    const architecture = group.kind === "system" || group.kind === "container";
+    const inset = architecture ? 80 : 28, heading = architecture ? 150 : 60;
     const children = graph.nodes.filter((n) => n.parentId === group.id);
     if (!children.length) {
       layout[group.id] = { x: 0, y: 0, ...(sizes[group.id] || (group.parentId ? { width: 190, height: 70 } : { width: 260, height: 88 })) };
@@ -60,8 +64,8 @@ export async function arrangeGraph(
       });
       for (const n of result.children || [])
         layout[n.id] = {
-          x: (n.x || 0) + 28,
-          y: (n.y || 0) + 60,
+          x: (n.x || 0) + inset,
+          y: (n.y || 0) + heading,
           width: layout[n.id].width, height: layout[n.id].height,
         };
     }
@@ -82,11 +86,11 @@ export async function arrangeGraph(
       y: 0,
       width: Math.max(
         280,
-        ...children.map((n) => layout[n.id].x + layout[n.id].width + 28),
+        ...children.map((n) => layout[n.id].x + layout[n.id].width + inset),
       ),
       height: Math.max(
         110,
-        ...children.map((n) => layout[n.id].y + layout[n.id].height + 28),
+        ...children.map((n) => layout[n.id].y + layout[n.id].height + inset),
       ),
     };
   }

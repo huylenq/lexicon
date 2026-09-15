@@ -16,11 +16,12 @@ test("legacy combined views resolve to an available single dimension without rew
   expect(workspace.view).toBe("all");
 });
 
-test("unavailable Atlas preferences return when Domain becomes active again", () => {
+test("Atlas skins remain available when switching between Domain and Architecture", () => {
   const workspace = withCanvasSkin({ ...defaults(), view: "domain" }, "village");
   expect(resolveCanvasView(model(true), workspace).skin).toBe("village");
   const architecture = { ...workspace, view: "architecture" as const };
-  expect(resolveCanvasView(model(true), architecture).skin).toBe("standard");
+  expect(resolveCanvasView(model(true), architecture).skin).toBe("village");
+  expect(resolveCanvasView(model(true), architecture).atlasAvailable).toBe(true);
   expect(resolveCanvasView(model(true), { ...architecture, view: "domain" }).skin).toBe("village");
   const standard = withCanvasSkin(workspace, "standard");
   expect(resolveCanvasView(model(true), standard).skin).toBe("standard");

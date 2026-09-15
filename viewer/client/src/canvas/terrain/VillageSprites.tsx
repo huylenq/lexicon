@@ -26,6 +26,7 @@ export function AtlasSprite({ kind, bounds, fallback, crop, source }: {
 
 export function VillageBuilding({ kind, fallback }: { kind: Landmark; fallback: ReactNode }) {
   if (kind === "none") return null;
+  if (kind === "traveler") return <>{fallback}</>;
   return <g className="village-building"><VillageSprite kind={kind} bounds={landmarkFootprint(kind)} fallback={fallback} /></g>;
 }
 

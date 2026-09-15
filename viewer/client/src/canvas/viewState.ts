@@ -10,7 +10,7 @@ export function resolveCanvasView(model: Model, workspace: Workspace) {
   // Older workspaces can request the retired combined flat view.
   const dimension: ElementDimension = !hasArchitecture || workspace.view === "domain"
     ? "domain" : "architecture";
-  const atlasAvailable = dimension === "domain";
+  const atlasAvailable = true;
   const skin: CanvasSkin = atlasAvailable && (workspace.map ?? true)
     ? workspace.atlasSkin ?? "ink" : "standard";
   return { dimension, skin, hasArchitecture, atlasAvailable };
