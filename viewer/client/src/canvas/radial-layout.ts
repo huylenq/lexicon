@@ -34,39 +34,60 @@ export function indexRadialObstacles(obstacles: RadialBox[]) {
   };
 }
 
-/** Screen-space satellites; try nearby angles before accepting an occupied slot. */
-export function radialPositions(anchor: RadialBox, count: number, obstacles: RadialBox[], viewport: RadialBox, names?: { w: number; h: number }[]) {
-  const obstacleArea = indexRadialObstacles(obstacles);
-  const placed: RadialBox[] = [];
-  const positions: { x: number; y: number; nameSide?: "left" | "right"; nameWidth?: number }[] = [];
-  for (let i = 0; i < count; i++) {
-    const ring = Math.floor(i / 12), n = Math.min(12, count - ring * 12);
-    const angle = -Math.PI / 2 + (i % 12) * Math.PI * 2 / n;
-    let best: RadialBox | undefined, bestFootprint: RadialBox | undefined, bestSide: "left" | "right" = "right", score = Infinity;
-    // Search the whole circumference and expand outward when nearby space is busy.
-    // Reject collisions before comparing distance, so a close occupied slot never wins.
-    for (let expansion = 0; expansion < 6; expansion++) for (let step = 0; step < 48; step++) {
-      const offset = (step % 2 ? 1 : -1) * Math.ceil(step / 2) * Math.PI / 24;
-      const r = gap + size / 2 + (ring + expansion) * (size + 8);
-      const x = Math.round(anchor.x + anchor.w / 2 + Math.cos(angle + offset) * (anchor.w / 2 + r) - size / 2);
-      const y = Math.round(anchor.y + anchor.h / 2 + Math.sin(angle + offset) * (anchor.h / 2 + r) - size / 2);
-      const candidate = { x, y, w: size, h: size };
-      for (const side of (names ? ["right", "left"] : ["right"]) as ("left" | "right")[]) {
-      const name = names?.[i];
-      const footprint = name ? { x: side === "left" ? x + 15 - name.w : x, y, w: name.w + 15, h: Math.max(size, name.h) } : candidate;
-      const padded = { x: footprint.x - 5, y: footprint.y - 5, w: footprint.w + 10, h: footprint.h + 10 };
-      const outside = footprint.w * footprint.h - overlap(footprint, viewport);
-      const collisions = overlap(padded, anchor) + placed.reduce((sum, p) => sum + overlap(padded, p), 0)
-        + obstacleArea(padded);
-      const cost = outside * 1e7 + collisions * 1e4 + expansion * 40 + Math.abs(offset) * 15;
-      if (cost < score) { best = candidate; bestFootprint = footprint; bestSide = side; score = cost; }
-      }
-    }
-    // Only an impossibly crowded viewport needs the minimum-overlap fallback.
-    best!.x = Math.max(viewport.x, Math.min(best!.x, viewport.x + viewport.w - size));
-    best!.y = Math.max(viewport.y, Math.min(best!.y, viewport.y + viewport.h - size));
-    placed.push(bestFootprint!);
-    positions.push({ x: best!.x, y: best!.y, ...(names ? { nameSide: bestSide, nameWidth: names[i].w } : {}) });
+/** Walk a rounded outline at a fixed distance from the source's edge. */
+function orbitPoint(anchor: RadialBox, distance: number, radius: number) {
+  const quarter = Math.PI * radius / 2;
+  const lengths = [anchor.w, quarter, anchor.h, quarter, anchor.w, quarter, anchor.h, quarter];
+  const perimeter = lengths.reduce((sum, length) => sum + length, 0);
+  let t = ((distance % perimeter) + perimeter) % perimeter;
+  const right = anchor.x + anchor.w, bottom = anchor.y + anchor.h;
+  for (let segment = 0; segment < lengths.length; segment++) {
+    if (t > lengths[segment]) { t -= lengths[segment]; continue; }
+    if (segment === 0) return { x: anchor.x + t, y: anchor.y - radius };
+    if (segment === 2) return { x: right + radius, y: anchor.y + t };
+    if (segment === 4) return { x: right - t, y: bottom + radius };
+    if (segment === 6) return { x: anchor.x - radius, y: bottom - t };
+    const corner = (segment - 1) / 2;
+    const angle = -Math.PI / 2 + corner * Math.PI / 2 + t / radius;
+    return { x: (corner < 2 ? right : anchor.x) + Math.cos(angle) * radius,
+      y: (corner < 1 || corner > 2 ? anchor.y : bottom) + Math.sin(angle) * radius };
   }
-  return positions;
+  return { x: anchor.x, y: anchor.y - radius };
+}
+
+/** Rotate a contiguous arc as one group; collisions never change individual radii. */
+export function radialPositions(anchor: RadialBox, count: number, obstacles: RadialBox[], viewport: RadialBox, names?: { w: number; h: number }[]) {
+  if (!count) return [];
+  const obstacleArea = indexRadialObstacles(obstacles);
+  const radius = gap + size / 2, pitch = size + 12;
+  const perimeter = 2 * (anchor.w + anchor.h) + 2 * Math.PI * radius;
+  const capacity = Math.max(1, Math.floor(perimeter / pitch));
+  type Position = { x: number; y: number; nameSide?: "left" | "right"; nameWidth?: number };
+  let best: Position[] = [], score = Infinity;
+  for (let step = 0; step < 64; step++) {
+    const offset = (step % 2 ? 1 : -1) * Math.ceil(step / 2) * Math.PI / 32;
+    let cost = Math.abs(offset) * 15;
+    const positions: Position[] = [];
+    for (let i = 0; i < count; i++) {
+      // Extra rings are only for neighbor counts that cannot fit on the first orbit.
+      const ring = Math.floor(i / capacity), n = Math.min(capacity, count - ring * capacity);
+      const point = orbitPoint(anchor, anchor.w / 2 + offset / (2 * Math.PI) * perimeter
+        + (i % capacity - (n - 1) / 2) * pitch, radius + ring * pitch);
+      const icon = { x: point.x - size / 2, y: point.y - size / 2, w: size, h: size };
+      cost += (size * size - overlap(icon, viewport)) * 1e7 + overlap(icon, anchor) * 1e6 + obstacleArea(icon);
+      const name = names?.[i];
+      let nameSide: "left" | "right" = "right", nameCost = Infinity;
+      if (name) for (const side of ["right", "left"] as const) {
+        const footprint = { x: side === "left" ? icon.x + 15 - name.w : icon.x, y: icon.y, w: name.w + 15, h: Math.max(size, name.h) };
+        const candidateCost = (footprint.w * footprint.h - overlap(footprint, viewport)) * 100
+          + overlap(footprint, anchor) + obstacleArea(footprint);
+        if (candidateCost < nameCost) { nameCost = candidateCost; nameSide = side; }
+      }
+      // Names unfold only on hover, so they are softer preferences than icon clearance.
+      if (name) cost += nameCost * 0.1;
+      positions.push({ x: icon.x, y: icon.y, ...(name ? { nameSide, nameWidth: name.w } : {}) });
+    }
+    if (cost < score) { best = positions; score = cost; }
+  }
+  return best;
 }

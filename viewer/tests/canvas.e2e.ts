@@ -232,6 +232,21 @@ test("radial neighbors allow pointer transfer, show names, and navigate without 
 
   await page.getByRole('button', { name: 'component: Total Calculator', exact: true }).hover();
   await expect(ring.locator('[data-radial-node^="item:"]')).toHaveCount(2);
+  const cluster = ring.locator('[data-radial-node^="item:"]');
+  await expect(cluster.first()).toHaveCSS('transform', 'none');
+  const boxes = await cluster.evaluateAll(elements => elements.map(el => {
+    const b = el.getBoundingClientRect();
+    return { x: b.x, y: b.y };
+  }));
+  const focused = (await page.locator('.canvas-object[data-model-id="item:total-calculator"]').boundingBox())!;
+  for (const box of boxes) {
+    const dx = Math.max(focused.x - box.x - 15, 0, box.x + 15 - focused.x - focused.width);
+    const dy = Math.max(focused.y - box.y - 15, 0, box.y + 15 - focused.y - focused.height);
+    expect(Math.hypot(dx, dy)).toBeCloseTo(27, 1);
+  }
+  expect(Math.hypot(boxes[0].x - boxes[1].x, boxes[0].y - boxes[1].y)).toBeGreaterThan(37);
+  expect(Math.hypot(boxes[0].x - boxes[1].x, boxes[0].y - boxes[1].y)).toBeLessThanOrEqual(42.1);
+  await page.screenshot({ path: test.info().outputPath('radial-cluster.png') });
   await ring.getByRole('button', { name: 'Go to Order Total', exact: true }).click();
   await expect(page.getByRole('radio', { name: 'Domain', exact: true })).toBeChecked();
   await expect(card(page, 'order-total')).toHaveAttribute('data-selected', 'true');

@@ -1,16 +1,16 @@
 import { expect, test } from 'bun:test';
 import { radialPositions, indexRadialObstacles } from '../client/src/canvas/radial-layout';
 
-test('radial icons surround the source with a traversable gap', () => {
+test('radial icons form a compact cluster with a traversable gap', () => {
   const positions = radialPositions({ x: 200, y: 200, w: 200, h: 60 }, 4, [], { x: 0, y: 0, w: 800, h: 600 });
-  expect(positions).toEqual([{ x: 285, y: 158 }, { x: 412, y: 215 }, { x: 285, y: 272 }, { x: 158, y: 215 }]);
+  expect(positions).toEqual([{ x: 222, y: 158 }, { x: 264, y: 158 }, { x: 306, y: 158 }, { x: 348, y: 158 }]);
 });
 test('radial placement avoids a neighboring node where a nearby angle is free', () => {
   const [p] = radialPositions({ x: 200, y: 200, w: 200, h: 60 }, 1, [{ x: 280, y: 145, w: 40, h: 45 }], { x: 0, y: 0, w: 800, h: 600 });
   expect(p.x >= 320 || p.x + 30 <= 280).toBe(true);
 });
 test('radial icons remain within the viewport near an edge', () => {
-  const positions = radialPositions({ x: 0, y: 0, w: 150, h: 40 }, 8, [], { x: 8, y: 8, w: 384, h: 584 });
+  const positions = radialPositions({ x: 0, y: 0, w: 150, h: 40 }, 3, [], { x: 8, y: 8, w: 384, h: 584 });
   for (const p of positions) { expect(p.x).toBeGreaterThanOrEqual(8); expect(p.y).toBeGreaterThanOrEqual(8); expect(p.x + 30).toBeLessThanOrEqual(392); expect(p.y + 30).toBeLessThanOrEqual(592); }
 });
 test('crowded corner redistributes icons without stacking or covering the source', () => {
@@ -23,11 +23,16 @@ test('crowded corner redistributes icons without stacking or covering the source
     for (const other of positions.slice(0, i)) expect(intersects(p, { ...other, w: 30, h: 30 })).toBe(false);
   });
 });
-test('a blocked circumference expands beyond the surrounding nodes', () => {
+test('a blocked circumference keeps the cluster close even when it must overlap obstacles', () => {
   const anchor = { x: 300, y: 300, w: 100, h: 40 };
-  const obstacles = [{ x: 250, y: 240, w: 200, h: 50 }, { x: 250, y: 350, w: 200, h: 50 }, { x: 250, y: 290, w: 40, h: 60 }, { x: 410, y: 290, w: 40, h: 60 }];
-  const positions = radialPositions(anchor, 8, obstacles, { x: 0, y: 0, w: 800, h: 700 });
-  for (const p of positions) for (const b of obstacles) expect(p.x + 30 <= b.x || p.x >= b.x + b.w || p.y + 30 <= b.y || p.y >= b.y + b.h).toBe(true);
+  const viewport = { x: 0, y: 0, w: 800, h: 700 };
+  const positions = radialPositions(anchor, 8, [viewport], viewport);
+  expect(positions).toEqual(radialPositions(anchor, 8, [], viewport));
+  for (const p of positions) {
+    const dx = Math.max(anchor.x - p.x - 15, 0, p.x + 15 - anchor.x - anchor.w);
+    const dy = Math.max(anchor.y - p.y - 15, 0, p.y + 15 - anchor.y - anchor.h);
+    expect(Math.hypot(dx, dy)).toBeCloseTo(27, 6);
+  }
 });
 test('incoming edge and its label leave both the satellite and revealed name clear', () => {
   const anchor = { x: 240, y: 180, w: 260, h: 56 };
