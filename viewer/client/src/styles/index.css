@@ -501,6 +501,15 @@ footer {
   color: var(--muted);
   font-size: 10px;
 }
+.search-wrap .search-clear {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 22px;
+  color: var(--muted);
+}
 .nav-item {
   width: 100%;
   text-align: left;
@@ -514,8 +523,13 @@ footer {
   padding: 5px 8px;
   margin: 0;
 }
-.nav-item:hover {
+.nav-item:hover,
+.nav-item.highlighted {
   background: var(--soft);
+}
+.nav-item.highlighted {
+  outline: 1px solid var(--line);
+  outline-offset: -1px;
 }
 .nav-item.active {
   background: color-mix(in srgb, var(--object-color, var(--accent)) 14%, var(--panel));

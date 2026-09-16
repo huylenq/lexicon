@@ -164,6 +164,56 @@ test("Browse search preserves shelf height and input position as results change"
   }
 });
 
+test("Browse search moves with arrow keys and opens on Enter", async ({ page }) => {
+  await page.goto("/p/shop");
+  for (const size of [{ width: 1600, height: 1000 }, { width: 390, height: 844 }]) {
+    await page.setViewportSize(size);
+    const toggle = page.getByRole("button", { name: "Toggle navigation", exact: true });
+    if (await toggle.getAttribute("aria-pressed") === "false") await toggle.click();
+    const search = page.getByRole("textbox", { name: "Search model" });
+    if (await search.inputValue()) await search.press("Escape");
+    await search.fill("order");
+    const results = page.locator("#browse-pane .nav-list .nav-item");
+    await expect(results).toHaveCount(16);
+    await expect(results.nth(0)).toHaveClass(/highlighted/);
+    await search.press("ArrowUp");
+    await expect(results.last()).toHaveClass(/highlighted/);
+    await search.press("ArrowDown");
+    await expect(results.nth(0)).toHaveClass(/highlighted/);
+    await search.press("ArrowDown");
+    await expect(results.nth(1)).toHaveClass(/highlighted/);
+    await expect(search).toBeFocused();
+    await search.press("Enter");
+    await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Order");
+  }
+});
+
+test("Browse Find clears from the field without closing Source Reader", async ({ page }) => {
+  await page.goto("/p/shop");
+  for (const size of [{ width: 1600, height: 1000 }, { width: 390, height: 844 }]) {
+    await page.setViewportSize(size);
+    const toggle = page.getByRole("button", { name: "Toggle navigation", exact: true });
+    if (await toggle.getAttribute("aria-pressed") === "false") await toggle.click();
+    const search = page.getByRole("textbox", { name: "Search model" });
+    const sources = page.getByRole("button", { name: "Toggle Source Reader", exact: true });
+    if (await sources.getAttribute("aria-pressed") === "false") await sources.click();
+    await expect(sources).toHaveAttribute("aria-pressed", "true");
+    await search.fill("order");
+    const clear = page.getByRole("button", { name: "Clear search", exact: true });
+    await expect(clear).toBeVisible();
+    await search.press("Escape");
+    await expect(search).toHaveValue("");
+    await expect(search).toBeFocused();
+    await expect(clear).toBeHidden();
+    await expect(sources).toHaveAttribute("aria-pressed", "true");
+    await search.fill("order");
+    await page.getByRole("button", { name: "Clear search", exact: true }).click();
+    await expect(search).toHaveValue("");
+    await expect(search).toBeFocused();
+    await expect(sources).toHaveAttribute("aria-pressed", "true");
+  }
+});
+
 
 test("one shared status bar follows model counts and the floating Agent stays reachable across workspace views", async ({ page }) => {
   await page.goto("/p/shop");

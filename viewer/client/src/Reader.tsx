@@ -121,6 +121,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
+  const [searchIndex, setSearchIndex] = useState(0);
   const browsePane = useRef<HTMLElement>(null);
   const [searchHeight, setSearchHeight] = useState<number>();
   const [menu, setMenu] = useState(false);
@@ -218,6 +219,12 @@ function ReaderProject({ projectId }: { projectId: string }) {
         search.current?.focus();
       }
       if (e.key === "Escape") {
+        if (search.current && e.target === search.current && search.current.value) {
+          e.preventDefault();
+          e.stopPropagation();
+          setQuery("");
+          return;
+        }
         setMenu(false);
         if (sourceNavigation.open) {
           // Close Source Reader before a focused canvas handles Escape as deselection.
@@ -376,6 +383,23 @@ function ReaderProject({ projectId }: { projectId: string }) {
           .includes(query.trim().toLowerCase()),
       ) || []
     : [];
+  const searchActive = matches.length ? Math.min(searchIndex, matches.length - 1) : 0;
+  useEffect(() => { setSearchIndex(0); }, [query]);
+  useEffect(() => {
+    if (!query.trim() || !matches.length) return;
+    const highlighted = browsePane.current?.querySelector<HTMLElement>(".nav-item.highlighted");
+    highlighted?.scrollIntoView({ block: "nearest" });
+    const list = browsePane.current?.querySelector(".nav-list");
+    if (highlighted && list?.contains(document.activeElement)) highlighted.focus();
+  }, [searchActive, query, matches.length]);
+  const moveSearch = (delta: number) => {
+    if (!matches.length) return;
+    setSearchIndex((searchActive + delta + matches.length) % matches.length);
+  };
+  const openSearchResult = (mode: ReaderOpenMode = "preview") => {
+    const match = matches[searchActive];
+    if (match) select(match.id, mode);
+  };
   const itemButton = (i: ModelItem) => (
     <button
       key={i.id}
@@ -531,8 +555,36 @@ function ReaderProject({ projectId }: { projectId: string }) {
                 setSearchHeight(browsePane.current?.getBoundingClientRect().height);
               setQuery(e.target.value);
             }}
+            onKeyDown={(e) => {
+              if (!query.trim() || !matches.length) return;
+              if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                e.preventDefault();
+                e.stopPropagation();
+                moveSearch(e.key === "ArrowDown" ? 1 : -1);
+              }
+              if (e.key === "Enter") {
+                e.preventDefault();
+                e.stopPropagation();
+                openSearchResult(e.metaKey || e.ctrlKey ? "pinned" : "preview");
+              }
+            }}
           />
-          <kbd>/</kbd>
+          {query ? (
+            <button
+              type="button"
+              className="quiet icon-button search-clear"
+              aria-label="Clear search"
+              title="Clear search"
+              onClick={() => {
+                setQuery("");
+                search.current?.focus();
+              }}
+            >
+              <Icon name="close" size={12} />
+            </button>
+          ) : (
+            <kbd>/</kbd>
+          )}
         </div>
         <div className="browse-items">
           {query.trim() ? (
@@ -543,7 +595,28 @@ function ReaderProject({ projectId }: { projectId: string }) {
                   Clear
                 </button>
               </div>
-              <div className="nav-list">{matches.map(itemButton)}</div>
+              <div
+                className="nav-list"
+                onKeyDown={(e) => {
+                  if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+                  e.preventDefault();
+                  e.stopPropagation();
+                  moveSearch(e.key === "ArrowDown" ? 1 : -1);
+                }}
+              >
+                {matches.map((i, index) => (
+                  <button
+                    key={i.id}
+                    className={`nav-item ${item?.id === i.id ? "active" : ""} ${index === searchActive ? "highlighted" : ""}`}
+                    {...readerLink(mode => select(i.id, mode))}
+                    aria-current={item?.id === i.id ? "page" : undefined}
+                    onMouseMove={() => setSearchIndex(index)}
+                  >
+                    <ObjectName type={i.type} name={i.name}
+                      classification={i.type === "concept" ? i.classification : undefined} />
+                  </button>
+                ))}
+              </div>
               {!matches.length && (
                 <p className="hint">Try a domain name, code symbol, document heading, or phrase.</p>
               )}
