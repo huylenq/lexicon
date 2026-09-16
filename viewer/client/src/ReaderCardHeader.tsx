@@ -17,14 +17,12 @@ type Props = {
   onClose: () => void;
   copied: boolean;
   onCopy: () => void;
-  allCode: boolean;
-  onCanvasAction: (action: "locate" | "expand") => void;
+  onCanvasAction: (action: "locate") => void;
 };
 
-export default function ReaderCardHeader({ card, item, title, preview, collapsed, style, onOpen, onClose, copied, onCopy, allCode, onCanvasAction }: Props) {
+export default function ReaderCardHeader({ card, item, title, preview, collapsed, style, onOpen, onClose, copied, onCopy, onCanvasAction }: Props) {
   const copyLabel = copied ? "Copied" : "Copy link";
   const locateTip = useTooltip<HTMLButtonElement>("Locate in canvas");
-  const sourcesTip = useTooltip<HTMLButtonElement>(allCode ? "Turn off Show all sources to change individual expansions" : "Toggle sources in canvas");
   const copyTip = useTooltip<HTMLButtonElement>(copyLabel);
   const tone = item
     ? objectTone(item.type, item.type === "concept" ? item.classification : undefined)
@@ -46,15 +44,7 @@ export default function ReaderCardHeader({ card, item, title, preview, collapsed
           <Icon name="locate" />
         </button>
         {locateTip.tooltip}
-        {item && <>
-          <button ref={sourcesTip.anchor} className="quiet icon-button reader-card-canvas-action" aria-label="Toggle sources in canvas"
-            aria-disabled={allCode} aria-describedby={sourcesTip.describedBy}
-            onPointerEnter={sourcesTip.onPointerEnter} onPointerLeave={sourcesTip.onPointerLeave}
-            onFocus={sourcesTip.onFocus} onBlur={sourcesTip.onBlur} onClick={() => { if (!allCode) onCanvasAction("expand"); }}>
-            <Icon name="code-link" />
-          </button>
-          {sourcesTip.tooltip}
-        </>}
+
       </>}
       <button ref={copyTip.anchor} className="quiet icon-button reader-card-copy" aria-label={copyLabel}
         aria-describedby={copyTip.describedBy} onPointerEnter={copyTip.onPointerEnter}

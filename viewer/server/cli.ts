@@ -1,7 +1,7 @@
-import { listRepositoryFiles } from "./projectFiles";
+import { listProjectFiles } from "./projectFiles";
 import { resolve } from "node:path";
 import { loadModel } from "./model";
-import { readCode } from "./code";
+import { readSource } from "./source";
 
 const [command, rawRoot = "..", ...flags] = process.argv.slice(2);
 const root = resolve(rawRoot);
@@ -9,7 +9,7 @@ const codeIndex = flags.indexOf("--code-root");
 const codeRoot = codeIndex >= 0 ? resolve(flags[codeIndex + 1] || "") : root;
 if (command === "files") {
   try {
-    const inventory = await listRepositoryFiles(codeRoot, root);
+    const inventory = await listProjectFiles(codeRoot, root);
     if (inventory.truncated) throw new Error("File inventory exceeds 100,000 files. Narrow the project include globs.");
     console.log(inventory.files.join("\n"));
   }
@@ -36,7 +36,7 @@ try {
     for (const item of model.items)
       for (const link of item.codeLinks) {
         try {
-          const result = await readCode(codeRoot, link);
+          const result = await readSource(codeRoot, link);
           if (["missing-symbol", "ambiguous-symbol", "missing-heading"].includes(result.status))
             throw new Error(result.status);
           if (result.status === "unsupported") {

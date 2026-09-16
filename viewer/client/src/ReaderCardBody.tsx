@@ -71,7 +71,7 @@ export default function ReaderCardBody({ card, model, graphIndex, params, loadin
                   <li key={index}>
                     <strong>{i.severity}</strong>{" "}
                     {i.item && (
-                      <button onClick={() => select(i.item)}>
+                      <button {...readerLink(mode => select(i.item, mode))}>
                         {i.item}
                       </button>
                     )}{" "}
@@ -92,7 +92,7 @@ export default function ReaderCardBody({ card, model, graphIndex, params, loadin
             <div className="empty">
               <h2>That item is unavailable.</h2>
               <p>The model may have changed. Browse a context or return to the overview.</p>
-              <button onClick={() => select()}>Open overview</button>
+              <button {...readerLink(mode => select(undefined, mode))}>Open overview</button>
             </div>
           ) : (
             <>
@@ -220,12 +220,12 @@ export default function ReaderCardBody({ card, model, graphIndex, params, loadin
                   {item.codeLinks.length > 0 && (
                     <section>
                       <div className="section-heading">
-                        <h2 className="object-label"><Icon name="code-link" />Sources</h2>
+                        <h2 className="object-label"><Icon name="code-link" />Source Links</h2>
                         <span className="muted">
-                          {item.codeLinks.length} source links
+                          {item.codeLinks.length} source {item.codeLinks.length === 1 ? "link" : "links"}
                         </span>
                       </div>
-                      <div className="code-links">
+                      <div className="source-links">
                         {item.codeLinks.map((l, index) => (
                           <button
                             key={index}
@@ -244,7 +244,7 @@ export default function ReaderCardBody({ card, model, graphIndex, params, loadin
                               <strong>
                                 <ObjectName type={l.kind} name={sourceLabel(l)} size={14} />
                               </strong>
-                              <span className="code-role">{l.role}</span>
+                              <span className="source-role">{l.role}</span>
                               <Icon name="open" size={14} />
                             </span>
                             <code>

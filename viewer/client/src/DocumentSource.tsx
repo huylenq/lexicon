@@ -74,7 +74,7 @@ export default function DocumentSource({ result, open }: { result: DocumentExcer
     },
   };
   return <>
-    <div className="code-controls document-controls">
+    <div className="source-controls document-controls">
       {result.format === "text" && <span>Text document</span>}
       {result.format === "markdown" && <label>Heading
         <select aria-label="Document heading" value={selected} onChange={event => setSelected(event.target.value)}>
@@ -87,7 +87,7 @@ export default function DocumentSource({ result, open }: { result: DocumentExcer
     {result.status === "missing-heading" && <div className="source-notice" role="status">
       The linked heading was not found. Showing the document for review.
     </div>}
-    <div className={raw ? "code-scroll document-scroll" : "document-scroll"} ref={scroll} tabIndex={0}
+    <div className={raw ? "source-scroll document-scroll" : "document-scroll"} ref={scroll} tabIndex={0}
       aria-label={raw ? "Document source text" : "Document content"}>
       {raw ? <pre>{sourceLines(result.text).map((line, i) => <div key={i} data-source-line={i + 1}
         className={`source-line${targetLine !== undefined && i + 1 >= targetLine && i + 1 <= (targetEndLine ?? targetLine) ? " highlighted" : ""}`}>

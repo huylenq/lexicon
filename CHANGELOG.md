@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased — Source plane navigation
+
+- Keep linked code and document targets on Linked Sources; remove inline source expansion from semantic planes. Cross-dimension radials navigate between targets and their model owners, retaining exact source selections through history. Combined and Planes show source connections directly.
+- Rename the Layers presentation to Planes throughout the UI, modules, and active guides. Earlier URLs, saved page identities, drawing ownership, and recovery keys remain compatible.
+
 ## Unreleased — External agent integration
 
 - Document the agent capability taxonomy, operation semantics, and first implementation slice.

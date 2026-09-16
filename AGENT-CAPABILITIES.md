@@ -76,7 +76,7 @@ Create, update, and relate are useful small operations. Split and merge are comp
 
 Structural movement respects the existing containment rules: concepts belong to contexts, containers to systems, and components to containers. A domain relationship named “contains” does not change that ownership. Relationships connect elements; flows contain ordered relationship occurrences.
 
-Updates must preserve stable IDs, annotations, links, and fields the caller did not supply. Replacement of an owned array should be explicit. Unknown fields and invalid combinations should fail visibly. New code links must resolve within the selected source root before the model is saved.
+Updates must preserve stable IDs, annotations, links, and fields the caller did not supply. Replacement of an owned array should be explicit. Unknown fields and invalid combinations should fail visibly. New source links must resolve within the selected source root before the model is saved.
 
 ### Present
 

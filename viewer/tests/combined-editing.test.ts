@@ -3,16 +3,17 @@ import { HistoryManager, createTLStore, Editor, type TLShape, type TLShapeId } f
 import { canvasSchema } from "../shared/canvas-schema";
 import { enableCombinedDrawing } from "../client/src/canvas/combinedEditing";
 import { internalWrite, isHistoryReplay } from "../client/src/canvas/internalWrite";
+import type { CanvasPlane } from "../client/src/graph/planes";
 import { combinedPage, flatPageIds } from "../client/src/canvas/combined";
 
 function fixture() {
   const store = createTLStore({ schema: canvasSchema });
   const page = canvasSchema.types.page.create({ id: combinedPage, name: "Combined", index: "a1" as any,
-    meta: { combinedOffsets: { domain: { x: 0, y: 0 }, architecture: { x: 1000, y: 0 } } } });
-  store.put([page, ...(["domain", "architecture"] as const).map((dimension, i) =>
+    meta: { combinedOffsets: { domain: { x: 0, y: 0 }, architecture: { x: 1000, y: 0 }, source: { x: 2000, y: 100 } } } });
+  store.put([page, ...(["domain", "architecture", "source"] as const).map((dimension, i) =>
     canvasSchema.types.page.create({ id: flatPageIds[dimension], name: dimension, index: `a${i + 2}` as any }))]);
   const history = new HistoryManager({ store });
-  let active: "domain" | "architecture" = "architecture";
+  let active: CanvasPlane = "architecture";
   // Exercise the real store callbacks and history; only canvas geometry is stubbed.
   const editor = {
     store, history, sideEffects: store.sideEffects,
@@ -24,7 +25,7 @@ function fixture() {
     getIsReadonly: () => false,
   } as unknown as Editor;
   enableCombinedDrawing(editor, () => active);
-  const group = (id: string, dimension: "domain" | "architecture", x = 100) =>
+  const group = (id: string, dimension: CanvasPlane, x = 100) =>
     canvasSchema.types.shape.create({ id: id as TLShapeId, type: "group", parentId: combinedPage,
       index: "a1" as any, x, y: 400, props: {},
       meta: { combinedDimension: dimension, combinedSourceId: `shape:source-${id.slice(6)}` } });
@@ -50,7 +51,7 @@ test("dimension undo and redo restore model positions together with offsets", ()
   expect(store.get(page.id)).toEqual(movedPage);
 });
 
-test("undoing deletion after selecting another layer preserves drawing identity and ownership", () => {
+test("undoing deletion after selecting another plane preserves drawing identity and ownership", () => {
   const { store, history, editor, group, activate } = fixture();
   const drawing = group("shape:drawing", "architecture");
   store.put([drawing]);
@@ -82,4 +83,23 @@ test("rejecting a foreign parent preserves the complete drawing and its source",
   store.put([{ ...original, parentId: parent.id as TLShapeId, x: 100, y: 100, rotation: 1 }]);
   expect(store.get(drawing.id)).toEqual(original);
   expect(store.get(sourceId)).toEqual(source);
+});
+
+
+test("Linked Sources drawing edits retain page ownership through undo and redo", () => {
+  const { store, history, editor, group, activate } = fixture();
+  activate("source");
+  const drawing = group("shape:source-drawing", "source", 2100);
+  store.put([drawing]);
+  const original = store.get(drawing.id)! as TLShape;
+  const sourceId = original.meta.combinedSourceId as TLShapeId;
+  expect(store.get(sourceId)).toMatchObject({ parentId: flatPageIds.source, x: 100, y: 300 });
+  Editor.prototype.markHistoryStoppingPoint.call(editor, "move source drawing");
+  store.put([{ ...original, x: 2200 }]);
+  expect(store.get(sourceId)).toMatchObject({ x: 200 });
+  activate("domain");
+  history.undo();
+  expect(store.get(sourceId)).toMatchObject({ parentId: flatPageIds.source, x: 100 });
+  history.redo();
+  expect(store.get(sourceId)).toMatchObject({ parentId: flatPageIds.source, x: 200 });
 });

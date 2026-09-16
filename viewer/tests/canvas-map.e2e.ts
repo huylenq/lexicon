@@ -111,15 +111,17 @@ test("long names wrap inside fitted Diagram and Atlas frames", async ({ page }) 
   }
 });
 
-test("context and path metaphors survive model refresh and code expansion", async ({ page, request }, info) => {
+test("context and path metaphors survive model refresh and plane changes", async ({ page, request }, info) => {
   await open(page);
+  await page.getByRole("radio", { name: "Atlas · Ink", exact: true }).check();
   await page.getByRole("button", { name: "context: Ordering", exact: true }).click();
   await page.getByLabel("Terrain", { exact: true }).selectOption("island");
   await expect(page.locator('[data-map-district="item:ordering"]')).toHaveAttribute("data-terrain", "island");
   await page.getByRole("button", { name: "Read relationship: contains", exact: true }).click();
   await page.getByLabel("Path", { exact: true }).selectOption("trail");
   await expect(page.locator('[data-map-road="relation:contains"]')).toHaveAttribute("data-path-kind", "trail");
-  await page.getByRole("button", { name: "Show all sources", exact: true }).click();
+  await page.getByRole("radio", { name: "Linked Sources", exact: true }).check();
+  await page.getByRole("radio", { name: "Domain", exact: true }).check();
   await expect(page.locator('[data-map-road^="mapping:"]')).toHaveCount(0);
   await expect(page.locator('[data-map-road="relation:contains"]')).toHaveAttribute("data-path-kind", "trail");
   await page.getByRole("button", { name: "Refresh", exact: true }).click();

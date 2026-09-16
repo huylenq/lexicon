@@ -61,7 +61,7 @@ test("conversation refines a selected concept, survives navigation and reload, a
     await expect(page.getByRole("region", { name: "Model canvas" })).toBeVisible();
     await expect(chat).toBeVisible();
     await expect(page.locator("#browse-pane")).toBeVisible();
-    await page.getByRole("button", { name: "Toggle source workspace" }).click();
+    await page.getByRole("button", { name: "Toggle Source Reader" }).click();
     await expect(chat).toBeVisible();
     await page.reload();
     await page.getByRole("button", { name: "Agent", exact: true }).click();

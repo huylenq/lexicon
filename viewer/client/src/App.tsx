@@ -2,10 +2,10 @@ import { Link, Navigate, Route, Routes, useParams, useSearchParams } from "react
 import DesktopUpdate from "./DesktopUpdate";
 import Library from "./Library";
 import Reader from "./Reader";
-function LayersRedirect() {
+function PlanesRedirect() {
   const { projectId = "shop" } = useParams();
   const [params] = useSearchParams();
-  const next = new URLSearchParams(params); next.set("presentation", "layers");
+  const next = new URLSearchParams(params); next.set("presentation", "planes");
   return <Navigate replace to={`/p/${projectId}?${next}`} />;
 }
 export default function App() {
@@ -13,7 +13,8 @@ export default function App() {
     <>
       <DesktopUpdate />
       <Routes>
-        <Route path="/layers/:projectId?" element={<LayersRedirect />} />
+        <Route path="/layers/:projectId?" element={<PlanesRedirect />} />
+        <Route path="/planes/:projectId?" element={<PlanesRedirect />} />
         <Route path="/" element={<Library />} />
         <Route path="/p/:projectId" element={<Reader />} />
         <Route

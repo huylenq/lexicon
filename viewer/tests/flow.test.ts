@@ -67,7 +67,7 @@ test("a domain-only flow uses the same schema without requiring architecture", (
 });
 
 test("the static graph reuses flow participants while sequence references preserve their hierarchy", () => {
-  const current = model(), index = indexModel(current), graph = projectGraph(index, { expanded: [], allCode: false });
+  const current = model(), index = indexModel(current), graph = projectGraph(index, { });
   expect(graph.nodes.some(node => node.id === "item:place-order")).toBe(false);
   expect(graph.nodes.find(node => node.id === "item:checkout")?.parentId).toBe("item:api");
   const focus = neighborhood(index, graph, { kind: "item", id: "place-order" });

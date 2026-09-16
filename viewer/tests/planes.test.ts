@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { planeTransform, projectPoint, unprojectPoint } from "../client/src/layers/geometry";
+import { planeTransform, projectPoint, unprojectPoint } from "../client/src/planes/geometry";
 
 describe("perspective plane coordinates", () => {
   test("recovers positions and drag distances on an oblique plane", () => {
@@ -21,13 +21,13 @@ describe("perspective plane coordinates", () => {
   });
 });
 
-import { importLayers, layerShapeId, pageIds, createLayersHistory } from '../client/src/layers/document';
+import { importPlanes, planeShapeId, pageIds, createPlanesHistory } from '../client/src/planes/document';
 import { modelShapeId, isPrimary } from '../client/src/canvas/references';
 import { canvasSchema } from '../shared/canvas-schema';
 import { validateCanvas } from '../server/canvas';
 import type { TLRecord, TLPage, TLShape } from 'tldraw';
 
-test('importing Layers preserves original pages and remaps notes, bindings, and assets without stealing model references', () => {
+test('importing Planes preserves original pages and remaps notes, bindings, and assets without stealing model references', () => {
   const page = canvasSchema.types.page.create({ id: 'page:original' as any, name: 'Original', index: 'a1' as any }) as TLPage;
   const domain = canvasSchema.types.page.create({ id: pageIds.domain, name: 'Domain', index: 'a2' as any }) as TLPage;
   const shape = canvasSchema.types.shape.create({ id: modelShapeId('item:order'), type: 'lexicon-object', parentId: domain.id, index: 'a1' as any,
@@ -40,23 +40,23 @@ test('importing Layers preserves original pages and remaps notes, bindings, and 
   const snapshot = (records: TLRecord[]) => ({ schema: canvasSchema.serialize(), store: Object.fromEntries(records.map(r => [r.id, r])) });
   const project = snapshot([page, originalShape]);
   const legacy = snapshot([domain, shape, note, binding, asset, image]);
-  const imported = importLayers(project, legacy)!;
+  const imported = importPlanes(project, legacy)!;
   expect(imported.store[originalShape.id]).toEqual(originalShape);
-  const scoped = imported.store[layerShapeId('item:order', 'domain')];
+  const scoped = imported.store[planeShapeId('item:order', 'domain')];
   expect(scoped.typeName === 'shape' && scoped.x).toBe(123);
   expect(scoped.typeName === 'shape' && isPrimary(scoped)).toBe(true);
   const attached = Object.values(imported.store).find(r => r.typeName === 'binding');
-  expect(attached?.typeName === 'binding' && attached.toId).toBe(layerShapeId('item:order', 'domain'));
-  expect(importLayers(imported, legacy)).toBe(imported);
+  expect(attached?.typeName === 'binding' && attached.toId).toBe(planeShapeId('item:order', 'domain'));
+  expect(importPlanes(imported, legacy)).toBe(imported);
   const importedImage = Object.values(imported.store).find(r => r.typeName === 'shape' && r.type === 'image');
-  expect(importedImage?.typeName === 'shape' && importedImage.type === 'image' && importedImage.props.assetId).toBe('asset:layers-import:legacy' as any);
+  expect(importedImage?.typeName === 'shape' && importedImage.type === 'image' && importedImage.props.assetId).toBe('asset:planes-import:legacy' as any);
   expect(Object.values(imported.store).filter(r => r.typeName === 'asset')).toHaveLength(1);
   expect(validateCanvas({ format:'lexicon-canvas', version:2, id:'test-canvas', modelId:'shop', snapshot:imported }, 'shop').snapshot.store[originalShape.id]).toEqual(originalShape);
   expect(project.store[originalShape.id]).toEqual(originalShape);
 });
 
 test('one history spans edits on both planes and external installs invalidate its old timeline', () => {
-  const history = createLayersHistory<{domain:number; architecture:number}>((a,b) => JSON.stringify(a) === JSON.stringify(b));
+  const history = createPlanesHistory<{domain:number; architecture:number}>((a,b) => JSON.stringify(a) === JSON.stringify(b));
   history.reset({domain:0,architecture:0});
   history.record({domain:10,architecture:0});
   history.record({domain:10,architecture:20});

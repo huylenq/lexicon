@@ -98,7 +98,7 @@ export const parentOf = (item: ModelItem): string | undefined =>
   "parent" in item ? item.parent : undefined;
 export const isArchitecture = (item: ModelItem): item is ArchitectureElement =>
   ["person", "system", "container", "component"].includes(item.type);
-/** Semantic dimensions are independent of canvas layers and page names. */
+/** Semantic dimensions are independent of canvas planes and page names. */
 export type Dimension = "domain" | "architecture" | "code";
 export type ElementDimension = Exclude<Dimension, "code">;
 export const elementDimensions: readonly ElementDimension[] = ["domain", "architecture"];

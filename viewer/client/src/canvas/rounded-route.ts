@@ -88,7 +88,7 @@ if (typeof window !== "undefined") window.addEventListener("storage", event => {
 });
 
 function baseDrawing(shape: ConnectionShape, radius: number, obstacles: Box[] = []): EdgeDrawing {
-  // Mapping curves keep their existing geometry, including copies and restores.
+  // Legacy curved references keep their existing geometry, including copies and restores.
   return radius && !/[QC]/i.test(shape.props.path)
     ? roundedRoute(shape.props.points, radius, obstacles) : { path: shape.props.path, points: shape.props.points };
 }

@@ -9,7 +9,7 @@ type CanvasViewControlsProps = {
   onDimension: (dimension: CanvasDimension) => void;
   onSkin: (skin: CanvasSkin) => void;
 } | {
-  presentation: "layers";
+  presentation: "planes";
 });
 
 /** Keep the same controls in every presentation; disable inapplicable choices. */
@@ -18,13 +18,14 @@ export function CanvasViewControls(props: CanvasViewControlsProps) {
   return <div className="toolbar-view-controls" role="group" aria-label="Canvas controls">
     <CanvasToggleGroup iconOnly className="canvas-presentation" label="Canvas presentation"
       value={props.presentation} onChange={props.onPresentation}
-      options={[{ value: "flat", label: "2D", icon: "overview" }, { value: "layers", label: "Layers", icon: "layers" }]} />
+      options={[{ value: "flat", label: "2D", icon: "overview" }, { value: "planes", label: "Planes", icon: "planes" }]} />
     <CanvasToggleGroup<CanvasDimension> iconOnly label="Dimension" value={flat?.view.dimension} disabled={!flat}
       onChange={value => flat?.onDimension(value)}
       options={[
-        { value: "all", label: "Combined", icon: "overview", disabled: !flat?.view.hasArchitecture },
+        { value: "all", label: "Combined", icon: "overview" },
         { value: "domain", label: "Domain", icon: "context" },
         { value: "architecture", label: "Architecture", icon: "component", disabled: !flat?.view.hasArchitecture },
+        { value: "source", label: "Linked Sources", icon: "code" },
       ]} />
     <CanvasToggleGroup<CanvasSkin> iconOnly label="2D skin" value={flat?.view.skin} disabled={!flat}
       onChange={value => flat?.onSkin(value)}

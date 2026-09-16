@@ -60,11 +60,12 @@ function ToggleOption({ option, name, checked, iconOnly, onChange }: {
   option: { label: string; icon: IconName; title?: string; disabled?: boolean };
   name: string; checked: boolean; iconOnly: boolean; onChange: () => void;
 }) {
-  const tip = useTooltip<HTMLLabelElement>(option.title ?? option.label);
+  // Short control names must not cover controls when the toolbar wraps.
+  const tip = useTooltip<HTMLLabelElement>(option.title ?? option.label, { interactive: false });
   return <><label ref={tip.anchor} onPointerEnter={tip.onPointerEnter} onPointerLeave={tip.onPointerLeave}>
       <input type="radio" name={name} aria-label={option.title ?? option.label}
         aria-describedby={tip.describedBy} onFocus={tip.onFocus} onBlur={tip.onBlur}
-        disabled={option.disabled} checked={checked} onChange={onChange} />
+        disabled={option.disabled} checked={checked} onChange={() => { tip.onBlur(); onChange(); }} />
       <span><Icon name={option.icon} size={14} />{!iconOnly && option.label}</span>
     </label>{tip.tooltip}</>;
 }

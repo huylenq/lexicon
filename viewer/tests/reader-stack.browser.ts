@@ -477,8 +477,8 @@ test("sticky titles stay bounded, links keep source independent, and narrow scre
   await expect(active(page).locator(":scope > header h1")).toHaveText(pinnedTitle!);
   await expect(active(page).locator(":scope > header")).toBeInViewport();
   await browse(page, "Order");
-  await active(page).locator(".code-links button").first().click();
-  await expect(page.locator(".code-pane")).toBeVisible();
+  await active(page).locator(".source-links button").first().click();
+  await expect(page.locator(".source-reader")).toBeVisible();
   await expect(cards(page)).toHaveCount(7);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole("button", { name: "Back to reader", exact: true }).click();

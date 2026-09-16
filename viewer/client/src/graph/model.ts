@@ -1,3 +1,6 @@
+import type { CanvasPlane } from "./planes";
+import { fileSelectionId, fileSelectionPath } from "../../../shared/files";
+import { sourceTargetLabel } from "../source/targets";
 import type { SourceLink, Flow, Model, ModelItem } from "../../../shared/model";
 import { sourceTargetId as targetId, sourceLinkKey, legacySourceLinkKey, legacySourceTargetId, parentOf, dimensionOf, isModelElement, typeNames, type ModelElement, type ElementDimension } from "../../../shared/model";
 
@@ -68,6 +71,7 @@ export function indexModel(model: Model) {
 }
 
 export type GraphVertex = {
+  sourceLink?: SourceLink;
   id: string;
   kind: ModelElement["type"] | "code" | "file";
   title: string;
@@ -86,14 +90,12 @@ export type GraphConnection = {
   mappings: string[];
 };
 export type GraphOptions = {
-  expanded: string[];
-  allCode: boolean;
-  view?: "all" | ElementDimension;
+  view?: "all" | CanvasPlane;
 };
 export type Projection = ReturnType<typeof projectGraph>;
 
-export function projectGraph(index: GraphIndex, options: GraphOptions) {
-  const expanded = new Set(options.expanded);
+export function projectGraph(index: GraphIndex, options: GraphOptions = {}) {
+  if (options.view === "source") return { nodes: sourceVertices(index.targets.values()), connections: [] as GraphConnection[], omitted: 0 };
   const nodes: GraphVertex[] = [];
   const connections: GraphConnection[] = [];
   for (const item of index.items.values()) {
@@ -137,33 +139,10 @@ export function projectGraph(index: GraphIndex, options: GraphOptions) {
     relationConnection.set(item.id, connection);
   }
   const shownMappings = [...index.mappings.values()].filter(
-    (m) => (options.allCode || expanded.has(m.owner.id)) &&
+    (m) => (options.view === "all" || !options.view) &&
       (m.owner.type === "relationship" ? relationConnection.has(m.owner.id) : nodeIds.has(itemNodeId(m.owner.id))),
   );
-  const shownTargets = new Set(shownMappings.map((m) => m.target));
-  const files = new Set<string>();
-  for (const id of shownTargets) {
-    const target = index.targets.get(id)!;
-    if (!files.has(target.link.file)) {
-      files.add(target.link.file);
-      nodes.push({
-        id: fileId(target.link.file),
-        kind: "file",
-        title: target.link.file.split("/").pop() || target.link.file,
-        subtitle: target.link.file,
-      });
-    }
-    nodes.push({
-      id,
-      kind: "code",
-      parentId: fileId(target.link.file),
-      title:
-        target.link.heading || target.link.symbol ||
-        (target.link.line ? `Line ${target.link.line}` : "Whole file"),
-      subtitle: target.link.file,
-      selection: { kind: "code", id },
-    });
-  }
+  if (!options.view || options.view === "all") nodes.push(...sourceVertices(index.targets.values()));
   for (const m of shownMappings) {
     let source = itemNodeId(m.owner.id);
     if (m.owner.type === "relationship") {
@@ -188,6 +167,35 @@ export function projectGraph(index: GraphIndex, options: GraphOptions) {
   return { nodes, connections, omitted };
 }
 
+/** Authored targets are grouped into files on the Linked Sources plane. */
+export function sourceVertices(targets: Iterable<Target>): GraphVertex[] {
+  const nodes: GraphVertex[] = [];
+  const files = new Set<string>();
+  for (const target of targets) {
+    const id = target.id;
+    if (!files.has(target.link.file)) {
+      files.add(target.link.file);
+      nodes.push({
+        id: fileId(target.link.file),
+        kind: "file",
+        title: target.link.file.split("/").pop() || target.link.file,
+        subtitle: target.link.file,
+        selection: { kind: "code", id: fileSelectionId(target.link.file) },
+      });
+    }
+    nodes.push({
+      id,
+      kind: "code",
+      parentId: fileId(target.link.file),
+      title: sourceTargetLabel(target.link).label,
+      sourceLink: target.link,
+      subtitle: target.link.file,
+      selection: { kind: "code", id },
+    });
+  }
+  return nodes;
+}
+
 export function selectionRecords(
   index: GraphIndex,
   selection?: GraphSelection,
@@ -200,12 +208,15 @@ export function selectionRecords(
   }
   if (selection.kind === "mapping")
     return { items: [], mappings: [selection.id] };
-  if (selection.kind === "code")
+  if (selection.kind === "code") {
+    const file = fileSelectionPath(selection.id);
     return {
       items: [],
-      mappings:
-        index.targets.get(selection.id)?.mappings.map((m) => m.id) || [],
+      mappings: file
+        ? [...index.mappings.values()].filter(mapping => mapping.link.file === file).map(mapping => mapping.id)
+        : index.targets.get(selection.id)?.mappings.map((m) => m.id) || [],
     };
+  }
   return { items: selection.relationships, mappings: selection.mappings };
 }
 
@@ -247,7 +258,7 @@ export function neighborhood(
       if (c.kind === "relationship") nodes.add(anchorId(c.id));
     }
   }
-  // Include source relationship geometry for code mappings, and expanded code for selected relations.
+  // Include source relationship geometry for code mappings, and source targets for selected relations.
   for (const c of projection.connections)
     if (nodes.has(anchorId(c.id))) {
       edges.add(c.id);

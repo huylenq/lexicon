@@ -28,8 +28,6 @@ export async function readSource(
   }
   throw new Error("Source links require kind code or document.");
 }
-/** Existing endpoint/CLI imports remain valid; dispatch is based on explicit kind. */
-export const readCode = readSource;
 
 function readDocument(text: string, link: DocumentLink): DocumentExcerpt {
   if (link.symbol !== undefined) throw new Error("Document links cannot use symbol targets.");

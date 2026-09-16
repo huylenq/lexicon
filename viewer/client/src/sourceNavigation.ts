@@ -1,10 +1,11 @@
 import { legacySourceTargetId } from "../../shared/model";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { fileSelectionPath, fileSourceLink } from "../../shared/files";
 import type { ReaderSetParams } from "./readerNavigation";
 import type { ReaderOpenMode } from "./readerState";
 import { mappingId, readSelection, type GraphIndex } from "./graph/model";
 
-export type CodeLocation = { target: string; mapping?: string };
+export type SourceLocation = { target: string; mapping?: string };
 
 /** Upgrade shared URLs from either earlier navigation path without losing the reader. */
 export function normalizeNavigation(
@@ -12,6 +13,7 @@ export function normalizeNavigation(
   index: GraphIndex,
 ) {
   const p = new URLSearchParams(params);
+  if (p.get("presentation") === "layers") p.set("presentation", "planes");
   p.delete("canvas"); // Both former renderer links now open the same tldraw canvas.
   const stableMapping = (id: string) => index.legacyMappings.get(id) || id;
   if (p.has("codeMapping")) p.set("codeMapping", stableMapping(p.get("codeMapping")!));
@@ -57,7 +59,7 @@ export function normalizeNavigation(
   return p;
 }
 
-export function codeParams(params: URLSearchParams, location: CodeLocation) {
+export function codeParams(params: URLSearchParams, location: SourceLocation) {
   const p = new URLSearchParams(params);
   p.set("code", location.target);
   location.mapping
@@ -69,10 +71,10 @@ export function codeParams(params: URLSearchParams, location: CodeLocation) {
   return p;
 }
 
-const same = (a?: CodeLocation, b?: CodeLocation) =>
+const same = (a?: SourceLocation, b?: SourceLocation) =>
   a?.target === b?.target && a?.mapping === b?.mapping;
 
-export function useCodeNavigation(
+export function useSourceNavigation(
   params: URLSearchParams,
   setParams: ReaderSetParams,
   index?: GraphIndex,
@@ -92,10 +94,16 @@ export function useCodeNavigation(
   const open =
     normalized.get("codePane") !== "closed" &&
     (!!targetId || normalized.get("codePane") === "open");
-  const target = index?.targets.get(targetId || "");
+  const target = useMemo(() => {
+    const declared = index?.targets.get(targetId || "");
+    if (declared) return declared;
+    const file = fileSelectionPath(targetId || "");
+    if (file) return { id: targetId!, link: fileSourceLink(file),
+      mappings: [...(index?.mappings.values() || [])].filter(mapping => mapping.link.file === file) };
+  }, [index, targetId]);
   const mapping = target?.mappings.find((m) => m.id === mappingId);
   const [history, setHistory] = useState<{
-    entries: CodeLocation[];
+    entries: SourceLocation[];
     cursor: number;
   }>({ entries: [], cursor: -1 });
   // Browser history and old shared links also enter the Code location history.
@@ -113,7 +121,7 @@ export function useCodeNavigation(
     });
   }, [targetId, mappingId, index]);
 
-  const navigate = (next: CodeLocation, readMapping = false, mode: ReaderOpenMode = "preview") => {
+  const navigate = (next: SourceLocation, readMapping = false, mode: ReaderOpenMode = "preview") => {
     const p = codeParams(normalized, next);
     if (readMapping && next.mapping) {
       p.set("selection", JSON.stringify({ kind: "mapping", id: next.mapping }));

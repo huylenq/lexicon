@@ -1,17 +1,17 @@
 import type { Editor, TLBinding, TLShape } from "tldraw";
-import type { ElementDimension } from "../../../shared/model";
+import { type CanvasPlane } from "../graph/planes";
 import { combinedOffset, combinedPage, flatPageIds } from "./combined";
 import { internalWrite, isInternalWrite, isHistoryReplay } from "./internalWrite";
 import { isModelShape } from "./references";
 
 /** Write native edits through to their authored page in the same undo transaction. */
-export function enableCombinedDrawing(editor: Editor, activeLayer: () => ElementDimension) {
+export function enableCombinedDrawing(editor: Editor, activePlane: () => CanvasPlane) {
   // History already contains both the authored records and their mirrors. Replay it
   // verbatim instead of treating restored records as new drawing gestures.
   const isUserEdit = () => editor.getCurrentPageId() === combinedPage &&
     !isInternalWrite(editor) && !isHistoryReplay(editor);
   const onCombined = (shape: TLShape) => editor.getAncestorPageId(shape) === combinedPage;
-  const owner = (shape: TLShape) => shape.meta.combinedDimension as ElementDimension;
+  const owner = (shape: TLShape) => shape.meta.combinedDimension as CanvasPlane;
   const sourceId = (shape: TLShape) => shape.meta.combinedSourceId as TLShape["id"];
   const cleanMeta = (meta: TLShape["meta"]) => {
     const { combinedSourceId, combinedDimension, combinedMirrorId, ...rest } = meta;
@@ -51,7 +51,7 @@ export function enableCombinedDrawing(editor: Editor, activeLayer: () => Element
       if (!isUserEdit() || isModelShape(shape)) return shape;
       const parent = editor.getShape(shape.parentId);
       if (shape.parentId !== combinedPage && (!parent || !onCombined(parent))) return shape;
-      const dimension = activeLayer();
+      const dimension = activePlane();
       const foreignParent = parent && owner(parent) !== dimension;
       const position = foreignParent ? editor.getShapePageTransform(parent).applyToPoint(shape) : shape;
       return { ...shape, x: position.x, y: position.y,

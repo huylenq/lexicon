@@ -28,8 +28,8 @@
     border-radius: 10px;
   }
 
-  .reader .code-pane-heading,
-  .reader .code-controls {
+  .reader .source-reader-heading,
+  .reader .source-controls {
     border-color: var(--pane-rule);
     background: var(--pane-surface);
   }
@@ -43,13 +43,13 @@
     border-radius: 10px;
   }
 
-  .reader .code-pane,
+  .reader .source-reader,
   .reader > .chat-pane {
     border: 1px solid var(--pane-edge);
     border-radius: 10px;
   }
 
-  .reader .code-pane {
+  .reader .source-reader {
     background: var(--pane-surface);
     box-shadow: none;
   }

@@ -29,15 +29,15 @@ All navigation calls include the established `projectId` and `sessionId`. Focus 
 
 Use the viewer acknowledgment to report completion. A timeout or disconnection is not confirmation that the camera moved. Reinspect the session after an uncertain response before retrying. If the session closed or the server restarted, discover the current sessions again; do not redirect a pending action to an unrelated window.
 
-“Show its connections” currently composes item inspection and focus. Do not claim to have applied a neighborhood filter, expanded source, arranged shapes, or styled the canvas unless the connected catalog provides that operation and it succeeds.
+“Show its connections” currently composes item inspection and focus. Do not claim to have applied a neighborhood filter, arranged shapes, or styled the canvas unless the connected catalog provides that operation and it succeeds.
 
 ## Refine through MCP
 
-An explicit model edit request authorizes the scoped change. Exploratory questions receive explanations. Apply the same model contract and semantic review used by the Refine workflow; inspect relevant implementation before adding claims or code links.
+An explicit model edit request authorizes the scoped change. Exploratory questions receive explanations. Apply the same model contract and semantic review used by the Refine workflow; inspect relevant implementation before adding claims or source links.
 
 1. Inspect the current model or item and retain its revision. Use the supplied source root to examine evidence with the caller's permitted source tools; this MCP slice does not expose a source-reading tool.
 2. Use `lexicon_edit` with `projectId`, the inspected `revision`, and one supported action:
-   - `create`: supply `item` with a new stable ID, type, name, description, and required type-specific fields. Omitted annotations and code links default to empty arrays. Relationships require element endpoints; owned elements require their structural parent; flows require valid ordered steps.
+   - `create`: supply `item` with a new stable ID, type, name, description, and required type-specific fields. Omitted annotations and source links default to empty arrays. Relationships require element endpoints; owned elements require their structural parent; flows require valid ordered steps.
    - `update`: supply `itemId` and only the requested `fields`. Omitted fields are preserved. IDs and item types cannot change. A supplied annotations, codeLinks, or steps array replaces that entire array, so preserve all unrelated entries.
 3. Read the receipt. Report saving only after success, retain `changeId` for undo, and use its new revision for a following edit. Include link-check warnings and distinguish structural validity from source-supported correctness.
 4. Inspect the changed item to confirm the resulting meaning and preserved content. If the user asked to see it, navigate the established viewer and report that outcome separately from persistence.

@@ -1,9 +1,11 @@
+import { useExperimentalFiles, setExperimentalFiles } from "./developmentOptions";
 import { useEffect, useRef, useState } from "react";
 import { defaultProjectSettings, type ProjectSettings as Settings } from "../../shared/settings";
 import { request } from "./ui";
 import "./styles/project-settings.css";
 
 export default function ProjectSettings({ projectId, readOnly }: { projectId: string; readOnly?: boolean }) {
+  const experimentalFiles = useExperimentalFiles();
   const dialog = useRef<HTMLDialogElement>(null);
   const [open, setOpen] = useState(false), [ready, setReady] = useState(false);
   const [include, setInclude] = useState(""), [exclude, setExclude] = useState("");
@@ -36,7 +38,7 @@ export default function ProjectSettings({ projectId, readOnly }: { projectId: st
       }}>
         <h2 id="project-settings-title">Project settings</h2>
         <h3>Source files</h3>
-        <p>Choose files for model generation and the Source viewer. Git-ignored files are always excluded. Existing model items and evidence links are preserved.</p>
+        <p>Choose files for model generation and Files browsing. Git-ignored files are always excluded. Existing model items and evidence links are preserved.</p>
         <label>Include globs<textarea autoFocus rows={3} placeholder={"src/**\ndocs/**/*.md"} value={include} disabled={!ready || readOnly || saving} onChange={e => setInclude(e.target.value)} /></label>
         <p>One glob per line, relative to the source root. Leave empty to include all files.</p>
         <label>Exclude globs<textarea rows={3} placeholder={"**/*.test.ts\ngenerated/**"} value={exclude} disabled={!ready || readOnly || saving} onChange={e => setExclude(e.target.value)} /></label>
@@ -51,6 +53,11 @@ export default function ProjectSettings({ projectId, readOnly }: { projectId: st
             setReady(true); setError("");
           }}>Load default filters</button>
         </div>}
+        <details className="development-options">
+          <summary>Development options</summary>
+          <label><input type="checkbox" checked={experimentalFiles} onChange={event => setExperimentalFiles(event.target.checked)} /> Files / File Map</label>
+          <p>Enable the experimental filesystem view. Applies immediately in this browser only.</p>
+        </details>
         <footer><button type="button" className="quiet" onClick={close}>Cancel</button><button type="submit" disabled={!ready || readOnly || saving}>{saving ? "Saving…" : "Save settings"}</button></footer>
       </form>
     </dialog>}

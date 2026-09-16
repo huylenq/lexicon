@@ -13,7 +13,7 @@ import { tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
 import { join, resolve } from "node:path";
 import { loadModel, parseModel, serializeModel, readModelDocument } from "../server/model";
-import { readCode } from "../server/code";
+import { readSource } from "../server/source";
 
 const native = `<lexicon schema="3.2" id="shop"><name>Shop</name><description>Ordering goods.</description>
 <context id="orders"><name>Orders</name><description>Accept customer orders.</description>
@@ -136,7 +136,7 @@ describe("links into source", () => {
         "export interface Order { total: number }\nexport function total() { return 1; }",
       );
       expect(
-        await readCode(dir, {
+        await readSource(dir, {
           kind: "code",
           file: "order.ts",
           symbol: "Order",
@@ -155,11 +155,11 @@ describe("links into source", () => {
         role: "implementation",
         description: "Total",
       };
-      expect((await readCode(dir, link)).status).toBe("ambiguous-symbol");
+      expect((await readSource(dir, link)).status).toBe("ambiguous-symbol");
       expect(
-        await readCode(dir, { ...link, symbol: "Order.total" }),
+        await readSource(dir, { ...link, symbol: "Order.total" }),
       ).toMatchObject({ status: "symbol", startLine: 2, endLine: 3 });
-      expect((await readCode(dir, { ...link, symbol: "missing" })).status).toBe(
+      expect((await readSource(dir, { ...link, symbol: "missing" })).status).toBe(
         "missing-symbol",
       );
     }));
@@ -169,11 +169,11 @@ describe("links into source", () => {
       await writeFile(join(dir, "secret.txt"), "outside");
       await symlink(join(dir, "secret.txt"), join(dir, "project/link.txt"));
       const l = { kind: "code" as const, file: "link.txt", role: "definition", description: "test" };
-      await expect(readCode(join(dir, "project"), l)).rejects.toThrow("root");
+      await expect(readSource(join(dir, "project"), l)).rejects.toThrow("root");
       await writeFile(join(dir, "project/source.txt"), "a\nb");
       expect(
         (
-          await readCode(join(dir, "project"), {
+          await readSource(join(dir, "project"), {
             ...l,
             file: "source.txt",
             line: 2,
@@ -181,11 +181,11 @@ describe("links into source", () => {
         ).status,
       ).toBe("line");
       await expect(
-        readCode(join(dir, "project"), { ...l, file: "source.txt", line: 9 }),
+        readSource(join(dir, "project"), { ...l, file: "source.txt", line: 9 }),
       ).rejects.toThrow("beyond");
       await writeFile(join(dir, "project/source.txt"), "a\0b");
       await expect(
-        readCode(join(dir, "project"), { ...l, file: "source.txt" }),
+        readSource(join(dir, "project"), { ...l, file: "source.txt" }),
       ).rejects.toThrow("binary");
     }));
 

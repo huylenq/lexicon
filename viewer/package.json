@@ -15,7 +15,8 @@
     "test:browser": "playwright test",
     "dev:canvas": "bun scripts/canvas-dev.ts",
     "dev:model": "bun scripts/model-dev.ts",
-    "dev:layers": "bun scripts/layers-dev.ts",
+    "dev:planes": "bun scripts/planes-dev.ts",
+    "dev:layers": "bun scripts/planes-dev.ts",
     "test:canvas": "playwright test --config playwright.canvas.config.ts",
     "mcp": "bun run server/agent/mcp.ts"
   },
@@ -47,6 +48,7 @@
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
+    "material-icon-theme": "5.38.1",
     "typescript": "^5.6.3",
     "vite": "^6.0.3"
   },

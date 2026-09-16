@@ -1,4 +1,5 @@
 import { internalWrite } from "./internalWrite";
+import { combinedLayout } from "./combined";
 import { type Editor, type TLShape, type TLShapeId } from "tldraw";
 import {
   anchorId,
@@ -8,7 +9,6 @@ import {
 } from "../graph/model";
 import {
   arrangeGraph,
-  connectionPath,
   type Box,
   type Layout,
   type Positions,
@@ -19,72 +19,34 @@ import type {
 } from "../../../shared/canvas-schema";
 import { isModelShape, isPrimary, modelShapeId as referenceId } from "./references";
 import { relationshipRoute } from "./routes";
+import { labelBox } from "./route-labels";
 import { createRelationshipRouter, type RelationshipRoute } from "./scene-routing";
 import { connectionLabelWidth, objectFrame, objectSizes } from "./sizing";
 import { contextPreferences, diagramContextFrame, contextLabelFrame, isContext } from "./contexts";
 
-/** Use exact orthogonal hit geometry for relationships; code mappings retain curves. */
+/** Semantic relationships and source links share orthogonal drawing and hit geometry. */
 export function connectionGeometry(
   source: Box,
   target: Box,
   lane: number,
   self: boolean,
   label: string,
-  orthogonal = true,
   obstacles?: Box[],
   routed?: RelationshipRoute,
   labelWidth = Math.min(320, Math.max(90, label.length * 7 + 24)),
 ) {
-  if (orthogonal) {
-    const route = routed || relationshipRoute(source, target, lane, self, obstacles, labelWidth);
-    const x = Math.min(...route.points.map((p) => p.x));
-    const y = Math.min(...route.points.map((p) => p.y));
-    const points = route.points.map((p) => ({ x: p.x - x, y: p.y - y }));
-    return {
-      x, y,
-      props: {
-        path: points.map((p, i) => `${i ? "L" : "M"} ${p.x} ${p.y}`).join(" "),
-        points,
-        labelX: route.x - x,
-        labelY: route.y - y,
-        labelWidth: labelWidth,
-      },
-    };
-  }
-  const route = connectionPath(source, target, lane, self);
-  const numbers = route.path
-    .match(/[-+]?\d*\.?\d+(?:e[-+]?\d+)?/gi)!
-    .map(Number);
-  const points: { x: number; y: number }[] = [];
-  for (let i = 0; i <= 32; i++) {
-    const t = i / 32,
-      u = 1 - t;
-    const axis = (n: number) =>
-      self
-        ? u ** 3 * numbers[n] +
-          3 * u ** 2 * t * numbers[n + 2] +
-          3 * u * t ** 2 * numbers[n + 4] +
-          t ** 3 * numbers[n + 6]
-        : u ** 2 * numbers[n] +
-          2 * u * t * numbers[n + 2] +
-          t ** 2 * numbers[n + 4];
-    points.push({ x: axis(0), y: axis(1) });
-  }
-  const x = Math.min(...points.map((p) => p.x)),
-    y = Math.min(...points.map((p) => p.y));
-  let coordinate = 0;
-  const path = route.path.replace(/[-+]?\d*\.?\d+(?:e[-+]?\d+)?/gi, (n) =>
-    String(Number(n) - (coordinate++ % 2 ? y : x)),
-  );
+  const route = routed || relationshipRoute(source, target, lane, self, obstacles, labelWidth);
+  const x = Math.min(...route.points.map((p) => p.x));
+  const y = Math.min(...route.points.map((p) => p.y));
+  const points = route.points.map((p) => ({ x: p.x - x, y: p.y - y }));
   return {
-    x,
-    y,
+    x, y,
     props: {
-      path,
-      points: points.map((p) => ({ x: p.x - x, y: p.y - y })),
+      path: points.map((p, i) => `${i ? "L" : "M"} ${p.x} ${p.y}`).join(" "),
+      points,
       labelX: route.x - x,
       labelY: route.y - y,
-      labelWidth: labelWidth,
+      labelWidth,
     },
   };
 }
@@ -97,6 +59,7 @@ export function createProjection(
 ) {
   const modelShapeId = (id: string) => referenceId(id, scope);
   const relationshipRouter = createRelationshipRouter();
+  const sourceRouter = createRelationshipRouter();
   let settleRoutes = false;
   let writing = false;
   let generation = 0;
@@ -160,22 +123,30 @@ export function createProjection(
         lane: edge.source < edge.target ? lane : -lane,
         labelWidth: connectionLabelWidth(editor, edge.label) }];
     }), obstacles, incremental);
+    // Source links can originate at a relationship label, so route semantic edges
+    // first. Both passes use the same ports, obstacle avoidance, and label placement.
+    const relationshipLabels = connections.flatMap(edge => {
+      if (edge.kind !== "relationship") return [];
+      const route = routed.get(edge.id);
+      const existing = !route && editor.getShape<ConnectionShape>(modelShapeId(edge.id));
+      // Hidden semantic edges still supply their last label anchor to source links.
+      const position = route || existing && { x: existing.x + existing.props.labelX, y: existing.y + existing.props.labelY };
+      if (!position) return [];
+      const width = connectionLabelWidth(editor, edge.label), id = anchorId(edge.id);
+      anchors.set(id, labelBox(position, width, 0));
+      return route ? [{ id, ...labelBox(route, width) }] : [];
+    });
+    const sourceRoutes = sourceRouter.route(connections.flatMap(edge => {
+      if (edge.kind !== "mapping" || hidden(edge.id)) return [];
+      const source = bounds(edge.source) || anchors.get(edge.source), target = bounds(edge.target);
+      if (!source || !target) return [];
+      const lane = lanes.get(edge.id) || 0;
+      return [{ id: edge.id, sourceId: edge.source, targetId: edge.target, source, target,
+        lane: edge.source < edge.target ? lane : -lane,
+        labelWidth: connectionLabelWidth(editor, edge.label) }];
+    }), [...obstacles, ...relationshipLabels], incremental);
+    for (const [id, route] of sourceRoutes) routed.set(id, route);
     for (const edge of connections) {
-      if (edge.source.startsWith("anchor:")) {
-        const relation = connections.find(
-          (c) => anchorId(c.id) === edge.source,
-        );
-        const shape =
-          relation &&
-          editor.getShape<ConnectionShape>(modelShapeId(relation.id));
-        if (shape)
-          anchors.set(edge.source, {
-            x: shape.x + shape.props.labelX,
-            y: shape.y + shape.props.labelY,
-            width: 1,
-            height: 1,
-          });
-      }
       const a =
         bounds(edge.source) ||
         anchors.get(edge.source);
@@ -188,7 +159,6 @@ export function createProjection(
         edge.source < edge.target ? lane : -lane,
         edge.source === edge.target,
         edge.label,
-        edge.kind === "relationship",
         obstacles.filter(o => o.id !== edge.source && o.id !== edge.target),
         routed.get(edge.id),
         connectionLabelWidth(editor, edge.label),
@@ -196,13 +166,6 @@ export function createProjection(
       const id = modelShapeId(edge.id);
       const shape = editor.getShape<ConnectionShape>(id);
       const props = { graphId: edge.id, ...geometry.props };
-      if (edge.kind === "relationship")
-        anchors.set(anchorId(edge.id), {
-          x: geometry.x + props.labelX,
-          y: geometry.y + props.labelY,
-          width: 1,
-          height: 1,
-        });
       const meta = {
         ...(scope ? { lexiconProjection: scope } : {}),
         lexiconHidden: hidden(edge.id),
@@ -383,6 +346,13 @@ export function createProjection(
         const { reserve } = objectSizes(editor, node.title, node.kind);
         return [node.id, { width: reserve.w, height: reserve.h }];
       }));
+      // File rows share a column width in arrangeGraph. Use that same width
+      // when preserving centers, or shorter labels drift on every projection.
+      for (const file of full.nodes.filter(node => node.kind === "file")) {
+        const rows = full.nodes.filter(node => node.parentId === file.id);
+        const width = Math.max(0, ...rows.map(node => sizes[node.id]?.width || 0));
+        for (const row of rows) if (sizes[row.id]) sizes[row.id].width = width;
+      }
       // Earlier placements and model shapes share parent-relative coordinates.
       // Seed only the first canvas projection; subsequent positions belong to the document.
       const saved: Positions = rearrange ? {} : { ...legacyPositions };
@@ -402,14 +372,15 @@ export function createProjection(
         full.nodes.map((n) => [n.id, n.parentId, sizes[n.id]]),
         full.connections.map((e) => [e.id, e.source, e.target]),
       ]);
-      const arranged =
+      const mirrored = scope === "combined" ? combinedLayout(editor, full.nodes) : undefined;
+      const arranged = mirrored ?? (
         !rearrange && key === layoutKey
           ? structuredClone(layout)
-          : await arrangeGraph(full, saved, sizes, layoutDirection);
+          : await arrangeGraph(full, saved, sizes, layoutDirection));
       if (token !== generation) return false;
       layout = arranged;
       layoutKey = key;
-      if (!rearrange)
+      if (!rearrange && !mirrored)
         for (const node of full.nodes) {
           const existing = editor.getShape<ObjectShape>(modelShapeId(node.id));
           if (!existing) continue;
@@ -472,10 +443,11 @@ export function createProjection(
             existing = editor.getShape<ObjectShape>(id);
           const box = layout[node.id];
           const parentId = node.parentId ? modelShapeId(node.parentId) : pageId;
+          const mirrored = scope === "combined" && existing?.meta.combinedSourceId;
           const props = {
             graphId: node.id,
-            w: box.width,
-            h: box.height,
+            w: mirrored ? existing.props.w : box.width,
+            h: mirrored ? existing.props.h : box.height,
             group: isGroup(node),
           };
           const meta = {
@@ -484,7 +456,7 @@ export function createProjection(
             lexiconLabel: node.title,
           };
           if (!existing && props.group) newGroups.push(id);
-          const position =
+          const position = mirrored ? { x: existing.x, y: existing.y } :
             !rearrange && existing?.parentId === parentId
               ? saved[node.id]
               : { x: box.x, y: box.y };

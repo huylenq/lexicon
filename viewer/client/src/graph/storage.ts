@@ -11,12 +11,11 @@ export type Workspace = GraphOptions & {
   chatWidth: number;
   map?: boolean;
   crossDimensionRelationships?: boolean;
-  drawingLayer?: "domain" | "architecture";
+  drawingPlane?: "domain" | "architecture" | "source";
   atlasSkin?: "ink" | "village";
+  source?: boolean;
 };
 export const defaults = (): Workspace => ({
-  expanded: [],
-  allCode: false,
   positions: {},
   sidebar: true,
   width: 52,
@@ -34,17 +33,14 @@ export function readWorkspace(key: string): Workspace {
   try {
     const value = JSON.parse(localStorage.getItem(key) || "null");
     if (!value || typeof value !== "object") return result;
-    if (Array.isArray(value.expanded))
-      result.expanded = value.expanded.filter(
-        (s: unknown) => typeof s === "string",
-      );
-    for (const name of ["sidebar", "allCode", "map", "crossDimensionRelationships"] as const)
+    for (const name of ["sidebar", "map", "crossDimensionRelationships", "source"] as const)
       if (typeof value[name] === "boolean") result[name] = value[name];
-    if (value.drawingLayer === "domain" || value.drawingLayer === "architecture")
-      result.drawingLayer = value.drawingLayer;
+    value.drawingPlane ??= value.drawingLayer; // Earlier browser preference.
+    if (value.drawingPlane === "domain" || value.drawingPlane === "architecture" || value.drawingPlane === "source")
+      result.drawingPlane = value.drawingPlane;
     if (value.atlasSkin === "ink" || value.atlasSkin === "village")
       result.atlasSkin = value.atlasSkin;
-    if (["all", "domain", "architecture"].includes(value.view))
+    if (["all", "domain", "architecture", "source"].includes(value.view))
       result.view = value.view;
     if (Number.isFinite(value.width))
       result.width = Math.max(25, Math.min(75, value.width));

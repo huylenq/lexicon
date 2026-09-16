@@ -3,7 +3,7 @@ import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
-import { readCode } from "../server/code";
+import { readSource } from "../server/source";
 import { markdownHeadings } from "../server/markdown";
 import { parseModel, serializeModel } from "../server/model";
 import { applyPatch, validateChangedLinks } from "../server/chat/model-edit";
@@ -44,11 +44,11 @@ test("resolver, edit validation, and CLI agree on Markdown heading failures", as
     const before = parseModel(xml());
     const link = before.items[0].codeLinks[0];
     if (link.kind !== "document" || link.line !== undefined) throw new Error("Expected heading fixture");
-    expect(await readCode(root, link)).toMatchObject({ format: 'markdown', status: 'heading', startLine: 3, endLine: 10 });
-    expect(await readCode(root, { ...link, heading: undefined })).toMatchObject({ format: 'markdown', status: 'file' });
-    expect(await readCode(root, { ...link, heading: undefined, line: 5 })).toMatchObject({ status: 'line', startLine: 5 });
-    expect(await readCode(root, { ...link, line: undefined, heading: 'approval-1' })).toMatchObject({ status: 'heading', startLine: 11 });
-    expect(await readCode(root, { ...link, line: undefined, heading: 'absent' })).toMatchObject({ status: 'missing-heading' });
+    expect(await readSource(root, link)).toMatchObject({ format: 'markdown', status: 'heading', startLine: 3, endLine: 10 });
+    expect(await readSource(root, { ...link, heading: undefined })).toMatchObject({ format: 'markdown', status: 'file' });
+    expect(await readSource(root, { ...link, heading: undefined, line: 5 })).toMatchObject({ status: 'line', startLine: 5 });
+    expect(await readSource(root, { ...link, line: undefined, heading: 'approval-1' })).toMatchObject({ status: 'heading', startLine: 11 });
+    expect(await readSource(root, { ...link, line: undefined, heading: 'absent' })).toMatchObject({ status: 'missing-heading' });
     const after = parseModel(xml('heading="absent"'));
     await expect(validateChangedLinks(before, after, root)).rejects.toThrow('missing-heading');
     await writeFile(join(root, 'lexicon/model.xml'), xml('heading="absent"'));
@@ -88,11 +88,11 @@ for (const newline of ['\n', '\r\n', '\r']) {
       expect(markdownHeadings(text).map(h => [h.id, h.startLine, h.endLine]))
         .toEqual([['a', 1, 4], ['b', 3, 4], ['c', 5, 7]]);
       const link = { kind: 'document' as const, file: 'spec.md', role: 'reference', description: 'Source.' };
-      expect(await readCode(root, { ...link, line: undefined, heading: 'c' }))
+      expect(await readSource(root, { ...link, line: undefined, heading: 'c' }))
         .toMatchObject({ text, startLine: 5, endLine: 7, status: 'heading' });
-      expect(await readCode(root, { ...link, line: 5 }))
+      expect(await readSource(root, { ...link, line: 5 }))
         .toMatchObject({ text, startLine: 5, endLine: 5, status: 'line' });
-      await expect(readCode(root, { ...link, line: 8 })).rejects.toThrow('beyond');
+      await expect(readSource(root, { ...link, line: 8 })).rejects.toThrow('beyond');
     } finally { await rm(root, { recursive: true, force: true }); }
   });
 }

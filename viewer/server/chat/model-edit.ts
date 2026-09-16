@@ -12,7 +12,7 @@ import type { Model, ModelItem, ModelProblem } from "../../shared/model";
 import type { ModelPatch } from "../../shared/chat";
 import { parseModel, serializeModel, validateModel, readXml } from "../model";
 export { readXml, modelOrEmpty } from "../model";
-import { readCode } from "../code";
+import { readSource } from "../source";
 
 export const fingerprint = (xml: string | null) =>
   createHash("sha256")
@@ -201,7 +201,7 @@ export async function validateChangedLinks(
   for (const item of after.items)
     for (const link of item.codeLinks) {
       if (existing.has(JSON.stringify(link))) continue;
-      const result = await readCode(codeRoot, link);
+      const result = await readSource(codeRoot, link);
       if (["missing-symbol", "ambiguous-symbol", "missing-heading"].includes(result.status))
         throw new Error(
           `Source link ${link.file}#${link.heading || link.symbol}: ${result.status}.`,

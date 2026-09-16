@@ -36,7 +36,7 @@
   z-index: 2;
 }
 /* Keep the full divider draggable; only the centered grip is painted. */
-:is(.canvas-divider, .code-divider, .chat-divider)::after {
+:is(.canvas-divider, .source-reader-divider, .chat-divider)::after {
   content: "";
   position: absolute;
   top: 50%;
@@ -49,16 +49,16 @@
   transform: translate(-50%, -50%);
   pointer-events: none;
 }
-:is(.canvas-divider, .code-divider, .chat-divider):focus-visible {
+:is(.canvas-divider, .source-reader-divider, .chat-divider):focus-visible {
   outline: none;
 }
-:is(.canvas-divider, .code-divider, .chat-divider):is(:hover, :active, :focus-visible)::after {
+:is(.canvas-divider, .source-reader-divider, .chat-divider):is(:hover, :active, :focus-visible)::after {
   opacity: 1;
 }
-:is(.canvas-divider, .code-divider, .chat-divider):is(:active, :focus-visible)::after {
+:is(.canvas-divider, .source-reader-divider, .chat-divider):is(:active, :focus-visible)::after {
   background: var(--accent);
 }
-:is(.canvas-divider, .code-divider, .chat-divider):focus-visible::after {
+:is(.canvas-divider, .source-reader-divider, .chat-divider):focus-visible::after {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
 }

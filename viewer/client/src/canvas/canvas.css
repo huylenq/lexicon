@@ -1,3 +1,11 @@
+/* Shared by model shapes and the batched Source canvas. */
+:root {
+  --canvas-object-radius: 7px;
+  --canvas-object-font: system-ui, sans-serif;
+  --canvas-group-fill: color-mix(in srgb, var(--soft) 65%, transparent);
+  --canvas-group-border: color-mix(in srgb, var(--muted) 45%, transparent);
+  --canvas-neighbor-accent: color-mix(in srgb, var(--accent) 45%, var(--paper));
+}
 .canvas-top { position: relative; z-index: 600; flex-shrink: 0; }
 .toolbar { position: relative; z-index: 5; }
 .toolbar .toolbar-actions { flex-shrink: 0; }
@@ -46,9 +54,9 @@
 .canvas-pane .tlui-main-toolbar__left { min-width: 0; }
 .canvas-pane .tlui-main-toolbar__tools { overflow-x: auto; }
 .canvas-loading { position: absolute; top: calc(var(--canvas-top-inset, var(--toolbar-height)) + 60px); left: 50%; transform: translateX(-50%); padding: 9px 12px; background: var(--panel); box-shadow: var(--shadow); border-radius: 6px; z-index: 500; font-size: 12px; pointer-events: none; }
-.canvas-object { color: var(--ink); width: 100%; height: 100%; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); font-family: system-ui, sans-serif; }
+.canvas-object { color: var(--ink); width: 100%; height: 100%; border: 1px solid var(--line); border-radius: var(--canvas-object-radius); background: var(--panel); font-family: var(--canvas-object-font); }
 .canvas-object .canvas-object-heading { height: 100%; display: flex; align-items: center; justify-content: center; gap: 5px; padding: 10px; }
-.canvas-object.canvas-group { background: color-mix(in srgb, var(--soft) 65%, transparent); border-color: color-mix(in srgb, var(--muted) 45%, transparent); }
+.canvas-object.canvas-group { background: var(--canvas-group-fill); border-color: var(--canvas-group-border); }
 .canvas-group .canvas-object-heading { height: 44px; padding: 10px 14px; justify-content: space-between; }
 .canvas-object button { pointer-events: auto; background: transparent; border: 0; color: inherit; cursor: pointer; padding: 0; font: inherit; }
 .canvas-object-title { min-width: 0; text-align: left; }
@@ -57,7 +65,7 @@
 .canvas-group .object-name-text { max-width: 220px; }
 .canvas-territory-selection { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
 .canvas-territory-selection path { fill: none; stroke: none; }
-.canvas-object[data-neighbor="true"] { --neighbor-accent: color-mix(in srgb, var(--accent) 45%, var(--paper)); outline: 2px solid var(--neighbor-accent); outline-offset: -2px; }
+.canvas-object[data-neighbor="true"] { --neighbor-accent: var(--canvas-neighbor-accent); outline: 2px solid var(--neighbor-accent); outline-offset: -2px; }
 .canvas-object[data-context-boundary="territory"][data-neighbor="true"] { outline: none; }
 .canvas-object[data-neighbor="true"] .canvas-territory-selection > path:first-child { stroke: var(--neighbor-accent); stroke-width: 2; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
 .canvas-object[data-neighbor="true"] .atlas-region-text { fill: var(--neighbor-accent); }
@@ -79,7 +87,7 @@
 .canvas-save-indicator { flex-shrink: 0; color: var(--muted); font-size: 10px; }
 .canvas-save-indicator[data-save-status="local"], .canvas-save-indicator[data-save-status="conflict"], .canvas-save-indicator[data-save-status="error"] { color: var(--accent); }
 @container (max-width: 420px) { .toolbar { padding-inline: 8px; gap: 4px; } .toolbar .toolbar-actions { gap: 1px; } }
-@container (max-width: 600px) { .toolbar { flex-wrap: wrap; gap: 4px; } .toolbar .toolbar-heading { width: 100%; } .toolbar .toolbar-actions { width: 100%; justify-content: flex-end; } }
+@container (max-width: 600px) { .toolbar { flex-wrap: wrap; gap: 4px; } .toolbar .toolbar-heading { width: 100%; max-width: 100%; } .toolbar-view-controls { max-width: 100%; } .toolbar .toolbar-actions { width: 100%; max-width: 100%; flex-wrap: wrap; justify-content: flex-end; } }
 @container (max-width: 350px) { .toolbar .toolbar-actions { justify-content: space-between; } }
 .workspace-status-bar .model-legend > .canvas-save-indicator { display: inline; }
 
@@ -205,7 +213,7 @@
 .edge-hops-toggle input { accent-color: var(--accent); }
 
 /* The drawing destination stays attached to the native tray in both toolbar positions. */
-.canvas-drawing-layer-badge {
+.canvas-drawing-plane-badge {
   --dimension-color: #7467b8;
   grid-column: 1; grid-row: 2; align-self: center;
   padding: 3px 7px; border: 1px solid transparent;
@@ -213,14 +221,15 @@
   background: transparent; font: 400 11px/16px system-ui, sans-serif;
   white-space: nowrap; pointer-events: none;
 }
-.canvas-drawing-layer-badge[data-dimension="architecture"] { --dimension-color: #238b85; }
+.canvas-drawing-plane-badge[data-dimension="architecture"] { --dimension-color: #238b85; }
+.canvas-drawing-plane-badge[data-dimension="source"] { --dimension-color: #9aab70; }
 
-.tlui-main-toolbar__left:has(> .canvas-drawing-layer-badge) {
+.tlui-main-toolbar__left:has(> .canvas-drawing-plane-badge) {
   display: grid; grid-template-columns: auto auto; align-items: center; column-gap: 6px;
 }
-.tlui-main-toolbar__left:has(> .canvas-drawing-layer-badge) > .tlui-main-toolbar__tools { grid-column: 2; grid-row: 2; }
-.tlui-main-toolbar__left:has(> .canvas-drawing-layer-badge) > .tlui-main-toolbar__extras { grid-column: 2; grid-row: 1; }
-.canvas-docked-tools .tlui-main-toolbar__left:has(> .canvas-drawing-layer-badge) { grid-template-columns: auto auto 34px; }
-.canvas-docked-tools .tlui-main-toolbar__left:has(> .canvas-drawing-layer-badge) > .tlui-main-toolbar__extras { grid-column: 3; grid-row: 1; }
-.canvas-docked-tools .tlui-main-toolbar__left:has(> .canvas-drawing-layer-badge) > .tlui-main-toolbar__tools,
-.canvas-docked-tools .canvas-drawing-layer-badge { grid-row: 1; }
+.tlui-main-toolbar__left:has(> .canvas-drawing-plane-badge) > .tlui-main-toolbar__tools { grid-column: 2; grid-row: 2; }
+.tlui-main-toolbar__left:has(> .canvas-drawing-plane-badge) > .tlui-main-toolbar__extras { grid-column: 2; grid-row: 1; }
+.canvas-docked-tools .tlui-main-toolbar__left:has(> .canvas-drawing-plane-badge) { grid-template-columns: auto auto 34px; }
+.canvas-docked-tools .tlui-main-toolbar__left:has(> .canvas-drawing-plane-badge) > .tlui-main-toolbar__extras { grid-column: 3; grid-row: 1; }
+.canvas-docked-tools .tlui-main-toolbar__left:has(> .canvas-drawing-plane-badge) > .tlui-main-toolbar__tools,
+.canvas-docked-tools .canvas-drawing-plane-badge { grid-row: 1; }

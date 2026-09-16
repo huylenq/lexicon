@@ -12,11 +12,11 @@ Lexicon connects domain meaning, software architecture, and code in one shared m
 
 ## Explore a system
 
-Browse concepts by context, follow relationships, and inspect the source behind each explanation. Search finds domain names and code symbols; code links open the relevant declaration. You can share an address to return to the same item and source link.
+Browse concepts by context, follow relationships, and inspect the source behind each explanation. Search finds model names and source locators; source links open the relevant code or document. You can share an address to return to the same item and source link.
 
-The canvas holds the model alongside notes, drawings, and media. Switch between Diagram and Atlas, expand code links into shared target nodes, or focus on a neighborhood. Layers places Domain above Architecture so you can follow the connections between them. Canvas layout stays separate from model meaning.
+The canvas holds the model alongside notes, drawings, and media. Switch between Diagram and Atlas, focus on a neighborhood, or follow cross-dimension radials to another plane. Linked Sources projects authored source links as shared file and target nodes; these stay off the individual Domain and Architecture planes. Combined brings Domain, Architecture, and Linked Sources into one 2D canvas. The experimental Files / File Map view is available through Project settings → Development options; its standalone LOC-weighted map returns to the previous canvas. Planes places Domain, Architecture, and Linked Sources on separate planes so you can follow their connections. Canvas layout stays separate from model meaning.
 
-Domain concepts draw on DDD, software structure uses C4, and flows show the order of interactions in a scenario. The [viewer guide](viewer/README.md#canvas) covers navigation and saved layouts; [Layers](LAYERS.md) describes that view's current limits.
+Domain concepts draw on DDD, software structure uses C4, and flows show the order of interactions in a scenario. The [viewer guide](viewer/README.md#canvas) covers navigation and saved layouts; [Planes](PLANES.md) describes that view's current limits.
 
 ## Get started
 
@@ -44,11 +44,11 @@ Refresh reloads the current files. Only schema 3.2 is parsed. If a project uses 
 ```text
 project/
   lexicon/
-    model.xml       # domain, software structure, relationships, flows, code links
+    model.xml       # domain, software structure, relationships, flows, source links
     docs/           # project prose; organize it as needed
 ```
 
-Start with one useful question about your codebase and [a minimal model](MODEL.md#minimal-example). Use the names people use when discussing the domain, and explain how those names map to implementation symbols in the code links.
+Start with one useful question about your codebase and [a minimal model](MODEL.md#minimal-example). Use the names people use when discussing the domain, and explain how those names map to implementation symbols in the source links.
 
 You can also add a project folder without a model and open Agent. Ask about the implementation, then request model changes when you're ready. Codex, Grok, and Claude use your local login. Changes are validated and can be undone. See the [conversation guide](viewer/README.md#chat) for details.
 
@@ -119,7 +119,7 @@ bun run typecheck
 bun run build:client
 ```
 
-The runtime contract lives in `viewer/shared/model.ts`; the XML parser and structural checks live in `viewer/server/model.ts`. The client consumes the same types. The server binds to loopback and serves source only through declared model links.
+The runtime contract lives in `viewer/shared/model.ts`; the XML parser and structural checks live in `viewer/server/model.ts`. The client consumes the same types. The server binds to loopback. Declared model links and Files browsing have separate source endpoints; both keep reads within the selected checkout.
 
 The [pre-lean implementation](quarantine/pre-lean-b089f1c/README.md) is preserved as browsable source for future distillation.
 
@@ -127,6 +127,6 @@ MIT licensed. Earlier design history remains in [CHANGELOG.md](CHANGELOG.md) and
 
 ### Document source links
 
-The Sources pane reads implementation code and supporting Markdown documents. Markdown supports rendered and raw views, a heading navigator, and stable owner-local mapping IDs. Existing `<code-link>` XML remains supported; use `heading="section-anchor"` and `role="specification"` to link a documented requirement. See [Source links](MODEL.md#source-links) and the [document source example](examples/document-sources/README.md). Document evidence establishes what is specified, not what is implemented or enforced.
+The Source Reader reads implementation code and supporting Markdown documents. Markdown supports rendered and raw views, a heading navigator, and stable owner-local mapping IDs. Existing `<code-link>` XML remains supported; use `heading="section-anchor"` and `role="specification"` to link a documented requirement. See [Source links](MODEL.md#source-links) and the [document source example](examples/document-sources/README.md). Document evidence establishes what is specified, not what is implemented or enforced.
 
 Source links have an explicit `kind`: `code` for implementation source and symbol lookup, or `document` for written evidence and document navigation. Kind, locator, role, and evidence qualification stay separate; see [Source-link taxonomy](MODEL.md#taxonomy). Schema 3.2 models require migration from earlier versions.

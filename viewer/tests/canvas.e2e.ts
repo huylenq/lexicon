@@ -231,7 +231,7 @@ test("radial neighbors allow pointer transfer, show names, and navigate without 
   await expect(card(page, 'total-calculator')).toHaveAttribute('data-selected', 'true');
 
   await page.getByRole('button', { name: 'component: Total Calculator', exact: true }).hover();
-  await expect(ring.locator('[data-radial-node]')).toHaveCount(2);
+  await expect(ring.locator('[data-radial-node^="item:"]')).toHaveCount(2);
   await ring.getByRole('button', { name: 'Go to Order Total', exact: true }).click();
   await expect(page.getByRole('radio', { name: 'Domain', exact: true })).toBeChecked();
   await expect(card(page, 'order-total')).toHaveAttribute('data-selected', 'true');
@@ -269,25 +269,25 @@ test("radial names remeasure after a rename and viewport resize", async ({ page 
   await expect.poll(async () => (await label.boundingBox())!.width).toBeGreaterThan(300);
 });
 
-for (const skin of ["Atlas · Ink", "Atlas · Village", "Layers"]) test(`radial neighbors respect ${skin}`, async ({ page }) => {
+for (const skin of ["Atlas · Ink", "Atlas · Village", "Planes"]) test(`radial neighbors respect ${skin}`, async ({ page }) => {
   await open(page);
   await page.getByRole("radio", { name: "Domain", exact: true }).check();
   await page.getByRole("button", { name: "Toggle reader", exact: true }).click();
   await page.getByRole("button", { name: "Use dark theme", exact: true }).click();
-  await page.getByRole("radio", { name: skin, exact: true }).check();
-  await expect(page.locator(skin === "Layers" ? '.layers-stage[data-ready="true"]' : '.canvas-stage[data-ready="true"]')).toBeVisible();
+  await page.getByRole("radio", { name: skin, exact: true }).click();
+  await expect(page.locator(skin === "Planes" ? '.planes-stage[data-ready="true"]' : '.canvas-stage[data-ready="true"]')).toBeVisible();
   await page.getByRole("button", { name: "Highlight neighbors on selection", exact: true }).click();
   const order = page.getByRole("button", { name: "concept: Order", exact: true });
   await order.focus(); await order.press("Enter");
   await page.mouse.move(0, 0);
   const ring = page.getByRole('group', { name: 'Cross-dimension neighbors', exact: true });
   const icon = ring.getByRole('button', { name: 'Go to Total Calculator', exact: true });
-  if (skin === 'Layers') {
+  if (skin === 'Planes') {
     await order.hover();
     await expect(card(page, 'order')).toHaveAttribute('data-selected', 'true');
     await expect(card(page, 'total-calculator')).toBeVisible();
     await expect(ring).toHaveCount(0);
-    await page.getByRole('radio', { name: '2D', exact: true }).check();
+    await page.getByRole('radio', { name: '2D', exact: true }).click();
     await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
     await order.hover();
     await expect(icon).toBeVisible();
@@ -444,8 +444,8 @@ test("dragging an item or relationship label moves it without opening the reader
 
 test("mouse wheel zooms the canvas instead of panning vertically", async ({ page }) => {
   await open(page);
-  const layer = page.locator(".tl-html-layer");
-  const zoom = () => layer.evaluate((element) => {
+  const plane = page.locator(".tl-html-layer");
+  const zoom = () => plane.evaluate((element) => {
     const transform = (element as HTMLElement).style.transform;
     const match = transform.match(/scale\(([^)]+)\)/);
     if (!match) throw new Error(`Unexpected canvas transform: ${transform}`);
@@ -554,16 +554,17 @@ test("selection movement preserves spacing and notes while the context follows d
 });
 
 test("clearing native selection survives projection changes and browser history restores explicit navigation", async ({ page }) => {
+  await writeFile(join(root, "lexicon/model.xml"), original.replace("the lines whose prices", "the [[order-line|Order Line]] records whose prices"));
   await open(page);
   await page.getByRole("button", { name: "concept: Order", exact: true }).click();
   const group = (await card(page, "ordering").boundingBox())!;
   await page.mouse.click(group.x - 20, group.y + 80);
   await expect.poll(() => selectedObjects(page)).toEqual([]);
   await expect(page.locator("[data-reader-card].active")).toHaveAttribute("data-reader-card", "item:order");
-  await page.getByRole("button", { name: "Show all sources", exact: true }).click();
+  await page.getByRole("radio", { name: "Combined", exact: true }).check();
   await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
   await expect.poll(() => selectedObjects(page)).toEqual([]);
-  await page.getByRole("button", { name: "All sources shown", exact: true }).click();
+  await page.getByRole("radio", { name: "Domain", exact: true }).check();
   await page.getByRole("button", { name: "Refresh", exact: true }).click();
   await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
   await expect.poll(() => selectedObjects(page)).toEqual([]);
@@ -593,7 +594,7 @@ test("project links open one tldraw canvas with Diagram and Atlas modes and a st
   const stage = page.locator(".canvas-stage");
   const before = await stage.boundingBox();
   const toolbar = page.locator(".toolbar");
-  for (const [label, icon] of [["Fit model", "fit"], ["Locate", "locate"], ["Show all sources", "code"], ["Arrange", "graph"]]) {
+  for (const [label, icon] of [["Fit model", "fit"], ["Locate", "locate"], ["Arrange", "graph"]]) {
     await expect(toolbar.getByRole("button", { name: label, exact: true }).locator("use")).toHaveAttribute("href", `/icons.svg#${icon}`);
   }
   await page.getByRole("button", { name: "concept: Order", exact: true }).click();
@@ -626,11 +627,11 @@ test("project links open one tldraw canvas with Diagram and Atlas modes and a st
     await expect(page).toHaveURL(new RegExp(`/p/${projectId}\\?item=order$`));
   }
   await page.setViewportSize({ width: 1024, height: 900 });
-  await page.getByRole("button", { name: "Toggle source workspace", exact: true }).click();
+  await page.getByRole("button", { name: "Toggle Source Reader", exact: true }).click();
   const paneBox = (await toolbar.boundingBox())!;
   const actionsBox = (await toolbar.locator(".toolbar-actions").boundingBox())!;
   expect(actionsBox.x + actionsBox.width).toBeLessThanOrEqual(paneBox.x + paneBox.width);
-  await page.getByRole("button", { name: "Toggle source workspace", exact: true }).click();
+  await page.getByRole("button", { name: "Toggle Source Reader", exact: true }).click();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole("button", { name: "Toggle reader", exact: true }).click();
   await expect(toolbar.getByRole("button", { name: "Arrange", exact: true })).toBeVisible();
@@ -643,22 +644,14 @@ test("project links open one tldraw canvas with Diagram and Atlas modes and a st
   await expect(page.getByRole("button", { name: "Agent", exact: true })).toBeVisible();
 });
 
-test("model context actions toggle all code owned by a context and restore the camera after Focus", async ({ page }) => {
+test("model context actions focus and restore the camera without source expansion", async ({ page }) => {
   await open(page);
   const camera = () => page.locator(".tl-html-layer").evaluate((element) => (element as HTMLElement).style.transform);
   const context = page.getByRole("button", { name: "context: Ordering", exact: true });
   await context.click({ button: "right" });
-  await page.getByRole("menuitem", { name: "Expand sources", exact: true }).click();
-  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
-  await expect(page.locator(".model-count")).toHaveText("3 concepts · 3 code");
-  await context.click({ button: "right" });
-  await page.getByRole("menuitem", { name: "Hide sources", exact: true }).click();
-  await expect(page.locator(".model-count")).toHaveText("3 concepts · 0 code");
-  await page.getByRole("button", { name: "concept: Order", exact: true }).click();
-  await page.locator("[data-reader-card].active").getByRole("button", { name: "Toggle sources in canvas", exact: true }).click();
-  await expect(page.locator(".model-count")).toHaveText("3 concepts · 1 code");
-  await page.locator("[data-reader-card].active").getByRole("button", { name: "Toggle sources in canvas", exact: true }).click();
-  await expect(page.locator(".model-count")).toHaveText("3 concepts · 0 code");
+  await expect(page.getByRole("menuitem", { name: "Show source links", exact: true })).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await expect(page.locator('.canvas-card[data-model-id^="code:"]')).toHaveCount(0);
   const area = (await page.locator(".canvas-stage").boundingBox())!;
   await page.getByRole("button", { name: /^Hand —/ }).click();
   await page.mouse.move(area.x + 50, area.y + 120);
@@ -808,14 +801,15 @@ test("model references preserve context, relationship, code, history, and search
   await page.goBack();
   await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Order");
   await page.goForward();
-  await page.locator("[data-reader-card].active").getByRole("button", { name: "Toggle sources in canvas", exact: true }).click();
+  await page.getByRole("radio", { name: "Linked Sources", exact: true }).check();
   await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
   await page.getByRole("button", { name: "Fit model", exact: true }).click();
   await page.getByRole("button", { name: "code: Order", exact: true }).click();
-  await expect(page.locator("#code-pane")).toContainText("checkout.ts");
-  await expect(page.locator("#code-pane")).toContainText("lines");
-  await page.getByRole("button", { name: "Toggle source workspace", exact: true }).click();
+  await expect(page.locator("#source-reader")).toContainText("checkout.ts");
+  await expect(page.locator("#source-reader")).toContainText("lines");
+  await page.getByRole("button", { name: "Toggle Source Reader", exact: true }).click();
   await page.getByRole("button", { name: "Toggle navigation", exact: true }).click();
+  await page.getByRole("radio", { name: "Domain", exact: true }).check();
   await page.getByRole("textbox", { name: "Search model" }).fill("Order Line");
   await expect(page.locator('[data-model-id="item:order"]')).toHaveClass(/canvas-dimmed/);
   await expect(page.locator('[data-model-id="item:order-line"]')).not.toHaveClass(/canvas-dimmed/);
@@ -977,8 +971,8 @@ test("narrow screens, dark theme, and unavailable code remain usable", async ({ 
   await page.getByRole("button", { name: "concept: Order", exact: true }).click();
   await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Order");
   await writeFile(join(root, "checkout.ts"), "// Declaration intentionally missing for error-state QA.");
-  await page.locator("main [data-reader-card].active .code-links button").first().click();
-  await expect(page.locator("#code-pane")).toContainText(/not found|missing|could not/i);
+  await page.locator("main [data-reader-card].active .source-links button").first().click();
+  await expect(page.locator("#source-reader")).toContainText(/not found|missing|could not/i);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
 });
 

@@ -6,7 +6,7 @@ import type { ReaderOpenMode } from "../readerState";
 
 export type CanvasCommand = {
   sequence: number;
-  action: "locate" | "expand" | "fit";
+  action: "locate" | "fit" | "reveal-file";
   selection: GraphSelection;
   expiresAt?: number;
   signal?: AbortSignal;
@@ -29,6 +29,6 @@ export type CanvasPaneProps = {
   matches: string[];
   onSelect: (selection: GraphSelection, mode?: ReaderOpenMode) => void;
   onClearSelection: () => void;
-  onNavigateDimension: (id: string, from: string) => void;
+  onNavigatePlane: (selection: GraphSelection, from: GraphSelection, presentation?: "planes") => void;
   command?: CanvasCommand;
 };

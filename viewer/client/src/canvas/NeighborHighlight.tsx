@@ -37,8 +37,8 @@ function highlightAnchors(editor: Editor, includeHeld = true): (ObjectShape | Co
 export function neighborAnchors(editor: Editor, includeHeld = true): ObjectShape[] {
   return highlightAnchors(editor, includeHeld).filter((shape): shape is ObjectShape => shape.type === "lexicon-object");
 }
-export function neighborEdges(editor: Editor): ConnectionShape[] {
-  return highlightAnchors(editor).filter((shape): shape is ConnectionShape => shape.type === "lexicon-connection");
+export function neighborEdges(editor: Editor, includeHeld = true): ConnectionShape[] {
+  return highlightAnchors(editor, includeHeld).filter((shape): shape is ConnectionShape => shape.type === "lexicon-connection");
 }
 export function isNeighborConnection(editor: Editor, connection?: GraphConnection) {
   return !!connection && neighborAnchors(editor).some(shape =>

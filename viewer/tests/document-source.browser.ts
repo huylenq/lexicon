@@ -19,13 +19,13 @@ test("documents retain source identity through headings, history, search, canvas
   const errors: string[] = [], remote: string[] = [];
   page.on('pageerror', e => errors.push(e.message));
   page.on('request', r => { if (r.url().includes('document-source.invalid')) remote.push(r.url()); });
-  const pane = page.getByRole('complementary', { name: 'Source workspace' });
+  const pane = page.getByRole('complementary', { name: 'Source Reader' });
   const active = page.locator('main [data-reader-card].active');
   await page.goto(`/p/${project.id}`);
   await active.getByRole('button').filter({ hasText: 'Ordering' }).click();
   await expect(active.locator('> header h1')).toHaveText('Ordering');
   await page.locator('.sidebar .nav-item').filter({ has: page.getByText('Order', { exact: true }) }).click();
-  await active.locator('.code-links button').filter({ hasText: 'approval-policy' }).click();
+  await active.locator('.source-links button').filter({ hasText: 'approval-policy' }).click();
   await expect(pane.getByRole('table')).toBeVisible();
   await expect(pane.locator('[data-heading="approval-policy"]')).toHaveAttribute('data-selected', 'true');
   const section = pane.locator('.document-selected-section');
@@ -61,26 +61,26 @@ test("documents retain source identity through headings, history, search, canvas
   await expect(pane.getByRole('heading', { name: 'Audit details' })).toBeVisible();
   await expect(pane.locator('script, img, a[href^="javascript:"]')).toHaveCount(0);
   expect(remote).toEqual([]);
-  await active.locator('.code-links button').filter({ hasText: 'order.ts' }).click();
+  await active.locator('.source-links button').filter({ hasText: 'order.ts' }).click();
   await expect(pane.getByLabel('Source code')).toContainText('export interface Order');
   await pane.getByRole('button', { name: 'Previous source location' }).click();
   await expect(pane.getByLabel('Document content')).toBeVisible();
   expect(new URL(page.url()).searchParams.get('code')).toBe(target);
   await page.reload();
   await expect(pane.getByLabel('Document heading')).toHaveValue('approval-policy');
-  await pane.getByRole('button', { name: 'Close source pane' }).click();
+  await pane.getByRole('button', { name: 'Close Source Reader' }).click();
   await page.getByRole('textbox', { name: 'Search model' }).fill('audit-details');
   await page.locator('.sidebar .nav-item').filter({ hasText: 'Review Decision' }).click();
   await expect(active.locator('> header h1')).toHaveText('Review Decision');
   await page.getByRole('textbox', { name: 'Search model' }).fill('');
-  await active.getByRole('link', { name: 'Read relationship: requires review under the approval policy' }).click();
-  await active.locator('.code-links button').click();
+  await page.getByRole('button', { name: 'Read relationship: requires review under the approval policy', exact: true }).click();
+  await active.locator('.source-links button').click();
   await expect(pane.getByLabel('Document heading')).toHaveValue('review-limits');
-  await pane.getByRole('button', { name: 'Close source pane' }).click();
+  await pane.getByRole('button', { name: 'Close Source Reader' }).click();
   await page.goto(`/p/${project.id}?item=order`);
   await page.getByRole('radio', { name: 'Standard', exact: true }).check();
-  await active.getByRole('button', { name: 'Toggle sources in canvas' }).click();
-  await expect(page.locator('.canvas-card[data-model-id^="code:"]')).toHaveCount(2);
+  await page.getByRole('radio', { name: 'Linked Sources', exact: true }).check();
+  await expect(page.locator('.canvas-card[data-model-id^="code:"]').first()).toBeVisible();
   await page.getByRole('button', { name: 'Fit model', exact: true }).click();
   const docNode = page.locator('.canvas-card[data-model-id^="code:"]').filter({ hasText: 'approval-policy' }).locator('.canvas-object-title');
   await docNode.focus();
@@ -105,13 +105,13 @@ test("missing document headings remain readable and dismissible", async ({ page,
     const response = await request.post('/api/projects', { data: { root: missingRoot } });
     const project = await response.json();
     await page.goto(`/p/${project.id}?item=order`);
-    await page.locator('main [data-reader-card].active .code-links button').first().click();
-    const pane = page.getByRole('complementary', { name: 'Source workspace' });
+    await page.locator('main [data-reader-card].active .source-links button').first().click();
+    const pane = page.getByRole('complementary', { name: 'Source Reader' });
     await expect(pane.getByRole('status')).toContainText('linked heading was not found');
     await expect(pane.getByLabel('Document content')).toContainText('Approval policy');
     await pane.getByLabel('Document heading').selectOption('audit-details');
     await expect(pane.locator('[data-heading="audit-details"]')).toHaveAttribute('data-selected', 'true');
-    await pane.getByRole('button', { name: 'Close source pane' }).click();
+    await pane.getByRole('button', { name: 'Close Source Reader' }).click();
     await expect(pane).toBeHidden();
   } finally { await rm(missingRoot, { recursive: true, force: true }); }
 });
@@ -129,22 +129,22 @@ test("switching document targets replaces mapped-from rows instead of accumulati
     expect(response.ok()).toBeTruthy();
     const project = await response.json();
     await page.goto(`/p/${project.id}?item=order`);
-    const pane = page.getByRole('complementary', { name: 'Source workspace' });
-    const links = page.locator('main [data-reader-card].active .code-links button');
+    const pane = page.getByRole('complementary', { name: 'Source Reader' });
+    const links = page.locator('main [data-reader-card].active .source-links button');
     const checkTarget = async (heading: string, owners: string[]) => {
       await expect(pane.getByLabel('Document heading')).toHaveValue(heading);
-      await expect(pane.locator('.code-mappings')).toHaveCount(1);
-      await expect(pane.locator('.code-mappings summary')).toHaveText(`Mapped from · ${owners.length}`);
+      await expect(pane.locator('.source-mappings')).toHaveCount(1);
+      await expect(pane.locator('.source-mappings summary')).toHaveText(`Mapped from · ${owners.length}`);
       await expect(pane.locator('.mapping-owner')).toHaveText(owners);
       await expect(pane.getByLabel('Document content')).toHaveCount(1);
     };
     for (let i = 0; i < 4; i++) {
       await links.filter({ hasText: 'approval-policy' }).click();
       await checkTarget('approval-policy', ['Order']);
-      await pane.locator('.code-mappings summary').click();
+      await pane.locator('.source-mappings summary').click();
       await links.filter({ hasText: 'audit-details' }).click();
       await checkTarget('audit-details', ['Order', 'Review Decision']);
-      await expect(pane.locator('.code-mappings')).not.toHaveAttribute('open', '');
+      await expect(pane.locator('.source-mappings')).not.toHaveAttribute('open', '');
     }
     await pane.getByRole('button', { name: 'Previous source location' }).click();
     await checkTarget('approval-policy', ['Order']);
@@ -152,7 +152,7 @@ test("switching document targets replaces mapped-from rows instead of accumulati
     await checkTarget('audit-details', ['Order', 'Review Decision']);
     await links.filter({ hasText: 'order.ts' }).click();
     await expect(pane.getByLabel('Source code')).toBeVisible();
-    await expect(pane.locator('.code-mappings')).toHaveCount(1);
+    await expect(pane.locator('.source-mappings')).toHaveCount(1);
     await pane.getByRole('button', { name: 'Previous source location' }).click();
     await checkTarget('audit-details', ['Order', 'Review Decision']);
   } finally { await rm(switchingRoot, { recursive: true, force: true }); }
@@ -176,16 +176,16 @@ for (const { label, newline, selector, raw } of [
       const response = await request.post('/api/projects', { data: { root: hiddenRoot } });
       const project = await response.json();
       await page.goto(`/p/${project.id}?item=order`);
-      const pane = page.getByRole('complementary', { name: 'Source workspace', includeHidden: true });
-      await page.locator('main [data-reader-card].active .code-links button').first().click();
+      const pane = page.getByRole('complementary', { name: 'Source Reader', includeHidden: true });
+      await page.locator('main [data-reader-card].active .source-links button').first().click();
       const scroller = () => pane.getByLabel(raw ? 'Document source text' : 'Document content', { exact: true });
       const target = () => pane.locator(raw ? '[data-source-line="163"]' : '[data-heading="distant-section"]');
       await expect(scroller()).toBeVisible();
-      await pane.getByRole('button', { name: 'Close source pane' }).click();
+      await pane.getByRole('button', { name: 'Close Source Reader' }).click();
       await page.reload();
       await expect(scroller()).toBeAttached();
       await expect(pane).toBeHidden();
-      await page.getByRole('button', { name: 'Toggle source workspace' }).click();
+      await page.getByRole('button', { name: 'Toggle Source Reader' }).click();
       await expect(scroller()).toBeVisible();
       await expect.poll(async () => {
         const box = await target().boundingBox(), viewport = await scroller().boundingBox();
@@ -194,8 +194,8 @@ for (const { label, newline, selector, raw } of [
       if (raw) await expect(target().locator('code')).toHaveText('## Distant section');
       // Once initialized, reopening must preserve the user's subsequent scroll.
       const readingPosition = await scroller().evaluate(el => { el.scrollTop += 300; return el.scrollTop; });
-      await pane.getByRole('button', { name: 'Close source pane' }).click();
-      await page.getByRole('button', { name: 'Toggle source workspace' }).click();
+      await pane.getByRole('button', { name: 'Close Source Reader' }).click();
+      await page.getByRole('button', { name: 'Toggle Source Reader' }).click();
       await expect.poll(() => scroller().evaluate(el => el.scrollTop)).toBe(readingPosition);
     } finally { await rm(hiddenRoot, { recursive: true, force: true }); }
   });
@@ -211,21 +211,21 @@ test('code and document links to the same path have independent selection and re
     const response = await request.post('/api/projects', { data: { root: taxonomyRoot } });
     const project = await response.json();
     await page.goto(`/p/${project.id}?item=order`);
-    const pane = page.getByRole('complementary', { name: 'Source workspace' });
-    const links = page.locator('main [data-reader-card].active .code-links button');
+    const pane = page.getByRole('complementary', { name: 'Source Reader' });
+    const links = page.locator('main [data-reader-card].active .source-links button');
     for (let i = 0; i < 2; i++) {
       await links.filter({ has: page.getByRole('img', { name: 'Document', exact: true }) }).filter({ hasText: 'reference' }).click();
       await expect(pane.getByLabel('Document source text')).toContainText('export interface Order');
       await expect(pane.getByLabel('Source code', { exact: true })).toHaveCount(0);
       await expect(pane.locator('.tok-keyword')).toHaveCount(0);
-      await expect(page.locator('main [data-reader-card].active .code-links button.selected')).toHaveCount(1);
+      await expect(page.locator('main [data-reader-card].active .source-links button.selected')).toHaveCount(1);
       const documentTarget = new URL(page.url()).searchParams.get('code');
       await links.filter({ has: page.getByRole('img', { name: 'Code', exact: true }) }).filter({ hasText: 'representation' }).click();
       await expect(pane.getByLabel('Source code', { exact: true })).toContainText('export interface Order');
       await expect(pane.getByLabel('Document source text')).toHaveCount(0);
       expect(await pane.locator('.tok-keyword').count()).toBeGreaterThan(0);
       expect(new URL(page.url()).searchParams.get('code')).not.toBe(documentTarget);
-      await expect(page.locator('main [data-reader-card].active .code-links button.selected')).toHaveCount(1);
+      await expect(page.locator('main [data-reader-card].active .source-links button.selected')).toHaveCount(1);
     }
   } finally { await rm(taxonomyRoot, { recursive: true, force: true }); }
 });

@@ -1,3 +1,9 @@
+import { isCrossPlaneRelationship, selectionPlane } from "../graph/planeNeighbors";
+import { SourceSearch } from "../source/SourceSearch";
+import { sourceFiles } from "../source/targets";
+import { useExperimentalFiles } from "../developmentOptions";
+import { canvasPlanes, planeLabel } from "../graph/planes";
+import { canvasOptions } from "./options";
 import { paneShortcutOverrides } from "./paneShortcutOverrides";
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -27,10 +33,11 @@ import type { CanvasPaneProps } from "./types";
 import Icon from "../Icon";
 import ModelLegend from "../ModelLegend";
 import { Toolbar, CanvasButton } from "./Toolbar";
+import { FilesButton } from "../source/FilesButton";
+import { sourceSelectionId } from "../source/view";
 import { CanvasViewControls } from "./CanvasViewControls";
 import { DockedToolbar, ToolbarDock } from "./DockedToolbar";
 import { resolveCanvasView, withCanvasSkin, type CanvasView } from "./viewState";
-import { codeOwners } from "../graph/actions";
 import { CanvasActions, CanvasContextMenu } from "./CanvasContextMenu";
 import {
   indexModel,
@@ -43,7 +50,7 @@ import {
   LexiconNoteBindingUtil,
   LexiconObjectUtil,
 } from "./shapes";
-import { openFlatPage, flatPageIds, separateDimensions } from "./combined";
+import { openFlatPage, flatPageIds, separateDimensions, placeNewLinkedSources, projectionScope } from "./combined";
 import { enableCombinedDrawing } from "./combinedEditing";
 import { syncCombined } from "./combined";
 import { createProjection } from "./projection";
@@ -56,7 +63,7 @@ import { canvasThemes, syncCanvasTheme } from "./theme";
 import { MapStylePanel } from "./terrain/InkMap";
 import { EdgeAppearance } from "./EdgeAppearance";
 import { NeighborHighlight } from "./NeighborHighlight";
-import { CombinedBackground, CombinedHandles, CombinedDrawingLayer } from "./CombinedBackground";
+import { CombinedBackground, CombinedHandles, CombinedDrawingPlane } from "./CombinedBackground";
 import { RadialNeighbors } from "./RadialNeighbors";
 import { MinimapGroups } from "./MinimapGroups";
 import { useSyncCanvasPresentation } from "./presentation";
@@ -67,7 +74,6 @@ const shapeUtils = [LexiconObjectUtil, LexiconConnectionUtil];
 const overlayUtils = [MinimapGroups];
 const bindingUtils = [LexiconNoteBindingUtil];
 const assetUrls = getAssetUrlsByImport();
-const tldrawOptions = { camera: { wheelBehavior: "zoom" as const } };
 const overrides = {
   ...paneShortcutOverrides,
   translations: {
@@ -75,8 +81,6 @@ const overrides = {
       "tool.lexicon-object": "Model reference",
       "tool.lexicon-connection": "Model relationship",
       "lexicon.focus": "Focus",
-      "lexicon.expand-code": "Expand sources",
-      "lexicon.hide-code": "Hide sources",
     },
   },
 };
@@ -107,33 +111,59 @@ const visibility = (shape: TLShape) =>
 const selectionKey = (selection?: GraphSelection) =>
   JSON.stringify(selection || null);
 
-const LayersCanvas = lazy(() => import("../layers/LayeredCanvas"));
+const PlanesCanvas = lazy(() => import("../planes/PlanesCanvas"));
+const FilesPane = lazy(() => import("../source/FilesPane"));
 
 export default function CanvasPane(input: CanvasPaneProps) {
+  const experimentalFiles = useExperimentalFiles();
   const view = resolveCanvasView(input.model, input.workspace);
+  const linkedIndex = useMemo(() => indexModel(input.model), [input.model]);
   const props: CanvasPaneProps = { ...input, workspace: { ...input.workspace, view: view.dimension } };
   const [params, setParams] = useSearchParams();
-  const layered = params.get("presentation") === "layers";
-  const present = (layers: boolean) => setParams(previous => {
+  const planes = ["planes", "layers"].includes(params.get("presentation") || "");
+  const browsing = experimentalFiles && (params.get("files") === "1" || params.get("repository") === "1");
+  const present = (planes: boolean) => setParams(previous => {
     const next = new URLSearchParams(previous);
-    if (layers) next.set("presentation", "layers"); else next.delete("presentation");
+    if (planes) next.set("presentation", "planes"); else next.delete("presentation");
     return next;
   });
-  // Code expansion uses the flat canvas's existing code graph.
+  // Linked targets belong to Source; unlinked files remain in Files browsing.
   useEffect(() => {
-    if (layered && props.command && (props.command.action === "expand" || props.command.selection.kind !== "item")) present(false);
+    if (!props.command) return;
+    if (props.command.selection.kind === "code" || props.command.selection.kind === "mapping") {
+      if (props.command.action === "reveal-file" && !experimentalFiles) { props.command.complete?.("Enable Files / File Map in Development options."); return; }
+      const linked = props.command.action !== "reveal-file" && !!sourceSelectionId(linkedIndex, props.command.selection);
+      if (linked) props.setWorkspace(w => ({ ...w, source: true }));
+      // An unchanged URL must keep its history state, including a hovered radial origin.
+      if (linked ? params.has("files") || params.has("repository") : params.get("files") !== "1" || params.has("repository")) {
+        setParams(previous => {
+          const next = new URLSearchParams(previous);
+          next.delete("repository");
+          if (linked) next.delete("files"); else next.set("files", "1");
+          return next;
+        });
+      }
+    }
+    else if (props.command.selection.kind === "item") {
+      if (browsing) setParams(previous => { const next = new URLSearchParams(previous); next.delete("repository"); next.delete("files"); return next; });
+      if (planes) return;
+      const id = props.command.selection.id, item = props.model.items.find(item => item.id === id);
+      props.setWorkspace(w => ({ ...w, source: false, view: !w.source && w.view === "all" ? "all" : item && dimensionOf(item) || w.view }));
+    }
   }, [props.command?.sequence]);
-  const mapEnabled = !layered && view.skin !== "standard";
+  const mapEnabled = !browsing && !planes && view.skin !== "standard";
   return <section className="canvas-pane" aria-label="Model canvas" data-map={mapEnabled}
-    data-presentation={layered ? "layers" : "flat"}
+    data-presentation={browsing ? "files" : planes ? "planes" : "flat"}
     data-atlas-skin={props.workspace.atlasSkin ?? "ink"}>
-    {layered
-      ? <Suspense fallback={<p className="canvas-loading" role="status">Opening layers…</p>}><LayersCanvas {...props} onFlat={() => present(false)} /></Suspense>
-      : <FlatCanvasPane {...props} view={view} onLayers={() => present(true)} />}
+    {browsing
+      ? <Suspense fallback={<p className="canvas-loading" role="status">Opening Files…</p>}><FilesPane {...props} /></Suspense>
+      : planes
+      ? <Suspense fallback={<p className="canvas-loading" role="status">Opening planes…</p>}><PlanesCanvas {...props} onFlat={() => present(false)} /></Suspense>
+      : <FlatCanvasPane {...props} view={view} onPlanes={() => present(true)} />}
   </section>;
 }
 
-function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: () => void }) {
+function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onPlanes: () => void }) {
   const [searchParams] = useSearchParams();
   const {
     model,
@@ -155,7 +185,9 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
     null,
   );
   const [loading, setLoading] = useState(true);
+  const [appliedProjection, setAppliedProjection] = useState({ view: "", revision: 0 });
   const [importing, setImporting] = useState(false);
+  const [sourceQuery, setSourceQuery] = useState("");
   const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
   const [focus, setFocus] = useState<GraphSelection>();
@@ -192,6 +224,7 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
   const echo = useRef<string>();
   const appliedNavigation = useRef<string>();
   const syncing = useRef(false);
+  const projectingModel = useRef(true);
   const initialFit = useRef(false);
   const rearrangeNext = useRef(false);
   const pendingLocate = useRef<GraphSelection>();
@@ -200,9 +233,10 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
   const restoreCamera = useRef<{ x: number; y: number; z: number }>();
   const pendingCamera = useRef<{ x: number; y: number; z: number }>();
   const index = useMemo(() => indexModel(model), [model]);
+  const linkedSearch = useMemo(() => ({ index, files: sourceFiles(index) }), [index]);
   const preparedCombinedSources = useRef<typeof index>();
   const full = useMemo(
-    () => projectGraph(index, { expanded: [], allCode: true }),
+    () => projectGraph(index, { view: "all" }),
     [index],
   );
   const projected = useMemo(
@@ -215,7 +249,7 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
         return edge.kind !== "relationship" || !from || !to || from === to;
       }) };
     },
-    [index, workspace.expanded, workspace.allCode, workspace.view, showCrossDimensionRelationships],
+    [index, workspace.view, showCrossDimensionRelationships],
   );
   const vertices = useMemo(
     () =>
@@ -259,6 +293,11 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
         graph.current.connections.get(shape.props.graphId)?.selection
       : undefined;
   const findSelection = (chosen: GraphSelection) => {
+    // The source plane projects targets, not the mappings used by Reader links.
+    if (latest.current.workspace.view === "source") {
+      const id = sourceSelectionId(index, chosen);
+      return id ? modelShapeId(id, "layers-source") : undefined;
+    }
     const same = (other?: GraphSelection) =>
       selectionKey(other) === selectionKey(chosen);
     const vertex = [...graph.current.vertices.values()].find((v) =>
@@ -268,9 +307,9 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
       same(e.selection),
     );
     return vertex
-      ? modelShapeId(vertex.id, latest.current.workspace.view === "all" ? "combined" : latest.current.workspace.view || "domain")
+      ? modelShapeId(vertex.id, projectionScope(latest.current.workspace.view || "domain"))
       : edge
-        ? modelShapeId(edge.id, latest.current.workspace.view === "all" ? "combined" : latest.current.workspace.view || "domain")
+        ? modelShapeId(edge.id, projectionScope(latest.current.workspace.view || "domain"))
         : undefined;
   };
   const selectedShapes = useValue(
@@ -284,6 +323,7 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
       : undefined;
   const fitBounds = (box: Box) => {
     if (!editor) return;
+    editor.updateViewportScreenBounds(editor.getContainer());
     const screen = editor.getViewportScreenBounds();
     const shelf = document
       .getElementById("browse-pane")
@@ -314,21 +354,11 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
     const bounds = projection.current.visibleIds().map(id => editor.getShapePageBounds(id)).filter((box): box is Box => !!box);
     if (bounds.length) fitBounds(Box.Common(bounds));
   };
-  const reveal = (chosen: GraphSelection) => {
-    const expand =
-      chosen.kind === "code"
-        ? index.targets.get(chosen.id)?.mappings.map((m) => m.owner.id) || []
-        : chosen.kind === "mapping"
-          ? [index.mappings.get(chosen.id)?.owner.id].filter(
-              (id): id is string => !!id,
-            )
-          : [];
-    const owner = index.items.get(chosen.kind === "item" ? chosen.id : expand[0]);
-    const endpoint = owner?.type === "relationship" ? index.items.get(owner.from) : owner;
-    const view = endpoint && dimensionOf(endpoint);
-    if (workspace.view !== "all" && chosen.kind === "item" && owner?.type === "relationship" &&
-      view !== dimensionOf(index.items.get(owner.to)!)) {
-      props.onLayers();
+  const reveal = async (chosen: GraphSelection) => {
+    const view = selectionPlane(index, chosen);
+    if (workspace.view !== "all" && isCrossPlaneRelationship(index, chosen)) {
+      await storage.retry();
+      props.onPlanes();
       return;
     }
     pendingLocate.current = chosen;
@@ -336,21 +366,10 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
     setWorkspace((current) => ({
       ...current,
       view: current.view === "all" ? "all" : view ?? current.view,
-      ...(current.view === "all" && owner?.type === "relationship" && view !== dimensionOf(index.items.get(owner.to)!)
+      ...(current.view === "all" && isCrossPlaneRelationship(index, chosen)
         ? { crossDimensionRelationships: true } : {}),
-      expanded: [...new Set([...current.expanded, ...expand])],
     }));
     setRevision((n) => n + 1);
-  };
-  const expandCode = (chosen?: GraphSelection) => {
-    if (workspace.allCode) return;
-    const owners = codeOwners(index, chosen);
-    setWorkspace((current) => ({
-      ...current,
-      expanded: owners.every((id) => current.expanded.includes(id))
-        ? current.expanded.filter((id) => !owners.includes(id))
-        : [...new Set([...current.expanded, ...owners])],
-    }));
   };
   const focusSelection = (chosen: GraphSelection) => {
     if (!editor) return;
@@ -467,7 +486,7 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
         if (!instance.isIn("select.idle")) return;
         if (pinGesture) return;
         const key = ids.join("|");
-        if (syncing.current || appliedNavigation.current === undefined) {
+        if (syncing.current || projectingModel.current || appliedNavigation.current === undefined) {
           lastSelected = key;
           return;
         }
@@ -518,7 +537,9 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
 
   useEffect(() => {
     if (!editor || !projection.current) return;
+    projectingModel.current = true;
     if (projectionView.current !== (workspace.view || "domain") || editor.getCurrentPageId() !== flatPageIds[workspace.view || "domain"]) {
+      appliedNavigation.current = undefined;
       projection.current.dispose();
       const page = openFlatPage(editor, workspace.view || "domain", model);
       seedCombined.current = workspace.view === "all" && !editor.getPage(flatPageIds.all)?.meta.combinedOffsets;
@@ -527,7 +548,9 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
       initialFit.current = true;
     }
     let active = true;
-    setLoading(true);
+    // Returning to Combined only mirrors existing page geometry and reroutes edges.
+    // Only its first preparation (or a changed model) needs an asynchronous layout.
+    setLoading(!combined || preparedCombinedSources.current !== index);
     const arrange = rearrangeNext.current;
     rearrangeNext.current = false;
     let preparing: ReturnType<typeof createProjection> | undefined;
@@ -536,11 +559,14 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
         storageRef.current.pause();
         projection.current!.dispose();
         if (preparedCombinedSources.current !== index) {
-          for (const dimension of ["domain", "architecture"] as const) {
+          for (const dimension of canvasPlanes) {
             editor.setCurrentPage(flatPageIds[dimension]);
-            const source = createProjection(editor, {}, "DOWN", dimension);
+            const source = createProjection(editor, {}, "DOWN", projectionScope(dimension));
             preparing = source;
-            try { await source.update(full, projectGraph(index, { ...workspace, view: dimension })); }
+            try {
+              const plane = projectGraph(index, { ...workspace, view: dimension });
+              await source.update(dimension === "source" ? plane : full, plane);
+            }
             finally { source.dispose(); preparing = undefined; }
             if (!active) return false;
           }
@@ -550,7 +576,7 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
         projection.current = createProjection(editor, {}, "DOWN", "combined");
         projection.current.write(() => syncCombined(editor, model));
       }
-      return projection.current!.update(full, projected, combined ? false : arrange, focused);
+      return projection.current!.update(workspace.view === "source" ? projected : full, projected, combined ? false : arrange, focused);
     };
     update().then((applied) => {
         if (!active || !applied) return;
@@ -559,6 +585,9 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
           seedCombined.current = false;
           initialFit.current = true;
         }
+        if (combined) placeNewLinkedSources(editor);
+        projectingModel.current = false;
+        setAppliedProjection(previous => ({ view: workspace.view || "domain", revision: previous.revision + 1 }));
         setLoading(false);
         storageRef.current.ready();
         if (arrange) initialFit.current = true;
@@ -592,6 +621,7 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
       .catch((e) => {
         if (active) {
           setError(e.message);
+          projectingModel.current = false;
           setLoading(false);
           pendingAgentLocate.current?.complete?.(e.message);
           pendingAgentLocate.current = undefined;
@@ -606,7 +636,7 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
   const linkedShape = searchParams.get("shape");
   const navigationKey = JSON.stringify([selection || null, linkedShape]);
   useEffect(() => {
-    if (!editor || loading || appliedNavigation.current === navigationKey) return;
+    if (!editor || loading || projectingModel.current || appliedNavigation.current === navigationKey) return;
     appliedNavigation.current = navigationKey;
     if (echo.current === selectionKey(selection)) {
       echo.current = undefined;
@@ -623,9 +653,9 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
     } finally {
       syncing.current = false;
     }
-  }, [editor, loading, navigationKey]);
+  }, [editor, loading, navigationKey, appliedProjection]);
   useEffect(() => {
-    if (!command || !editor || loading || handledCommand.current === command.sequence) return;
+    if (!command || !editor || loading || projectingModel.current || handledCommand.current === command.sequence) return;
     handledCommand.current = command.sequence;
     if (command.signal?.aborted) {
       command.complete?.("Navigation cancelled.");
@@ -643,21 +673,20 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
         fitBounds(Box.Common(bounds));
         command.complete?.();
       }
-    } else if (command.action === "expand") expandCode(command.selection);
-    else {
+    } else {
       pendingAgentLocate.current = command.complete ? command : undefined;
       reveal(command.selection);
     }
-  }, [command?.sequence, editor, loading]);
+  }, [command?.sequence, editor, loading, appliedProjection]);
 
   useEffect(() => {
     if (!editor) return;
-    return enableCombinedDrawing(editor, () => latest.current.workspace.drawingLayer || "domain");
+    return enableCombinedDrawing(editor, () => latest.current.workspace.drawingPlane || "domain");
   }, [editor]);
 
   const addNote = () => {
     if (!editor) return;
-    const targetId = noteTarget && (!combined || noteTarget.meta.combinedDimension === (workspace.drawingLayer || "domain")) ? noteTarget.id : undefined;
+    const targetId = noteTarget && (!combined || noteTarget.meta.combinedDimension === (workspace.drawingPlane || "domain")) ? noteTarget.id : undefined;
     const bounds = targetId && editor.getShapePageBounds(targetId);
     const center = editor.getViewportPageBounds().center;
     const position = bounds
@@ -730,9 +759,10 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
       ? "Note or arrow attachment"
       : record.typeName;
   };
+  const searchQuery = workspace.view === "source" ? sourceQuery || props.query : props.query;
   const matchSet = useMemo(() => new Set(props.matches), [props.matches]);
   const matches = useCallback((id: string) => {
-    if (!props.query.trim()) return true;
+    if (!searchQuery.trim()) return true;
     const vertex = vertices.get(id),
       edge = connections.get(id);
     return (
@@ -740,17 +770,27 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
         vertex &&
         (`${vertex.title} ${vertex.subtitle}`
           .toLowerCase()
-          .includes(props.query.trim().toLowerCase()) ||
+          .includes(searchQuery.trim().toLowerCase()) ||
           (vertex.selection?.kind === "item" &&
             matchSet.has(vertex.selection.id)))
       ) || !!edge?.relationships.some((item) => matchSet.has(item))
     );
-  }, [props.query, vertices, connections, matchSet]);
-  const openDimensionRef = useRef((id: string, from: string) => {});
-  openDimensionRef.current = (id, from) => { props.onNavigateDimension(id, from); reveal({ kind: "item", id }); };
-  const onOpenDimension = useCallback((id: string, from: string) => openDimensionRef.current(id, from), []);
+  }, [searchQuery, vertices, connections, matchSet]);
+  const openPlaneRef = useRef((selection: GraphSelection, from: GraphSelection) => {});
+  openPlaneRef.current = async (selection, from) => {
+    const plane = selectionPlane(index, selection);
+    if (!plane) return;
+    const crossPlane = !combined && isCrossPlaneRelationship(index, selection);
+    if (crossPlane) await storage.retry();
+    props.onNavigatePlane(selection, from, crossPlane ? "planes" : undefined);
+    setWorkspace(current => ({ ...current, source: plane === "source", view: combined ? "all" : plane }));
+    if (!crossPlane) reveal(selection);
+  };
+  const onOpenPlane = useCallback((selection: GraphSelection, from: GraphSelection) => openPlaneRef.current(selection, from), []);
   useSyncCanvasPresentation(editor, { modelId: model.id, mapEnabled, atlasSkin: workspace.atlasSkin ?? "ink",
-    vertices, connections, matches, onOpenDimension: combined && showCrossDimensionRelationships ? undefined : onOpenDimension });
+    vertices, connections, matches, index, plane: workspace.view,
+    onOpenPlane: combined && showCrossDimensionRelationships ? undefined : onOpenPlane });
+
 
   const saveLabel = {
     loading: "Opening canvas…",
@@ -776,24 +816,13 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
   }, [needsAttention]);
 
   return (
-    <CombinedDrawingLayer.Provider value={{ active: workspace.drawingLayer || "domain",
-      select: drawingLayer => { editor?.complete(); setWorkspace(w => w.drawingLayer === drawingLayer ? w : { ...w, drawingLayer }); } }}>
+    <CombinedDrawingPlane.Provider value={{ active: workspace.drawingPlane || "domain",
+      select: drawingPlane => { editor?.complete(); setWorkspace(w => w.drawingPlane === drawingPlane ? w : { ...w, drawingPlane }); } }}>
     <ToolbarDock.Provider value={toolHost}>
     <CanvasActions.Provider
       value={{
         selectionForShape: shapeSelection,
         focus: focusSelection,
-        toggleCode: expandCode,
-        codeState: (chosen) => {
-          const owners = codeOwners(index, chosen);
-          return !owners.length
-            ? "none"
-            : workspace.allCode
-              ? "all"
-              : owners.every((id) => workspace.expanded.includes(id))
-                ? "expanded"
-                : "collapsed";
-        },
       }}
     >
       <>
@@ -801,12 +830,15 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
         <Toolbar
           toolHost={setToolHost}
           controls={<CanvasViewControls presentation="flat"
-            onPresentation={presentation => { if (presentation === "layers") props.onLayers(); }}
+            onPresentation={async presentation => { if (presentation === "planes") { await storage.retry(); props.onPlanes(); } }}
             view={props.view}
-            onDimension={view => { initialFit.current = true; setFocus(undefined); setWorkspace(w => ({ ...w, view })); }}
+            onDimension={view => { initialFit.current = true; setFocus(undefined); setWorkspace(w => ({ ...w, source: view === "source", view: view === "source" ? w.view : view })); }}
             onSkin={skin => setWorkspace(w => withCanvasSkin(w, skin))}
           />}
         >
+          <FilesButton beforeOpen={storage.retry} />
+          {workspace.view === "source" && <SourceSearch links projectFiles={linkedSearch} value={sourceQuery} onChange={setSourceQuery}
+            onLocate={() => {}} onLocateSelection={reveal} onSelect={props.onSelect} />}
           <div className="assistant-toolbar-slot" ref={props.assistantHost} />
           {focus && (
             <CanvasButton
@@ -829,21 +861,9 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
             onClick={() => selection && reveal(selection)}
           />
           <CanvasButton
-            icon="code"
-            label={workspace.allCode ? "All sources shown" : "Show all sources"}
-            title={
-              workspace.allCode
-                ? "Hide all sources (return to individual expansions)"
-                : "Show all sources"
-            }
-            aria-pressed={workspace.allCode}
-            disabled={!editor || loading}
-            onClick={() => setWorkspace((w) => ({ ...w, allCode: !w.allCode }))}
-          />
-          <CanvasButton
             icon="graph"
             label="Arrange"
-            title={combined ? "Arrange nodes in the Domain or Architecture view" : "Rearrange model objects; keep freeform content"}
+            title={combined ? "Arrange nodes in their individual plane view" : "Rearrange model objects; keep freeform content"}
             disabled={combined || !editor || loading}
             onClick={() => {
               rearrangeNext.current = true;
@@ -855,19 +875,19 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
               title="Show cross-dimension relationships; when hidden, hover nodes for radial neighbors"
               aria-pressed={showCrossDimensionRelationships} disabled={!editor || loading}
               onClick={() => setWorkspace(w => ({ ...w, crossDimensionRelationships: !(w.crossDimensionRelationships !== false) }))} />
-            <CanvasButton icon="layers" label="Separate dimensions" disabled={!editor || loading}
+            <CanvasButton icon="planes" label="Separate dimensions" disabled={!editor || loading}
               onClick={() => { if (editor) { separateDimensions(editor, model); fit(); } }} />
-            {(["domain", "architecture"] as const).map(dimension => <CanvasButton key={dimension}
-              icon={dimension === "domain" ? "context" : "component"}
-              label={`Move ${dimension === "domain" ? "Domain" : "Architecture"}`}
+            {canvasPlanes.map(dimension => <CanvasButton key={dimension}
+              icon={dimension === "domain" ? "context" : dimension === "source" ? "code" : "component"}
+              label={`Move ${planeLabel(dimension)}`}
               title="Drag the dimension heading to move it"
               disabled={!editor || loading}
-              onClick={() => editor?.getContainer().querySelector<HTMLButtonElement>(`button[aria-label="Drag ${dimension === "domain" ? "Domain" : "Architecture"}"]`)?.focus()} />)}
+              onClick={() => editor?.getContainer().querySelector<HTMLButtonElement>(`button[aria-label="Drag ${planeLabel(dimension)}"]`)?.focus()} />)}
           </>}
           <CanvasButton
             icon="plus"
             label="Add note"
-            title={combined ? `Add a note to ${workspace.drawingLayer === "architecture" ? "Architecture" : "Domain"}` :
+            title={combined ? `Add a note to ${planeLabel(workspace.drawingPlane || "domain")}` :
               noteTarget ? "Add a note attached to the selection" : "Add a note"
             }
             disabled={!editor || loading}
@@ -1094,7 +1114,7 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
           </div>
         </dialog>
         </div>
-        <div className="canvas-stage" data-ready={!loading && !importing}
+        <div className="canvas-stage" data-ready={!loading && !importing && appliedProjection.view === (workspace.view || "domain")}
           // Native bounds updates are throttled; refresh before the first tap
           // after a mobile pane has been shown again.
           onPointerDownCapture={() => {
@@ -1119,7 +1139,7 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
               overlayUtils={overlayUtils}
               bindingUtils={bindingUtils}
               overrides={overrides}
-              options={tldrawOptions}
+              options={canvasOptions}
               components={components}
               getShapeVisibility={visibility}
               onMount={mount}
@@ -1131,7 +1151,7 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
           )}
           {loading && (
             <div className="canvas-loading" role="status">
-              Arranging the canvas…
+              {combined ? "Preparing Combined…" : "Arranging the canvas…"}
             </div>
           )}
         </div>
@@ -1151,6 +1171,6 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
       </>
     </CanvasActions.Provider>
     </ToolbarDock.Provider>
-    </CombinedDrawingLayer.Provider>
+    </CombinedDrawingPlane.Provider>
   );
 }

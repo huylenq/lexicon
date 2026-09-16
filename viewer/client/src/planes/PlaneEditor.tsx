@@ -1,3 +1,4 @@
+import type { GraphSelection } from "../graph/model";
 import { paneShortcutOverrides } from "../canvas/paneShortcutOverrides";
 import { useCallback, useEffect, useRef } from "react";
 import { Tldraw, Box, react, type Editor, type TLStoreSnapshot, type TLEventInfo, type TLAssetStore, type TLShape, type TLShapeId } from "tldraw";
@@ -10,32 +11,34 @@ import { isModelShape } from "../canvas/references";
 import type { Projection } from "../graph/model";
 import { measurePlane, unprojectPoint } from "./geometry";
 
-import { elementDimensions, type ElementDimension } from "../../../shared/model";
+import { canvasPlanes, planeLabel, type CanvasPlane } from "../graph/planes";
 
 /** A displayed plane; its semantic membership comes from the shared model. */
-export type Layer = ElementDimension;
-export const layers = elementDimensions;
+export type Plane = CanvasPlane;
+export const planes = canvasPlanes;
+export const planeName = planeLabel;
 import { pageIds } from "./document";
 export const WIDTH = 1000, HEIGHT = 560;
-export type LayerHandle = { layer: Layer; editor: Editor; projection: ReturnType<typeof createProjection>; element: HTMLDivElement; bounds: Box };
+export type PlaneHandle = { plane: Plane; editor: Editor; projection: ReturnType<typeof createProjection>; element: HTMLDivElement; bounds: Box };
 const assetUrls = getAssetUrlsByImport();
 const shapeUtils = [LexiconObjectUtil, LexiconConnectionUtil];
 const bindingUtils = [LexiconNoteBindingUtil];
 const components = { PageMenu: null, ContextMenu: null };
 const visibility = (shape: TLShape) => shape.meta.lexiconHidden ? "hidden" as const : "inherit" as const;
 
-export default function LayerEditor(props: {
+export default function PlaneEditor(props: {
+  onSourceSelect?: (selection: GraphSelection) => void;
   width: number; height: number; renderScale: number;
-  layer: Layer; graph: Projection; fullGraph: Projection; modelId: string; snapshot?: TLStoreSnapshot; assets: TLAssetStore;
-  onReady: (layer: Layer, handle?: LayerHandle) => void;
-  onSelect: (id: string) => void; onFocus: (layer: Layer) => void; onError: (error: string) => void;
+  plane: Plane; graph: Projection; fullGraph: Projection; modelId: string; snapshot?: TLStoreSnapshot; assets: TLAssetStore;
+  onReady: (plane: Plane, handle?: PlaneHandle) => void;
+  onSelect: (id: string) => void; onFocus: (plane: Plane) => void; onError: (error: string) => void;
 }) {
   const root = useRef<HTMLDivElement>(null);
   const mountedEditor = useRef<Editor>();
   useEffect(() => { if (mountedEditor.current) mountedEditor.current.updateViewportScreenBounds(mountedEditor.current.getContainer()); }, [props.width, props.height]);
   const latest = useRef(props); latest.current = props;
   const mount = useCallback((editor: Editor) => {
-    const { layer, graph } = latest.current;
+    const { plane, graph } = latest.current;
     mountedEditor.current = editor;
     let disposed = false;
     // The SDK assumes an untransformed viewport. Keep culling and overlays in
@@ -46,12 +49,14 @@ export default function LayerEditor(props: {
     // Native label measurement uses getBoundingClientRect. Measure outside the
     // transformed plane so CSS perspective cannot shrink the model's cards.
     const measurementHost = document.createElement("div");
-    measurementHost.className = "layers-measurement-host";
+    measurementHost.className = "planes-measurement-host";
     document.body.appendChild(measurementHost);
     for (const node of editor.getContainer().querySelectorAll(".tl-text-measure")) measurementHost.appendChild(node);
-    for (const name of layers) if (!editor.getPage(pageIds[name]))
-      editor.createPage({ id: pageIds[name], name: name === "domain" ? "Domain" : "Architecture" });
-    editor.setCurrentPage(pageIds[layer]);
+    for (const name of planes) if (!editor.getPage(pageIds[name]))
+      editor.createPage({ id: pageIds[name], name: planeName(name) });
+    const page = pageIds[plane];
+    if (!editor.getPage(page)) editor.createPage({ id: page, name: "Linked Sources" });
+    editor.setCurrentPage(page);
 
     syncCanvasTheme(editor);
     editor.setCameraOptions({ isLocked: true });
@@ -59,7 +64,7 @@ export default function LayerEditor(props: {
     themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
     canvasPresentation(editor).set({ modelId: latest.current.modelId, mapEnabled: false,
       vertices: new Map(latest.current.fullGraph.nodes.map(n => [n.id, n])), connections: new Map(latest.current.fullGraph.connections.map(e => [e.id, e])), matches: () => true });
-    const projection = createProjection(editor, {}, "RIGHT", `layers-${layer}`);
+    const projection = createProjection(editor, {}, "RIGHT", `layers-${plane}`);
     // tldraw 5.4 consumes this event after before-event. Convert once into the
     // editor's virtual flat screen; do not change its geometry or DOM transforms.
     let draggedSelection = false;
@@ -84,8 +89,9 @@ export default function LayerEditor(props: {
       event.point = { ...event.point, x: bounds.x + p.x * latest.current.width, y: bounds.y + p.y * latest.current.height };
     };
     editor.on("before-event", before);
-    let selected = "";
-    const stopSelection = react("Layer selection", () => {
+    const restoredSelection = editor.getSelectedShapes()[0];
+    let selected = restoredSelection && isModelShape(restoredSelection) ? restoredSelection.props.graphId : "";
+    const stopSelection = react("Plane selection", () => {
       if (!editor.isIn("select.idle")) return;
       const shape = editor.getSelectedShapes()[0];
       const id = shape && isModelShape(shape) ? shape.props.graphId : "";
@@ -94,6 +100,7 @@ export default function LayerEditor(props: {
         const node = latest.current.graph.nodes.find(n => n.id === id), edge = latest.current.graph.connections.find(e => e.id === id);
         const selection = node?.selection || edge?.selection;
         if (selection?.kind === "item") latest.current.onSelect(selection.id);
+        else if (selection) latest.current.onSourceSelect?.(selection);
       }
       selected = id;
     });
@@ -107,17 +114,18 @@ export default function LayerEditor(props: {
       if (id !== selected) return; // The selection reaction handles a new selection.
       const selection = latest.current.graph.nodes.find(n => n.id === id)?.selection || latest.current.graph.connections.find(e => e.id === id)?.selection;
       if (selection?.kind === "item") latest.current.onSelect(selection.id);
+        else if (selection) latest.current.onSourceSelect?.(selection);
     };
     editor.on("event", after);
     void projection.update(graph, graph).then(() => {
       if (disposed || !root.current) return;
       const boxes = projection.visibleIds().map(id => editor.getShapePageBounds(id)).filter((b): b is Box => !!b);
       const bounds = boxes.length ? Box.Common(boxes) : new Box(0, 0, 500, 300);
-      latest.current.onReady(layer, { layer, editor, projection, element: root.current, bounds });
+      latest.current.onReady(plane, { plane, editor, projection, element: root.current, bounds });
     }).catch(error => { if (!disposed) latest.current.onError(String(error)); });
     return () => {
       disposed = true; mountedEditor.current = undefined;
-      latest.current.onReady(layer, undefined);
+      latest.current.onReady(plane, undefined);
       editor.off("before-event", before);
       editor.off("event", after);
       stopSelection(); themeObserver.disconnect(); projection.dispose();
@@ -129,15 +137,15 @@ export default function LayerEditor(props: {
     };
   }, []);
 
-  return <div className="layer-editor" ref={root} data-layer-editor={props.layer} data-render-scale={props.renderScale}
+  return <div className="plane-editor" ref={root} data-plane-editor={props.plane} data-render-scale={props.renderScale}
     style={{ width: props.width, height: props.height, left: (WIDTH - props.width / props.renderScale) / 2, top: (HEIGHT - props.height / props.renderScale) / 2, transformOrigin: "0 0", transform: `scale(${1 / props.renderScale})` }}
-    onPointerDownCapture={() => latest.current.onFocus(props.layer)}>
+    onPointerDownCapture={() => latest.current.onFocus(props.plane)}>
     <Tldraw overrides={paneShortcutOverrides} assets={props.assets} snapshot={props.snapshot} assetUrls={assetUrls} shapeUtils={shapeUtils} bindingUtils={bindingUtils}
       themes={canvasThemes} components={components} hideUi onMount={mount}
       getShapeVisibility={visibility}
       licenseKey={import.meta.env.VITE_TLDRAW_LICENSE_KEY} />
     {[{ left: 0, top: 0 }, { left: props.width, top: 0 }, { left: props.width, top: props.height }, { left: 0, top: props.height }]
       .map((style, i) => <i key={i} data-plane-corner={i} style={style} />)}
-    {!props.graph.nodes.length && <p className="layer-empty">No {props.layer} elements in this model.</p>}
+    {!props.graph.nodes.length && <p className="plane-empty">{props.plane === "source" ? "No source links in this model." : `No ${props.plane} elements in this model.`}</p>}
   </div>;
 }

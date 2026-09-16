@@ -14,10 +14,6 @@ import type { GraphSelection } from "../graph/model";
 export const CanvasActions = createContext({
   selectionForShape: (_shape: TLShape): GraphSelection | undefined => undefined,
   focus: (_selection: GraphSelection) => {},
-  toggleCode: (_selection: GraphSelection) => {},
-  codeState: (
-    _selection: GraphSelection,
-  ): "none" | "expanded" | "collapsed" | "all" => "none",
 });
 
 export function CanvasContextMenu(props: TLUiContextMenuProps) {
@@ -30,7 +26,6 @@ export function CanvasContextMenu(props: TLUiContextMenuProps) {
   );
   const selection =
     selected.length === 1 ? actions.selectionForShape(selected[0]) : undefined;
-  const code = selection && actions.codeState(selection);
   return (
     <DefaultContextMenu {...props}>
       {selection && (
@@ -49,23 +44,6 @@ export function CanvasContextMenu(props: TLUiContextMenuProps) {
             }
             onSelect={() => actions.focus(selection)}
           />
-          {code !== "none" && (
-            <TldrawUiMenuItem
-              id="lexicon-code"
-              disabled={code === "all"}
-              label={
-                code === "expanded"
-                  ? "lexicon.hide-code"
-                  : "lexicon.expand-code"
-              }
-              iconLeft={
-                <span>
-                  <Icon name="code" />
-                </span>
-              }
-              onSelect={() => actions.toggleCode(selection)}
-            />
-          )}
         </div>
       )}
       <DefaultContextMenuContent />

@@ -2,11 +2,11 @@ import { expect, test } from 'bun:test';
 import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { readSource } from '../server/code';
+import { readSource } from '../server/source';
 import { parseModel, serializeModel } from '../server/model';
 import { applyPatch } from '../server/chat/model-edit';
 import { indexModel } from '../client/src/graph/model';
-import { normalizeNavigation } from '../client/src/codeNavigation';
+import { normalizeNavigation } from '../client/src/sourceNavigation';
 import { sourceTargetId, legacySourceTargetId, legacySourceLinkKey, type CodeLink, type DocumentLink } from '../shared/model';
 
 const base = { file: 'source.ts', role: 'reference', description: 'Evidence.' };
@@ -93,4 +93,13 @@ test('legacy document canvas references retain placement, notes, and bindings', 
   expect(migrated.store[binding.id]).toMatchObject({ fromId: note.id, toId: modelShapeId(current), props: { x: 10, y: 20 } });
   expect(migrated.store[target.id]).toBeUndefined();
   expect(snapshot.store[target.id]).toEqual(target);
+});
+
+test('legacy Layers URLs normalize to Planes without losing a source location', () => {
+  const index = indexModel(parseModel(xml(element('kind="document" heading="rules"'))));
+  const target = [...index.targets.keys()][0];
+  const normalized = normalizeNavigation(new URLSearchParams({ presentation: 'layers', code: target, item: 'scope' }), index);
+  expect(normalized.get('presentation')).toBe('planes');
+  expect(normalized.get('code')).toBe(target);
+  expect(normalized.get('item')).toBe('scope');
 });

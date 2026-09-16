@@ -93,7 +93,7 @@ test("delete one recovery copy without changing the canvas or other backups", as
     expect(await geometry()).toEqual(narrowGeometry);
     const deletes = page.getByRole("button", { name: /^Delete recovery copy/ });
     await expect(deletes.first()).toBeInViewport();
-    // Top-layer hit testing proves Browse cannot intercept the recovery controls.
+    // Top-plane hit testing proves Browse cannot intercept the recovery controls.
     expect(await deletes.first().evaluate((button) => {
       const bounds = button.getBoundingClientRect();
       return button.contains(document.elementFromPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2));

@@ -25,3 +25,5 @@
   border: 2px solid color-mix(in srgb, var(--dimension-color) 85%, transparent);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dimension-color) 18%, transparent);
 }
+
+.combined-region[data-dimension="source"], .combined-handles h2[data-dimension="source"] { --dimension-color: #9aab70; }

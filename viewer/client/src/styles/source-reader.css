@@ -1,4 +1,4 @@
-.code-pane {
+.source-reader {
   background: var(--panel);
   border-left: 1px solid var(--line);
   min-width: 0;
@@ -6,31 +6,31 @@
   flex-direction: column;
   overflow: auto;
 }
-.code-pane-heading {
+.source-reader-heading {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 8px 16px;
   border-bottom: 1px solid var(--line);
 }
-.code-pane h2 {
+.source-reader h2 {
   font-family: var(--font-code);
   font-size: 16px;
   margin: 16px 18px 10px;
   overflow-wrap: anywhere;
 }
-.code-explanation {
+.source-explanation {
   margin: 0 16px 14px;
   padding: 12px;
   background: var(--accent-soft);
   border-radius: 6px;
 }
-.code-explanation p {
+.source-explanation p {
   font-size: 12px;
   margin: 8px 0 0;
   line-height: 1.7;
 }
-.code-controls {
+.source-controls {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -41,16 +41,16 @@
   color: var(--muted);
   gap: 8px;
 }
-.code-controls button {
+.source-controls button {
   font-size: 11px;
 }
-.code-scroll {
+.source-scroll {
   overflow: auto;
   flex: 1;
   min-height: 150px;
   background: var(--code);
 }
-.code-scroll pre {
+.source-scroll pre {
   margin: 0;
   padding: 12px 0;
   min-width: max-content;
@@ -104,7 +104,7 @@
   padding: 12px 16px;
   line-height: 1.6;
 }
-.code-tail {
+.source-tail {
   padding: 10px 20px;
   margin: 0;
   font-size: 11px;
@@ -118,91 +118,91 @@
 .pane-area > .reader-workspace {
   flex: 1;
 }
-.pane-area > .code-pane {
-  flex: 0 0 var(--code-width);
+.pane-area > .source-reader {
+  flex: 0 0 var(--source-reader-width);
   min-width: 280px;
   border-left: 0;
 }
-.code-pane[hidden] {
+.source-reader[hidden] {
   display: none;
 }
-.code-toggle.active {
+.source-reader-toggle.active {
   background: var(--accent-soft);
   color: var(--accent);
 }
-.code-navigation {
+.source-navigation {
   display: flex;
   align-items: center;
   gap: 6px;
 }
-.code-pane-heading {
+.source-reader-heading {
   min-height: var(--toolbar-height);
   flex-shrink: 0;
 }
-.code-breadcrumb {
+.source-breadcrumb {
   padding: 14px 16px 8px;
   overflow-wrap: anywhere;
 }
-.code-breadcrumb > code {
+.source-breadcrumb > code {
   font-size: 11px;
   line-height: 1.7;
   color: var(--muted);
 }
-.code-pane .code-breadcrumb h2 {
+.source-reader .source-breadcrumb h2 {
   margin: 8px 0 0;
 }
-.code-target-actions {
+.source-target-actions {
   padding: 0 10px 8px;
 }
-.code-explanation button {
+.source-explanation button {
   padding: 0;
   color: var(--accent);
   font-size: inherit;
   text-align: left;
 }
-.code-mappings {
+.source-mappings {
   margin: 0 16px 12px;
   font-size: 12px;
   flex-shrink: 0;
 }
-.code-mappings summary {
+.source-mappings summary {
   cursor: pointer;
   color: var(--muted);
   padding: 6px 0;
 }
-.code-mapping-list {
+.source-mapping-list {
   max-height: 220px;
   overflow: auto;
 }
-.code-mapping {
+.source-mapping {
   padding: 8px 0;
   border-bottom: 1px solid var(--line);
 }
-.code-mapping .mapping-owner {
+.source-mapping .mapping-owner {
   font-size: 13px;
   padding: 2px 0;
 }
-.code-mapping .quiet {
+.source-mapping .quiet {
   padding: 3px 0;
   font-size: 11px;
 }
-.code-mapping [aria-current] {
+.source-mapping [aria-current] {
   color: var(--accent);
 }
-.code-empty {
+.source-empty {
   padding: 12px 18px;
   color: var(--muted);
   font-size: 13px;
   line-height: 1.7;
 }
-.code-pane .code-empty h2 {
+.source-reader .source-empty h2 {
   margin: 16px 0;
   font-family: inherit;
 }
-.code-back-to-reader {
+.source-back-to-reader {
   display: none;
 }
-.code-divider {
+.source-reader-divider {
   width: 7px;
   flex: 0 0 7px;
   background: transparent;
@@ -210,39 +210,39 @@
   touch-action: none;
   position: relative;
 }
-.with-code .canvas-slot {
+.with-source-reader .canvas-slot {
   min-width: 200px;
 }
-.with-code .reading-pane article {
+.with-source-reader .reading-pane article {
   padding: 24px clamp(18px, 2vw, 28px);
 }
-.with-code .reading-pane h1 {
+.with-source-reader .reading-pane h1 {
   font-size: clamp(24px, 2.2vw, 30px);
   overflow-wrap: anywhere;
 }
-.with-code .reader-toolbar {
+.with-source-reader .reader-toolbar {
   padding-inline: 18px;
   flex-wrap: wrap;
 }
 @media (max-width: 1000px) {
-  .code-divider,
-  .pane-area > .code-pane {
+  .source-reader-divider,
+  .pane-area > .source-reader {
     display: none;
   }
-  .with-code.mobile-code .pane-area > .code-pane:not([hidden]) {
+  .with-source-reader.mobile-source .pane-area > .source-reader:not([hidden]) {
     display: flex;
     flex: 1;
     min-width: 0;
   }
-  .with-code.mobile-code .reader-workspace {
+  .with-source-reader.mobile-source .reader-workspace {
     display: none;
   }
-  .code-back-to-reader {
+  .source-back-to-reader {
     display: block;
     align-self: flex-start;
     margin: 12px 16px 0;
   }
-  .with-code .canvas-slot {
+  .with-source-reader .canvas-slot {
     min-width: 0;
   }
 }
@@ -264,11 +264,11 @@
 .document-markdown {
   padding: 18px; font-size: 14px; line-height: 1.7; overflow-wrap: anywhere;
 }
-.code-pane .document-markdown :is(h1, h2, h3, h4, h5, h6) {
+.source-reader .document-markdown :is(h1, h2, h3, h4, h5, h6) {
   font-family: inherit; margin: 1.3em 0 .5em; line-height: 1.3; font-weight: 600;
 }
 .document-markdown h1 { font-size: 24px; }
-.code-pane .document-markdown h2 { font-size: 20px; }
+.source-reader .document-markdown h2 { font-size: 20px; }
 .document-markdown h3 { font-size: 17px; }
 .document-selected-section {
   display: flow-root;

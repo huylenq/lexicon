@@ -2,18 +2,19 @@ import type { TLRecord, TLStoreSnapshot, TLPageId } from 'tldraw';
 import { modelShapeId, isModelShape } from '../canvas/references';
 import type { ElementDimension } from '../../../shared/model';
 
-export const pageIds: Record<ElementDimension, TLPageId> = {
+export const pageIds: Record<ElementDimension | "source", TLPageId> = {
   domain: 'page:layers-domain' as TLPageId,
   architecture: 'page:layers-architecture' as TLPageId,
+  source: 'page:layers-source-links' as TLPageId,
 };
-export const layerShapeId = (graphId: string, layer: ElementDimension) => modelShapeId(graphId, `layers-${layer}`);
-export const isLayerPage = (id: string) => Object.values(pageIds).includes(id as TLPageId);
+export const planeShapeId = (graphId: string, plane: ElementDimension | "source") => modelShapeId(graphId, `layers-${plane}`);
+export const isPlanePage = (id: string) => Object.values(pageIds).includes(id as TLPageId);
 
 /** Import the earlier browser-only layout once. Never replace an existing project page. */
-export function importLayers(project: TLStoreSnapshot | undefined, legacy: TLStoreSnapshot | undefined): TLStoreSnapshot | undefined {
-  if (!legacy || Object.values(project?.store || {}).some(r => r.typeName === 'page' && isLayerPage(r.id))) return project;
+export function importPlanes(project: TLStoreSnapshot | undefined, legacy: TLStoreSnapshot | undefined): TLStoreSnapshot | undefined {
+  if (!legacy || Object.values(project?.store || {}).some(r => r.typeName === 'page' && (r.id === pageIds.domain || r.id === pageIds.architecture))) return project;
   const source = legacy.store;
-  const layerOf = (record: TLRecord): ElementDimension | undefined => {
+  const planeOf = (record: TLRecord): ElementDimension | undefined => {
     let id = record.typeName === 'shape' ? record.parentId : record.id;
     const seen = new Set<string>();
     while (source[id]?.typeName === 'shape' && !seen.has(id)) {
@@ -24,18 +25,18 @@ export function importLayers(project: TLStoreSnapshot | undefined, legacy: TLSto
   const remap = new Map<string, string>();
   for (const r of Object.values(source)) {
     if (r.typeName === 'shape') {
-      const layer = layerOf(r); if (!layer) continue;
-      remap.set(r.id, isModelShape(r) ? layerShapeId(r.props.graphId, layer) : `shape:layers-import:${r.id.slice(6)}`);
-    } else if (r.typeName === 'asset') remap.set(r.id, `asset:layers-import:${r.id.slice(6)}`);
-    else if (r.typeName === 'binding') remap.set(r.id, `binding:layers-import:${r.id.slice(8)}`);
-    else if (r.typeName === 'page' && isLayerPage(r.id)) remap.set(r.id, r.id);
+      const plane = planeOf(r); if (!plane) continue;
+      remap.set(r.id, isModelShape(r) ? planeShapeId(r.props.graphId, plane) : `shape:planes-import:${r.id.slice(6)}`);
+    } else if (r.typeName === 'asset') remap.set(r.id, `asset:planes-import:${r.id.slice(6)}`);
+    else if (r.typeName === 'binding') remap.set(r.id, `binding:planes-import:${r.id.slice(8)}`);
+    else if (r.typeName === 'page' && isPlanePage(r.id)) remap.set(r.id, r.id);
   }
   const store: Record<string, TLRecord> = { ...project?.store };
   for (const r of Object.values(source)) {
     const id = remap.get(r.id); if (!id) continue;
     let next: unknown = { ...r, id };
     if (r.typeName === 'shape') next = { ...r, id, parentId: remap.get(r.parentId) || r.parentId,
-      meta: { ...r.meta, ...(isModelShape(r) ? { lexiconProjection: `layers-${layerOf(r)}` } : {}) },
+      meta: { ...r.meta, ...(isModelShape(r) ? { lexiconProjection: `layers-${planeOf(r)}` } : {}) },
       props: { ...r.props, ...('assetId' in r.props && r.props.assetId ? { assetId: remap.get(r.props.assetId) || r.props.assetId } : {}) } };
     if (r.typeName === 'binding') {
       if (!remap.has(r.fromId) || !remap.has(r.toId)) continue;
@@ -49,7 +50,7 @@ export function importLayers(project: TLStoreSnapshot | undefined, legacy: TLSto
 }
 
 /** Session history is shared by both planes, and reset when another version is installed. */
-export function createLayersHistory<T>(equal: (a: T, b: T) => boolean) {
+export function createPlanesHistory<T>(equal: (a: T, b: T) => boolean) {
   let past: T[] = [], future: T[] = [], current: T;
   return {
     reset(value: T) { current = value; past = []; future = []; },

@@ -53,7 +53,7 @@ test("a parent move preserves identity, evidence and relationships without impli
 
 test("views reuse identity without rewriting semantic records", async () => {
   const current = model(), before = serializeModel(current), index = indexModel(current);
-  const options = { expanded: [], allCode: false };
+  const options = { };
   const all = projectGraph(index, options);
   const architecture = projectGraph(index, { ...options, view: "architecture" });
   const domain = projectGraph(index, { ...options, view: "domain" });
@@ -78,10 +78,11 @@ test("the worked example's source links resolve and its claimed validation runs"
 
 test("dimensions partition elements while relationships and flows retain cross-dimension meaning", () => {
   const current = model(), index = indexModel(current);
-  const domain = projectGraph(index, { expanded: [], allCode: false, view: "domain" });
-  const architecture = projectGraph(index, { expanded: [], allCode: false, view: "architecture" });
-  const all = projectGraph(index, { expanded: [], allCode: false, view: "all" });
-  const ids = [...domain.nodes, ...architecture.nodes].map(node => node.id).sort();
+  const domain = projectGraph(index, { view: "domain" });
+  const architecture = projectGraph(index, { view: "architecture" });
+  const all = projectGraph(index, { view: "all" });
+  const linked = projectGraph(index, { view: "source" });
+  const ids = [...domain.nodes, ...architecture.nodes, ...linked.nodes].map(node => node.id).sort();
   expect(new Set(ids).size).toBe(ids.length);
   expect(ids).toEqual(all.nodes.map(node => node.id).sort());
   for (const item of current.items) {

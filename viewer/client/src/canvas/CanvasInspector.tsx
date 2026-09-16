@@ -159,7 +159,7 @@ export function CanvasInspector({
       return;
     }
     if (note.shape.meta.combinedDimension && editor.getShape(id)?.meta.combinedDimension !== note.shape.meta.combinedDimension) {
-      setError("Attach this note to an object in its drawing layer.");
+      setError("Attach this note to an object in its drawing plane.");
       return;
     }
     const page = editor

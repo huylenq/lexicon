@@ -33,7 +33,7 @@ export default function ModelLegend({
           <i /> Relationship
         </span>
         <span>
-          <i className="code" /> Source mapping
+          <i className="code" /> Source link
         </span>
       </span>
       <span className="model-count">

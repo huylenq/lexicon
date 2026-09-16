@@ -3,7 +3,7 @@ import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
-import { listRepositoryFiles } from "../server/projectFiles";
+import { listProjectFiles } from "../server/projectFiles";
 import { readProjectSettings, writeProjectSettings, validateSettings } from "../server/settings";
 
 test("project glob scope combines Git ignores and uses the artifact root", async () => {
@@ -18,7 +18,7 @@ test("project glob scope combines Git ignores and uses the artifact root", async
     await writeFile(join(root, ".gitignore"), "src/generated.ts\n");
     expect(readProjectSettings(artifacts).files.include).toEqual([]);
     expect(readProjectSettings(artifacts).files.exclude).toEqual(["**/*.lock", "**/.*/**"]);
-    const defaults = await listRepositoryFiles(root, artifacts);
+    const defaults = await listProjectFiles(root, artifacts);
     expect(defaults.metrics).toBeUndefined();
     expect(defaults.files).not.toContain(".config/app.ts");
     expect(defaults.files).not.toContain("src/.cache/build.ts");
@@ -26,18 +26,18 @@ test("project glob scope combines Git ignores and uses the artifact root", async
     expect(defaults.files).not.toContain("bun.lock");
     expect(defaults.files).not.toContain("src/dependency.lock");
     await writeProjectSettings(artifacts, { files: { include: [], exclude: [] } });
-    const explicit = await listRepositoryFiles(root, artifacts);
+    const explicit = await listProjectFiles(root, artifacts);
     expect(explicit.files).toContain(".config/app.ts");
     expect(explicit.files).toContain("src/.cache/build.ts");
     expect(explicit.files).toContain("bun.lock");
     expect(explicit.files).toContain("src/dependency.lock");
     await writeProjectSettings(artifacts, { files: { include: ["src/**"], exclude: ["**/*.test.ts"] } });
-    expect((await listRepositoryFiles(root, artifacts)).files).toEqual(["src/.cache/build.ts", "src/dependency.lock", "src/main.ts"]);
+    expect((await listProjectFiles(root, artifacts)).files).toEqual(["src/.cache/build.ts", "src/dependency.lock", "src/main.ts"]);
     await writeProjectSettings(artifacts, { files: { include: ["**/*.md"], exclude: [] } });
-    expect((await listRepositoryFiles(root, artifacts)).files).toEqual(["notes.md"]);
-    expect((await listRepositoryFiles(root)).files).toContain("src/main.ts");
+    expect((await listProjectFiles(root, artifacts)).files).toEqual(["notes.md"]);
+    expect((await listProjectFiles(root)).files).toContain("src/main.ts");
     await writeFile(join(artifacts, "lexicon/settings.json"), "invalid");
-    await expect(listRepositoryFiles(root, artifacts)).rejects.toThrow("settings.json");
+    await expect(listProjectFiles(root, artifacts)).rejects.toThrow("settings.json");
   } finally { await rm(root, { recursive: true, force: true }); await rm(artifacts, { recursive: true, force: true }); }
 });
 test("settings reject malformed lists and unsafe patterns", () => {

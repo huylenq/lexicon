@@ -5,7 +5,7 @@ for (const width of [1600, 800]) {
     await page.setViewportSize({ width, height: 1000 });
     await page.goto('/p/shop?item=order');
     const reader = page.getByRole('button', { name: 'Toggle reader', exact: true });
-    const sources = page.getByRole('button', { name: 'Toggle source workspace', exact: true });
+    const sources = page.getByRole('button', { name: 'Toggle Source Reader', exact: true });
     const agent = page.getByRole('button', { name: 'Agent', exact: true });
     await expect(reader).toHaveAttribute('aria-pressed', 'true');
     await expect(reader).toHaveAttribute('title', 'Toggle reader (w)');

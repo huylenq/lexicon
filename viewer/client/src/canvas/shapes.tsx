@@ -1,3 +1,4 @@
+import { SourceFileLabel, SourceTargetLabel } from "../source/SourceLabel";
 import { useId } from "react";
 import {
   BaseBoxShapeUtil,
@@ -76,6 +77,7 @@ function ObjectCard({ shape }: { shape: ObjectShape }) {
       style={{ left: frame.x, top: frame.y, width: frame.w, height: frame.h }}
       className={`canvas-object ${shape.props.group ? "canvas-group" : "canvas-card"} ${!model.matches(shape.props.graphId) ? "canvas-dimmed" : ""}`}
       data-model-id={shape.props.graphId}
+      data-source-kind={vertex?.kind === "file" || vertex?.kind === "code" ? vertex.kind : undefined}
       data-atlas-label={model.mapEnabled && vertex ? vertex.kind : undefined}
       data-context-boundary={boundary ? model.mapEnabled ? "territory" : "rectangle" : undefined}
       data-map-building={primary && vertex && isAtlasLandmark(vertex.kind) && landmarkFor({ classification: vertex.subtitle, landmark: shape.meta.lexiconLandmark, elementKind: vertex.kind }) !== "none" ? "true" : undefined}
@@ -114,10 +116,12 @@ function ObjectCard({ shape }: { shape: ObjectShape }) {
             </svg>
           ) : model.mapEnabled && vertex && isAtlasLandmark(vertex.kind) ? (
             <span className="atlas-concept-name object-name-text">{vertex.title}</span>
-          ) : vertex ? (
+          ) : vertex?.kind === "file" ? <SourceFileLabel file={vertex.subtitle} />
+          : vertex?.sourceLink ? <SourceTargetLabel link={vertex.sourceLink} />
+          : vertex ? (
             <ObjectName
               type={
-                vertex.kind === "file" || vertex.kind === "code"
+                vertex.kind === "code"
                   ? "code"
                   : vertex.kind
               }
@@ -131,7 +135,7 @@ function ObjectCard({ shape }: { shape: ObjectShape }) {
           )}
         </button>
       </div>
-      {vertex?.kind === "code" && <small>{vertex.subtitle}</small>}
+
       {missing && (
         <small>
           {String(
@@ -361,7 +365,7 @@ function ConnectionCard({ shape }: { shape: ConnectionShape }) {
             // Dispatch the native shape gesture so dragging and modifier taps still work.
             editor.dispatch({ ...getPointerInfo(editor, event), type: "pointer", name: "pointer_down", target: "shape", shape });
           }}
-          aria-label={`${connection?.kind === "mapping" ? "Read source mapping" : "Read relationship"}: ${connection?.label || "Removed relationship"}`}
+          aria-label={`${connection?.kind === "mapping" ? "Read source link" : "Read relationship"}: ${connection?.label || "Removed relationship"}`}
           onClick={(event) => {
             if (event.detail === 0)
               editor.setCurrentTool("select").select(shape.id).focus();

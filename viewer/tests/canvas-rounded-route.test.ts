@@ -18,7 +18,7 @@ test("rounding retains endpoints and clamps neighboring bends on short segments"
   expect(cornerRadius(500)).toBe(256);
 });
 
-test("straight, duplicate, and reversed segments remain finite; mappings keep their curves", () => {
+test("straight, duplicate, and reversed segments remain finite; legacy curved references keep their curves", () => {
   const points = [{ x: 0, y: 0 }, { x: 0, y: 0 }, { x: 100, y: 0 }, { x: 0, y: 0 }];
   expect(roundedRoute(points, 24).path).not.toMatch(/Q|NaN|Infinity/);
   const shape = { props: { path: "M 0 0 Q 50 30 100 0", points }, meta: { lexiconCornerRadius: 24 } } as unknown as ConnectionShape;

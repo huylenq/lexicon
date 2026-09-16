@@ -72,9 +72,9 @@ test("reader history branches correctly and pane close buttons preserve navigati
   await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Ordering");
   await expect(page.locator(".canvas-card[data-model-id^='item:']")).toHaveCount(2);
 
-  await page.getByRole("button", { name: "Toggle source workspace" }).click();
-  await page.getByRole("button", { name: "Close source pane", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Toggle source workspace" })).toBeFocused();
+  await page.getByRole("button", { name: "Toggle Source Reader" }).click();
+  await page.getByRole("button", { name: "Close Source Reader", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Toggle Source Reader" })).toBeFocused();
   await expect(canvas).toBeVisible();
   await expect(browse).toHaveAttribute("aria-pressed", "true");
 });
@@ -173,7 +173,7 @@ test("one shared status bar follows model counts and the floating Agent stays re
   const objectLegend = bar.getByLabel("Object icon legend", { exact: true });
   await expect(objectLegend).toBeVisible();
   for (const [tone, label] of [["context", "Context"], ["concept", "Concept"], ["entity", "Entity"], ["value", "Value"], ["aggregate", "Aggregate"], ["service", "Service"], ["event", "Event"]]) {
-    const key = objectLegend.locator(`.model-object-key[data-tone="${tone}"]`);
+    const key = objectLegend.locator(`.model-object-key .object-name[data-tone="${tone}"]`);
     await expect(key).toHaveText(label);
     await expect(key.locator("use")).toHaveAttribute("href", `/icons.svg#${tone}`);
   }
@@ -185,8 +185,8 @@ test("one shared status bar follows model counts and the floating Agent stays re
   expect(bounds.x).toBe(0);
   expect(bounds.width).toBe(viewport.width);
   expect(bounds.y + bounds.height).toBe(viewport.height);
-  await page.getByRole("button", { name: "Show all sources", exact: true }).click();
-  await expect(bar.locator(".model-count")).toHaveText(/2 concepts · \d+ sources/);
+  await page.getByRole("radio", { name: "Combined", exact: true }).check();
+  await expect(bar.locator(".model-count")).toHaveText(/2 concepts · 5 architecture · \d+ sources/);
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(objectLegend).toBeHidden();
   await expect(bar.locator(".model-count")).toBeVisible();
@@ -194,7 +194,7 @@ test("one shared status bar follows model counts and the floating Agent stays re
   await page.goto("/p/shop?item=order");
   await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Order");
   await expect(bar).toBeVisible();
-  await page.getByRole("button", { name: "Toggle source workspace" }).click();
+  await page.getByRole("button", { name: "Toggle Source Reader" }).click();
   await expect(bar).toBeVisible();
   await agent.click();
   const chat = page.getByRole("complementary", { name: "Project conversation" });

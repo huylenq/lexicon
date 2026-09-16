@@ -2,7 +2,7 @@
    No transform/opacity remains after opening, preserving Reader backdrop blur. */
 @media (prefers-reduced-motion: no-preference) {
   .reader > .sidebar,
-  .pane-area > .code-pane,
+  .pane-area > .source-reader,
   .reader-workspace > .reader-stack,
   .reader > .chat-pane {
     --pane-enter-x: 0px;
@@ -20,13 +20,13 @@
     --pane-enter-y: 0px;
   }
 
-  .pane-area > .code-pane {
+  .pane-area > .source-reader {
     --pane-enter-x: 8px;
     --pane-enter-y: 0px;
   }
 
   .reader.without-sidebar > .sidebar:not(.open),
-  .pane-area > .code-pane[hidden],
+  .pane-area > .source-reader[hidden],
   .reader-workspace.reader-hidden > .reader-stack,
   .reader > .chat-pane[hidden] {
     opacity: 0;
@@ -44,11 +44,11 @@
     }
 
     .pane-area > .reader-workspace,
-    .pane-area > .code-pane {
+    .pane-area > .source-reader {
       grid-area: 1 / 1;
     }
 
-    /* Sources replaces the entire workspace on narrow screens. Transition
+    /* Source Reader replaces the entire workspace on narrow screens. Transition
        that ancestor too so its display toggle cannot cut off Reader's exit. */
     .reader .reader-workspace {
       opacity: 1;
@@ -56,16 +56,16 @@
     }
 
     .reader > .sidebar:not(.open),
-    .reader:not(.mobile-code) .pane-area > .code-pane,
+    .reader:not(.mobile-source) .pane-area > .source-reader,
     .reader.mobile-canvas .reading-pane,
-    .reader.with-code.mobile-code .reader-workspace {
+    .reader.with-source-reader.mobile-source .reader-workspace {
       opacity: 0;
       pointer-events: none;
       & * { pointer-events: none; }
     }
 
     .reader > .sidebar:not(.open),
-    .reader:not(.mobile-code) .pane-area > .code-pane,
+    .reader:not(.mobile-source) .pane-area > .source-reader,
     .reader.mobile-canvas .reading-pane {
       translate: var(--pane-enter-x) var(--pane-enter-y);
     }
@@ -73,7 +73,7 @@
 
   @starting-style {
     .reader > .sidebar,
-    .pane-area > .code-pane,
+    .pane-area > .source-reader,
     .reader-workspace > .reader-stack,
     .reader > .chat-pane {
       opacity: 0;

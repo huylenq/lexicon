@@ -14,8 +14,8 @@ import { Link, useLocation, useNavigate, useNavigationType, useParams } from "re
 import type { ModelItem, ProjectModel } from "../../shared/model";
 import { parentOf, isArchitecture } from "../../shared/model";
 import { request, Theme, ErrorNotice } from "./ui";
-import CodePane from "./CodePane";
-import { useCodeNavigation, type CodeLocation } from "./codeNavigation";
+import SourceReader from "./SourceReader";
+import { codeParams, useSourceNavigation, type SourceLocation } from "./sourceNavigation";
 import InstallApp from "./InstallApp";
 import Icon from "./Icon";
 import ObjectName from "./ObjectName";
@@ -35,7 +35,7 @@ import {
 import { useWorkspace } from "./graph/storage";
 import type { CanvasCommand } from "./canvas/types";
 import "./styles/workspace.css";
-import "./styles/code.css";
+import "./styles/source-reader.css";
 import "./styles/status.css";
 import { useReaderStack } from "./readerStack";
 import { cardKey, type ReaderCard } from "./readerState";
@@ -89,8 +89,8 @@ function ReaderProject({ projectId }: { projectId: string }) {
   }, []);
   const browseToggle = useRef<HTMLButtonElement>(null);
   const [workspace, setWorkspace] = useWorkspace(projectId);
-  const [mobileCode, setMobileCode] = useState(!!params.get("code"));
-  const codeToggle = useRef<HTMLButtonElement>(null);
+  const [mobileSource, setMobileSource] = useState(!!params.get("code"));
+  const sourceReaderToggle = useRef<HTMLButtonElement>(null);
   const paneArea = useRef<HTMLDivElement>(null);
   const readerSurface = useRef<HTMLDivElement>(null);
   const [mobileRead, setMobileRead] = useState(
@@ -104,17 +104,17 @@ function ReaderProject({ projectId }: { projectId: string }) {
     () => (model ? indexModel(model) : undefined),
     [model],
   );
-  const codeNavigation = useCodeNavigation(params, setParams, graphIndex);
+  const sourceNavigation = useSourceNavigation(params, setParams, graphIndex);
   useEffect(() => {
-    if (codeNavigation.open) setMobileCode(true);
-  }, [codeNavigation.targetId, codeNavigation.open]);
-  const closeCode = () => {
-    codeNavigation.visibility(false);
-    setMobileCode(false);
+    if (sourceNavigation.open) setMobileSource(true);
+  }, [sourceNavigation.targetId, sourceNavigation.open]);
+  const closeSourceReader = () => {
+    sourceNavigation.visibility(false);
+    setMobileSource(false);
   };
-  const openCode = (location: CodeLocation, readMapping = false, mode: ReaderOpenMode = "preview") => {
-    codeNavigation.navigate(location, readMapping, mode);
-    setMobileCode(true);
+  const openSourceReader = (location: SourceLocation, readMapping = false, mode: ReaderOpenMode = "preview") => {
+    sourceNavigation.navigate(location, readMapping, mode);
+    setMobileSource(true);
     setMenu(false);
     if (readMapping) setMobileRead(true);
   };
@@ -130,7 +130,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
   const travel = (direction: number) => {
     navigate(direction);
     setMobileRead(true);
-    setMobileCode(false);
+    setMobileSource(false);
     setMenu(false);
   };
   const seq = useRef(0);
@@ -160,13 +160,13 @@ function ReaderProject({ projectId }: { projectId: string }) {
   const toggleReader = () => {
     if (compact && !mobileRead && reading.stack.visible) setMobileRead(true);
     else { reading.toggle(); setMobileRead(true); }
-    setMobileCode(false);
+    setMobileSource(false);
   };
-  const toggleSources = () => {
-    if (codeNavigation.open && (mobileCode || !compact)) closeCode();
+  const toggleSourceReader = () => {
+    if (sourceNavigation.open && (mobileSource || !compact)) closeSourceReader();
     else {
-      codeNavigation.visibility(true);
-      setMobileCode(true);
+      sourceNavigation.visibility(true);
+      setMobileSource(true);
     }
   };
   const search = useRef<HTMLInputElement>(null);
@@ -193,7 +193,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
         e.preventDefault();
         e.stopPropagation();
         if (e.key === "w") toggleReader();
-        else if (e.key === "s") toggleSources();
+        else if (e.key === "s") toggleSourceReader();
         else {
           setChatOpen(true);
           setChatFocusRequest(request => request + 1);
@@ -219,21 +219,21 @@ function ReaderProject({ projectId }: { projectId: string }) {
       }
       if (e.key === "Escape") {
         setMenu(false);
-        if (codeNavigation.open) {
-          // Close Code before a focused canvas handles Escape as deselection.
+        if (sourceNavigation.open) {
+          // Close Source Reader before a focused canvas handles Escape as deselection.
           e.preventDefault();
           e.stopPropagation();
-          closeCode();
-          codeToggle.current?.focus();
+          closeSourceReader();
+          sourceReaderToggle.current?.focus();
         }
       }
     };
     window.addEventListener("keydown", key, true);
     return () => window.removeEventListener("keydown", key, true);
-  }, [compact, params, setParams, setWorkspace, codeNavigation.open, mobileRead, mobileCode, reading]);
+  }, [compact, params, setParams, setWorkspace, sourceNavigation.open, mobileRead, mobileSource, reading]);
   const select = (id?: string, mode: ReaderOpenMode = "preview") => {
     reading.open(id ? { kind: "item", id } : { kind: "overview" }, { mode });
-    setMobileCode(false);
+    setMobileSource(false);
     setMobileRead(true);
     setMenu(false);
   };
@@ -243,38 +243,43 @@ function ReaderProject({ projectId }: { projectId: string }) {
       return;
     }
     if (selection.kind === "code") {
-      openCode({ target: selection.id });
+      openSourceReader({ target: selection.id });
       return;
     }
     if (selection.kind === "mapping") {
       const mapping = graphIndex?.mappings.get(selection.id);
       if (mapping) {
-        openCode({ target: mapping.target, mapping: mapping.id }, true, mode);
+        openSourceReader({ target: mapping.target, mapping: mapping.id }, true, mode);
         return;
       }
     }
     reading.open(selection, { mode });
     setMobileRead(true);
-    setMobileCode(false);
+    setMobileSource(false);
     setMenu(false);
 
   };
-  const navigateDimension = (id: string, from: string) => {
+  const navigatePlane = (selection: GraphSelection, from: GraphSelection, presentation?: "planes") => {
     // A hover origin need not be the Reader's active card. Save it on the entry
     // being left, then push the destination with its own canvas location.
     window.history.replaceState({ ...window.history.state, usr: {
-      ...window.history.state?.usr, canvasVisit: { projectId, id: from },
+      ...window.history.state?.usr, canvasVisit: { projectId, selection: from },
     } }, "");
-    reading.setParams(cardParams(params, { kind: "item", id }), {
-      state: { canvasVisit: { projectId, id } },
+    const mapping = selection.kind === "mapping" ? graphIndex?.mappings.get(selection.id) : undefined;
+    const next = selection.kind === "code" ? codeParams(params, { target: selection.id })
+      : mapping ? codeParams(params, { target: mapping.target, mapping: mapping.id })
+      : cardParams(params, selection);
+    if (presentation) next.set("presentation", presentation);
+    reading.setParams(next, {
+      state: { canvasVisit: { projectId, selection } },
     });
     setMobileRead(false);
-    setMobileCode(false);
+    setMobileSource(false);
     setMenu(false);
   };
   const code = (id: string, index: number) => {
     const mapping = graphIndex?.mappings.get(graphIndex.legacyMappings.get(mappingId(id, index)) || "");
-    if (mapping) openCode({ target: mapping.target, mapping: mapping.id });
+    if (mapping) openSourceReader({ target: mapping.target, mapping: mapping.id });
   };
   const specialSelection = useMemo(
     () => readSelection(params.get("selection")),
@@ -285,23 +290,25 @@ function ReaderProject({ projectId }: { projectId: string }) {
     (params.get("item")
       ? { kind: "item", id: params.get("item")! }
       : undefined);
-  const codeSelection: GraphSelection | undefined = codeNavigation.targetId
-    ? codeNavigation.mapping
-      ? { kind: "mapping", id: codeNavigation.mapping.id }
-      : { kind: "code", id: codeNavigation.targetId }
+  const sourceSelection: GraphSelection | undefined = sourceNavigation.targetId
+    ? sourceNavigation.mapping
+      ? { kind: "mapping", id: sourceNavigation.mapping.id }
+      : { kind: "code", id: sourceNavigation.targetId }
     : undefined;
   const [canvasClearedAt, setCanvasClearedAt] = useState<string>();
   useEffect(() => setCanvasClearedAt(undefined), [routeLocation.key]);
   const canvasVisit = routeLocation.state?.canvasVisit;
-  const restoredCanvasId = navigationType === "POP" && canvasVisit?.projectId === projectId &&
-    typeof canvasVisit.id === "string" ? canvasVisit.id : undefined;
+  const restoredCanvasSelection = navigationType === "POP" && canvasVisit?.projectId === projectId
+    ? readSelection(JSON.stringify(canvasVisit.selection)) || (typeof canvasVisit.id === "string" ? { kind: "item" as const, id: canvasVisit.id } : undefined)
+    : undefined;
+  const restoredCanvasKey = JSON.stringify(restoredCanvasSelection);
   const graphSelection: GraphSelection | undefined = canvasClearedAt === routeLocation.key ? undefined :
-    restoredCanvasId ? { kind: "item", id: restoredCanvasId } :
-    params.get("focus") === "code" ? codeSelection : readerSelection;
+    restoredCanvasSelection ? restoredCanvasSelection :
+    params.get("focus") === "code" ? sourceSelection : readerSelection;
   const viewerSessionId = useAgentSession(projectId, data ? {
     selection: graphSelection || null,
     modelRevision: data.modelRevision,
-    view: !model ? "unavailable" : mobileCode && codeNavigation.open ? "code" : mobileRead && reading.stack.visible ? "reader" : "canvas",
+    view: !model ? "unavailable" : mobileSource && sourceNavigation.open ? "code" : mobileRead && reading.stack.visible ? "reader" : "canvas",
   } : null, async (command: NavigationCommand, signal: AbortSignal) => {
     if (signal.aborted) throw new Error("Navigation cancelled.");
     if (!model) throw new Error("The model is unavailable in this viewer.");
@@ -313,7 +320,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
     }
     if (command.action === "select") return;
     setMobileRead(false);
-    setMobileCode(false);
+    setMobileSource(false);
     setMenu(false);
     setQuery("");
     await new Promise<void>((resolve, reject) => {
@@ -336,11 +343,11 @@ function ReaderProject({ projectId }: { projectId: string }) {
     });
   }, refresh);
   const graphAction = (
-    action: "locate" | "expand",
+    action: "locate" | "reveal-file",
     selection: GraphSelection,
   ) => {
     setMobileRead(false);
-    setMobileCode(false);
+    setMobileSource(false);
     setCanvasCommand((c) => ({
       sequence: (c?.sequence || 0) + 1,
       action,
@@ -348,8 +355,8 @@ function ReaderProject({ projectId }: { projectId: string }) {
     }));
   };
   useEffect(() => {
-    if (restoredCanvasId) graphAction("locate", { kind: "item", id: restoredCanvasId });
-  }, [routeLocation.key, restoredCanvasId]);
+    if (restoredCanvasSelection) graphAction("locate", restoredCanvasSelection);
+  }, [routeLocation.key, restoredCanvasKey]);
   const item = model?.items.find((i) => i.id === params.get("item"));
   const contexts = model?.items.filter((i) => i.type === "context") || [];
   const architecture = model?.items.filter(isArchitecture) || [];
@@ -394,7 +401,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
     const item = card.kind === "item" ? model?.items.find(i => i.id === card.id) : undefined;
     return item ? (item.type === "relationship"
       ? [model?.items.find(i => i.id === item.from)?.name || item.from, item.name, model?.items.find(i => i.id === item.to)?.name || item.to].join(" ")
-      : item.name) : card.kind === "overview" ? model?.name || "Overview" : card.kind === "item" ? "Unavailable item" : card.kind === "mapping" ? "Source mapping" : "Connections";
+      : item.name) : card.kind === "overview" ? model?.name || "Overview" : card.kind === "item" ? "Unavailable item" : card.kind === "mapping" ? "Source link" : "Connections";
   };
   const activeCard = reading.stack.cards.find(card => cardKey(card) === reading.stack.active);
   const breadcrumbItem = activeCard?.kind === "item" ? model?.items.find(i => i.id === activeCard.id) : undefined;
@@ -404,7 +411,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
       title={titleForCard(card)} preview={reading.stack.preview === cardKey(card)} collapsed={collapsed} style={style}
       onOpen={(mode, reveal = true) => reading.open(card, { mode, reveal })}
       copied={copied === cardKey(card)} onCopy={() => copyCardLink(card)}
-      onClose={() => reading.close(cardKey(card))} allCode={workspace.allCode}
+      onClose={() => reading.close(cardKey(card))}
       onCanvasAction={action => { if (card.kind !== "overview") graphAction(action, card); }} />
   );
   const copyCardLink = async (card: ReaderCard) => {
@@ -421,10 +428,10 @@ function ReaderProject({ projectId }: { projectId: string }) {
   // Scroll geometry changes only the wrappers. Keep Markdown and model-derived
   // content stable; refresh handlers whenever navigation or their inputs change.
   const cardBodies = useMemo(() => new Map(reading.stack.cards.map(card => [cardKey(card), <ReaderCardBody card={card} model={model} graphIndex={graphIndex} params={params}
-      loading={loading} codeTarget={codeNavigation.target}
+      loading={loading} codeTarget={sourceNavigation.target}
       onSelect={select} onSelectGraph={selectGraph} onCode={code}
       onOpenChat={() => setChatOpen(true)} />])),
-    [reading.stack, routeLocation, model, loading, workspace.allCode]);
+    [reading.stack, routeLocation, model, loading]);
   const launcher = (
     <button ref={chatToggle} className={`quiet agent-toggle assistant-launcher${assistantWindow.docked ? " assistant-docked" : ""}${assistantWindow.dragging ? " dragging" : ""}`} style={assistantWindow.launcherStyle} {...assistantWindow.handlers("launcher")} aria-label="Agent" aria-controls="chat-pane" aria-pressed={chatOpen}
           title={`${chatOpen ? "Minimize Agent" : agentRunning ? "Open Agent · Working" : "Open Agent"} (${chatOpen ? "⌘\\" : "\\"})`}
@@ -438,7 +445,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
   return (
     <div
       ref={readerSurface}
-      className={`reader ${assistantWindow.dockTarget ? "assistant-dock-target" : ""} ${chatOpen && agentAttached && !compact ? "agent-attached" : ""} ${model && codeNavigation.open ? "with-code" : ""} with-canvas ${!workspace.sidebar ? "without-sidebar" : ""} ${mobileRead && reading.stack.visible ? "mobile-reading" : "mobile-canvas"} ${model && mobileCode ? "mobile-code" : ""}`}
+      className={`reader ${assistantWindow.dockTarget ? "assistant-dock-target" : ""} ${chatOpen && agentAttached && !compact ? "agent-attached" : ""} ${model && sourceNavigation.open ? "with-source-reader" : ""} with-canvas ${!workspace.sidebar ? "without-sidebar" : ""} ${mobileRead && reading.stack.visible ? "mobile-reading" : "mobile-canvas"} ${model && mobileSource ? "mobile-source" : ""}`}
       style={{ "--chat-width": `${workspace.chatWidth}px` } as CSSProperties}
     >
       <a className="skip-link" href="#main-content">
@@ -471,7 +478,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
           </>}
           {activeCard && activeCard.kind !== "overview" && <>
             <span aria-hidden="true">›</span>
-            <button aria-current="page" aria-label={titleForCard(activeCard)} title={titleForCard(activeCard)} {...readerLink(mode => { reading.open(activeCard, { mode }); setMobileRead(true); setMobileCode(false); })}>
+            <button aria-current="page" aria-label={titleForCard(activeCard)} title={titleForCard(activeCard)} {...readerLink(mode => { reading.open(activeCard, { mode }); setMobileRead(true); setMobileSource(false); })}>
               {breadcrumbItem ? <ObjectName type={breadcrumbItem.type} classification={breadcrumbItem.type === "concept" ? breadcrumbItem.classification : undefined} name={titleForCard(activeCard)} size={14} />
                 : <><Icon name={activeCard.kind === "mapping" ? "code-link" : "relationship"} size={14} /><span>{titleForCard(activeCard)}</span></>}
             </button>
@@ -484,13 +491,13 @@ function ReaderProject({ projectId }: { projectId: string }) {
             aria-pressed={reading.stack.visible && (!compact || mobileRead)} title="Toggle reader (w)"
             onClick={toggleReader}><Icon name="overview" size={18} /></button>
           <button
-            ref={codeToggle}
-            className="quiet icon-button pane-toggle code-toggle"
-            title={codeNavigation.open && (!compact || mobileCode) ? "Hide Sources (s)" : "Show Sources (s)"}
-            aria-controls="code-pane"
-            aria-label="Toggle source workspace"
-            aria-pressed={codeNavigation.open && (!compact || mobileCode)}
-            onClick={toggleSources}
+            ref={sourceReaderToggle}
+            className="quiet icon-button pane-toggle source-reader-toggle"
+            title={sourceNavigation.open && (!compact || mobileSource) ? "Hide Source Reader (s)" : "Show Source Reader (s)"}
+            aria-controls="source-reader"
+            aria-label="Toggle Source Reader"
+            aria-pressed={sourceNavigation.open && (!compact || mobileSource)}
+            onClick={toggleSourceReader}
           >
             <Icon name="panel-right" size={18} />
           </button>
@@ -579,7 +586,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
       <div
         className="pane-area"
         ref={paneArea}
-        style={{ "--code-width": `${workspace.codeWidth}%` } as CSSProperties}
+        style={{ "--source-reader-width": `${workspace.codeWidth}%` } as CSSProperties}
       >
         <div
           className={`reader-workspace canvas-workspace ${!reading.stack.visible ? "reader-hidden" : ""}`}
@@ -600,14 +607,14 @@ function ReaderProject({ projectId }: { projectId: string }) {
                   projectKey={data?.project.root || projectId}
                   statusHost={canvasStatusHost}
                   assistantHost={setAssistantHost}
-                  visible={!compact || !((mobileRead && reading.stack.visible) || (mobileCode && codeNavigation.open))}
+                  visible={!compact || !((mobileRead && reading.stack.visible) || (mobileSource && sourceNavigation.open))}
                   workspace={workspace}
                   setWorkspace={setWorkspace}
                   selection={graphSelection}
                   query={query}
                   matches={matches.map((i) => i.id)}
                   onSelect={selectGraph}
-                  onNavigateDimension={navigateDimension}
+                  onNavigatePlane={navigatePlane}
                   onClearSelection={() => setCanvasClearedAt(routeLocation.key)}
                   command={canvasCommand}
                 />
@@ -629,40 +636,39 @@ function ReaderProject({ projectId }: { projectId: string }) {
             </div>
           </main>}
           {!data?.problem && <ReaderStackViewport reading={reading} model={model}
-            layoutKey={`${routeLocation.key}:${compact}:${mobileRead}:${mobileCode}`}
+            layoutKey={`${routeLocation.key}:${compact}:${mobileRead}:${mobileSource}`}
             titleForCard={titleForCard} renderCardHeader={renderCardHeader}
             renderBody={card => cardBodies.get(cardKey(card))}
             notice={<>{error && <ErrorNotice message={error} />}
               {!model && loading && <p className="empty" role="status">Opening the model…</p>}</>} />}
         </div>
-        {model && codeNavigation.open && (
-          <PaneSeparator className="code-divider" label="Resize source workspace"
+        {model && sourceNavigation.open && (
+          <PaneSeparator className="source-reader-divider" label="Resize Source Reader"
             container={paneArea} edge="right" unit="percent" min={25} max={60} step={2}
             value={workspace.codeWidth} onChange={update => setWorkspace(w => ({ ...w, codeWidth: update(w.codeWidth) }))} />
         )}
         {model && (
-          <CodePane
+          <SourceReader
             projectId={projectId}
-            target={codeNavigation.target}
-            targetId={codeNavigation.targetId}
-            mapping={codeNavigation.mapping}
-            open={codeNavigation.open}
-            onClose={() => { closeCode(); codeToggle.current?.focus(); }}
+            target={sourceNavigation.target}
+            targetId={sourceNavigation.targetId}
+            mapping={sourceNavigation.mapping}
+            open={sourceNavigation.open}
+            onClose={() => { closeSourceReader(); sourceReaderToggle.current?.focus(); }}
             onOwner={select}
             onMapping={(m, mode) =>
-              openCode({ target: m.target, mapping: m.id }, true, mode)
+              openSourceReader({ target: m.target, mapping: m.id }, true, mode)
             }
-            onLocate={() =>
-              codeSelection && graphAction("locate", codeSelection)
-            }
+            onLocate={() => sourceSelection && graphAction("locate", sourceSelection)}
+            onReveal={() => sourceSelection && graphAction("reveal-file", sourceSelection)}
             onBackToReader={() => {
-              setMobileCode(false);
+              setMobileSource(false);
               setMobileRead(true);
             }}
-            onBack={codeNavigation.back}
-            onForward={codeNavigation.forward}
-            canBack={codeNavigation.canBack}
-            canForward={codeNavigation.canForward}
+            onBack={sourceNavigation.back}
+            onForward={sourceNavigation.forward}
+            canBack={sourceNavigation.canBack}
+            canForward={sourceNavigation.canForward}
           />
         )}
       </div>

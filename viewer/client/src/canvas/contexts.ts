@@ -9,7 +9,7 @@ type ContextShape = ObjectShape & { props: ObjectShape["props"] & { group: true;
 export const isContext = (shape: TLShape): shape is ContextShape =>
   shape.type === "lexicon-object" && shape.props.group && shape.props.graphId.startsWith("item:");
 
-/** Only inner model nodes shape a context; notes, roads, and expanded code do not. */
+/** Only inner model nodes shape a context; notes, roads, and source targets do not. */
 export function contextContents(editor: Editor, shape: ObjectShape, atlas = false): Bounds[] {
   return editor.getSortedChildIdsForParent(shape.id).flatMap(id => {
     const child = editor.getShape(id);

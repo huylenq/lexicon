@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 /** Shared hover/focus tooltip used by model icons and toolbar controls. */
-export function useTooltip<T extends HTMLElement>(label: string) {
+export function useTooltip<T extends HTMLElement>(label: string, { interactive = true }: { interactive?: boolean } = {}) {
   const id = useId();
   const anchor = useRef<T>(null);
   const timer = useRef<ReturnType<typeof setTimeout>>();
@@ -58,7 +58,7 @@ export function useTooltip<T extends HTMLElement>(label: string) {
     onFocus: show,
     onBlur: hide,
     tooltip: tip && createPortal(
-      <span id={id} role="tooltip" className="type-tooltip" style={tip}
+      <span id={id} role="tooltip" className="type-tooltip" style={{ ...tip, pointerEvents: interactive ? undefined : "none" }}
         onPointerEnter={cancelHide} onPointerLeave={deferHide}>{label}</span>,
       document.body,
     ),

@@ -1,40 +1,33 @@
 import { useEffect, useLayoutEffect, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { useEditor, useValue, type Editor, type TLShapeId } from "tldraw";
-import type { GraphVertex } from "../graph/model";
+import { planeNeighbors, type PlaneNeighbor } from "../graph/planeNeighbors";
+import type { GraphSelection } from "../graph/model";
 import { objectAppearance } from "../ObjectName";
 import Icon from "../Icon";
-import { holdNeighborAnchor, neighborAnchors } from "./NeighborHighlight";
+import { holdNeighborAnchor, neighborAnchors, neighborEdges } from "./NeighborHighlight";
 import { canvasPresentation } from "./presentation";
 import { radialPositions, type RadialBox } from "./radial-layout";
 import "./radial-neighbors.css";
 import { routeObstacles } from "./radial-obstacles";
 type Position = { x: number; y: number; dx: number; dy: number; nameSide?: "left" | "right"; nameWidth?: number };
 
-function dimension(vertex?: GraphVertex) {
-  if (!vertex || vertex.kind === "code" || vertex.kind === "file") return;
-  return vertex.kind === "concept" || vertex.kind === "context" ? "domain" : "architecture";
-}
-type Neighbors = { source: TLShapeId; targets: GraphVertex[] };
+type Neighbors = { source: TLShapeId; origin: GraphSelection; targets: PlaneNeighbor[] };
 function readNeighbors(editor: Editor): Neighbors | undefined {
   const view = canvasPresentation(editor).get();
-  // Held highlighting must not keep its own overlay alive after the pointer leaves.
-  for (const anchor of neighborAnchors(editor, false)) {
-    const source = view.vertices.get(anchor.props.graphId), sourceDimension = dimension(source);
-    if (!sourceDimension) continue;
-    const targets = new Map<string, GraphVertex>();
-    for (const connection of view.connections.values()) {
-      const id = connection.source === source?.id ? connection.target : connection.target === source?.id ? connection.source : undefined;
-      const target = id ? view.vertices.get(id) : undefined;
-      if (target && dimension(target) && dimension(target) !== sourceDimension && target.selection?.kind === "item") targets.set(target.id, target);
-    }
-    if (targets.size) return { source: anchor.id, targets: [...targets.values()] };
+  if (!view.index) return;
+  for (const anchor of [...neighborAnchors(editor, false), ...neighborEdges(editor, false)]) {
+    const origin = view.vertices.get(anchor.props.graphId)?.selection || view.connections.get(anchor.props.graphId)?.selection;
+    if (!origin) continue;
+    const targets = planeNeighbors(view.index, origin).filter(target =>
+      view.plane !== "all" || target.plane !== "source" && origin.kind === "item");
+    if (targets.length) return { source: anchor.id, origin, targets };
   }
 }
 
 export function RadialNeighbors() {
   const editor = useEditor();
-  const enabled = useValue("Cross-dimension navigation", () => !!canvasPresentation(editor).get().onOpenDimension, [editor]);
+  const enabled = useValue("Cross-dimension navigation", () => !!canvasPresentation(editor).get().onOpenPlane, [editor]);
   return enabled ? <ActiveRadialNeighbors /> : null;
 }
 
@@ -59,14 +52,12 @@ function ActiveRadialNeighbors() {
   if (!neighbors) return null;
   return <RadialRing key={neighbors.source} exiting={exiting} editor={editor} neighbors={neighbors} onInside={setInside} onNavigate={vertex => {
     setInside(false); setNeighbors(undefined); holdNeighborAnchor(editor);
-    const source = editor.getShape(neighbors.source);
-    const origin = source?.type === "lexicon-object" ? canvasPresentation(editor).get().vertices.get(source.props.graphId)?.selection : undefined;
-    if (vertex.selection?.kind === "item" && origin?.kind === "item") canvasPresentation(editor).get().onOpenDimension?.(vertex.selection.id, origin.id);
+    canvasPresentation(editor).get().onOpenPlane?.(vertex.selection, neighbors.origin);
   }} />;
 }
 
 function RadialRing({ editor, neighbors, exiting, onInside, onNavigate }: {
-  editor: Editor; neighbors: Neighbors; exiting: boolean; onInside: (inside: boolean) => void; onNavigate: (vertex: GraphVertex) => void;
+  editor: Editor; neighbors: Neighbors; exiting: boolean; onInside: (inside: boolean) => void; onNavigate: (vertex: PlaneNeighbor) => void;
 }) {
   const [positions, setPositions] = useState<Position[]>([]);
   const labelsKey = JSON.stringify(neighbors.targets.map(({ id, title }) => ({ id, title })));
@@ -92,7 +83,7 @@ function RadialRing({ editor, neighbors, exiting, onInside, onNavigate }: {
       measure.remove();
     };
     const place = () => {
-      const source = editor.getContainer().querySelector(`[data-shape-id="${CSS.escape(neighbors.source)}"] .canvas-object`);
+      const source = editor.getContainer().querySelector(`[data-shape-id="${CSS.escape(neighbors.source)}"] .canvas-object, [data-shape-id="${CSS.escape(neighbors.source)}"] .canvas-connection-label`);
       const bounds = source?.getBoundingClientRect();
       let next: typeof positions = [];
       if (bounds?.width && bounds.height) {
@@ -145,12 +136,12 @@ function RadialRing({ editor, neighbors, exiting, onInside, onNavigate }: {
   </div>, document.body);
 }
 
-function RadialIcon({ vertex, position, onNavigate }: { vertex: GraphVertex; position: Position; onNavigate: () => void }) {
+function RadialIcon({ vertex, position, onNavigate }: { vertex: PlaneNeighbor; position: Position; onNavigate: () => void }) {
   const left = position.nameSide === "left";
   const room = left ? position.x - 12 : window.innerWidth - position.x - 42;
   const { icon, tone } = objectAppearance(vertex.kind === "file" ? "code" : vertex.kind, vertex.kind === "concept" ? vertex.subtitle : undefined);
   return <button className="radial-neighbor object-name" data-tone={tone} data-radial-node={vertex.id}
-    aria-label={`Go to ${vertex.title}`} data-name-side={left ? "left" : "right"} style={{ left: position.x, top: position.y, "--radial-name-width": `${position.nameWidth ?? Math.max(80, Math.min(360, room))}px`, "--radial-dx": `${position.dx}px`, "--radial-dy": `${position.dy}px` } as CSSProperties}
+    title={vertex.subtitle ? `${vertex.title} · ${vertex.subtitle}` : vertex.title} aria-label={`Go to ${vertex.title}`} data-name-side={left ? "left" : "right"} style={{ left: position.x, top: position.y, "--radial-name-width": `${position.nameWidth ?? Math.max(80, Math.min(360, room))}px`, "--radial-dx": `${position.dx}px`, "--radial-dy": `${position.dy}px` } as CSSProperties}
     onClick={onNavigate}>
     <span className="type-icon"><Icon name={icon} size={17} /></span>
     <span className="radial-neighbor-name" aria-hidden="true">{vertex.title}</span>

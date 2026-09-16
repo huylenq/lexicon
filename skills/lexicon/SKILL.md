@@ -8,7 +8,7 @@ user-invocable: true
 
 Reduce the understanding someone must reconstruct from code. Contexts establish meaning, concepts name ideas, relationships explain connections, and source links connect them to implementation code or documentary evidence. Human judgment governs names, boundaries, and emphasis.
 
-Domain meaning, software architecture, and code are distinct dimensions of the same system. Keep domain and architecture boundaries independent; explain their correspondence with relationships and ground either in code links. Flows describe scenarios across existing participants. Canvas layers and pages present those meanings without defining them.
+Domain meaning, software architecture, and code are distinct dimensions of the same system. Keep domain and architecture boundaries independent; explain their correspondence with relationships and ground either in source links. Flows describe scenarios across existing participants. Canvas planes and pages present those meanings without defining them. Linked Sources is the plane of authored link targets and shares the 2D editor with Domain and Architecture; Combined composes all three. Files browses the filtered filesystem through the standalone File Map, available as an opt-in development option; Source Reader opens code and documents. See the presentation vocabulary in `MODEL.md`.
 
 ## Choose the workflow
 

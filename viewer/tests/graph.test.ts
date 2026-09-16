@@ -11,6 +11,7 @@ import {
   targetId,
 } from "../client/src/graph/model";
 import { connectionPath } from "../client/src/graph/layout";
+import { fileSelectionId } from "../shared/files";
 
 const xml = `<lexicon schema="3.2" id="shop"><name>Shop</name><description>Example.</description>
 <context id="sales"><name>Sales</name><description>Sells.</description>
@@ -30,9 +31,20 @@ const xml = `<lexicon schema="3.2" id="shop"><name>Shop</name><description>Examp
 </lexicon>`;
 const model = parseModel(xml);
 const index = indexModel(model);
-const options = { expanded: [], allCode: false };
+const options = { view: "domain" as const };
 
 describe("domain graph projection", () => {
+  test("focusing a source file includes every linked target in Source and Combined", () => {
+    const expanded = indexModel(parseModel(xml.replace('</concept>', '<code-link kind="code" file="order.ts" symbol="OrderLine" role="definition">A line.</code-link><code-link kind="code" file="other.ts" symbol="Other" role="definition">Other.</code-link></concept>')));
+    for (const view of ["source", "all"] as const) {
+      const graph = projectGraph(expanded, { view });
+      const area = neighborhood(expanded, graph, { kind: "code", id: fileSelectionId("order.ts") });
+      expect(area.nodes.has("file:order.ts")).toBe(true);
+      for (const target of expanded.targets.values())
+        if (target.link.file === "order.ts") expect(area.nodes.has(target.id)).toBe(true);
+      expect(area.nodes.has("file:other.ts")).toBe(view === "all");
+    }
+  });
   test("starts with all domain concepts grouped by ownership, preserving authored edges", () => {
     const graph = projectGraph(index, options);
     expect(graph.nodes.filter((n) => n.kind === "concept")).toHaveLength(3);
@@ -43,7 +55,7 @@ describe("domain graph projection", () => {
     expect(graph.nodes.some((n) => n.kind === "code")).toBe(false);
   });
   test("shares targets while retaining every mapping, role, and relationship owner", () => {
-    const graph = projectGraph(index, { ...options, allCode: true });
+    const graph = projectGraph(index, { view: "all" });
     expect(index.targets.size).toBe(1);
     expect(index.mappings.size).toBe(4);
     expect(graph.nodes.filter((n) => n.kind === "code")).toHaveLength(1);
@@ -98,12 +110,9 @@ describe("domain graph projection", () => {
       });
     }
   });
-  test("expanding internal relationship code attaches it to that relationship", () => {
-    const graph = projectGraph(index, {
-      ...options,
-      expanded: ["contains"],
-    });
-    const code = graph.connections.find((e) => e.kind === "mapping")!;
+  test("Combined attaches relationship source mappings to their relationship", () => {
+    const graph = projectGraph(index, { view: "all" });
+    const code = graph.connections.find((e) => e.mappings.includes(index.legacyMappings.get(mappingId("contains", 0))!))!;
     expect(code.source).toBe(anchorId("relation:contains"));
     expect(code.mappings).toEqual([index.legacyMappings.get(mappingId("contains", 0))!]);
     expect(code.selection).toEqual({ kind: "mapping", id: code.mappings[0] });
@@ -115,7 +124,7 @@ describe("domain graph projection", () => {
         .replace('to="shipment"', 'to="missing"')
         .replace('id="line"', 'id="order"'),
     );
-    const graph = projectGraph(indexModel(invalid), { ...options, allCode: true });
+    const graph = projectGraph(indexModel(invalid), { view: "all" });
     expect(graph.omitted).toBeGreaterThan(0);
     expect(new Set(graph.nodes.map((n) => n.id)).size).toBe(graph.nodes.length);
     const ids = new Set(graph.nodes.map((n) => n.id));
@@ -126,7 +135,7 @@ describe("domain graph projection", () => {
     ).toBe(true);
   });
   test("code focus includes every visible owner and relationship geometry", () => {
-    const graph = projectGraph(index, { ...options, allCode: true });
+    const graph = projectGraph(index, { view: "all" });
     const area = neighborhood(index, graph, {
       kind: "code",
       id: [...index.targets.keys()][0],

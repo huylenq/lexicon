@@ -21,7 +21,7 @@ export type IconName =
   | "code"
   | "document"
   | "overview"
-  | "layers"
+  | "planes"
   | "ink"
   | "village"
   | "search"

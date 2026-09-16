@@ -13,24 +13,41 @@ A project has a stable ID, name, description, and one shared semantic document: 
 | Relationship | `<relationship id="…" from="…" to="…">` at root | An explained directed connection between structural elements |
 | Flow | `<flow id="…">` at root | One named scenario containing ordered relationship occurrences |
 
-Every item requires a name and description and may have annotations and code links. Item IDs are project-wide, unique, stable, and whitespace-free. Code links and steps belong to their owning item; they are not independent model items.
+Every item requires a name and description and may have annotations and source links. Item IDs are project-wide, unique, stable, and whitespace-free. Source links and steps belong to their owning item; they are not independent model items.
 
 Domain Context and Concept draw on DDD. The four software-structure types follow [C4 abstractions](https://c4model.com/abstractions). A Context and a Software System have different meanings; explain their correspondence with an ordinary relationship where useful. The question determines which vocabulary is needed. A domain-only model remains a complete valid model.
 
 ## Dimensions and presentation vocabulary
 
+Domain and Architecture describe modeled meaning and software structure. Source links connect model items to code or documentary evidence. Linked Sources presents the referenced targets. Files presents the filtered filesystem. Views and canvas placement do not change these semantics.
+
+| Feature | UI name | Scope |
+|---|---|---|
+| Domain plane | Domain | Modeled concepts, language, and rules |
+| Architecture plane | Architecture | Modeled software responsibilities and structure |
+| Source plane | Linked Sources | Targets referenced by authored source links |
+| Filesystem browser | Files | The filtered physical project structure |
+| LOC tiles | File Map | A visualization within Files |
+| Code and document pane | Source Reader | The selected source content |
+| Authored evidence mappings | Source Links | Connections with roles and explanations |
+
 | Term | Meaning |
 |---|---|
-| Dimension | Domain meaning, software architecture, or code; each describes a different aspect of the system |
+| Dimension | Domain meaning, software architecture, or source evidence; each describes a different aspect of the system |
 | Relationship | An authored connection between model elements, within or across domain and architecture |
-| Source link | An owned mapping to code or documentary evidence, with a role and explanation; stored as `code-link` |
+| Source link | An authored mapping owned by a model item, with a target, role, and explanation; stored as `code-link` |
+| Source target | A referenced code or document location, identified by its kind, file, and locator |
 | View | A presentation chosen to answer a question about the shared model |
-| Layer | A visual plane presenting a dimension in the Layers view |
+| Plane | A visual grouping for Domain, Architecture, or Linked Sources, shown individually in 2D or alongside other planes in Combined and Planes |
 | Page | A tldraw presentation container holding shapes and layout |
 
 Domain and architecture membership follows an element's existing type. Source targets are reached through SourceLinks; they are not a new Element type. Relationships can cross dimensions, and Flows order occurrences of relationships. Neither is assigned wholesale to one dimension.
 
-Pages organize presentation. Their names and positions do not determine semantic membership. The Layers presentation stores separate Domain and Architecture pages in the project canvas, shown by two editors. Each view has its own visual references to the same semantic identities, so its placements remain independent. Domain appears above Architecture for reading; that arrangement implies no dependency or containment. Code is currently available through source links and the code workspace; a code plane remains future work.
+Linked Sources derives its file and target objects exclusively from authored source links, with no separate filesystem or parser index. Links that reference the same target share one target object while retaining each link's owner, identity, role, and explanation. File grouping preserves precise symbol, heading, line, and whole-file targets. A target remains addressable when its source is stale, missing, or ambiguous; displaying it does not establish that it resolves.
+
+Files shows the physical structure of the selected checkout within the project discovery scope. Source links connect locations in that structure to model items. Opening an unlinked file does not create a source link or add a target to Linked Sources. Files and directories are not semantic model elements, and the filesystem view is separate from the model planes.
+
+Project filters govern source discovery and the scope used for generation and refinement. They do not remove existing model items, authored links, or projected targets. An authored link can remain readable even when its file is excluded from discovery. See [Project settings](#project-settings) for filtering rules.
 
 ## Semantic type hierarchy
 
@@ -77,7 +94,7 @@ Use the Flow description and annotations to state its trigger, preconditions whe
 
 ### Enforcement and semantic review
 
-The parser and validator enforce legal syntax, identity, containment, endpoint types, and step references. The code-link checker establishes target resolution. Neither proves the meaning of a connection, runtime ordering, or scenario coverage. Agent review must assess those claims against source and qualify intended, observed, and enforced behavior beside the claim. Report structural validity, source-supported correctness, and coverage separately. Unsupported meaning must not be presented as verified merely because the document passes validation.
+The parser and validator enforce legal syntax, identity, containment, endpoint types, and step references. The source-link checker establishes target resolution. Neither proves the meaning of a connection, runtime ordering, or scenario coverage. Agent review must assess those claims against source and qualify intended, observed, and enforced behavior beside the claim. Report structural validity, source-supported correctness, and coverage separately. Unsupported meaning must not be presented as verified merely because the document passes validation.
 
 ## Containment and relationships
 
@@ -149,7 +166,7 @@ Document links to local `.md`, `.markdown`, and `.mdown` files open as rendered 
 
 Heading anchors come from visible heading text: lowercase; remove punctuation except underscores and hyphens; replace whitespace with hyphens. Unicode letters and numbers are retained. Empty anchors become `section`; repeated or colliding anchors receive `-1`, `-2`, and so on in document order. For example, `## Human **Approval**` becomes `human-approval`. ATX and setext headings are supported; headings inside code fences are ignored. Renaming a heading can break its anchor; a stable link `id` preserves the mapping identity when its target is repaired. Missing headings are reported by the reader and fail CLI/edit validation.
 
-Rendered documents do not execute raw HTML or load images. Same-document heading links navigate within the pane; external HTTP(S)/mailto links are explicit links, and other relative links display as text. The source reader still only opens model-declared targets inside the selected project source root, with the existing 2 MB text-file limit. PDF files need a faithful Markdown transcription before linking; preserve PDF provenance and page markers in that transcription.
+Rendered documents do not execute raw HTML or load images. Same-document heading links navigate within the pane; external HTTP(S)/mailto links are explicit links, and other relative links display as text. Declared source links resolve inside the selected project source root. Files browsing separately opens inventoried files within that root. Both paths enforce the existing 2 MB text-file limit and reject binary content; browsing a file does not author an evidence mapping. PDF files need a faithful Markdown transcription before linking; preserve PDF provenance and page markers in that transcription.
 
 For a document-only model, state the source document, version, and scope. Label prescribed behavior as intended and retain gaps or contradictions. Use implementation/enforcement claims only when supported by inspected code or checks; linking a policy that says a control is required does not prove that control exists.
 
@@ -163,7 +180,11 @@ This approach follows [C4 dynamic diagrams](https://c4model.com/diagrams/dynamic
 
 ## Model and presentation
 
-One model supplies the reader, graph filters, and derived sequence diagrams. The 2D view shows Domain, Architecture, or both together with Combined as an exploration filter, not a complete suite of scoped C4 diagrams. Layers always shows all elements on separate Domain and Architecture planes when exploring their correspondence, without a per-layer selector. All 2D filters offer Standard, Atlas Ink, and Atlas Village skins. Domain and Architecture each own a separate 2D canvas page, including their drawings and notes. Combined mirrors the current Domain and Architecture pages, preserving their node arrangements, drawings, groups, and attachments. Each dimension has a saved translation in Combined; dragging its heading moves the whole dimension without editing the source page. Separate dimensions restores the gap. Selecting a Domain or Architecture drag handle in Combined makes that dimension the active drawing layer. The active dimension’s outer border is highlighted in its dimension color, and an inline badge on the left of the drawing tooltray names the active dimension. New drawings and notes belong to that dimension and are saved in its source page coordinates; existing drawings keep their ownership when the active layer changes. Drawing edits also update the source page. Attachments stay within their owning dimension. Model nodes are edited in Domain or Architecture; dimension offsets remain presentation-only. Combined can hide cross-dimension relationships and use radial neighbors for navigation instead; this preference does not change the model or node placements. Views and Beyond guides choosing and reviewing views; it introduces no persisted viewpoint records, framework registry, or configurable type system.
+One model supplies the reader, canvas views, and derived sequence diagrams. Domain, Architecture, and Linked Sources can each be viewed in 2D. Combined composes all three in 2D, while Planes separates them spatially to expose correspondence. These views preserve the same semantic identities. Position, proximity, and plane order imply no containment, dependency, or runtime direction. They are exploration views rather than a complete suite of scoped C4 diagrams.
+
+Pages hold presentation content; their names and positions do not determine semantic membership. Combined mirrors the individual 2D planes' arrangements and authored drawings. Moving a plane in Combined changes its presentation offset. New drawings belong to the active drawing plane, and edits to drawings update their owning page. Linked Sources contributes shared file and target objects, with source connections preserving the authored mappings from their model owners. Domain and Architecture navigate to these targets without expanding them inline.
+
+Selection, focus, connection visibility, and navigation remain viewing state. Views and Beyond guides choosing and reviewing views; it introduces no persisted viewpoint records, framework registry, or configurable type system. Rendering, gestures, skins, and the experimental Files / File Map view are documented in the [canvas guide](viewer/CANVAS.md) and [Planes guide](PLANES.md).
 
 `lexicon/canvas.json` is a separate authored presentation document containing positions, notes, drawings, and asset references. It refers to semantic identities and does not define model meaning. Changing a view or drawing does not change XML. Conversation history and project registrations live in the local database; browser preferences, navigation, and recovery drafts have their own lifetimes. Schema migration preserves these artifacts and the model identity they reference.
 
@@ -203,9 +224,11 @@ Use two-space indentation and normal XML escaping. Descriptions contain plain te
 
 Keep a project model in its chosen artifact root. The viewer first reads the registered folder; when it lacks a model, it checks the primary Git worktree. CLI callers specify roots explicitly. Source inspection stays rooted in the selected code checkout.
 
+Exclude the project-root `lexicon/` directory from source discovery and new source evidence by default, including during generation and refinement. Its model and presentation artifacts describe the system; they are not independent implementation evidence. Read them to maintain or migrate the model, or when the user explicitly requests a document there. File inventory excludes this directory even when tracked by Git; existing authored links remain readable. Nested source modules such as `src/lexicon/` are unaffected.
+
 The shared TypeScript contract and executable validation are maintained together in `viewer/shared/model.ts` and `viewer/server/model.ts`. The [Shop example](examples/shop/lexicon/model.xml) shows the format applied across domain meaning, software structure, and ordered flows.
 
-Structural and code-link checks establish that the model is well formed and its declared targets resolve. Semantic review asks whether those targets support the explanations. For an integration relationship, inspect the mechanism connecting both endpoints; finding each endpoint is insufficient. For an enforced rule, inspect the check and retain its conditions and failure outcome.
+Structural and source-link checks establish that the model is well formed and its declared targets resolve. Semantic review asks whether those targets support the explanations. For an integration relationship, inspect the mechanism connecting both endpoints; finding each endpoint is insufficient. For an enforced rule, inspect the check and retain its conditions and failure outcome.
 
 Annotations can explain lifecycle transitions, authority limits, uncertainty, and consistency rules without introducing new object types. Add structure when a worked example exposes meaning these objects cannot express clearly. The [initialization workflow](skills/lexicon/initialize.md) covers concept selection; [semantic review](skills/lexicon/review.md) assesses coverage separately from correctness.
 
@@ -223,10 +246,10 @@ An inline mention does not create a Relationship, graph edge, containment claim,
 
 ## Project settings
 
-`lexicon/settings.json` stores shared project configuration beside the model, independently of XML and canvas presentation. The first setting filters source discovery for the skill and the viewer's Source inventory:
+`lexicon/settings.json` stores shared project configuration beside the model, independently of XML and canvas presentation. The first setting filters source discovery for the skill and the viewer's file inventory:
 
 ```json
 {"files":{"include":["src/**","docs/**/*.md"],"exclude":["**/*.test.ts"]}}
 ```
 
-Globs are relative to the selected source root. Any include can match; empty includes mean all files. Exclusions win, and Git ignore rules apply even to tracked files. Root `lexicon/` artifacts remain outside source discovery. Missing settings include all files and default `files.exclude` to `["**/*.lock", "**/.*/**"]`, excluding `.lock` files and dot-prefixed directories at any depth. Dotfiles outside those directories remain included. Explicitly saved exclusions replace this default; saving an empty list allows lock files and dot-prefixed directories. Invalid settings report an error. Existing authored model items and links remain readable; changing scope does not rewrite the model. Linked worktrees use settings from the resolved artifact root. Project settings in the viewer saves this file and refreshes the Source inventory. The skill's `files` command enumerates the same scope.
+Globs are relative to the selected source root. Any include can match; empty includes mean all files. Exclusions win, and Git ignore rules apply even to tracked files. Root `lexicon/` artifacts remain outside source discovery. Missing settings include all files and default `files.exclude` to `["**/*.lock", "**/.*/**"]`, excluding `.lock` files and dot-prefixed directories at any depth. Dotfiles outside those directories remain included. Explicitly saved exclusions replace this default; saving an empty list allows lock files and dot-prefixed directories. Invalid settings report an error. Existing authored model items and links remain readable; changing scope does not rewrite the model. Linked worktrees use settings from the resolved artifact root. Project settings in the viewer saves this file and refreshes the file inventory. The skill's `files` command enumerates the same scope. Discovery descends into embedded Git repositories and initialized submodules; ancestor ignore rules, each repository's ignore rules, and project globs all apply to paths relative to the selected source root.

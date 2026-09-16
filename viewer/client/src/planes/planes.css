@@ -1,0 +1,86 @@
+.planes-stage { flex: 1; min-width: 0; overflow: hidden; position: relative; background: var(--paper); touch-action: none; overscroll-behavior: contain; }
+.planes-scene { width: 1000px; height: 598px; position: absolute; left: calc(50% - 500px); top: calc(50% - 299px); transform-style: preserve-3d; pointer-events: none; }
+.plane-sheet { pointer-events: auto; }
+.plane-sheet { position: absolute; inset: 0; border: 1px solid #a9c4c0; border-radius: 10px; background: var(--paper); box-shadow: 0 20px 45px #2b45551c; color: var(--ink); }
+.plane-sheet.architecture { border-color: #bfb6d9; box-shadow: 0 25px 65px #483a642b; }
+.plane-editor { position: relative; width: 1000px; height: 560px; border-radius: 0 0 9px 9px; overflow: hidden; }
+.plane-editor .tl-background { background: transparent; }
+.plane-editor [data-plane-corner] { position: absolute; width: 0; height: 0; pointer-events: none; }
+.plane-editor .tl-watermark_SEE-LICENSE { opacity: .6; }
+.plane-empty { position: absolute; inset: 40% 0 auto; text-align: center; color: #859099; pointer-events: none; }
+/* These connectors share the planes' 3D context. Do not flatten these wrappers. */
+.planes-depth-bridges, .planes-depth-bridge { position: absolute; inset: 0; transform-style: preserve-3d; pointer-events: none; color: #a67537; }
+.planes-depth-ray { position: absolute; left: 0; top: 0; height: 1px; margin-top: -.5px; transform-origin: 0 50%; background: color-mix(in srgb, currentColor 55%, transparent); pointer-events: none; }
+.planes-depth-ray::after { content: ""; position: absolute; right: 0; top: -2px; border-left: 5px solid currentColor; border-top: 2.5px solid transparent; border-bottom: 2.5px solid transparent; }
+.planes-depth-hit { position: absolute; left: 8px; right: 8px; top: -5px; bottom: -5px; pointer-events: auto; cursor: pointer; }
+.planes-error { color: #b33154 !important; }
+.planes-arranging { position: absolute; top: 45%; left: 30%; background: white; padding: 15px 25px; border-radius: 8px; }
+.planes-loading { padding: 40px; }
+.planes-measurement-host { position: fixed; left: -10000px; top: 0; width: 1000px; height: 0; pointer-events: none; visibility: hidden; }
+
+.planes-endpoint-markers { position: absolute; inset: 0; pointer-events: none; }
+.planes-endpoint-marker { position: absolute; border: 2px solid #b72e78; border-radius: 4px; box-shadow: none; pointer-events: none; }
+
+.planes-renderer { display: contents; }
+.plane-options { position: relative; }
+.plane-options .canvas-menu-content { position: absolute; top: 100%; right: 0; min-width: 230px; padding: 12px; background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 7px; box-shadow: var(--shadow); }
+.plane-options label { display: flex; align-items: center; gap: 8px; margin: 8px 0; font-size: 12px; }
+.plane-options input[type=range] { width: 120px; accent-color: var(--accent); }
+.planes-depth-label { position: absolute; left: 0; top: 0; transform-origin: 0 0; padding: 1px 3px; border: 0; background: var(--paper); color: inherit; white-space: nowrap; font-size: 11px; font-weight: 500; line-height: 1.2; pointer-events: auto; }
+
+
+/* Unbounded working planes: only the overall canvas viewport clips content. */
+.plane-sheet, .plane-sheet.architecture { border: 0; border-radius: 0; background: transparent; box-shadow: none; pointer-events: none; }
+.planes-scene { height: 560px; top: calc(50% - 280px); }
+.plane-editor { position: absolute; border-radius: 0; pointer-events: none; background-image: radial-gradient(circle, color-mix(in srgb, var(--plane-grid, var(--muted)) 28%, transparent) 1px, transparent 1px); background-size: 32px 32px; }
+.plane-editor .tl-container, .plane-editor .tl-canvas, .plane-editor .tl-background { pointer-events: none; background-color: transparent; }
+.plane-editor .tl-shape { pointer-events: none; }
+.plane-editor .tl-shape[data-shape-type="lexicon-object"], .plane-editor .tl-shape[data-shape-type="lexicon-note"], .plane-editor .tl-selection-foreground { pointer-events: auto; }
+.planes-stage { cursor: grab; }
+.planes-stage:active { cursor: grabbing; }
+.domain .plane-editor { --plane-grid: #5f9f8a; }
+.architecture .plane-editor { --plane-grid: #9681b8; }
+.plane-editor, .plane-editor .tl-container, .plane-editor .tl-canvas { overflow: visible; }
+.plane-editor .tl-hit-test-blocker { pointer-events: none; }
+/* Browser containment assumes a flat viewport and can discard a tilted plane. */
+.plane-editor .tl-canvas { contain: none; content-visibility: visible; }
+
+.plane-editor { background-color: color-mix(in srgb, var(--plane-grid) var(--plane-opacity, 8%), transparent); }
+
+.planes-camera { position: absolute; inset: 0; perspective: 2400px; transform-origin: 0 0; pointer-events: none; }
+.plane-editor { background: none; }
+.domain { --plane-grid: #5f9f8a; }
+.architecture { --plane-grid: #9681b8; }
+.plane-surface { position: absolute; pointer-events: none; border-radius: 12px; background: color-mix(in srgb, var(--plane-grid) var(--plane-opacity, 8%), transparent); border: 1px solid color-mix(in srgb, var(--plane-grid) 30%, transparent); }
+/* Keep zoomed editor content in the scene rather than flattening it to a texture. */
+.planes-camera, .plane-sheet, .plane-editor { transform-style: preserve-3d; }
+
+
+/* Keep the bottom dock inside the canvas area exposed by floating panes. */
+.reader-workspace:not(.reader-hidden) .planes-stage {
+  --planes-help-right: min(calc(100% - 44px), calc(clamp(300px, var(--reader-width), 900px) + 28px));
+}
+@media (min-width: 1001px) {
+  .reader.with-canvas:not(.without-sidebar) .planes-stage { --planes-help-left: calc(var(--browse-space) + 12px); }
+}
+.planes-help { position: absolute; z-index: 550; bottom: 0; left: calc(var(--planes-help-left, 12px) + 60px); right: var(--planes-help-right, 12px); max-height: min(45%, 360px); overflow-y: auto; box-sizing: border-box; padding: 10px 0; background: transparent; color: var(--ink); border: 0; border-radius: 0; box-shadow: none; cursor: default; overscroll-behavior: contain; }
+.planes-help dl { display: flex; flex-wrap: wrap; gap: 16px 40px; margin: 0; font-size: 12px; line-height: 1.5; }
+.planes-help dt { text-align: center; font-weight: 500; color: var(--muted); }
+.planes-help dd { margin: 8px 0 0; color: color-mix(in srgb, var(--muted) 78%, var(--paper)); }
+.planes-help-toggle { position: absolute; z-index: 551; bottom: 12px; left: 12px; width: 32px; height: 32px; background: var(--panel); border: 1px solid var(--line); border-radius: 50%; box-shadow: var(--shadow); cursor: pointer; }
+.planes-help-toggle { color: var(--muted); }
+.planes-help-toggle[aria-expanded="true"], .planes-help-toggle:hover { color: var(--muted); }
+
+.planes-help dd { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
+.planes-help kbd { font: inherit; font-size: 11px; padding: 1px 4px; border: 1px solid color-mix(in srgb, var(--muted) 25%, transparent); border-radius: 3px; }
+.planes-help .gesture-direction { font-size: 17px; line-height: 1; }
+
+.planes-help .gesture-mouse { flex-shrink: 0; }
+.planes-help kbd { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 22px; box-sizing: border-box; font-size: 16px; line-height: 1; }
+
+.planes-help .gesture-alternative { width: 1px; height: 18px; margin: 0 7px; background: color-mix(in srgb, var(--muted) 28%, transparent); flex-shrink: 0; }
+
+.planes-depth-bridge[data-selected=true] { color: #b72e78; }
+
+/* Source rays must not intercept dragging their endpoint cards. */
+.source-bridges .planes-depth-hit { left: 35%; right: 35%; }

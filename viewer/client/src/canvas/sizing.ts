@@ -24,7 +24,8 @@ function labelSize(editor: Editor, title: string, fontSize: number) {
 
 export function objectSizes(editor: Editor, title: string, kind: string, landmark: unknown = "auto", classification?: string, copy = false) {
   const label = labelSize(editor, title, 14);
-  const diagram = { w: label.w + 45, h: label.h + 22 + (kind === "code" || copy ? 16 : 0) };
+  const diagram = kind === "code" ? { w: Math.max(180, Math.min(360, title.length * 8 + 54)), h: 44 + (copy ? 16 : 0) }
+    : { w: label.w + 45, h: label.h + 22 + (copy ? 16 : 0) };
   const building = isAtlasLandmark(kind) && !copy ? landmarkFor({ landmark, classification, elementKind: kind }) : "none";
   const mapLabel = labelSize(editor, title, 12), footprint = landmarkFootprint(building);
   const atlas = building === "none" ? diagram : {
@@ -40,7 +41,7 @@ export function objectSizes(editor: Editor, title: string, kind: string, landmar
 }
 
 export function objectFrame(editor: Editor, shape: ObjectShape, vertex: GraphVertex | undefined, atlas: boolean): Bounds {
-  if (shape.props.group || !vertex) return { x: 0, y: 0, w: shape.props.w, h: shape.props.h };
+  if (shape.props.group || !vertex || vertex.kind === "code") return { x: 0, y: 0, w: shape.props.w, h: shape.props.h };
   const sizes = objectSizes(editor, vertex.title, vertex.kind, shape.meta.lexiconLandmark, vertex.subtitle, !isPrimary(shape));
   const size = atlas ? sizes.atlas : sizes.diagram;
   return { x: (shape.props.w - size.w) / 2, y: (shape.props.h - size.h) / 2, ...size };

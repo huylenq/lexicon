@@ -27,13 +27,13 @@ export async function arrangeGraph(
     }
     await Promise.all(children.map(arrangeGroup));
     if (group.kind === "file") {
-      const columnWidth = Math.max(...children.map(n => sizes[n.id]?.width || 228)) + 24;
-      const rowHeight = Math.max(...children.map(n => sizes[n.id]?.height || 76)) + 24;
+      const columnWidth = Math.max(...children.map(n => sizes[n.id]?.width || 228));
+      const rowHeight = Math.max(...children.map(n => sizes[n.id]?.height || 44)) + 18;
       children.forEach((n, i) => {
         layout[n.id] = {
-          x: 24 + (i % 2) * columnWidth,
-          y: 72 + Math.floor(i / 2) * rowHeight,
-          ...(sizes[n.id] || { width: 228, height: 76 }),
+          x: 16,
+          y: 52 + i * rowHeight,
+          width: columnWidth, height: sizes[n.id]?.height || 44,
         };
       });
     } else {

@@ -1,3 +1,4 @@
+import { useExperimentalFiles } from "./developmentOptions";
 import { useEffect, useRef, useState } from "react";
 import type { SourceExcerpt } from "../../shared/model";
 import type { Mapping, Target } from "./graph/model";
@@ -8,7 +9,8 @@ import { readerLink } from "./readerNavigation";
 import type { ReaderOpenMode } from "./readerState";
 import DocumentSource from "./DocumentSource";
 import { sourceKind, sourceLabel, sourceLines } from "../../shared/source";
-export default function CodePane({
+import { fileSelectionPath } from "../../shared/files";
+export default function SourceReader({
   projectId,
   target,
   targetId,
@@ -18,6 +20,7 @@ export default function CodePane({
   onOwner,
   onMapping,
   onLocate,
+  onReveal,
   onBackToReader,
   onBack,
   onForward,
@@ -33,12 +36,14 @@ export default function CodePane({
   onOwner: (id: string, mode?: ReaderOpenMode) => void;
   onMapping: (mapping: Mapping, mode?: ReaderOpenMode) => void;
   onLocate: () => void;
+  onReveal: () => void;
   onBackToReader: () => void;
   onBack: () => void;
   onForward: () => void;
   canBack: boolean;
   canForward: boolean;
 }) {
+  const experimentalFiles = useExperimentalFiles();
   const [result, setResult] = useState<SourceExcerpt>();
   const [error, setError] = useState("");
   const [whole, setWhole] = useState(false);
@@ -56,7 +61,9 @@ export default function CodePane({
     scroll.current?.scrollTo(0, 0);
     if (!target) return;
     request<SourceExcerpt>(
-      `/api/projects/${projectId}/code?target=${encodeURIComponent(target.id)}`,
+      fileSelectionPath(target.id)
+        ? `/api/projects/${projectId}/files/file?file=${encodeURIComponent(target.link.file)}`
+        : `/api/projects/${projectId}/code?target=${encodeURIComponent(target.id)}`,
     )
       .then((r) => {
         if (active) setResult(r);
@@ -76,10 +83,10 @@ export default function CodePane({
       ? lines.length
       : Math.min(lines.length, result.endLine + 4, start + 250);
   return (
-    <aside id="code-pane" className="code-pane" aria-label="Source workspace" hidden={!open}>
-      <div className="code-pane-heading" ref={heading} tabIndex={-1}>
-        <span className="pane-title">Sources</span>
-        <div className="code-navigation">
+    <aside id="source-reader" className="source-reader" aria-label="Source Reader" hidden={!open}>
+      <div className="source-reader-heading" ref={heading} tabIndex={-1}>
+        <span className="pane-title">Source Reader</span>
+        <div className="source-navigation">
           <button
             className="quiet"
             aria-label="Previous source location"
@@ -98,19 +105,19 @@ export default function CodePane({
           </button>
           <button
             className="quiet icon-button pane-close"
-            title="Hide Sources"
-            aria-label="Close source pane"
+            title="Hide Source Reader"
+            aria-label="Close Source Reader"
             onClick={onClose}
           >
             <Icon name="close" />
           </button>
         </div>
       </div>
-      <button className="quiet code-back-to-reader" onClick={onBackToReader}>
+      <button className="quiet source-back-to-reader" onClick={onBackToReader}>
         <Icon name="arrow-left" /> Back to reader
       </button>
       {!link ? (
-        <div className="code-empty">
+        <div className="source-empty">
           <h2>
             {targetId
               ? "Source target unavailable"
@@ -124,21 +131,22 @@ export default function CodePane({
         </div>
       ) : (
         <>
-          <nav className="code-breadcrumb" aria-label="Source location">
+          <nav className="source-breadcrumb" aria-label="Source location">
             <span className="source-kind">{sourceKind(link)}</span>
             <code>{link.file}</code>
             <h2>
-              <ObjectName type="code" name={sourceLabel(link)} />
+              <ObjectName type={link.kind} name={sourceLabel(link)} />
             </h2>
           </nav>
-          <div className="code-target-actions">
-            <button className="quiet" onClick={onLocate}>
-              Locate source in canvas
-            </button>
+          <div className="source-target-actions">
+            {!!target.mappings.length && <button className="quiet" onClick={onLocate}>
+              Locate in Linked Sources
+            </button>}
+            {experimentalFiles && <button className="quiet" onClick={onReveal}>Reveal in Files</button>}
           </div>
           {mapping && (
-            <div className="code-explanation">
-              <span className="code-role">
+            <div className="source-explanation">
+              <span className="source-role">
                 {mapping.link.role} ·{" "}
                 <button {...readerLink(mode => onOwner(mapping.owner.id, mode))}>
                   <ObjectName type={mapping.owner.type} name={mapping.owner.name} size={14}
@@ -148,11 +156,11 @@ export default function CodePane({
               <p>{mapping.link.description}</p>
             </div>
           )}
-          <details className="code-mappings" key={`mappings:${targetId}`}>
+          <details className="source-mappings" key={`mappings:${targetId}`}>
             <summary>Mapped from · {target!.mappings.length}</summary>
-            <div className="code-mapping-list">
+            <div className="source-mapping-list">
               {target!.mappings.map((m) => (
-                <div className="code-mapping" key={m.id}>
+                <div className="source-mapping" key={m.id}>
                   <button
                     className="mapping-owner"
                     {...readerLink(mode => onOwner(m.owner.id, mode))}
@@ -179,7 +187,7 @@ export default function CodePane({
           )}
           {result?.kind === "document" ? <DocumentSource key={`document:${targetId}`} result={result} open={open} /> : result && (
             <>
-              <div className="code-controls">
+              <div className="source-controls">
                 <span>
                   {result.status === "symbol"
                     ? `Declaration · lines ${result.startLine}–${result.endLine}`
@@ -205,7 +213,7 @@ export default function CodePane({
                 </div>
               )}
               <div
-                className="code-scroll"
+                className="source-scroll"
                 ref={scroll}
                 tabIndex={0}
                 aria-label="Source code"
@@ -231,7 +239,7 @@ export default function CodePane({
                 </pre>
               </div>
               {end < lines.length && (
-                <div className="hint code-tail">
+                <div className="hint source-tail">
                   Showing lines {start + 1}–{end} of {lines.length}. Use “Show
                   entire file” for the rest.
                 </div>

@@ -109,12 +109,12 @@ for (const skin of ["Atlas · Ink", "Atlas · Village"]) test(`Combined ${skin} 
   await expect(road).not.toHaveAttribute("d", before!);
 });
 
-test("Combined mirrors layer drawings and current placements while protecting model nodes", async ({ page, request }) => {
+test("Combined mirrors plane drawings and current placements while protecting model nodes", async ({ page, request }) => {
   await page.goto(`/p/${id}`);
   await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
   await page.getByRole("button", { name: "Add note", exact: true }).click();
   const note = page.locator('.tl-container [contenteditable="true"]');
-  await note.fill("Domain drawing stays with its layer");
+  await note.fill("Domain drawing stays with its plane");
   await note.press("Escape");
   await page.getByRole("button", { name: "Selection actions", exact: true }).click();
   await page.getByRole("combobox", { name: "Note attachment", exact: true }).selectOption("order");
@@ -126,7 +126,7 @@ test("Combined mirrors layer drawings and current placements while protecting mo
   await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
   await expect(page.getByRole("button", { name: "Add note", exact: true })).toBeEnabled();
   await expect(page.getByRole("button", { name: "Arrange", exact: true })).toBeDisabled();
-  await expect(page.getByTestId("canvas").getByText("Domain drawing stays with its layer", { exact: true })).toBeVisible();
+  await expect(page.getByTestId("canvas").getByText("Domain drawing stays with its plane", { exact: true })).toBeVisible();
   const verifyMirror = async () => {
     const records: any = await store();
     const offsets = records['page:lexicon-combined']?.meta.combinedOffsets;
@@ -168,7 +168,7 @@ test("Combined mirrors layer drawings and current placements while protecting mo
   await expect.poll(verifyMirror).toBe(true);
   await page.getByRole("button", { name: "Fit model", exact: true }).click();
   await page.getByRole("button", { name: "Use dark theme", exact: true }).click();
-  await page.screenshot({ path: test.info().outputPath("combined-layer-drawings.png") });
+  await page.screenshot({ path: test.info().outputPath("combined-plane-drawings.png") });
   expect(await readFile(join(root, "lexicon/model.xml"), "utf8")).toBe(xml);
 });
 
@@ -258,8 +258,8 @@ test("read domain and architecture through the same search, relationship, source
   await expect(active.locator("h1")).toHaveText("Order Handling creates Order");
   await page.getByRole("button", { name: "Go forward", exact: true }).click();
   await expect(active.locator("h1")).toHaveText("Order Handling");
-  await active.locator(".code-links button").first().click();
-  await expect(page.locator(".code-scroll")).toContainText("class Checkout");
+  await active.locator(".source-links button").first().click();
+  await expect(page.locator(".source-scroll")).toContainText("class Checkout");
   await page.keyboard.press("Escape");
   await page.getByPlaceholder("Find...").fill("Repository");
   await page.locator(".sidebar .nav-item").filter({ hasText: /^Order Repository$/ }).click();
@@ -306,14 +306,14 @@ test("nested boundaries and shared canvas survive filters, a drawing move, and r
   await expect(page.getByRole("radio", { name: "Standard", exact: true })).toBeChecked();
   await expect(page.getByRole("radio", { name: "Atlas · Ink", exact: true })).toBeEnabled();
   await expect(page.getByRole("radio", { name: "Atlas · Village", exact: true })).toBeEnabled();
-  await expect(page.getByRole("group", { name: "Dimension", exact: true }).getByRole("radio")).toHaveCount(3);
+  await expect(page.getByRole("group", { name: "Dimension", exact: true }).getByRole("radio")).toHaveCount(4);
   await expect.poll(canvas).toEqual(before);
-  await page.getByRole("radio", { name: "Layers", exact: true }).check();
-  await expect(page.locator('.layers-stage[data-ready="true"]')).toBeVisible();
+  await page.getByRole("radio", { name: "Planes", exact: true }).click();
+  await expect(page.locator('.planes-stage[data-ready="true"]')).toBeVisible();
   await expect(page.getByRole("radio", { name: "Domain", exact: true })).toBeDisabled();
   await expect(page.getByRole("radio", { name: "Architecture", exact: true })).toBeDisabled();
-  await expect(page.locator(".layer-sheet")).toHaveCount(2);
-  await page.getByRole("radio", { name: "2D", exact: true }).check();
+  await expect(page.locator(".plane-sheet")).toHaveCount(3);
+  await page.getByRole("radio", { name: "2D", exact: true }).click();
   await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
   await expect(page.getByRole("radio", { name: "Architecture", exact: true })).toBeChecked();
   const beforeMove = await canvas();
@@ -398,8 +398,8 @@ for (const skin of ["Ink", "Village"]) test(`Architecture Atlas ${skin} keeps ne
   await node.click();
   const active = page.locator('main [data-reader-card].active');
   await expect(active.locator("h1")).toHaveText("Order Handling");
-  await active.locator(".code-links button").first().click();
-  await expect(page.locator(".code-scroll")).toContainText("class Checkout");
+  await active.locator(".source-links button").first().click();
+  await expect(page.locator(".source-scroll")).toContainText("class Checkout");
   await page.setViewportSize({ width: 430, height: 900 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(430);
   expect(await readFile(join(root, "lexicon/model.xml"), "utf8")).toBe(xml);
@@ -428,8 +428,8 @@ test("a flow opens a sequence with participant, relationship, source, search, an
   await active.locator(".related-flows button").filter({ has: page.getByRole("heading", { name: "Flow Place an Order", exact: true }) }).click();
   await sequence.getByRole("link", { name: "Step 3: Order Handling to Order Repository: Save the accepted order", exact: true }).click();
   await expect(active.locator("h1")).toHaveText("Order Handling saves accepted orders through Order Repository");
-  await active.locator(".code-links button").first().click();
-  await expect(page.locator(".code-scroll")).toContainText("repository.save(order)");
+  await active.locator(".source-links button").first().click();
+  await expect(page.locator(".source-scroll")).toContainText("repository.save(order)");
   await page.keyboard.press("Escape");
   await page.getByPlaceholder("Find...").fill("Submit product quantities");
   await page.locator(".sidebar .nav-item").filter({ hasText: /^Place an Order$/ }).click();
@@ -518,12 +518,12 @@ test("chat refines one flow step, rejects a dangling reference, and restores exa
   expect(await readFile(join(root, "lexicon/model.xml"), "utf8")).toBe(xml);
 });
 
-test("Layers keeps the canvas shell and shared reader controls", async ({ page }) => {
+test("Planes keeps the canvas shell and shared reader controls", async ({ page }) => {
   await page.goto(`/p/${id}?item=order`);
   await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
   const shell = await page.locator('.canvas-pane').elementHandle();
-  await page.getByRole('radio', { name: 'Layers', exact: true }).check();
-  await expect(page.locator('.layers-stage[data-ready="true"]')).toBeVisible();
+  await page.getByRole('radio', { name: 'Planes', exact: true }).click();
+  await expect(page.locator('.planes-stage[data-ready="true"]')).toBeVisible();
   expect(await shell!.evaluate(element => element.isConnected)).toBe(true);
   await expect(page.locator('.canvas-pane')).toHaveCount(1);
   await expect(page.locator('.canvas-pane .toolbar')).toHaveCount(1);
@@ -533,25 +533,25 @@ test("Layers keeps the canvas shell and shared reader controls", async ({ page }
   await page.locator(".sidebar .nav-item").filter({ hasText: /^creates$/ }).click();
   await page.getByPlaceholder("Find...").fill("");
   await expect(active.locator('h1')).toHaveText('Order Handling creates Order');
-  await active.locator('.code-links button').first().click();
-  await expect(page.locator('.code-scroll')).toContainText('class Checkout');
-  await page.getByRole('radio', { name: '2D', exact: true }).check();
+  await active.locator('.source-links button').first().click();
+  await expect(page.locator('.source-scroll')).toContainText('class Checkout');
+  await page.getByRole('radio', { name: '2D', exact: true }).click();
   await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
   expect(await shell!.evaluate(element => element.isConnected)).toBe(true);
   await expect(active.locator('h1')).toHaveText('Order Handling creates Order');
-  await expect(page.locator('.code-scroll')).toContainText('class Checkout');
+  await expect(page.locator('.source-scroll')).toContainText('class Checkout');
 });
 
 test("canvas presentation buttons stay in place when view-specific controls appear", async ({ page }) => {
-  await page.goto(`/p/${id}?presentation=layers`);
-  await expect(page.locator('.layers-stage[data-ready="true"]')).toBeVisible();
+  await page.goto(`/p/${id}?presentation=planes`);
+  await expect(page.locator('.planes-stage[data-ready="true"]')).toBeVisible();
   for (const width of [1600, 430, 320]) {
     await page.setViewportSize({ width, height: 1000 });
     const mode = page.getByRole("group", { name: "Canvas presentation", exact: true });
     const before = (await mode.boundingBox())!;
-    for (const name of ["2D", "Layers", "2D", "Layers"]) {
-      await page.getByRole("radio", { name, exact: true }).check();
-      await expect(page.locator(name === "Layers" ? '.layers-stage[data-ready="true"]' : '.canvas-stage[data-ready="true"]')).toBeVisible();
+    for (const name of ["2D", "Planes", "2D", "Planes"]) {
+      await page.getByRole("radio", { name, exact: true }).click();
+      await expect(page.locator(name === "Planes" ? '.planes-stage[data-ready="true"]' : '.canvas-stage[data-ready="true"]')).toBeVisible();
       if (name === "2D") {
         await page.getByRole("radio", { name: "Domain", exact: true }).check();
         for (const skin of ["standard", "ink", "village"]) {
@@ -578,9 +578,9 @@ test("canvas presentation buttons stay in place when view-specific controls appe
   }
 });
 
-test("frameless layers pan together without editing the model and lower cards remain selectable", async ({ page }) => {
-  await page.goto(`/p/${id}?presentation=layers`);
-  const stage = page.locator('.layers-stage[data-ready="true"]');
+test("frameless planes pan together without editing the model and lower cards remain selectable", async ({ page }) => {
+  await page.goto(`/p/${id}?presentation=planes`);
+  const stage = page.locator('.planes-stage[data-ready="true"]');
   await expect(stage).toBeVisible();
   if (await page.locator('main').isVisible()) await page.getByRole('button', { name: 'Toggle reader', exact: true }).click();
   const order = page.getByRole('button', { name: 'concept: Order', exact: true });
@@ -598,22 +598,22 @@ test("frameless layers pan together without editing the model and lower cards re
 });
 
 test("3D view gestures rotate, separate, and reset without changing the model", async ({ page }) => {
-  await page.goto(`/p/${id}?presentation=layers`);
-  await expect(page.locator('.layers-stage[data-ready="true"]')).toBeVisible();
+  await page.goto(`/p/${id}?presentation=planes`);
+  await expect(page.locator('.planes-stage[data-ready="true"]')).toBeVisible();
   if (await page.locator('main').isVisible()) await page.getByRole('button', { name: 'Toggle reader', exact: true }).click();
-  await expect(page.locator('.layers-view-controls')).toHaveCount(0);
+  await expect(page.locator('.planes-view-controls')).toHaveCount(0);
   await page.getByRole('button', { name: 'Toggle reader', exact: true }).click();
   const readerBounds = (await page.locator('#main-content').boundingBox())!;
   const helpBounds = (await page.getByRole('button', { name: '3D control cheatsheet', exact: true }).boundingBox())!;
   expect(helpBounds.x + helpBounds.width).toBeLessThan(readerBounds.x);
   await page.getByRole('button', { name: 'Toggle reader', exact: true }).click();
   await page.getByRole('button', { name: '3D control cheatsheet', exact: true }).click();
-  await expect(page.locator('.layers-stage .layers-help')).toBeVisible();
+  await expect(page.locator('.planes-stage .planes-help')).toBeVisible();
   await expect(page.getByText('Pan', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: '3D control cheatsheet', exact: true }).click();
-  const scene = page.locator('.layers-scene');
+  const scene = page.locator('.planes-scene');
   const initial = await scene.getAttribute('style');
-  const stage = (await page.locator('.layers-stage').boundingBox())!;
+  const stage = (await page.locator('.planes-stage').boundingBox())!;
   const gesture = async (button: "left" | "right" = "left") => {
     await page.mouse.move(stage.x + stage.width - 100, stage.y + 120);
     await page.mouse.down({ button });
@@ -635,7 +635,7 @@ test("3D view gestures rotate, separate, and reset without changing the model", 
     expect(Math.abs(angle % 15)).toBe(0);
   }
   const orbit = await scene.getAttribute('style');
-  const surface = page.locator('[data-plane="domain"] .layer-surface');
+  const surface = page.locator('[data-plane="domain"] .plane-surface');
   const beforePan = await surface.getAttribute('style');
   await gesture('right');
   await expect(scene).toHaveAttribute('style', orbit!);
@@ -683,22 +683,23 @@ test("3D view gestures rotate, separate, and reset without changing the model", 
 });
 
 
-test("layers share canvas scale and wheel zoom anchors the projected scene to the pointer", async ({ page }) => {
-  await page.goto(`/p/${id}?presentation=layers`);
-  await expect(page.locator('.layers-stage[data-ready="true"]')).toBeVisible();
+test("planes share canvas scale and wheel zoom anchors the projected scene to the pointer", async ({ page }) => {
+  await page.goto(`/p/${id}?presentation=planes`);
+  await expect(page.locator('.planes-stage[data-ready="true"]')).toBeVisible();
   if (await page.locator('main').isVisible()) await page.getByRole('button', { name: 'Toggle reader', exact: true }).click();
-  const surfaces = page.locator('.layer-surface');
+  const surfaces = page.locator('[data-plane="domain"] .plane-surface, [data-plane="architecture"] .plane-surface');
+  await expect(page.locator('.plane-sheet')).toHaveCount(3);
   await expect(surfaces).toHaveCount(2);
   await expect.poll(async () => surfaces.evaluateAll(nodes => nodes.map(n => (n as HTMLElement).dataset.canvasZoom))).toEqual([
     await surfaces.first().getAttribute('data-canvas-zoom'), await surfaces.first().getAttribute('data-canvas-zoom'),
   ]);
-  const stage = (await page.locator('.layers-stage').boundingBox())!;
+  const stage = (await page.locator('.planes-stage').boundingBox())!;
   const pointer = { x: stage.width * .7, y: stage.height * .4 };
   const before = await surfaces.first().boundingBox();
   const renderBefore = Number(await surfaces.first().getAttribute("data-render-zoom"));
   await page.mouse.move(stage.x + pointer.x, stage.y + pointer.y);
   await page.mouse.wheel(0, -180);
-  const camera = page.locator('.layers-camera');
+  const camera = page.locator('.planes-camera');
   await expect(camera).not.toHaveAttribute('style', 'transform: translate(0px, 0px) scale(1);');
   const matrix = await camera.evaluate(node => { const m = new DOMMatrix(getComputedStyle(node).transform); return { x:m.e, y:m.f, z:m.a }; });
   expect(matrix.z).toBeGreaterThan(1);
@@ -710,12 +711,12 @@ test("layers share canvas scale and wheel zoom anchors the projected scene to th
   expect(await readFile(join(root, 'lexicon/model.xml'), 'utf8')).toBe(xml);
 });
 
-test("layers middle-drag pans without zooming", async ({ page }) => {
-  await page.goto(`/p/${id}?presentation=layers`);
-  await expect(page.locator('.layers-stage[data-ready="true"]')).toBeVisible();
+test("planes middle-drag pans without zooming", async ({ page }) => {
+  await page.goto(`/p/${id}?presentation=planes`);
+  await expect(page.locator('.planes-stage[data-ready="true"]')).toBeVisible();
   if (await page.locator('main').isVisible()) await page.getByRole('button', { name: 'Toggle reader', exact: true }).click();
   const node = page.getByRole('button', { name: 'concept: Order', exact: true });
-  const zoom = () => page.locator('.layers-camera').evaluate(el => new DOMMatrix(getComputedStyle(el).transform).a);
+  const zoom = () => page.locator('.planes-camera').evaluate(el => new DOMMatrix(getComputedStyle(el).transform).a);
   const before = (await node.boundingBox())!;
   const z = await zoom();
   await page.mouse.move(before.x + before.width / 2, before.y + before.height / 2);
@@ -728,9 +729,9 @@ test("layers middle-drag pans without zooming", async ({ page }) => {
   expect(await readFile(join(root, 'lexicon/model.xml'), 'utf8')).toBe(xml);
 });
 
-test("moving a Layers node does not open the reader, but a following click does", async ({ page }) => {
-  await page.goto(`/p/${id}?presentation=layers`);
-  await expect(page.locator('.layers-stage[data-ready="true"]')).toBeVisible();
+test("moving a Planes node does not open the reader, but a following click does", async ({ page }) => {
+  await page.goto(`/p/${id}?presentation=planes`);
+  await expect(page.locator('.planes-stage[data-ready="true"]')).toBeVisible();
   if (await page.locator('main').isVisible()) await page.getByRole('button', { name: 'Toggle reader', exact: true }).click();
   const node = page.getByRole('button', { name: 'concept: Order', exact: true });
   const bounds = (await node.boundingBox())!;
@@ -740,34 +741,34 @@ test("moving a Layers node does not open the reader, but a following click does"
   await page.mouse.up();
   await expect(page.locator('main')).not.toBeVisible();
   await expect.poll(async () => Math.abs((await node.boundingBox())!.x - bounds.x)).toBeGreaterThan(20);
-  await page.getByLabel("Layer options", { exact: true }).click();
+  await page.getByLabel("Plane options", { exact: true }).click();
   await page.getByLabel("All connections", { exact: true }).uncheck();
-  await page.getByLabel("Layer options", { exact: true }).click();
+  await page.getByLabel("Plane options", { exact: true }).click();
   await node.click();
   await expect(page.locator('main [data-reader-card].active h1')).toHaveText('Order');
   await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
   await page.mouse.wheel(0, -400);
-  await expect.poll(async () => Number(await page.locator('.layer-editor').first().getAttribute('data-render-scale'))).toBeGreaterThan(1);
+  await expect.poll(async () => Number(await page.locator('.plane-editor').first().getAttribute('data-render-scale'))).toBeGreaterThan(1);
   await page.getByRole('button', { name: 'Locate in canvas', exact: true }).click();
-  await expect(page.locator('.layers-camera')).toHaveAttribute('style', 'transform: translate(0px, 0px) scale(1);');
-  await expect(page.locator('.layers-stage')).toHaveAttribute('data-view', 'both');
+  await expect(page.locator('.planes-camera')).toHaveAttribute('style', 'transform: translate(0px, 0px) scale(1);');
+  await expect(page.locator('.planes-stage')).toHaveAttribute('data-view', 'both');
   const locatedNode = (await node.boundingBox())!;
-  const stageBounds = (await page.locator('.layers-stage').boundingBox())!;
+  const stageBounds = (await page.locator('.planes-stage').boundingBox())!;
   expect(Math.abs(locatedNode.x + locatedNode.width / 2 - stageBounds.x - stageBounds.width / 2)).toBeLessThan(5);
 });
 
 
-test("Layers redraws text at high viewer zoom", async ({ page }) => {
-  await page.goto(`/p/${id}?presentation=layers`);
-  await expect(page.locator('.layers-stage[data-ready="true"]')).toBeVisible();
+test("Planes redraws text at high viewer zoom", async ({ page }) => {
+  await page.goto(`/p/${id}?presentation=planes`);
+  await expect(page.locator('.planes-stage[data-ready="true"]')).toBeVisible();
   if (await page.locator('main').isVisible()) await page.getByRole('button', { name: 'Toggle reader', exact: true }).click();
   const node = page.getByRole('button', { name: 'concept: Order', exact: true });
   const b = (await node.boundingBox())!;
   await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
   await page.mouse.wheel(0, -700);
-  await expect.poll(async () => Number(await page.locator('.layer-editor').first().getAttribute('data-render-scale'))).toBeGreaterThan(4);
+  await expect.poll(async () => Number(await page.locator('.plane-editor').first().getAttribute('data-render-scale'))).toBeGreaterThan(4);
   await page.waitForTimeout(1200); // Allow the compositor to rasterize the higher-resolution planes.
-  await page.screenshot({ path: test.info().outputPath('layers-high-zoom.png') });
+  await page.screenshot({ path: test.info().outputPath('planes-high-zoom.png') });
 });
 
 
@@ -860,7 +861,7 @@ test("legacy shared drawings migrate once and retain their original recovery pag
 });
 
 
-test("Combined active drawing layer saves native content in source coordinates", async ({ page, request }) => {
+test("Combined active drawing plane saves native content in source coordinates", async ({ page, request }) => {
   await page.goto(`/p/${id}`);
   await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
   await page.getByRole("radio", { name: "Combined", exact: true }).check();
@@ -873,7 +874,7 @@ test("Combined active drawing layer saves native content in source coordinates",
     await note.fill(text); await note.press("Escape");
   };
   await page.getByRole("button", { name: "Drag Architecture", exact: true }).click();
-  await expect(page.getByRole("status", { name: "Drawing layer", exact: true })).toHaveText("Architecture");
+  await expect(page.getByRole("status", { name: "Drawing plane", exact: true })).toHaveText("Architecture");
   await add("Architecture from Combined");
   await expect.poll(async () => (await notes("architecture")).length).toBe(1);
   await expect.poll(async () => (await notes("domain")).length).toBe(0);
@@ -896,7 +897,7 @@ test("Combined active drawing layer saves native content in source coordinates",
   }).toBe(1);
   await page.getByRole("button", { name: "Fit model", exact: true }).click();
   await page.getByRole("button", { name: "Drag Domain", exact: true }).click();
-  await expect(page.getByRole("status", { name: "Drawing layer", exact: true })).toHaveText("Domain");
+  await expect(page.getByRole("status", { name: "Drawing plane", exact: true })).toHaveText("Domain");
   await add("Domain from Combined");
   await expect.poll(async () => (await notes("domain")).length).toBe(1);
   await page.keyboard.press("Escape");
@@ -935,7 +936,7 @@ test("Combined active drawing layer saves native content in source coordinates",
   await page.keyboard.press("Meta+z");
   await expect.poll(async () => Object.values(await store()).filter((r: any) => r.type === "draw" && r.parentId === "page:lexicon-domain").length).toBe(1);
   await page.getByRole("button", { name: "Fit model", exact: true }).click();
-  await page.screenshot({ path: test.info().outputPath("combined-active-drawing-layer.png") });
+  await page.screenshot({ path: test.info().outputPath("combined-active-drawing-plane.png") });
   await page.setViewportSize({ width: 430, height: 900 });
   await page.getByRole("button", { name: "Fit model", exact: true }).click();
   await expect(page.getByRole("button", { name: "Drag Architecture", exact: true })).toBeVisible();
@@ -943,12 +944,12 @@ test("Combined active drawing layer saves native content in source coordinates",
   await expect(page.getByRole("button", { name: "Drag Architecture", exact: true })).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
   await page.getByRole("button", { name: "Fit model", exact: true }).click();
-  const badge = await page.getByRole("status", { name: "Drawing layer", exact: true }).boundingBox();
+  const badge = await page.getByRole("status", { name: "Drawing plane", exact: true }).boundingBox();
   const tools = await page.locator(".tlui-main-toolbar__left > .tlui-main-toolbar__tools").boundingBox();
   expect(badge!.x + badge!.width).toBeLessThanOrEqual(tools!.x);
   expect(Math.abs(badge!.y + badge!.height / 2 - tools!.y - tools!.height / 2)).toBeLessThan(3);
   await expect(page.locator('.combined-region[data-dimension="architecture"]')).toHaveAttribute("data-active", "true");
-  await page.screenshot({ path: test.info().outputPath("combined-active-layer-narrow.png") });
+  await page.screenshot({ path: test.info().outputPath("combined-active-plane-narrow.png") });
   expect(await readFile(join(root, "lexicon/model.xml"), "utf8")).toBe(xml);
 });
 

@@ -162,7 +162,7 @@ export function createCanvasPersistence({
     );
     return false;
   };
-  const flush = async () => {
+  const flushNow = async () => {
     if (!ready || closed || applying || inFlight || blocked) return;
     const document = capture(),
       serialized = canonicalJson(document);
@@ -202,6 +202,16 @@ export function createCanvasPersistence({
     } finally {
       inFlight = false;
     }
+  };
+  let saving: Promise<void> | undefined;
+  // A view switch must join an existing autosave, then capture any newer edits,
+  // before disposing the editor that owns them.
+  const flush = async () => {
+    while (saving) await saving;
+    const task = flushNow();
+    saving = task;
+    try { await task; }
+    finally { if (saving === task) saving = undefined; }
   };
   const schedule = () => {
     if (timer) clearTimeout(timer);

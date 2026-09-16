@@ -1,3 +1,6 @@
+import { linkedSourcesGraph, sourceSelectionId } from "../source/view";
+import { FilesButton } from "../source/FilesButton";
+import type { SourceEndpoints } from "../source/detail";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { measurePlane, unprojectPoint } from "./geometry";
 import ModelLegend from "../ModelLegend";
@@ -10,7 +13,7 @@ import { Box, getSnapshot, loadSnapshot, type TLStoreSnapshot, type TLRecord, re
 import type { Relationship } from "../../../shared/model";
 import { dimensionOf } from "../../../shared/model";
 import { indexModel, projectGraph } from "../graph/model";
-import { layerShapeId, pageIds, importLayers, createLayersHistory } from "./document";
+import { planeShapeId, pageIds, importPlanes, createPlanesHistory } from "./document";
 import { useProjectCanvas } from "../canvas/useProjectCanvas";
 import { captureCanvas } from "../canvas/document";
 import { exportCanvasFile } from "../canvas/files";
@@ -18,10 +21,14 @@ import { canonicalJson } from "../../../shared/canvas-merge";
 import { canvasSchema } from "../../../shared/canvas-schema";
 import type { CanvasDocument } from "../../../shared/canvas";
 import { canvasPresentation } from "../canvas/presentation";
-import LayerEditor, { layers, WIDTH, HEIGHT, type Layer, type LayerHandle } from "./LayerEditor";
+import PlaneEditor, { planes, planeName, WIDTH, HEIGHT, type Plane, type PlaneHandle } from "./PlaneEditor";
 import "tldraw/tldraw.css";
 import "../canvas/canvas.css";
-import "./layers.css";
+import "./planes.css";
+import { useProjectFiles, sourceSelectionFile } from "../source/useProjectFiles";
+import type { FileMapRect } from "../source/fileMapLayout";
+import { SourceLinkBridges } from "../source/SourceLinkBridges";
+import { SourceSearch } from "../source/SourceSearch";
 
 function GestureMouse({ button }: { button: "left" | "right" | "wheel" | "middle" }) {
   return <svg className="gesture-mouse" width="20" height="26" viewBox="0 0 20 26" role="img"
@@ -35,8 +42,12 @@ function GestureMouse({ button }: { button: "left" | "right" | "wheel" | "middle
   </svg>;
 }
 
-export default function LayeredCanvas(props: CanvasPaneProps & { onFlat: () => void }) {
+export default function PlanesCanvas(props: CanvasPaneProps & { onFlat: () => void }) {
   const { model, projectId, query, onSelect, onFlat } = props;
+  const projectFiles = useProjectFiles(projectId, model, false);
+  const planePage = (plane: Plane) => pageIds[plane];
+  const [sourceEndpoints, setSourceEndpoints] = useState<SourceEndpoints>(new Map());
+  const [sourceQuery, setSourceQuery] = useState("");
   const selected = props.selection?.kind === "item" ? props.selection.id : "";
   const choose = useCallback((id: string) => { if (id !== selected) onSelect({ kind: "item", id }); }, [selected, onSelect]);
   const [gap, setGap] = useState(138);
@@ -49,19 +60,19 @@ export default function LayeredCanvas(props: CanvasPaneProps & { onFlat: () => v
   const resetView = () => { setCameraView({ x: 0, y: 0, z: 1 }); setTilt(45); setRotation(0); setRoll(0); setGap(138); fit(); };
   const [cameraView, setCameraView] = useState({ x: 0, y: 0, z: 1 });
   const [zoom, setZoom] = useState(1);
-  const [located, setLocated] = useState<{ layer: Layer; bounds: Box }>();
+  const [located, setLocated] = useState<{ plane: Plane; bounds: Box }>();
   // Render more detail as the viewer magnifies, without enlarging the backing viewport.
   const renderScale = Math.max(1, cameraView.z);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [allLinks, setAllLinks] = useState(true);
   const [hoveredRelationship, setHoveredRelationship] = useState("");
-  const [handles, setHandles] = useState<Partial<Record<Layer, LayerHandle>>>({});
+  const [handles, setHandles] = useState<Partial<Record<Plane, PlaneHandle>>>({});
   const handleRef = useRef(handles); handleRef.current = handles;
   const [error, setError] = useState("");
   const [documentRevision, setDocumentRevision] = useState(0);
   const [projecting, setProjecting] = useState(true);
   const busy = useRef(true);
-  const history = useRef(createLayersHistory<CanvasDocument>((a, b) => canonicalJson(a) === canonicalJson(b)));
+  const history = useRef(createPlanesHistory<CanvasDocument>((a, b) => canonicalJson(a) === canonicalJson(b)));
   const [, historyChanged] = useState(0);
   const storage = useProjectCanvas(projectId, model, props.projectKey || projectId, () => setDocumentRevision(n => n + 1), "layers");
   const storageRef = useRef(storage); storageRef.current = storage;
@@ -82,18 +93,22 @@ export default function LayeredCanvas(props: CanvasPaneProps & { onFlat: () => v
       const migrated = canvasSchema.migrateStoreSnapshot(JSON.parse(value));
       if (migrated.type !== "success") throw new Error("unsupported layout schema");
       const legacy = { store: migrated.value, schema: canvasSchema.serialize() } as TLStoreSnapshot;
-      const snapshot = importLayers(project, legacy);
-      return { snapshot, notice: snapshot !== project ? "Imported the earlier Layers layout; its browser copy is retained." : "" };
+      const snapshot = importPlanes(project, legacy);
+      return { snapshot, notice: snapshot !== project ? "Imported the earlier Planes layout; its browser copy is retained." : "" };
     } catch {
-      return { snapshot: project, notice: "Could not import the earlier Layers layout. Its browser copy is retained." };
+      return { snapshot: project, notice: "Could not import the earlier Planes layout. Its browser copy is retained." };
     }
   }, [storage.boot, storageKey]);
   const index = useMemo(() => indexModel(model), [model]);
   const graphs = useMemo(() => ({
-    domain: projectGraph(index, { expanded: [], allCode: false, view: "domain" }),
-    architecture: projectGraph(index, { expanded: [], allCode: false, view: "architecture" }),
+    domain: projectGraph(index, { view: "domain" }),
+    architecture: projectGraph(index, { view: "architecture" }),
+    source: linkedSourcesGraph(index),
   }), [index]);
-  const legend = useMemo(() => projectGraph(index, { expanded: [], allCode: false, view: "all" }), [index]);
+  const legend = useMemo(() => {
+    const graph = projectGraph(index, { view: "all" });
+    return graph;
+  }, [index, graphs]);
   const bridges = useMemo(() => model.items.filter((item): item is Relationship => {
     if (item.type !== "relationship") return false;
     const from = index.items.get(item.from), to = index.items.get(item.to);
@@ -103,12 +118,12 @@ export default function LayeredCanvas(props: CanvasPaneProps & { onFlat: () => v
   const item = index.items.get(selected);
   const highlighted = index.items.get(hoveredRelationship) || item;
   const endpointIds = highlighted?.type === "relationship" ? [highlighted.from, highlighted.to] : [];
-  const ready = !!handles.domain && !!handles.architecture;
-  const onReady = useCallback((layer: Layer, handle?: LayerHandle) => setHandles(previous => ({ ...previous, [layer]: handle })), []);
-  const focus = useCallback((layer: Layer) => {
-    for (const name of layers) {
+  const ready = !!handles.domain && !!handles.architecture && !!handles.source;
+  const onReady = useCallback((plane: Plane, handle?: PlaneHandle) => setHandles(previous => ({ ...previous, [plane]: handle })), []);
+  const focus = useCallback((plane: Plane) => {
+    for (const name of planes) {
       const editor = handleRef.current[name]?.editor;
-      if (name === layer) editor?.focus(); else editor?.blur();
+      if (name === plane) editor?.focus(); else editor?.blur();
     }
   }, []);
 
@@ -126,15 +141,17 @@ export default function LayeredCanvas(props: CanvasPaneProps & { onFlat: () => v
   };
   const recordRef = useRef(recordHistory); recordRef.current = recordHistory;
 
-  // Mirror document records only. One persistence lifetime owns both pages.
+  // Mirror document records only. One persistence lifetime owns all three pages.
   useEffect(() => {
-    const a = handles.domain, b = handles.architecture;
-    if (!a || !b) return;
-    const records = Object.values({ ...getSnapshot(a.editor.store).document.store, ...getSnapshot(b.editor.store).document.store }) as TLRecord[];
-    for (const handle of [a, b]) handle.projection.write(() => handle.editor.store.mergeRemoteChanges(() => handle.editor.store.put(records)));
+    const all = planes.map(plane => handles[plane]);
+    if (all.some(handle => !handle)) return;
+    const peers = all as PlaneHandle[], a = peers[0];
+    const records = Object.values(Object.assign({}, ...peers.map(handle => getSnapshot(handle.editor.store).document.store))) as TLRecord[];
+    for (const handle of peers) handle.projection.write(() => handle.editor.store.mergeRemoteChanges(() => handle.editor.store.put(records)));
     let timer: ReturnType<typeof setTimeout>;
-    const stops = [[a, b], [b, a]].map(([source, target]) => source.editor.store.listen(({ changes }) => {
-      target.projection.write(() => target.editor.store.mergeRemoteChanges(() => target.editor.store.applyDiff(changes)));
+    const stops = peers.map(source => source.editor.store.listen(({ changes }) => {
+      for (const target of peers) if (target !== source)
+        target.projection.write(() => target.editor.store.mergeRemoteChanges(() => target.editor.store.applyDiff(changes)));
       clearTimeout(timer);
       const settled = () => {
         if (source.editor.inputs.getIsPointing()) { timer = setTimeout(settled, 100); return; }
@@ -146,23 +163,23 @@ export default function LayeredCanvas(props: CanvasPaneProps & { onFlat: () => v
       busy.current = true;
       a.projection.write(() => a.editor.store.mergeRemoteChanges(fn));
       const snapshot = getSnapshot(a.editor.store).document;
-      b.projection.write(() => b.editor.store.mergeRemoteChanges(() => loadSnapshot(b.editor.store, { document: snapshot })));
+      for (const target of peers.slice(1)) target.projection.write(() => target.editor.store.mergeRemoteChanges(() => loadSnapshot(target.editor.store, { document: snapshot })));
     });
     return () => { clearTimeout(timer); stopStorage(); stops.forEach(stop => stop()); };
-  }, [handles.domain, handles.architecture]);
+  }, [handles.domain, handles.architecture, handles.source]);
 
   useEffect(() => {
     if (!ready) return;
     let active = true;
     busy.current = true; setProjecting(true); storageRef.current.pause();
     void (async () => {
-      for (const layer of layers) {
-        const handle = handles[layer]!;
-        if (!handle.editor.getPage(pageIds[layer])) handle.editor.createPage({ id: pageIds[layer], name: layer === "domain" ? "Domain" : "Architecture" });
-        handle.editor.setCurrentPage(pageIds[layer]);
+      for (const plane of planes) {
+        const handle = handles[plane]!;
+        if (!handle.editor.getPage(planePage(plane))) handle.editor.createPage({ id: planePage(plane), name: planeName(plane) });
+        handle.editor.setCurrentPage(planePage(plane));
         const state = canvasPresentation(handle.editor);
         state.set({ ...state.get(), vertices: new Map(legend.nodes.map(n => [n.id, n])), connections: new Map(legend.connections.map(e => [e.id, e])) });
-        await handle.projection.update(graphs[layer], graphs[layer]);
+        await handle.projection.update(graphs[plane], graphs[plane]);
       }
       if (!active) return;
       history.current.reset(capture()); historyChanged(n => n + 1);
@@ -179,13 +196,13 @@ export default function LayeredCanvas(props: CanvasPaneProps & { onFlat: () => v
     try {
       // Install both stores before awaiting either projection. Otherwise the
       // second install can overwrite routes the first editor just regenerated.
-      for (const layer of layers) {
-        const handle = handles[layer]!;
+      for (const plane of planes) {
+        const handle = handles[plane]!;
         handle.projection.write(() => handle.editor.store.mergeRemoteChanges(() => loadSnapshot(handle.editor.store, { document: document.snapshot })));
-        handle.editor.setCurrentPage(pageIds[layer]);
+        handle.editor.setCurrentPage(planePage(plane));
       }
-      for (const layer of layers)
-        await handles[layer]!.projection.update(graphs[layer], graphs[layer]);
+      for (const plane of planes)
+        await handles[plane]!.projection.update(graphs[plane], graphs[plane]);
       // Regenerated geometry must not become another undo entry.
       busy.current = false; storageRef.current.ready(); historyChanged(n => n + 1);
     } catch (error) { setError(String(error)); busy.current = false; }
@@ -193,35 +210,56 @@ export default function LayeredCanvas(props: CanvasPaneProps & { onFlat: () => v
   };
   useEffect(() => {
     if (!ready) return;
-    const base = Math.min(...(located ? [located.layer] : layers).map(layer => {
-      const bounds = located?.layer === layer ? located.bounds : handles[layer]!.bounds;
+    const sourceBoxes = handles.source!.editor.getCurrentPageShapes().filter(shape => !shape.meta.lexiconHidden)
+      .map(shape => handles.source!.editor.getShapePageBounds(shape)).filter((box): box is Box => !!box);
+    handles.source!.bounds = sourceBoxes.length ? Box.Common(sourceBoxes) : new Box(0, 0, 500, 300);
+    const base = Math.min(...(located && located.plane !== "source" ? [located.plane] : ["domain", "architecture"] as const).map(plane => {
+      const bounds = located?.plane === plane ? located.bounds : handles[plane]!.bounds;
       return Math.min(2, (WIDTH - 160) / bounds.w, (HEIGHT - 120) / bounds.h);
     }));
-    for (const layer of layers) {
-      const { editor } = handles[layer]!;
-      const bounds = located?.layer === layer ? located.bounds : handles[layer]!.bounds;
-      const z = base * zoom * renderScale;
+    for (const plane of planes) {
+      const { editor } = handles[plane]!;
+      const bounds = located?.plane === plane ? located.bounds : handles[plane]!.bounds;
+      const z = (plane === "source" ? Math.min((WIDTH - 120) / bounds.w, (HEIGHT - 100) / bounds.h) : base) * zoom * renderScale;
       editor.setCamera({ x: -bounds.center.x + (planeWidth / 2 + pan.x * renderScale) / z,
         y: -bounds.center.y + (planeHeight / 2 + pan.y * renderScale) / z, z }, { force: true });
     }
-  }, [handles, ready, zoom, pan, revision, planeWidth, planeHeight, renderScale, located]);
+  }, [handles, ready, zoom, pan, revision, planeWidth, planeHeight, renderScale, located, projecting]);
 
   useEffect(() => {
-    for (const layer of layers) {
-      const handle = handles[layer]; if (!handle) continue;
+    for (const plane of planes) {
+      const handle = handles[plane]; if (!handle) continue;
       const state = canvasPresentation(handle.editor);
       state.set({ ...state.get(), matches: id => {
-        const node = graphs[layer].nodes.find(node => node.id === id);
+        const node = graphs[plane].nodes.find(node => node.id === id);
         return !query || !node || props.matches.includes(node.selection?.kind === "item" ? node.selection.id : "");
       } });
-      const shapeId = layerShapeId(`item:${selected}`, layer);
-      if (handle.editor.getShape(shapeId) && graphs[layer].nodes.some(node => node.id === `item:${selected}`)) handle.editor.select(shapeId);
+      const selectedId = plane === "source" ? sourceSelectionId(index, props.selection) : `item:${selected}`;
+      const shapeId = planeShapeId(selectedId || "", plane);
+      if (handle.editor.getShape(shapeId) && graphs[plane].nodes.some(node => node.id === selectedId)) handle.editor.select(shapeId);
       else handle.editor.selectNone();
     }
-  }, [handles, graphs, selected, query, props.matches]);
+  }, [handles, graphs, selected, query, props.matches, props.selection, projecting]);
+  useEffect(() => {
+    if (!ready || projecting) return;
+    const handle = handles.source!;
+    return react("Source drawing bridge endpoints", () => {
+      const endpoints: SourceEndpoints = new Map();
+      for (const node of graphs.source.nodes) {
+        if (node.kind !== "code") continue;
+        const box = handle.editor.getShapePageBounds(planeShapeId(node.id, "source"));
+        if (box) endpoints.set(node.id, { x: box.center.x, y: box.center.y });
+      }
+      setSourceEndpoints(endpoints);
+    });
+  }, [ready, projecting, handles.source, graphs.source]);
+  const locateSelection = (selection = props.selection) => {
+    const id = sourceSelectionId(index, selection), box = id && handles.source?.editor.getShapePageBounds(planeShapeId(id, "source"));
+    if (box) locateSource(box);
+  };
   const refreshBounds = () => {
-    for (const layer of layers) {
-      const handle = handles[layer]; if (!handle) continue;
+    for (const plane of planes) {
+      const handle = handles[plane]; if (!handle) continue;
       const boxes = handle.projection.visibleIds().map(id => handle.editor.getShapePageBounds(id)).filter((box): box is Box => !!box);
       if (boxes.length) handle.bounds = Box.Common(boxes);
     }
@@ -230,26 +268,33 @@ export default function LayeredCanvas(props: CanvasPaneProps & { onFlat: () => v
     refreshBounds(); setLocated(undefined);
     setCameraView({ x: 0, y: 0, z: 1 }); setZoom(1); setPan({ x: 0, y: 0 }); setRevision(n => n + 1);
   };
+  const locateSource = (rect: FileMapRect) => {
+    setLocated({ plane: "source", bounds: new Box(rect.x, rect.y, rect.w, rect.h) });
+    setCameraView({ x: 0, y: 0, z: 1 }); setZoom(1); setPan({ x: 0, y: 0 });
+  };
   const locate = (id: string) => {
-    const target = index.items.get(id), layer = target && dimensionOf(target);
-    const handle = layer && handles[layer];
-    const bounds = handle && handle.editor.getShapePageBounds(layerShapeId(`item:${id}`, layer));
-    if (!layer || !bounds) { fit(); return; }
-    refreshBounds(); setLocated({ layer, bounds });
+    const target = index.items.get(id), plane = target && dimensionOf(target);
+    const handle = plane && handles[plane];
+    const bounds = handle && handle.editor.getShapePageBounds(planeShapeId(`item:${id}`, plane));
+    if (!plane || !bounds) { fit(); return; }
+    refreshBounds(); setLocated({ plane, bounds });
     setCameraView({ x: 0, y: 0, z: 1 }); setZoom(1); setPan({ x: 0, y: 0 });
   };
   useEffect(() => {
-    if (!ready || !props.command || props.command.action !== "locate") return;
+    if (!ready || projecting || !props.command || props.command.action !== "locate") return;
     const target = props.command.selection;
     if (target.kind === "item") locate(target.id);
-  }, [props.command?.sequence, ready]);
+    else {
+      locateSelection(target);
+    }
+  }, [props.command?.sequence, ready, projectFiles.layout, projecting]);
   const arrange = async () => {
     recordHistory();
     busy.current = true; storageRef.current.pause();
     try {
-      for (const layer of layers) {
-        const handle = handles[layer]; if (!handle) continue;
-        await handle.projection.update(graphs[layer], graphs[layer], true);
+      for (const plane of planes) {
+        const handle = handles[plane]; if (!handle) continue;
+        await handle.projection.update(graphs[plane], graphs[plane], true);
         const boxes = handle.projection.visibleIds().map(id => handle.editor.getShapePageBounds(id)).filter((box): box is Box => !!box);
         if (boxes.length) handle.bounds = Box.Common(boxes);
       }
@@ -261,7 +306,7 @@ export default function LayeredCanvas(props: CanvasPaneProps & { onFlat: () => v
     transform: `scale(${Math.max(.2, scale)}) rotateX(${tilt}deg) rotateY(${rotation}deg) rotateZ(${roll}deg)`,
   };
   if (!storage.boot || storage.boot.remote.issue) return <div className="canvas-loading"><p role="status">{storage.message || "Opening saved canvas…"}</p>{storage.status === "error" && <button onClick={() => void storage.retry()}>Retry</button>}<button onClick={onFlat}>Canvas and recovery</button></div>;
-  return <div className="layers-renderer" onKeyDownCapture={event => {
+  return <div className="planes-renderer" onKeyDownCapture={event => {
     const target = event.target as HTMLElement;
     if (target.closest('input,textarea,[contenteditable="true"]')) return;
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z") {
@@ -270,20 +315,22 @@ export default function LayeredCanvas(props: CanvasPaneProps & { onFlat: () => v
   }}>
     <div className="canvas-top">
       <Toolbar
-        controls={<CanvasViewControls presentation="layers"
-          onPresentation={presentation => { if (presentation === "flat") onFlat(); }} />}>
+        controls={<CanvasViewControls presentation="planes"
+          onPresentation={async presentation => { if (presentation === "flat") { await storage.retry(); onFlat(); } }} />}>
         <div className="assistant-toolbar-slot" ref={props.assistantHost} />
         <CanvasButton icon="fit" label="Fit model" onClick={fit} />
         <CanvasButton icon="refresh" label="Reset view" onClick={resetView} />
-        <CanvasButton icon="locate" label="Locate" disabled={!item} onClick={() => {
-          if (item) locate(item.id);
+        <CanvasButton icon="locate" label="Locate" disabled={!item && !sourceSelectionFile(index, props.selection)} onClick={() => {
+          if (sourceSelectionFile(index, props.selection)) locateSelection(); else if (item) locate(item.id);
         }} />
+        <FilesButton beforeOpen={storage.retry} />
+        <SourceSearch links onLocateSelection={locateSelection} projectFiles={projectFiles} value={sourceQuery} onChange={setSourceQuery} onLocate={locateSource} onSelect={props.onSelect} />
         <NeighborHighlight />
         <CanvasButton icon="graph" label="Arrange" disabled={!ready || projecting} onClick={() => void arrange()} />
         <CanvasButton icon="arrow-left" label="Undo" disabled={!ready || projecting || !history.current.canUndo} onClick={() => void travel("undo")} />
         <CanvasButton icon="arrow-right" label="Redo" disabled={!ready || projecting || !history.current.canRedo} onClick={() => void travel("redo")} />
-        <details className="canvas-menu layer-options">
-          <summary className="quiet" aria-label="Layer options">Layers</summary>
+        <details className="canvas-menu plane-options">
+          <summary className="quiet" aria-label="Plane options">Planes</summary>
           <div className="canvas-menu-content">
             <label>Separation <input aria-label="Separation" type="range" min="0" max="650" value={gap} onChange={e => setGap(+e.target.value)} /></label>
             <label>Tilt <input aria-label="Tilt" type="range" min="-85" max="85" value={tilt} onChange={e => setTilt(+e.target.value)} /></label>
@@ -297,7 +344,7 @@ export default function LayeredCanvas(props: CanvasPaneProps & { onFlat: () => v
         </details>
       </Toolbar>
     </div>
-      <section className="layers-stage" ref={stage} aria-label="Exploded model layers" data-ready={ready} data-view="both"
+      <section className="planes-stage" ref={stage} aria-label="Exploded model planes" data-ready={ready} data-view="both"
         onWheelCapture={event => {
           if ((event.target as HTMLElement).closest('[data-view-control]')) return;
           event.preventDefault(); event.stopPropagation();
@@ -318,7 +365,7 @@ export default function LayeredCanvas(props: CanvasPaneProps & { onFlat: () => v
           const panShortcut = event.button === 1 || event.button === 2 || (event.shiftKey && !event.altKey);
           const mode = panShortcut ? "pan" : event.ctrlKey && event.altKey ? "roll" : event.ctrlKey ? "separate" : event.altKey ? "rotate" : "pan";
           // Cards retain their ordinary drag gesture; view tools use empty space.
-          if (!panShortcut && !event.altKey && !event.ctrlKey && event.button === 0 && target.closest('.tl-shape,button,input,summary')) return;
+          if (!panShortcut && !event.altKey && !event.ctrlKey && event.button === 0 && target.closest('.tl-shape,button,input,summary,.file-map-background')) return;
           event.preventDefault(); event.stopPropagation();
           drag.current = { id: event.pointerId, x: event.clientX, y: event.clientY, mode, rotation, tilt, roll };
           event.currentTarget.setPointerCapture(event.pointerId);
@@ -350,9 +397,9 @@ export default function LayeredCanvas(props: CanvasPaneProps & { onFlat: () => v
         onPointerUp={event => { if (drag.current?.id === event.pointerId) { drag.current = undefined; event.currentTarget.releasePointerCapture(event.pointerId); } }}
         onLostPointerCapture={() => { drag.current = undefined; }}>
 
-        <button className="quiet icon-button layers-help-toggle" data-view-control
+        <button className="quiet icon-button planes-help-toggle" data-view-control
           aria-label="3D control cheatsheet" title="3D controls" aria-expanded={showControls}
-          aria-controls="layers-control-cheatsheet" onClick={() => setShowControls(value => !value)}>
+          aria-controls="planes-control-cheatsheet" onClick={() => setShowControls(value => !value)}>
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
             {showControls ? <path d="m7 7 6 6m0-6-6 6" /> : <>
               <path d="M7.8 7.4a2.3 2.3 0 0 1 4.5.6c0 1.7-2.3 1.8-2.3 3.4" />
@@ -360,7 +407,7 @@ export default function LayeredCanvas(props: CanvasPaneProps & { onFlat: () => v
             </>}
           </svg>
         </button>
-        {showControls && <aside id="layers-control-cheatsheet" className="layers-help" data-view-control aria-label="3D control cheatsheet"
+        {showControls && <aside id="planes-control-cheatsheet" className="planes-help" data-view-control aria-label="3D control cheatsheet"
           onKeyDown={event => { if (event.key === "Escape") { event.stopPropagation(); setShowControls(false); } }}>
             <dl>
               <div title="Right-drag or middle-drag anywhere; Shift-left-drag also pans. Left-drag empty space to pan."><dt>Pan</dt><dd><GestureMouse button="right" /><span className="gesture-alternative" role="img" aria-label="or" /><GestureMouse button="middle" /><span className="gesture-alternative" role="img" aria-label="or" /><kbd aria-label="Shift" title="Shift">⇧</kbd> + <GestureMouse button="left" /></dd></div>
@@ -370,24 +417,30 @@ export default function LayeredCanvas(props: CanvasPaneProps & { onFlat: () => v
               <div title="Ctrl-left-drag vertically separates the planes. Drag up to increase the gap."><dt>Separate</dt><dd><kbd aria-label="Control" title="Control">⌃</kbd> + <GestureMouse button="left" /> <span className="gesture-direction">↕</span></dd></div>
             </dl>
         </aside>}
-        <div className="layers-camera" style={{ transform: `translate(${cameraView.x}px, ${cameraView.y}px) scale(${cameraView.z})` }}>
-        <div className="layers-scene" style={sceneStyle}>
-          {([...layers].reverse()).map(layer => <section key={layer} className={`layer-sheet ${layer}`} data-plane={layer}
+        <div className="planes-camera" style={{ transform: `translate(${cameraView.x}px, ${cameraView.y}px) scale(${cameraView.z})` }}>
+        <div className="planes-scene" style={sceneStyle}>
+          {([...planes].reverse()).map(plane => <section key={plane} className={`plane-sheet ${plane}`} data-plane={plane}
             data-sheet-y={0}
-            data-sheet-z={layer === "domain" ? gap / 2 : -gap / 2}
-            aria-label={`${layer === "domain" ? "Domain" : "Architecture"} plane`}
-            style={{ "--plane-opacity": `${surface}%`, transform: `translate3d(0,0px,${layer === "domain" ? gap / 2 : -gap / 2}px)` } as CSSProperties}>
-            {handles[layer] && <PlaneSurface handle={handles[layer]!} />}
-            <LayerEditor renderScale={renderScale} width={planeWidth} height={planeHeight} layer={layer} graph={graphs[layer]} fullGraph={legend} modelId={model.id} snapshot={boot.snapshot} assets={storage.assets} onReady={onReady} onSelect={choose} onFocus={focus} onError={setError} />
-            {handles[layer] && <EndpointMarkers handle={handles[layer]!} ids={endpointIds.filter(id => dimensionOf(index.items.get(id)!) === layer)} />}
+            data-sheet-z={plane === "domain" ? gap / 2 : plane === "architecture" ? -gap / 2 : -gap * 1.5}
+            aria-label={`${planeName(plane)} plane`}
+            style={{ "--plane-opacity": `${surface}%`, transform: `translate3d(0,0px,${plane === "domain" ? gap / 2 : plane === "architecture" ? -gap / 2 : -gap * 1.5}px)` } as CSSProperties}>
+            {handles[plane] && <PlaneSurface handle={handles[plane]!} />}
+            <PlaneEditor onSourceSelect={selection => { if (sourceSelectionId(index, selection) !== sourceSelectionId(index, props.selection)) props.onSelect(selection); }} renderScale={renderScale} width={planeWidth} height={planeHeight} plane={plane} graph={graphs[plane]} fullGraph={legend} modelId={model.id} snapshot={boot.snapshot} assets={storage.assets} onReady={onReady} onSelect={choose} onFocus={focus} onError={setError} />
+            <button className="quiet source-plane-label" data-view-control onPointerDown={event => event.stopPropagation()} onClick={async event => {
+              event.stopPropagation(); await storage.retry();
+              props.setWorkspace(w => ({ ...w, source: plane === "source", view: plane === "source" ? w.view : plane })); onFlat();
+            }}>{planeName(plane)} ↗</button>
+            {handles[plane] && <EndpointMarkers handle={handles[plane]!} ids={endpointIds.filter(id => dimensionOf(index.items.get(id)!) === plane)} />}
           </section>)}
-          {ready && gap > 4 && <Bridges edges={shownBridges} index={index} handles={handles as Record<Layer, LayerHandle>} gap={gap} tilt={tilt} rotation={rotation} roll={roll} selected={selected} onSelect={choose} onHover={setHoveredRelationship} />}
+          {ready && gap > 4 && <Bridges edges={shownBridges} index={index} handles={handles as Record<Plane, PlaneHandle>} gap={gap} tilt={tilt} rotation={rotation} roll={roll} selected={selected} onSelect={choose} onHover={setHoveredRelationship} />}
+          {ready && gap > 4 && <SourceLinkBridges allConnections={allLinks} projectFiles={projectFiles} selection={props.selection} handles={handles as Record<Plane, PlaneHandle>}
+            onSelect={props.onSelect} endpoints={sourceEndpoints} revision={`${gap}:${renderScale}:${revision}`} />}
         </div>
         </div>
-        {!ready && <div className="layers-arranging" role="status">Arranging two pages…</div>}
+        {!ready && <div className="planes-arranging" role="status">Arranging planes…</div>}
 
       </section>
-      {error && <p className="layers-error" role="alert">{error}</p>}
+      {error && <p className="planes-error" role="alert">{error}</p>}
         {props.statusHost && createPortal(<ModelLegend projection={legend}>
         <div className="canvas-save-indicator" role="status" data-save-status={storage.status}>
           {{ loading: "Opening canvas…", saved: "Saved to project", saving: "Saving to project…", local: "Unsaved changes", conflict: "Canvas conflict", error: "Canvas unavailable" }[storage.status]}
@@ -399,16 +452,16 @@ export default function LayeredCanvas(props: CanvasPaneProps & { onFlat: () => v
   </div>;
 }
 
-function Bridges({ edges, index, handles, gap, tilt, rotation, roll, selected, onSelect, onHover }: { edges: Relationship[]; index: ReturnType<typeof indexModel>; handles: Record<Layer, LayerHandle>; gap: number; tilt: number; rotation: number; roll: number; selected: string; onSelect: (id: string) => void; onHover: (id: string) => void }) {
+function Bridges({ edges, index, handles, gap, tilt, rotation, roll, selected, onSelect, onHover }: { edges: Relationship[]; index: ReturnType<typeof indexModel>; handles: Record<Plane, PlaneHandle>; gap: number; tilt: number; rotation: number; roll: number; selected: string; onSelect: (id: string) => void; onHover: (id: string) => void }) {
   const root = useRef<HTMLDivElement>(null);
   useEffect(() => {
     let frame: number;
     const draw = () => {
       const endpoint = (id: string) => {
-        const layer = dimensionOf(index.items.get(id)!);
-        if (!layer) return;
-        const { editor, element } = handles[layer];
-        const bounds = editor.getShapePageBounds(layerShapeId(`item:${id}`, layer));
+        const plane = dimensionOf(index.items.get(id)!);
+        if (!plane) return;
+        const { editor, element } = handles[plane];
+        const bounds = editor.getShapePageBounds(planeShapeId(`item:${id}`, plane));
         if (!bounds) return;
         const camera = editor.getCamera(), sheet = element.parentElement!;
         const density = Number(element.dataset.renderScale) || 1;
@@ -417,8 +470,8 @@ function Bridges({ edges, index, handles, gap, tilt, rotation, roll, selected, o
           y: (bounds.center.y + camera.y) * camera.z / density + element.offsetTop + sheet.clientTop + Number(sheet.dataset.sheetY || 0),
           // The architecture endpoint is on its upper face. The domain endpoint
           // stops just below its sheet, so it cannot paint through that surface.
-          z: Number(sheet.dataset.sheetZ || 0) + (layer === "domain" ? -1 : 1),
-          layer,
+          z: Number(sheet.dataset.sheetZ || 0) + (plane === "domain" ? -1 : 1),
+          plane,
         };
       };
       edges.forEach((edge, i) => {
@@ -429,13 +482,13 @@ function Bridges({ edges, index, handles, gap, tilt, rotation, roll, selected, o
         const length = Math.hypot(dx, dy, dz);
         const azimuth = Math.atan2(dy, dx) * 180 / Math.PI;
         const elevation = -Math.atan2(dz, Math.hypot(dx, dy)) * 180 / Math.PI;
-        const ray = group.querySelector<HTMLElement>(".layers-depth-ray")!;
+        const ray = group.querySelector<HTMLElement>(".planes-depth-ray")!;
         ray.style.width = `${length}px`;
         ray.style.transform = `translate3d(${a.x}px,${a.y}px,${a.z}px) rotateZ(${azimuth}deg) rotateY(${elevation}deg)`;
         // Keep labels in the gap and facing the viewer, but still inside the
         // same 3D scene so a foreground sheet occludes them too.
-        const lower = a.layer === "architecture" ? a : b, upper = a.layer === "domain" ? a : b;
-        const label = group.querySelector<HTMLElement>(".layers-depth-label")!;
+        const lower = a.plane === "architecture" ? a : b, upper = a.plane === "domain" ? a : b;
+        const label = group.querySelector<HTMLElement>(".planes-depth-label")!;
         const t = .28;
         // Diagram labels are in model units; use the same logical canvas zoom.
         const labelScale = handles.domain.editor.getCamera().z / (Number(handles.domain.element.dataset.renderScale) || 1);
@@ -445,23 +498,23 @@ function Bridges({ edges, index, handles, gap, tilt, rotation, roll, selected, o
     };
     draw(); return () => cancelAnimationFrame(frame);
   }, [edges, handles, index, gap, tilt, rotation, roll]);
-  return <div className="layers-depth-bridges" ref={root} aria-label="Cross-dimension relationships">
-    {edges.map(edge => <div key={edge.id} className="layers-depth-bridge" data-bridge={edge.id} onPointerEnter={() => onHover(edge.id)} onPointerLeave={() => onHover("")} onFocus={() => onHover(edge.id)} onBlur={() => onHover("")} data-selected={[edge.id, edge.from, edge.to].includes(selected)}>
-      <div className="layers-depth-ray"><span className="layers-depth-hit" onClick={() => onSelect(edge.id)} /></div>
-      <button className="layers-depth-label" aria-label={`${index.items.get(edge.from)?.name} ${edge.name} ${index.items.get(edge.to)?.name}`} onClick={() => onSelect(edge.id)}>{edge.name}</button>
+  return <div className="planes-depth-bridges" ref={root} aria-label="Cross-dimension relationships">
+    {edges.map(edge => <div key={edge.id} className="planes-depth-bridge" data-bridge={edge.id} onPointerEnter={() => onHover(edge.id)} onPointerLeave={() => onHover("")} onFocus={() => onHover(edge.id)} onBlur={() => onHover("")} data-selected={[edge.id, edge.from, edge.to].includes(selected)}>
+      <div className="planes-depth-ray"><span className="planes-depth-hit" onClick={() => onSelect(edge.id)} /></div>
+      <button className="planes-depth-label" aria-label={`${index.items.get(edge.from)?.name} ${edge.name} ${index.items.get(edge.to)?.name}`} onClick={() => onSelect(edge.id)}>{edge.name}</button>
     </div>)}
   </div>;
 }
 
 /** Endpoint emphasis lives on each sheet's surface; it does not change editor selection. */
-function EndpointMarkers({ handle, ids }: { handle: LayerHandle; ids: string[] }) {
+function EndpointMarkers({ handle, ids }: { handle: PlaneHandle; ids: string[] }) {
   const root = useRef<HTMLDivElement>(null);
   useEffect(() => {
     let frame: number;
     const draw = () => {
       ids.forEach((id, i) => {
         const marker = root.current?.children[i] as HTMLElement | undefined;
-        const bounds = handle.editor.getShapePageBounds(layerShapeId(`item:${id}`, handle.layer));
+        const bounds = handle.editor.getShapePageBounds(planeShapeId(`item:${id}`, handle.plane));
         if (!marker) return;
         marker.hidden = !bounds;
         if (!bounds) return;
@@ -479,15 +532,15 @@ function EndpointMarkers({ handle, ids }: { handle: LayerHandle; ids: string[] }
     draw();
     return () => cancelAnimationFrame(frame);
   }, [handle, ids]);
-  return <div className="layers-endpoint-markers" ref={root} aria-hidden="true">
-    {ids.map(id => <div className="layers-endpoint-marker" data-endpoint={id} key={id} />)}
+  return <div className="planes-endpoint-markers" ref={root} aria-hidden="true">
+    {ids.map(id => <div className="planes-endpoint-marker" data-endpoint={id} key={id} />)}
   </div>;
 }
 
 /** A content-sized surface, independent of the editor viewport and its clipping. */
-function PlaneSurface({ handle }: { handle: LayerHandle }) {
+function PlaneSurface({ handle }: { handle: PlaneHandle }) {
   const root = useRef<HTMLDivElement>(null);
-  useEffect(() => react("Layer content surface", () => {
+  useEffect(() => react("Plane content surface", () => {
     const { editor, element } = handle;
     const boxes = editor.getCurrentPageShapes().filter(shape => !shape.meta.lexiconHidden)
       .map(shape => editor.getShapePageBounds(shape)).filter((box): box is Box => !!box);
@@ -505,5 +558,5 @@ function PlaneSurface({ handle }: { handle: LayerHandle }) {
       height: `${(bounds.h + padding * 2) * camera.z / density}px`,
     });
   }), [handle]);
-  return <div ref={root} className="layer-surface" aria-hidden="true" />;
+  return <div ref={root} className="plane-surface" aria-hidden="true" />;
 }

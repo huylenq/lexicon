@@ -1,8 +1,9 @@
+import { planeLabel } from "../graph/planes";
 import { createContext, useContext, useLayoutEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { ContainerProvider, DefaultToolbar, DefaultToolbarContent, TldrawUiOrientationProvider, useEditor, useValue } from "tldraw";
 
-import { CombinedDrawingLayer } from "./CombinedBackground";
+import { CombinedDrawingPlane } from "./CombinedBackground";
 import { combinedPage } from "./combined";
 
 export const ToolbarDock = createContext<HTMLDivElement | null>(null);
@@ -11,8 +12,8 @@ export const ToolbarDock = createContext<HTMLDivElement | null>(null);
 export function DockedToolbar() {
   const host = useContext(ToolbarDock);
   const editor = useEditor();
-  const drawingLayer = useContext(CombinedDrawingLayer);
-  const combined = useValue("Drawing layer badge visibility", () => editor.getCurrentPageId() === combinedPage, [editor]);
+  const drawingPlane = useContext(CombinedDrawingPlane);
+  const combined = useValue("Drawing plane badge visibility", () => editor.getCurrentPageId() === combinedPage, [editor]);
   const viewportWidth = useValue("Drawing tray width", () => editor.getViewportScreenBounds().w, [editor]);
   const [badgeHost, setBadgeHost] = useState<Element | null>(null);
   const dark = useValue("Toolbar theme", () => editor.user.getIsDarkMode(), [editor]);
@@ -43,9 +44,9 @@ export function DockedToolbar() {
     setBadgeHost(root.querySelector(".tlui-main-toolbar__left"));
   }, [host, fits, container, editor]);
   const badge = combined && badgeHost && createPortal(
-    <span className="canvas-drawing-layer-badge" data-dimension={drawingLayer.active}
-      role="status" aria-label="Drawing layer">
-      {drawingLayer.active === "domain" ? "Domain" : "Architecture"}
+    <span className="canvas-drawing-plane-badge" data-dimension={drawingPlane.active}
+      role="status" aria-label="Drawing plane">
+      {planeLabel(drawingPlane.active)}
     </span>, badgeHost);
 
   if (!host || !fits) return <><DefaultToolbar maxItems={combined && viewportWidth < 600 ? 4 : 8} minSizePx={combined ? 160 : 310} maxSizePx={combined ? Math.max(160, Math.min(470, viewportWidth - 170)) : 470} />{badge}</>;

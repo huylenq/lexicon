@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
-import type { TLRecord } from "tldraw";
-import { dimensionRecords, combinedRecords } from "../client/src/canvas/combined";
+import type { Editor, TLRecord, TLShape } from "tldraw";
+import { dimensionRecords, combinedRecords, combinedLayout } from "../client/src/canvas/combined";
 import { modelShapeId } from "../client/src/canvas/references";
 import type { Model } from "../shared/model";
 
@@ -86,4 +86,56 @@ test("Combined-authored shapes and attachments retain mirror identities on rebui
   expect(result.some(r => r.id === "shape:combined-copy:duplicate")).toBe(true);
   expect(result.find(r => r.typeName === "shape" && r.type === "note")).toMatchObject({ id: "shape:authored", x: 400, y: 60, meta: { combinedSourceId: "shape:combined-origin:authored", combinedDimension: "architecture" } });
   expect(result.find(r => r.typeName === "binding")).toMatchObject({ id: "binding:authored", fromId: "shape:authored", toId: modelShapeId("item:a", "combined") });
+});
+
+test("Combined owns each source target on Linked Sources and preserves its drawings and bindings", () => {
+  const model = { items: [] } as unknown as Model;
+  const target = "code:src/order.ts#Order", file = "file:src/order.ts";
+  const node = (graphId: string, scope: string, parentId: string, x: number) => ({
+    id: modelShapeId(graphId, scope), typeName: "shape", type: "lexicon-object", parentId,
+    x, y: 40, props: { graphId }, meta: { lexiconProjection: scope },
+  });
+  const records = [
+    node(file, "domain", "page:lexicon-domain", 900),
+    node(target, "domain", modelShapeId(file, "domain"), 90),
+    node(file, "architecture", "page:lexicon-architecture", 800),
+    node(target, "architecture", modelShapeId(file, "architecture"), 80),
+    node(file, "layers-source", "page:layers-source-links", 100),
+    node(target, "layers-source", modelShapeId(file, "layers-source"), 10),
+    { id: "shape:source-note", typeName: "shape", type: "note", parentId: "page:layers-source-links", x: 30, y: 50, props: {}, meta: {} },
+    { id: "binding:source-note", typeName: "binding", type: "lexicon-note", fromId: "shape:source-note", toId: modelShapeId(target, "layers-source"), props: { x: 20, y: 10 }, meta: {} },
+    // The retired filesystem annotation page is preserved, never composed.
+    { id: "shape:map-note", typeName: "shape", type: "note", parentId: "page:layers-source", x: 10, y: 10, props: {}, meta: {} },
+  ] as unknown as TLRecord[];
+  const before = JSON.stringify(records);
+  const result = combinedRecords(records, model, { domain: { x: 0, y: 0 }, architecture: { x: 1000, y: 0 }, source: { x: 2000, y: 200 } });
+  expect(result.filter(r => r.typeName === "shape" && r.type === "lexicon-object")).toHaveLength(2);
+  expect(result.find(r => r.id === modelShapeId(file, "combined"))).toMatchObject({ x: 2100, y: 240, meta: { combinedDimension: "source", combinedSourceId: modelShapeId(file, "layers-source") } });
+  expect(result.find(r => r.id === modelShapeId(target, "combined"))).toMatchObject({ x: 10, y: 40, parentId: modelShapeId(file, "combined") });
+  expect(result.find(r => r.typeName === "shape" && r.type === "note")).toMatchObject({ x: 2030, y: 250, meta: { combinedDimension: "source" } });
+  expect(result.find(r => r.typeName === "binding")).toMatchObject({ fromId: "shape:combined-copy:source-note", toId: modelShapeId(target, "combined") });
+  expect(result.some(r => r.id.includes("map-note"))).toBe(false);
+  expect(JSON.stringify(records)).toBe(before);
+});
+
+
+test("Combined reads current mirror geometry without laying out the graph again", () => {
+  const file = "file:src/order.ts", target = "code:Order";
+  const nodes = [{ id: file, kind: "file" as const, title: "order.ts", subtitle: "" },
+    { id: target, kind: "code" as const, parentId: file, title: "Order", subtitle: "" }];
+  const shapes = new Map(nodes.map((node, i) => [modelShapeId(node.id, "combined"), {
+    type: "lexicon-object", x: i ? 16 : 2300, y: i ? 52 : -120,
+    props: { w: i ? 214 : 300, h: i ? 44 : 240 }, meta: { combinedSourceId: `shape:original-${i}` },
+  } as unknown as TLShape]));
+  const editor = { getShape: (id: TLShape["id"]) => shapes.get(id) } as Pick<Editor, "getShape">;
+  expect(combinedLayout(editor, nodes)).toEqual({
+    [file]: { x: 2300, y: -120, width: 300, height: 240 },
+    [target]: { x: 16, y: 52, width: 214, height: 44 },
+  });
+  // A fresh mirror of an edited page must win over any previous layout cache.
+  shapes.set(modelShapeId(file, "combined"), { ...shapes.get(modelShapeId(file, "combined"))!, x: 2800 });
+  expect(combinedLayout(editor, nodes)?.[file].x).toBe(2800);
+  // Incomplete projections still need normal preparation.
+  shapes.delete(modelShapeId(target, "combined"));
+  expect(combinedLayout(editor, nodes)).toBeUndefined();
 });

@@ -2,9 +2,9 @@ import { createContext, useContext, useRef, type PointerEvent } from "react";
 import { Box, useEditor, useValue } from "tldraw";
 import { combinedPage, combinedOffset, moveCombinedDimension, type DimensionOffset } from "./combined";
 
-import type { ElementDimension } from "../../../shared/model";
+import { canvasPlanes, planeLabel, type CanvasPlane } from "../graph/planes";
 
-export const CombinedDrawingLayer = createContext<{ active: ElementDimension; select: (dimension: ElementDimension) => void }>({ active: "domain", select: () => {} });
+export const CombinedDrawingPlane = createContext<{ active: CanvasPlane; select: (dimension: CanvasPlane) => void }>({ active: "domain", select: () => {} });
 
 import { InkMapBackground } from "./terrain/InkMap";
 import "./combined-background.css";
@@ -14,7 +14,7 @@ function useRegions() {
   const editor = useEditor();
   return useValue("Combined dimension regions", () => {
     if (editor.getCurrentPageId() !== combinedPage) return [];
-    return (["domain", "architecture"] as const).flatMap(dimension => {
+    return canvasPlanes.flatMap(dimension => {
       const boxes = editor.getCurrentPageShapes().flatMap(shape => {
         if (shape.type === "lexicon-connection" || editor.isShapeHidden(shape)) return [];
         const bounds = shape.meta.combinedDimension === dimension && editor.getShapePageBounds(shape);
@@ -30,14 +30,14 @@ function useRegions() {
 }
 
 export function CombinedBackground() {
-  const drawingLayer = useContext(CombinedDrawingLayer);
+  const drawingPlane = useContext(CombinedDrawingPlane);
   const regions = useRegions();
   return <>
     <InkMapBackground />
     <div className="combined-regions" aria-label="Combined dimensions">
       {regions.map(region => <section key={region.dimension} className="combined-region" data-dimension={region.dimension}
-        data-active={drawingLayer.active === region.dimension}
-        aria-label={region.dimension === "domain" ? "Domain region" : "Architecture region"}
+        data-active={drawingPlane.active === region.dimension}
+        aria-label={`${planeLabel(region.dimension)} region`}
         style={{ left: region.x, top: region.y, width: region.width, height: region.height }} />)}
     </div>
   </>;
@@ -45,7 +45,7 @@ export function CombinedBackground() {
 
 /** Handles sit above the canvas so tldraw cannot consume their drag gestures. */
 export function CombinedHandles() {
-  const drawingLayer = useContext(CombinedDrawingLayer);
+  const drawingPlane = useContext(CombinedDrawingPlane);
   const editor = useEditor();
   const regions = useRegions();
   const drag = useRef<{ pointer: number; x: number; y: number; offset: DimensionOffset; mark?: string }>();
@@ -63,10 +63,10 @@ export function CombinedHandles() {
   return <div className="combined-handles">
     {regions.map(region => <h2 key={region.dimension} data-dimension={region.dimension}
       style={{ left: region.x + 18, top: region.y + 12 }}>
-      <button type="button" aria-label={`Drag ${region.dimension === "domain" ? "Domain" : "Architecture"}`}
-        aria-pressed={drawingLayer.active === region.dimension}
+      <button type="button" aria-label={`Drag ${planeLabel(region.dimension)}`}
+        aria-pressed={drawingPlane.active === region.dimension}
         title="Select to draw on this dimension. Drag to move it; arrow keys move it, Shift moves farther."
-        onClick={event => { event.stopPropagation(); drawingLayer.select(region.dimension); }}
+        onClick={event => { event.stopPropagation(); drawingPlane.select(region.dimension); }}
         onPointerDown={event => {
           if (event.button !== 0) return;
           event.stopPropagation();
@@ -98,7 +98,7 @@ export function CombinedHandles() {
           moveCombinedDimension(editor, region.dimension, { x: offset.x + delta[0] * step, y: offset.y + delta[1] * step });
           editor.markHistoryStoppingPoint();
         }}>
-        {region.dimension === "domain" ? "Domain" : "Architecture"}<span aria-hidden="true"> ⠿</span>
+        {planeLabel(region.dimension)}<span aria-hidden="true"> ⠿</span>
       </button>
     </h2>)}
   </div>;

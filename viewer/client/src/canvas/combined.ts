@@ -1,16 +1,20 @@
+import { canvasPlanes, planeLabel, type CanvasPlane } from "../graph/planes";
 import { internalWrite } from "./internalWrite";
 import { Box, type IndexKey, type Editor, type TLPageId, type TLRecord, type TLShape } from "tldraw";
 import { dimensionOf, type ElementDimension, type Model } from "../../../shared/model";
-import type { Positions } from "../graph/layout";
+import type { Layout, Positions } from "../graph/layout";
+import type { GraphVertex } from "../graph/model";
 import { isModelShape, isPrimary, modelShapeId } from "./references";
 
 export const combinedPage = "page:lexicon-combined" as TLPageId;
-const layerPages = ["page:layers-domain", "page:layers-architecture"];
+const planePages = ["page:layers-domain", "page:layers-architecture", "page:layers-source"];
 
-export type FlatView = "domain" | "architecture" | "all";
+export type FlatView = CanvasPlane | "all";
+export const projectionScope = (view: FlatView) => view === "all" ? "combined" : view === "source" ? "layers-source" : view;
 export const flatPageIds: Record<FlatView, TLPageId> = {
   domain: "page:lexicon-domain" as TLPageId,
   architecture: "page:lexicon-architecture" as TLPageId,
+  source: "page:layers-source-links" as TLPageId,
   all: combinedPage,
 };
 
@@ -77,7 +81,7 @@ export function dimensionRecords(records: TLRecord[], model: Model, dimension: E
 
 /** Each dimension owns its authored page; Combined holds a derived presentation. */
 export function openFlatPage(editor: Editor, view: FlatView, model: Model) {
-  const ordinary = editor.getPages().find(page => !Object.values(flatPageIds).includes(page.id) && !layerPages.includes(page.id));
+  const ordinary = editor.getPages().find(page => !Object.values(flatPageIds).includes(page.id) && !planePages.includes(page.id));
   const legacyIds = ordinary && editor.getPageShapeIds(ordinary.id);
   const legacy = legacyIds ? editor.store.allRecords().filter(r =>
     r.typeName === "shape" ? legacyIds.has(r.id) : r.typeName === "binding" && legacyIds.has(r.fromId) && legacyIds.has(r.toId)) : [];
@@ -89,28 +93,29 @@ export function openFlatPage(editor: Editor, view: FlatView, model: Model) {
       editor.createPage({ id: flatPageIds[dimension], index: `${editor.getPages().at(-1)?.index || "a1"}V` as IndexKey, name: dimension === "domain" ? "Domain" : "Architecture" });
       editor.store.put(dimensionRecords(legacy, model, dimension));
     }
+    if (!editor.getPage(flatPageIds.source)) editor.createPage({ id: flatPageIds.source, index: `${editor.getPages().at(-1)?.index || "a1"}V` as IndexKey, name: planeLabel("source") });
     if (ordinary && legacy.length && ordinary.name !== "Legacy canvas (recovery)") editor.updatePage({ id: ordinary.id, name: "Legacy canvas (recovery)" });
     if (created) {
       editor.createPage({ id: combinedPage, index: `${editor.getPages().at(-1)?.index || "a1"}V` as IndexKey, name: "Combined" });
     }
     editor.setCurrentPage(flatPageIds[view]);
   }, { history: "ignore" }));
-  return { created, positions, scope: view === "all" ? "combined" : view };
+  return { created, positions, scope: projectionScope(view) };
 }
 
 export type DimensionOffset = { x: number; y: number };
-export function combinedOffset(editor: Editor, dimension: ElementDimension): DimensionOffset {
+export function combinedOffset(editor: Editor, dimension: CanvasPlane): DimensionOffset {
   const offsets = editor.getPage(combinedPage)?.meta.combinedOffsets as Record<string, DimensionOffset> | undefined;
   const value = offsets?.[dimension];
   return value && Number.isFinite(value.x) && Number.isFinite(value.y) ? value : { x: 0, y: 0 };
 }
 
 /** Include authored drawings when framing and moving a flattened dimension. */
-export function dimensionShapes(editor: Editor, dimension: ElementDimension) {
+export function dimensionShapes(editor: Editor, dimension: CanvasPlane) {
   return editor.getCurrentPageShapes().filter(shape => shape.meta.combinedDimension === dimension && shape.type !== "lexicon-connection" && !editor.isShapeHidden(shape));
 }
 
-export function moveCombinedDimension(editor: Editor, dimension: ElementDimension, offset: DimensionOffset) {
+export function moveCombinedDimension(editor: Editor, dimension: CanvasPlane, offset: DimensionOffset) {
   const page = editor.getPage(combinedPage);
   if (!page) return;
   const before = combinedOffset(editor, dimension), dx = offset.x - before.x, dy = offset.y - before.y;
@@ -125,7 +130,7 @@ export function moveCombinedDimension(editor: Editor, dimension: ElementDimensio
 }
 
 /** Mirror source records, including groups, drawings, assets and internal bindings. */
-export function combinedRecords(records: TLRecord[], model: Model, offsets: Record<ElementDimension, DimensionOffset>): TLRecord[] {
+export function combinedRecords(records: TLRecord[], model: Model, offsets: Record<ElementDimension, DimensionOffset> & { source?: DimensionOffset }): TLRecord[] {
   // Pasting on a source page copies metadata too; only the original record owns a mirror id.
   const mirrorId = (record: TLShape | Extract<TLRecord, { typeName: "binding" }>) => {
     const prefix = record.typeName === "shape" ? "shape:" : "binding:";
@@ -136,20 +141,22 @@ export function combinedRecords(records: TLRecord[], model: Model, offsets: Reco
   const allShapes = records.filter((r): r is TLShape => r.typeName === "shape");
   const byId = new Map(allShapes.map(shape => [shape.id, shape]));
   const items = new Map(model.items.map(item => [`${item.type === "relationship" ? "relation" : "item"}:${item.id}`, item]));
-  const dimensionOfShape = (shape: TLShape): ElementDimension | undefined => {
+  const dimensionOfShape = (shape: TLShape): CanvasPlane | undefined => {
     let parent = shape.parentId;
     const seen = new Set<string>();
     while (byId.has(parent as TLShape["id"]) && !seen.has(parent)) {
       seen.add(parent); parent = byId.get(parent as TLShape["id"])!.parentId;
     }
-    return parent === flatPageIds.domain ? "domain" : parent === flatPageIds.architecture ? "architecture" : undefined;
+    return canvasPlanes.find(plane => parent === flatPageIds[plane]);
   };
-  const selected: { shape: TLShape; dimension: ElementDimension }[] = [];
+  const selected: { shape: TLShape; dimension: CanvasPlane }[] = [];
   const primary = new Set<string>();
   for (const shape of allShapes) {
     const dimension = dimensionOfShape(shape);
     if (!dimension) continue;
     if (isModelShape(shape)) {
+      // Linked Sources owns canonical file/target placements in Combined.
+      if (dimension !== "source" && (shape.props.graphId.startsWith("code:") || shape.props.graphId.startsWith("file:"))) continue;
       const item = items.get(shape.props.graphId);
       if (item && dimensionOf(item) && dimensionOf(item) !== dimension) continue;
       if (item?.type === "relationship") {
@@ -168,7 +175,7 @@ export function combinedRecords(records: TLRecord[], model: Model, offsets: Reco
     : mirrorId(shape) as TLShape["id"]]));
   const result: TLRecord[] = selected.map(({ shape, dimension }) => {
     const parentId = ids.get(shape.parentId as TLShape["id"]) || combinedPage;
-    const offset = parentId === combinedPage ? offsets[dimension] : { x: 0, y: 0 };
+    const offset = parentId === combinedPage ? (offsets[dimension] || { x: 0, y: 0 }) : { x: 0, y: 0 };
     return { ...shape, id: ids.get(shape.id)!, parentId, x: shape.x + offset.x, y: shape.y + offset.y,
       meta: { ...shape.meta, combinedSourceId: shape.id, combinedDimension: dimension,
         ...(isModelShape(shape) ? { lexiconProjection: "combined" } : {}) } };
@@ -182,7 +189,7 @@ export function combinedRecords(records: TLRecord[], model: Model, offsets: Reco
 
 export function syncCombined(editor: Editor, model: Model) {
   const records = combinedRecords(editor.store.allRecords(), model, {
-    domain: combinedOffset(editor, "domain"), architecture: combinedOffset(editor, "architecture"),
+    domain: combinedOffset(editor, "domain"), architecture: combinedOffset(editor, "architecture"), source: combinedOffset(editor, "source"),
   });
   const keep = new Set(records.map(r => r.id));
   const stale = editor.store.allRecords().filter(r => (r.typeName === "shape" || r.typeName === "binding") &&
@@ -191,15 +198,42 @@ export function syncCombined(editor: Editor, model: Model) {
   editor.store.put(records);
 }
 
-/** Translate the complete architecture layer without changing its internal coordinates. */
+/** Combined already has its geometry after mirroring the authored pages. */
+export function combinedLayout(editor: Pick<Editor, "getShape">, nodes: GraphVertex[]): Layout | undefined {
+  const layout: Layout = {};
+  for (const node of nodes) {
+    const shape = editor.getShape(modelShapeId(node.id, "combined"));
+    if (shape?.type !== "lexicon-object" || !shape.meta.combinedSourceId) return undefined;
+    layout[node.id] = { x: shape.x, y: shape.y, width: shape.props.w, height: shape.props.h };
+  }
+  return layout;
+}
+
+/** Add Linked Sources to older Combined layouts without moving their existing planes. */
+export function placeNewLinkedSources(editor: Editor) {
+  const offsets = editor.getPage(combinedPage)?.meta.combinedOffsets as Record<string, DimensionOffset> | undefined;
+  if (offsets?.source) return;
+  const boundsFor = (plane: CanvasPlane) => dimensionShapes(editor, plane)
+    .map(shape => editor.getShapePageBounds(shape)).filter((box): box is Box => !!box);
+  const sources = boundsFor("source");
+  if (!sources.length) return;
+  const source = Box.Common(sources), others = [...boundsFor("domain"), ...boundsFor("architecture")];
+  const previous = others.length ? Box.Common(others) : undefined;
+  moveCombinedDimension(editor, "source", previous ? { x: previous.maxX + 240 - source.x, y: previous.y - source.y } : { x: 0, y: 0 });
+}
+
+/** Separate authored planes without changing their internal coordinates. */
 export function separateDimensions(editor: Editor, _model: Model) {
-  const bounds = (dimension: ElementDimension) => {
-    const boxes = dimensionShapes(editor, dimension).map(shape => editor.getShapePageBounds(shape)).filter((box): box is Box => !!box);
-    return boxes.length ? Box.Common(boxes) : undefined;
-  };
-  const a = bounds("domain"), b = bounds("architecture");
-  if (!a || !b) return;
-  const offset = combinedOffset(editor, "architecture");
+  let previous: Box | undefined;
   editor.markHistoryStoppingPoint("Separate dimensions");
-  moveCombinedDimension(editor, "architecture", { x: offset.x + a.maxX + 240 - b.x, y: offset.y + a.y - b.y });
+  for (const dimension of canvasPlanes) {
+    const boxes = dimensionShapes(editor, dimension).map(shape => editor.getShapePageBounds(shape)).filter((box): box is Box => !!box);
+    if (!boxes.length) continue;
+    const bounds = Box.Common(boxes);
+    if (previous) {
+      const offset = combinedOffset(editor, dimension), dx = previous.maxX + 240 - bounds.x, dy = previous.y - bounds.y;
+      moveCombinedDimension(editor, dimension, { x: offset.x + dx, y: offset.y + dy });
+      previous = new Box(bounds.x + dx, bounds.y + dy, bounds.w, bounds.h);
+    } else previous = bounds;
+  }
 }

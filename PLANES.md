@@ -1,0 +1,55 @@
+# Planes
+
+Planes presents Domain, Architecture, and Linked Sources in the existing canvas workspace. The reader, navigation, Source Reader, and Agent remain available. Plane placement expresses a viewing arrangement, without implying semantic containment or runtime direction.
+
+## Navigation
+
+Choose Planes in the canvas toolbar. A plane's label opens its 2D view. Domain and Architecture share a fitted diagram scale. Linked Sources fits its linked file and target drawing independently. All three participate in shared pan, zoom, tilt, rotation, and separation.
+
+Left-drag blank space to pan. Right-drag, middle-drag, or Shift-left-drag pan anywhere. Alt/Option-left-drag orbits; Ctrl-left-drag vertically separates the planes; Ctrl-Alt/Option-left-drag rolls. Shift snaps orbit and roll to 15-degree increments. Scroll or pinch zooms around the pointer. The question-mark button opens the gesture reference. Plane options also provides sliders; Reset view restores the initial orientation and fitted framing.
+
+Click a model object or relationship to read it. Its declared sources connect to target objects on the Linked Sources plane. Connections are grouped by owner and target, with a visible limit of 120 groups, prioritizing the selected target or owner. Turning off All connections shows only links for the active selection. Clicking a source connection opens its mapping or mapping group. A relationship's source connection begins at the midpoint between its participants. Flow sources remain accessible in the reader; flows have no independent plane anchor.
+
+Search source links finds linked files, symbols, headings, and lines. When Files / File Map is enabled in Development options, Browse Files opens the physical map outside Planes; Back to canvas restores the previous presentation. In that browser, Search files finds inventoried paths and their declared targets. Click a result or press Enter to locate it; file results also open Source Reader. Click a file tile to read the whole file, including files with no model mappings. Double-click a directory to focus it. Arrow keys browse siblings, parents, and children; Enter opens or focuses; Space collapses a directory. Keyboard navigation uses one accessible cursor rather than a DOM element for every file.
+
+In individual 2D planes, cross-dimension radials navigate from a model object or relationship to its declared sources, and from a source target or file card back to its owners. Targets are deduplicated even when an owner links to one for multiple roles. Combined and Planes show source connections directly. Selection and browser history retain exact target identity across planes. Locate in Linked Sources selects the linked target; Reveal in Files locates its physical file.
+
+## Linked Sources rendering
+
+The Linked Sources plane owns tldraw file cards and code/document target nodes. Authored source links supply its entire target set; there is no separate source index or file scan. A referenced target remains visible even when resolution fails. Unlinked files never become Linked Sources objects through browsing. Linked Sources shares its presentation page between 2D and Planes. In 2D it uses the same editor and lifecycle as Domain and Architecture, including gestures, drawing tools, skins, selection, and recovery. Combined mirrors these three pages with independent movement handles and drawing ownership; source links connect to the Linked Sources targets without duplicating them.
+
+## Files browsing
+
+Files / File Map is disabled by default. Enable it in Project settings → Development options to expose Browse Files from every canvas. This preference applies immediately in the current browser and is separate from shared project filters. Its URL preserves the previous canvas presentation and selection, and supports browser history and reload. Back to canvas returns to that presentation. Locate in Linked Sources opens linked targets on the plane; Reveal in Files locates their physical files. The standalone filesystem view does not mount or save a tldraw editor.
+
+The File Map uses a standalone Canvas 2D renderer with pan and pointer-centered wheel zoom. The root is an unlabeled frame. Directories use tinted backgrounds and names, with no folder icons or item counters. File icons and names are centered together within each tile. File tiles and target cards share the model canvas’s neutral surfaces, borders, corner radius, system font, and selection accent; directory fills use its group styling. A deterministic layout positions the file tiles. Selection and search preserve geometry; changes to inventory or line counts can reflow it.
+
+File labels prefer horizontal text. Tall, narrow tiles rotate the icon and label together when that provides more room. Labels appear once there are at least 20 screen pixels across the tile's short side and 48 along its long side, and are redrawn as zoom changes; long names use an ellipsis. Directory labels fit their reserved header using measured text bounds and shorten long names with an ellipsis. Labels hide when the header cannot fit readable text and return as zoom provides room; child tiles retain their geometry. This is level-of-detail rendering, not a precomputed mipmap. The current 2D camera caps zoom at 8×, so exceptionally thin tiles can remain below the legibility threshold even at maximum zoom; search still opens their source files.
+
+Area is weighted by physical LOC, including blank lines and comments, with directories summing descendant weights. Directory headers and padding affect final tile area. Empty files and files without measured LOC receive weight one to remain reachable by zoom or search. Hover identifies the line count or the fallback reason. This is physical line count, not language-aware SLOC. File icons use a bundled subset of [Material Icon Theme](https://github.com/material-extensions/vscode-material-icon-theme), with a generic fallback for other types. Decoded icons are shared by type and painted into the same bitmap; zoomed-out regions do not load icons until their labels are visible.
+
+The server measures UTF-8 text in 64 KiB chunks with at most eight concurrent readers. Unchanged files reuse cached metrics after checking their filesystem identity, size, and modification/change times. Each scan has a 256 MiB read budget and a ten-second deadline; individual files over 16 MiB, binaries, inaccessible files, and deferred counts use the minimum weight. Refresh retries deferred measurements and recounts changed files. File metrics stay outside model XML and canvas storage.
+
+Viewport culling and directory aggregation limit work at overview scale. Backing textures are capped at 2,800 pixels on their longest side. The inventory is capped at 100,000 files and explicitly reports truncation. The project-root `lexicon/` artifact directory is always omitted, including tracked files. Git projects otherwise include tracked and non-ignored untracked files. Ordinary directories also honor nested `.gitignore` rules and negations through Git’s ignore engine, while omitting common dependency and build folders. Ignore filtering happens before LOC measurement. Authored links do not add excluded files back to the physical map or file search; they remain readable through declared source links. Refresh applies changed ignore rules. Embedded Git repositories and initialized submodules are traversed. Their own ignore rules and ancestor ignore rules both apply; project globs use paths relative to the selected source root. Refresh files forces a rescan. Failed inventory reads retain the current map and expose Retry.
+
+Revealed targets appear inside files once there is room. Selecting a linked file or precise target opens one accessible detail card; if the tile is too small or covered by the Reader, the card is placed in the exposed canvas area and connected to its tile. Escape or Collapse source detail closes the card without changing selection. The card pages through eight declared targets at a time; it is not a complete code or document outline. Background detail paints at most 120 target rows and shares geometry with picking and connection endpoints. Search reaches targets beyond those visible limits.
+
+The inventory and file tiles never enter the tldraw document. Saved annotation pages from the former Tiles/File Map renderer remain untouched in the canvas document but are not displayed by this experimental renderer. File reads retain root confinement, binary checks, and the 2 MB text limit. Opening a project file does not create an authored evidence mapping.
+
+## Persistence
+
+`lexicon/canvas.json` stores presentation pages, authored notes, drawings, and media. Three tldraw editors mirror document records while retaining independent current pages, cameras, and selections. One persistence service owns saves, revision checks, conflict handling, and local recovery. File inventory is held separately.
+
+Undo and Redo share a session history across the planes, including Arrange. Command/Ctrl-Z and Command/Ctrl-Shift-Z use that history outside text inputs. History retains 30 changes and resets when a new model or external canvas version is installed. Camera movement and source selection do not enter document history.
+
+Existing project pages and media are preserved. The earlier browser-only Planes layout is imported only when project Planes pages are absent. Failed saves retain local work and offer retry and recovery. File inventory failure does not block Domain or Architecture.
+
+## Implementation and checks
+
+CSS transforms orient the surfaces. Editors measure geometry in untransformed coordinates; four corner markers recover pointer positions on tilted planes. Linked Sources uses the same camera coordinates and perspective mapping as the other planes.
+
+Run unit tests, typecheck, and the client build from `viewer/`. `tests/linked-sources.browser.ts` covers Linked Sources and Files navigation and recovery; `tests/project-files.test.ts` covers inventory boundaries, reading limits, hierarchy geometry, and overview aggregation. The viewport adapter depends on tldraw 5.4 behavior and needs checking on SDK upgrades. Safari, Firefox, multi-touch, and very large live repositories still require separate acceptance checks.
+
+## Compatibility
+
+Earlier `/layers/…` routes and `presentation=layers` links open Planes. Saved page and projection IDs keep their original values so placements, notes, bindings, and recovery copies survive the terminology change. Browser drawing ownership migrates from `drawingLayer` to `drawingPlane`; obsolete source-expansion preferences are ignored. `dev:planes` is the canonical development command; `dev:layers` remains an alias.

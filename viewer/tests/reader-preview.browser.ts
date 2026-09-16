@@ -115,12 +115,12 @@ test("old saved cards stay Pinned and a new Preview never replaces them", async 
 
 test("mapping explanations preview and pin while their source and owner links stay connected", async ({ page }) => {
   await page.goto("/p/shop?item=order");
-  await active(page).locator(".code-links button").first().click();
-  await expect(page.locator(".code-scroll")).toBeVisible();
+  await active(page).locator(".source-links button").first().click();
+  await expect(page.locator(".source-scroll")).toBeVisible();
   const source = new URL(page.url()).searchParams.get("code");
   await expect(preview(page)).toHaveAttribute("data-reader-card", "item:order");
-  await page.locator(".code-mappings summary").click();
-  const mapping = page.locator(".code-mapping").first()
+  await page.locator(".source-mappings summary").click();
+  const mapping = page.locator(".source-mapping").first()
     .getByRole("button", { name: "Read definition mapping", exact: true });
   await mapping.click();
   await expect(preview(page)).toHaveAttribute("data-reader-card", /^mapping:/);
@@ -128,7 +128,7 @@ test("mapping explanations preview and pin while their source and owner links st
   await mapping.click({ modifiers: ["Meta"] });
   await expect(preview(page)).toHaveCount(0);
   await expect(cards(page)).toHaveCount(1);
-  await page.locator(".code-explanation button").click({ button: "middle" });
+  await page.locator(".source-explanation button").click({ button: "middle" });
   await expect(active(page)).toHaveAttribute("data-reader-card", "item:order");
   await expect(active(page)).toHaveAttribute("data-reader-mode", "pinned");
   await browse(page, "Shop API").click();

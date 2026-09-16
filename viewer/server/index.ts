@@ -7,7 +7,8 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { projects } from "./db";
 import { loadModel, readModelDocument } from "./model";
-import { readCode } from "./code";
+import { readSource } from "./source";
+import { readProjectFiles, readProjectFile } from "./files";
 import type { Project } from "../shared/model";
 import { MODEL_SCHEMA, codeTargetId } from "../shared/model";
 import { streamSSE } from "hono/streaming";
@@ -282,6 +283,17 @@ app.put("/api/projects/:id/settings", async (c) => {
   try { return c.json(await writeProjectSettings(await artifactRoot(p.root), await c.req.json())); }
   catch (error) { return c.json({ error: (error as Error).message }, 400); }
 });
+for (const path of ["/api/projects/:id/files", "/api/projects/:id/repository"] as const) app.get(path, async (c) => {
+  if (!project(c.req.param("id"))) return c.json({ error: "Project not found." }, 404);
+  const p = await chatProject(c.req.param("id"));
+  return c.json(await readProjectFiles(p.root, c.req.query("refresh") === "1", p.artifactRoot));
+});
+for (const path of ["/api/projects/:id/files/file", "/api/projects/:id/repository/file"] as const) app.get(path, async (c) => {
+  if (!project(c.req.param("id"))) return c.json({ error: "Project not found." }, 404);
+  const p = await chatProject(c.req.param("id"));
+  try { return c.json(await readProjectFile(p.root, c.req.query("file") || "", p.artifactRoot)); }
+  catch (error) { return c.json({ error: (error as Error).message }, 400); }
+});
 app.get("/api/projects/:id/code", async (c) => {
   const p = project(c.req.param("id"));
   if (!p) return c.json({ error: "Project not found." }, 404);
@@ -299,7 +311,7 @@ app.get("/api/projects/:id/code", async (c) => {
       : undefined;
   if (!link) return c.json({ error: "Code link not found." }, 404);
   return c.json(
-    await readCode(
+    await readSource(
       p.example ? p.root : await codeRoot(p.root, artifacts),
       link,
     ),
