@@ -20,7 +20,7 @@ function readNeighbors(editor: Editor): Neighbors | undefined {
     const origin = view.vertices.get(anchor.props.graphId)?.selection || view.connections.get(anchor.props.graphId)?.selection;
     if (!origin) continue;
     const targets = planeNeighbors(view.index, origin).filter(target =>
-      view.plane !== "all" || target.plane !== "source" && origin.kind === "item");
+      target.plane !== "source" && (view.plane !== "all" || origin.kind === "item"));
     if (targets.length) return { source: anchor.id, origin, targets };
   }
 }

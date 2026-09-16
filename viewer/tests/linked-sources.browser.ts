@@ -686,13 +686,15 @@ test("returning to Combined reuses saved geometry without a layout overlay", asy
   }
 });
 
-test("source radials cross planes in both directions and restore exact targets through history", async ({ page }) => {
+test("radials omit source links while Linked Sources still navigates to model owners", async ({ page }) => {
   await writeFile(join(root, "policy.md"), "# Rules\nOrders require lines.\n");
   const linked = xml.replace('</concept>', '<code-link kind="document" file="policy.md" heading="rules" role="specification">Policy.</code-link></concept>');
   await writeFile(join(root, "lexicon/model.xml"), linked);
   const errors: string[] = []; page.on("pageerror", error => errors.push(error.message));
   await page.goto(`/p/${id}?item=order`);
   await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  await expect(page.locator('main [data-reader-card].active .source-links')).toContainText("policy.md");
+  await expect(page.locator('main [data-reader-card].active .source-links')).toContainText("src/order.ts");
   for (const name of ["Toggle reader", "Toggle navigation"]) {
     const button = page.getByRole("button", { name, exact: true });
     if (await button.getAttribute("aria-pressed") === "true") await button.click();
@@ -700,25 +702,18 @@ test("source radials cross planes in both directions and restore exact targets t
   await page.getByRole("button", { name: "Fit model", exact: true }).click();
   const ring = page.getByRole("group", { name: "Cross-dimension neighbors", exact: true });
   await page.getByRole("button", { name: "concept: Order", exact: true }).hover();
-  await ring.getByRole("button", { name: "Go to rules", exact: true }).click();
-  await expect(page.getByRole("radio", { name: "Linked Sources", exact: true })).toBeChecked();
-  const selected = page.locator('.canvas-card[data-selected="true"]');
-  await expect(selected).toContainText("rules");
-  const sourceUrl = page.url();
-  await page.goBack();
-  await expect(page.getByRole("radio", { name: "Domain", exact: true })).toBeChecked();
-  await expect(page.locator('[data-model-id="item:order"]')).toHaveAttribute("data-selected", "true");
-  await page.goForward();
-  await expect(page.getByRole("radio", { name: "Linked Sources", exact: true })).toBeChecked();
-  expect(new URL(page.url()).searchParams.get("code")).toBe(new URL(sourceUrl).searchParams.get("code"));
-  await expect(selected).toContainText("rules");
+  await expect(ring).toBeVisible();
+  await expect(ring.locator('[data-radial-node^="code:"]')).toHaveCount(0);
+  await page.getByRole("radio", { name: "Linked Sources", exact: true }).check();
+  await page.getByRole("button", { name: "Fit model", exact: true }).click();
   await page.getByRole("button", { name: "code: rules", exact: true }).hover();
   await ring.getByRole("button", { name: "Go to Order", exact: true }).click();
   await expect(page.getByRole("radio", { name: "Domain", exact: true })).toBeChecked();
   await expect(page.locator('.canvas-card[data-model-id^="code:"]')).toHaveCount(0);
   await page.getByRole("button", { name: "concept: Order", exact: true }).hover();
-  await ring.getByRole("button", { name: "Go to Order", exact: true }).click();
-  await expect(page.getByRole("radio", { name: "Linked Sources", exact: true })).toBeChecked();
+  await expect(ring).toBeVisible();
+  await expect(ring.locator('[data-radial-node^="code:"]')).toHaveCount(0);
+  await page.getByRole("radio", { name: "Linked Sources", exact: true }).check();
   if (await page.getByRole("button", { name: "Close Source Reader", exact: true }).isVisible())
     await page.getByRole("button", { name: "Close Source Reader", exact: true }).click();
   await page.getByRole("radio", { name: "Combined", exact: true }).check();
@@ -731,9 +726,8 @@ test("source radials cross planes in both directions and restore exact targets t
   await page.setViewportSize({ width: 600, height: 900 });
   await page.getByRole("button", { name: "Fit model", exact: true }).click();
   await page.getByRole("button", { name: "component: Order Handling", exact: true }).hover();
-  await ring.getByRole("button", { name: "Go to Checkout", exact: true }).hover();
-  await expect(ring.getByRole("button", { name: "Go to Checkout", exact: true }).locator(".radial-neighbor-name")).toHaveCSS("opacity", "1");
-  await page.screenshot({ path: "../output/source-preview/source-radial-mobile.png" });
+  await expect(ring).toBeVisible();
+  await expect(ring.locator('[data-radial-node^="code:"]')).toHaveCount(0);
   expect(errors).toEqual([]);
   expect(await readFile(join(root, "lexicon/model.xml"), "utf8")).toBe(linked);
 });
@@ -750,8 +744,9 @@ test("relationship source radials save before switching presentation and legacy 
   await page.getByRole("button", { name: "Fit model", exact: true }).click();
   const ring = page.getByRole("group", { name: "Cross-dimension neighbors", exact: true });
   await page.getByRole("button", { name: "Read relationship: contains", exact: true }).hover();
-  await ring.getByRole("button", { name: "Go to Order", exact: true }).click();
-  await expect(page.getByRole("radio", { name: "Linked Sources", exact: true })).toBeChecked();
+  await expect(ring).toHaveCount(0);
+  await page.getByRole("radio", { name: "Linked Sources", exact: true }).check();
+  await page.getByRole("button", { name: "Fit model", exact: true }).click();
   await page.getByRole("button", { name: "code: Order", exact: true }).hover();
   await ring.getByRole("button", { name: "Go to contains", exact: true }).click();
   await expect(page.getByRole("radio", { name: "Domain", exact: true })).toBeChecked();
