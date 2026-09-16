@@ -713,6 +713,24 @@ test("layers share canvas scale and wheel zoom anchors the projected scene to th
   expect(await readFile(join(root, 'lexicon/model.xml'), 'utf8')).toBe(xml);
 });
 
+test("layers middle-drag pans without zooming", async ({ page }) => {
+  await page.goto(`/p/${id}?presentation=layers`);
+  await expect(page.locator('.layers-stage[data-ready="true"]')).toBeVisible();
+  if (await page.locator('main').isVisible()) await page.getByRole('button', { name: 'Toggle reader', exact: true }).click();
+  const node = page.getByRole('button', { name: 'concept: Order', exact: true });
+  const zoom = () => page.locator('.layers-camera').evaluate(el => new DOMMatrix(getComputedStyle(el).transform).a);
+  const before = (await node.boundingBox())!;
+  const z = await zoom();
+  await page.mouse.move(before.x + before.width / 2, before.y + before.height / 2);
+  await page.mouse.down({ button: 'middle' });
+  await page.mouse.move(before.x + before.width / 2 + 80, before.y + before.height / 2 + 40, { steps: 8 });
+  await page.mouse.up({ button: 'middle' });
+  const after = (await node.boundingBox())!;
+  expect(await zoom()).toBeCloseTo(z, 4);
+  expect(Math.abs(after.x - before.x) + Math.abs(after.y - before.y)).toBeGreaterThan(20);
+  expect(await readFile(join(root, 'lexicon/model.xml'), 'utf8')).toBe(xml);
+});
+
 test("moving a Layers node does not open the reader, but a following click does", async ({ page }) => {
   await page.goto(`/p/${id}?presentation=layers`);
   await expect(page.locator('.layers-stage[data-ready="true"]')).toBeVisible();

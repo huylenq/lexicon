@@ -23,7 +23,7 @@ import "tldraw/tldraw.css";
 import "../canvas/canvas.css";
 import "./layers.css";
 
-function GestureMouse({ button }: { button: "left" | "right" | "wheel" }) {
+function GestureMouse({ button }: { button: "left" | "right" | "wheel" | "middle" }) {
   return <svg className="gesture-mouse" width="20" height="26" viewBox="0 0 20 26" role="img"
     aria-label={button === "wheel" ? "Mouse wheel" : `${button} mouse button`}>
     <title>{button === "wheel" ? "Scroll" : `Drag with the ${button} mouse button`}</title>
@@ -31,7 +31,7 @@ function GestureMouse({ button }: { button: "left" | "right" | "wheel" }) {
     {button === "right" && <path d="M10 2c4.4 0 7 3 7 7v3h-7Z" fill="currentColor" />}
     <rect x="3" y="2" width="14" height="22" rx="7" fill="none" stroke="currentColor" strokeWidth="1.4" />
     <path d="M10 2v10M3 12h14" fill="none" stroke="currentColor" strokeWidth="1" />
-    {button === "wheel" && <rect x="8.5" y="5" width="3" height="6" rx="1.5" fill="currentColor" />}
+    {(button === "wheel" || button === "middle") && <rect x="8.5" y="5" width="3" height="6" rx="1.5" fill="currentColor" />}
   </svg>;
 }
 
@@ -363,7 +363,7 @@ export default function LayeredCanvas(props: CanvasPaneProps & { onFlat: () => v
         {showControls && <aside id="layers-control-cheatsheet" className="layers-help" data-view-control aria-label="3D control cheatsheet"
           onKeyDown={event => { if (event.key === "Escape") { event.stopPropagation(); setShowControls(false); } }}>
             <dl>
-              <div title="Right-drag or middle-drag anywhere; Shift-left-drag also pans. Left-drag empty space to pan."><dt>Pan</dt><dd><GestureMouse button="right" /><span className="gesture-alternative" role="img" aria-label="or" /><kbd aria-label="Shift" title="Shift">⇧</kbd> + <GestureMouse button="left" /></dd></div>
+              <div title="Right-drag or middle-drag anywhere; Shift-left-drag also pans. Left-drag empty space to pan."><dt>Pan</dt><dd><GestureMouse button="right" /><span className="gesture-alternative" role="img" aria-label="or" /><GestureMouse button="middle" /><span className="gesture-alternative" role="img" aria-label="or" /><kbd aria-label="Shift" title="Shift">⇧</kbd> + <GestureMouse button="left" /></dd></div>
               <div title="Scroll or pinch to zoom around your pointer."><dt>Zoom</dt><dd><GestureMouse button="wheel" /><span className="gesture-direction">↕</span><span className="gesture-alternative" role="img" aria-label="or" /><span>pinch</span></dd></div>
               <div title="Alt/Option-left-drag changes tilt and rotation when both dimensions are visible. Hold Shift to snap to 15°."><dt>Orbit</dt><dd><kbd aria-label="Alt / Option" title="Alt / Option">⌥</kbd> + <GestureMouse button="left" /><span className="gesture-alternative" role="img" aria-label="optional" /><kbd aria-label="Shift" title="Hold Shift to snap to 15°">⇧</kbd><span>15°</span></dd></div>
               <div title="Ctrl-Alt/Option-left-drag horizontally rolls the view. Hold Shift to snap to 15°."><dt>Roll</dt><dd><kbd aria-label="Control" title="Control">⌃</kbd> + <kbd aria-label="Alt / Option" title="Alt / Option">⌥</kbd> + <GestureMouse button="left" /> <span className="gesture-direction">↔</span><span className="gesture-alternative" role="img" aria-label="optional" /><kbd aria-label="Shift" title="Hold Shift to snap to 15°">⇧</kbd><span>15°</span></dd></div>

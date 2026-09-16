@@ -461,6 +461,31 @@ test("mouse wheel zooms the canvas instead of panning vertically", async ({ page
   await expect.poll(zoom).toBeLessThan(zoomedIn);
 });
 
+test("right-drag and middle-drag pan the canvas without zooming", async ({ page }) => {
+  await open(page);
+  const view = () => page.locator(".tl-html-layer").evaluate((node) => {
+    const m = new DOMMatrix(getComputedStyle(node).transform);
+    return { x: m.e, y: m.f, z: m.a };
+  });
+  const area = (await page.locator(".canvas-stage").boundingBox())!;
+  const start = { x: area.x + area.width / 2, y: area.y + area.height / 2 };
+  const pan = async (button: "right" | "middle") => {
+    const before = await view();
+    await page.mouse.move(start.x, start.y);
+    await page.mouse.down({ button });
+    await page.mouse.move(start.x + 90, start.y + 50, { steps: 8 });
+    await page.mouse.up({ button });
+    await page.keyboard.press("Escape");
+    await expect.poll(async () => {
+      const after = await view();
+      return Math.abs(after.x - before.x) + Math.abs(after.y - before.y);
+    }).toBeGreaterThan(1);
+    expect((await view()).z).toBeCloseTo(before.z, 4);
+  };
+  await pan("right");
+  await pan("middle");
+});
+
 test("native marquee treats contexts as frames and Shift adds without toggling existing shapes", async ({ page }) => {
   await open(page);
   const group = (await card(page, "ordering").boundingBox())!;
