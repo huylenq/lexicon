@@ -152,7 +152,10 @@ interface SourceExcerptBase {
   startLine?: number;
   endLine?: number;
 }
+export type SymbolKind = "class" | "function" | "method" | "interface" | "type" | "enum" | "variable";
+export type SourceMetadata = Record<string, { symbolKind?: SymbolKind }>;
 export interface CodeExcerpt extends SourceExcerptBase {
+  symbolKind?: SymbolKind;
   kind: "code";
   status: "symbol" | "line" | "file" | "missing-symbol" | "ambiguous-symbol" | "unsupported";
 }

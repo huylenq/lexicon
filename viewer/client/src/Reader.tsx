@@ -1,3 +1,4 @@
+import { SourceMetadataProvider } from "./source/SourceMetadata";
 import ProjectSettings from "./ProjectSettings";
 import {
   lazy,
@@ -470,6 +471,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
         </button>
   );
   return (
+    <SourceMetadataProvider projectId={projectId} model={model}>
     <ReaderHover.Provider value={(selection, dismiss) => selection.kind === "code" ? null : <>
       <ReaderCardHeader card={selection} item={selection.kind === "item" ? graphIndex?.items.get(selection.id) : undefined}
         title={titleForCard(selection)} preview collapsed={false} copied={copied === cardKey(selection)}
@@ -778,5 +780,6 @@ function ReaderProject({ projectId }: { projectId: string }) {
         onClose={() => { setChatOpen(false); chatToggle.current?.focus(); }} onModelChanged={refresh} onSelect={select} />}
     </div>
     </ReaderHover.Provider>
+    </SourceMetadataProvider>
   );
 }

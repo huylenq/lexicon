@@ -7,7 +7,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { projects } from "./db";
 import { loadModel, readModelDocument } from "./model";
-import { readSource } from "./source";
+import { readSource, readSourceMetadata } from "./source";
 import { readProjectFiles, readProjectFile } from "./files";
 import type { Project } from "../shared/model";
 import { MODEL_SCHEMA, codeTargetId } from "../shared/model";
@@ -293,6 +293,13 @@ for (const path of ["/api/projects/:id/files/file", "/api/projects/:id/repositor
   const p = await chatProject(c.req.param("id"));
   try { return c.json(await readProjectFile(p.root, c.req.query("file") || "", p.artifactRoot)); }
   catch (error) { return c.json({ error: (error as Error).message }, 400); }
+});
+app.get("/api/projects/:id/source-metadata", async (c) => {
+  const p = project(c.req.param("id"));
+  if (!p) return c.json({ error: "Project not found." }, 404);
+  const artifacts = p.artifactRoot || (await artifactRoot(p.root));
+  const model = await loadModel(artifacts);
+  return c.json(await readSourceMetadata(p.example ? p.root : await codeRoot(p.root, artifacts), model.items.flatMap(item => item.codeLinks)));
 });
 app.get("/api/projects/:id/code", async (c) => {
   const p = project(c.req.param("id"));

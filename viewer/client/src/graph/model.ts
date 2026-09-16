@@ -1,3 +1,5 @@
+import { isWholeFileSource } from "../../../shared/source";
+import { fileTree, type FileMapNode } from "../source/fileMapLayout";
 import type { CanvasPlane } from "./planes";
 import { fileSelectionId, fileSelectionPath } from "../../../shared/files";
 import { sourceTargetLabel } from "../source/targets";
@@ -30,6 +32,8 @@ export { targetId };
 export const mappingId = (owner: string, key: number | string) =>
   JSON.stringify([owner, key]);
 export const fileId = (file: string) => `file:${file}`;
+/** Visual endpoint only; authored target and mapping identities stay unchanged. */
+export const sourceNodeId = (link: SourceLink) => isWholeFileSource(link) ? fileId(link.file) : targetId(link);
 export const anchorId = (id: string) => `anchor:${id}`;
 
 export function indexModel(model: Model) {
@@ -72,8 +76,9 @@ export function indexModel(model: Model) {
 
 export type GraphVertex = {
   sourceLink?: SourceLink;
+  wholeFileTargets?: string[];
   id: string;
-  kind: ModelElement["type"] | "code" | "file";
+  kind: ModelElement["type"] | "code" | "file" | "directory";
   title: string;
   subtitle: string;
   parentId?: string;
@@ -156,7 +161,7 @@ export function projectGraph(index: GraphIndex, options: GraphOptions = {}) {
     connections.push({
       id: `mapping:${m.id}`,
       source,
-      target: m.target,
+      target: sourceNodeId(m.link),
       kind: "mapping",
       label: m.link.role,
       selection: { kind: "mapping", id: m.id },
@@ -170,19 +175,39 @@ export function projectGraph(index: GraphIndex, options: GraphOptions = {}) {
 /** Authored targets are grouped into files on the Linked Sources plane. */
 export function sourceVertices(targets: Iterable<Target>): GraphVertex[] {
   const nodes: GraphVertex[] = [];
+  const allTargets = [...targets];
+  const { root } = fileTree([...new Set(allTargets.map(target => target.link.file))].sort());
+  const fileParents = new Map<string, string>();
+  const visit = (entry: FileMapNode, parentId?: string) => {
+    if (!entry.directory) {
+      if (parentId) fileParents.set(entry.path, parentId);
+      return;
+    }
+    const start = entry.path;
+    while (entry.children.length === 1 && entry.children[0].directory) entry = entry.children[0];
+    const id = `directory:${entry.path}`;
+    const prefix = start.slice(0, Math.max(0, start.lastIndexOf("/") + 1));
+    nodes.push({ id, kind: "directory", title: entry.path.slice(prefix.length), subtitle: entry.path, parentId });
+    entry.children.forEach(child => visit(child, id));
+  };
+  root.children.forEach(child => visit(child));
   const files = new Set<string>();
-  for (const target of targets) {
+  for (const target of allTargets) {
     const id = target.id;
     if (!files.has(target.link.file)) {
       files.add(target.link.file);
+      const whole = allTargets.filter(t => t.link.file === target.link.file && isWholeFileSource(t.link));
       nodes.push({
         id: fileId(target.link.file),
         kind: "file",
+        parentId: fileParents.get(target.link.file),
+        wholeFileTargets: whole.map(t => t.id),
         title: target.link.file.split("/").pop() || target.link.file,
         subtitle: target.link.file,
-        selection: { kind: "code", id: fileSelectionId(target.link.file) },
+        selection: { kind: "code", id: whole.length === 1 ? whole[0].id : fileSelectionId(target.link.file) },
       });
     }
+    if (isWholeFileSource(target.link)) continue;
     nodes.push({
       id,
       kind: "code",
@@ -242,7 +267,7 @@ export function neighborhood(
   for (const id of records.mappings) {
     const m = index.mappings.get(id);
     if (m) {
-      seeds.add(m.target);
+      seeds.add(sourceNodeId(m.link));
       if (selection?.kind !== "code") seeds.add(itemNodeId(m.owner.id));
       for (const c of projection.connections)
         if (c.mappings.includes(id)) edgeSeeds.add(c.id);

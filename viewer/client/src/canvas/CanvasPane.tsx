@@ -295,9 +295,9 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onPlanes: (
       : undefined;
   const findSelection = (chosen: GraphSelection) => {
     // The source plane projects targets, not the mappings used by Reader links.
-    if (latest.current.workspace.view === "source") {
+    if (latest.current.workspace.view === "source" || latest.current.workspace.view === "all" && chosen.kind === "code") {
       const id = sourceSelectionId(index, chosen);
-      return id ? modelShapeId(id, "layers-source") : undefined;
+      return id ? modelShapeId(id, projectionScope(latest.current.workspace.view)) : undefined;
     }
     const same = (other?: GraphSelection) =>
       selectionKey(other) === selectionKey(chosen);

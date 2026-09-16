@@ -85,6 +85,10 @@ test("registration validates a project; removal preserves its model", async () =
     await req(`/api/projects/${p.id}/code?owner=thing&index=0`)
   ).json();
   expect(code.status).toBe("symbol");
+  expect(code.symbolKind).toBe("interface");
+  expect(await (await req(`/api/projects/${p.id}/source-metadata`)).json()).toEqual({
+    'code:["thing.ts","symbol","Thing"]': { symbolKind: "interface" },
+  });
   expect(code.text).toContain("export interface Thing");
   const target = encodeURIComponent('code:["thing.ts","symbol","Thing"]');
   const byTarget = await req(`/api/projects/${p.id}/code?target=${target}`);

@@ -1,7 +1,7 @@
 import { dimensionOf, type ModelItem } from "../../../shared/model";
 import { fileSelectionPath } from "../../../shared/files";
 import { sourceTargetLabel } from "../source/targets";
-import { type GraphIndex, type GraphSelection } from "./model";
+import { sourceNodeId, type GraphIndex, type GraphSelection } from "./model";
 import type { CanvasPlane } from "./planes";
 
 export type PlaneNeighbor = {
@@ -48,7 +48,7 @@ export function planeNeighbors(index: GraphIndex, selection: GraphSelection): Pl
       const link = mapping.link;
       const locator = sourceTargetLabel(link);
       const title = locator.label === "Whole file" ? link.file.split("/").pop()! : locator.label;
-      neighbors.set(mapping.target, { id: mapping.target, title,
+      neighbors.set(mapping.target, { id: sourceNodeId(link), title,
         subtitle: link.file, kind: "code", selection: { kind: "code", id: mapping.target }, plane: "source" });
     }
   } else if (selection.kind === "code" || selection.kind === "mapping") {

@@ -2,6 +2,7 @@ import type { Editor } from "tldraw";
 import type { GraphVertex } from "../graph/model";
 import type { ObjectShape } from "../../../shared/canvas-schema";
 import { isPrimary } from "./references";
+import { fitContextFrame } from "./territory";
 import type { Bounds } from "../../../shared/canvas-geometry";
 import { isAtlasLandmark, landmarkFootprint, landmarkFor, landmarks } from "./terrain/generate";
 
@@ -24,7 +25,7 @@ function labelSize(editor: Editor, title: string, fontSize: number) {
 
 export function objectSizes(editor: Editor, title: string, kind: string, landmark: unknown = "auto", classification?: string, copy = false) {
   const label = labelSize(editor, title, 14);
-  const diagram = kind === "code" ? { w: Math.max(180, Math.min(360, title.length * 8 + 54)), h: 44 + (copy ? 16 : 0) }
+  const diagram = kind === "code" ? { w: Math.max(180, Math.min(360, title.length * 8 + 54)), h: 28 + (copy ? 16 : 0) }
     : { w: label.w + 45, h: label.h + 22 + (copy ? 16 : 0) };
   const building = isAtlasLandmark(kind) && !copy ? landmarkFor({ landmark, classification, elementKind: kind }) : "none";
   const mapLabel = labelSize(editor, title, 12), footprint = landmarkFootprint(building);
@@ -40,7 +41,22 @@ export function objectSizes(editor: Editor, title: string, kind: string, landmar
   return { diagram, atlas, reserve };
 }
 
+export const isDirectory = (shape: ObjectShape) => shape.props.group && shape.props.graphId.startsWith("directory:");
+
+/** Directory presentation follows its files, including nested directory frames. */
+export function directoryFrame(editor: Editor, shape: ObjectShape): Bounds {
+  const children = editor.getSortedChildIdsForParent(shape.id).flatMap(id => {
+    const child = editor.getShape(id);
+    if (child?.type !== "lexicon-object") return [];
+    const frame = isDirectory(child) ? directoryFrame(editor, child)
+      : { x: 0, y: 0, w: child.props.w, h: child.props.h };
+    return [{ ...frame, x: child.x + frame.x, y: child.y + frame.y }];
+  });
+  return fitContextFrame(children, objectSizes(editor, String(shape.meta.lexiconLabel || "Directory"), "directory").diagram);
+}
+
 export function objectFrame(editor: Editor, shape: ObjectShape, vertex: GraphVertex | undefined, atlas: boolean): Bounds {
+  if (isDirectory(shape)) return directoryFrame(editor, shape);
   if (shape.props.group || !vertex || vertex.kind === "code") return { x: 0, y: 0, w: shape.props.w, h: shape.props.h };
   const sizes = objectSizes(editor, vertex.title, vertex.kind, shape.meta.lexiconLandmark, vertex.subtitle, !isPrimary(shape));
   const size = atlas ? sizes.atlas : sizes.diagram;

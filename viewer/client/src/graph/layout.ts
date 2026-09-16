@@ -19,8 +19,13 @@ export async function arrangeGraph(
     // Nested architecture territories need room for their own coast and heading
     // inside the enclosing territory, in either skin. Saved positions still win.
     const architecture = group.kind === "system" || group.kind === "container";
-    const inset = architecture ? 80 : 28, heading = architecture ? 150 : 60;
+    const inset = architecture ? 80 : group.kind === "file" ? 10 : group.kind === "directory" ? 20 : 28;
+    const heading = architecture ? 150 : group.kind === "directory" ? 44 : 60;
     const children = graph.nodes.filter((n) => n.parentId === group.id);
+    if (!children.length && group.kind === "file") {
+      layout[group.id] = { x: 0, y: 0, width: Math.max(280, sizes[group.id]?.width || 0), height: 44 };
+      return;
+    }
     if (!children.length) {
       layout[group.id] = { x: 0, y: 0, ...(sizes[group.id] || (group.parentId ? { width: 190, height: 70 } : { width: 260, height: 88 })) };
       return;
@@ -28,14 +33,16 @@ export async function arrangeGraph(
     await Promise.all(children.map(arrangeGroup));
     if (group.kind === "file") {
       const columnWidth = Math.max(...children.map(n => sizes[n.id]?.width || 228));
-      const rowHeight = Math.max(...children.map(n => sizes[n.id]?.height || 44)) + 18;
+      const rowHeight = Math.max(...children.map(n => sizes[n.id]?.height || 28)) + 2;
       children.forEach((n, i) => {
         layout[n.id] = {
-          x: 16,
-          y: 52 + i * rowHeight,
-          width: columnWidth, height: sizes[n.id]?.height || 44,
+          x: 10,
+          y: 40 + i * rowHeight,
+          width: columnWidth, height: sizes[n.id]?.height || 28,
         };
       });
+    } else if (group.kind === "directory") {
+      packColumns(children.map(n => n.id), layout, inset, heading, 20);
     } else {
       const ids = new Set(children.map((n) => n.id));
       const result = await elk.layout({
@@ -76,7 +83,7 @@ export async function arrangeGraph(
     for (const n of children) {
       if (saved[n.id]) layout[n.id] = { ...layout[n.id], ...saved[n.id] };
       else {
-        while (occupied.some((b) => intersects(layout[n.id], b, 16)))
+        while (occupied.some((b) => intersects(layout[n.id], b, group.kind === "file" ? 0 : 16)))
           layout[n.id].y += 100;
         occupied.push(layout[n.id]);
       }
@@ -89,13 +96,13 @@ export async function arrangeGraph(
         ...children.map((n) => layout[n.id].x + layout[n.id].width + inset),
       ),
       height: Math.max(
-        110,
+        group.kind === "file" ? 78 : 110,
         ...children.map((n) => layout[n.id].y + layout[n.id].height + inset),
       ),
     };
   }
   await Promise.all(groups.map(arrangeGroup));
-  const domain = groups.filter((g) => g.kind !== "file");
+  const domain = groups.filter((g) => g.kind !== "file" && g.kind !== "directory");
   const topOwner = (id: string): string => {
     const parent = graph.nodes.find((n) => n.id === id)?.parentId;
     return parent ? topOwner(parent) : id;
@@ -139,13 +146,8 @@ export async function arrangeGraph(
   const codeX =
     Math.max(0, ...domain.map((n) => layout[n.id].x + layout[n.id].width)) +
     150;
-  const files = groups.filter((g) => g.kind === "file");
-  const columnWidth =
-    Math.max(280, ...files.map((g) => layout[g.id].width)) + 64;
-  const columns = Array.from(
-    { length: Math.min(3, Math.ceil(Math.sqrt(files.length))) },
-    () => Math.min(0, ...domain.map((n) => layout[n.id].y)),
-  );
+  const files = groups.filter((g) => g.kind === "file" || g.kind === "directory");
+  packColumns(files.map(n => n.id), layout, codeX, Math.min(0, ...domain.map(n => layout[n.id].y)), 48);
   const occupied = groups
     .filter((g) => saved[g.id])
     .map((g) => ({ ...layout[g.id], ...saved[g.id] }));
@@ -154,18 +156,27 @@ export async function arrangeGraph(
       layout[group.id] = { ...layout[group.id], ...saved[group.id] };
       continue;
     }
-    const column = columns.indexOf(Math.min(...columns));
-    if (group.kind === "file") {
-      layout[group.id].x = codeX + column * columnWidth;
-      layout[group.id].y = columns[column];
-    }
     while (occupied.some((b) => intersects(layout[group.id], b, 32)))
       layout[group.id].y += 100;
     occupied.push(layout[group.id]);
-    if (group.kind === "file")
-      columns[column] = layout[group.id].y + layout[group.id].height + 64;
   }
   return layout;
+}
+
+/** Each column takes only the width of its contents, including nested directories. */
+function packColumns(ids: string[], layout: Layout, x: number, y: number, gap: number) {
+  const columns = Array.from({ length: Math.min(3, Math.ceil(Math.sqrt(ids.length))) }, () => ({ ids: [] as string[], width: 0, bottom: y }));
+  for (const id of ids) {
+    const column = columns.reduce((a, b) => a.bottom <= b.bottom ? a : b);
+    column.ids.push(id);
+    column.width = Math.max(column.width, layout[id].width);
+    layout[id].y = column.bottom;
+    column.bottom += layout[id].height + gap;
+  }
+  for (const column of columns) {
+    for (const id of column.ids) layout[id].x = x;
+    x += column.width + gap;
+  }
 }
 
 function intersects(a: Box, b: Box, gap: number) {

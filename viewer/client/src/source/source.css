@@ -24,7 +24,7 @@
 .source-label > img, .source-target-glyph { flex: 0 0 18px; }
 .source-label > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .source-target-glyph { text-align: center; color: var(--muted); }
-.canvas-object[data-source-kind="code"] .canvas-object-heading { justify-content: flex-start; padding: 8px 10px; }
+.canvas-object[data-source-kind="code"] .canvas-object-heading { justify-content: flex-start; padding: 2px 6px; }
 .source-detail-card { box-sizing: border-box; position: absolute; pointer-events: auto; border: 1px solid var(--line); border-radius: var(--canvas-object-radius); background: var(--panel); color: var(--ink); font-family: var(--canvas-object-font); overflow: hidden; }
 .source-detail-card[data-floating="true"] { box-shadow: var(--shadow); }
 .source-detail-card header { display: flex; align-items: center; justify-content: space-between; gap: 8px; height: 40px; padding: 0 10px; }
@@ -36,3 +36,11 @@
 .source-detail-row[aria-pressed="true"], .source-detail-row:hover, .source-detail-row:focus-visible { background: var(--accent-soft); outline-color: var(--accent); }
 .source-detail-card footer { display: flex; height: 30px; align-items: center; justify-content: space-between; padding: 0 10px; font-size: 10px; color: var(--muted); }
 .source-detail-card button:disabled { opacity: .35; cursor: default; }
+
+.canvas-object[data-source-kind="code"] { background: transparent; border-color: transparent; border-radius: 3px; }
+.canvas-object[data-source-kind="code"]:hover,
+.canvas-object[data-source-kind="code"][data-selected="true"] { background: var(--accent-soft); }
+.canvas-object[data-source-kind="code"] .source-label { font-size: 13px; font-weight: 400; }
+.canvas-object[data-source-kind="file"] .canvas-object-heading { height: 36px; padding: 8px 10px; }
+.canvas-object.canvas-group[data-source-kind="directory"] { background: transparent; border-color: color-mix(in srgb, var(--muted) 23%, transparent); }
+.source-directory-label { color: var(--muted); font-size: 13px; font-weight: 500; white-space: nowrap; }

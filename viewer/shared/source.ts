@@ -16,3 +16,6 @@ export interface MarkdownHeading {
   startLine: number;
   endLine: number;
 }
+
+/** No locator means the link addresses the file itself. */
+export const isWholeFileSource = (link: SourceLink) => !link.symbol && !link.heading && !link.line;

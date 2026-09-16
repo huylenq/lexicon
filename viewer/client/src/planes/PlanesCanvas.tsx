@@ -1,3 +1,4 @@
+import { isWholeFileSource } from "../../../shared/source";
 import { linkedSourcesGraph, sourceSelectionId } from "../source/view";
 import { FilesButton } from "../source/FilesButton";
 import type { SourceEndpoints } from "../source/detail";
@@ -252,14 +253,15 @@ export default function PlanesCanvas(props: CanvasPaneProps & { onFlat: () => vo
     const handle = handles.source!;
     return react("Source drawing bridge endpoints", () => {
       const endpoints: SourceEndpoints = new Map();
-      for (const node of graphs.source.nodes) {
-        if (node.kind !== "code") continue;
-        const box = handle.editor.getShapePageBounds(planeShapeId(node.id, "source"));
-        if (box) endpoints.set(node.id, { x: box.center.x, y: box.center.y });
+      for (const target of index.targets.values()) {
+        const id = sourceSelectionId(index, { kind: "code", id: target.id });
+        const box = id && handle.editor.getShapePageBounds(planeShapeId(id, "source"));
+        if (box) endpoints.set(target.id, isWholeFileSource(target.link)
+          ? { x: box.x, y: box.y + 18 } : { x: box.center.x, y: box.center.y });
       }
       setSourceEndpoints(endpoints);
     });
-  }, [ready, projecting, handles.source, graphs.source]);
+  }, [ready, projecting, handles.source, graphs.source, index]);
   const locateSelection = (selection = props.selection) => {
     const id = sourceSelectionId(index, selection), box = id && handles.source?.editor.getShapePageBounds(planeShapeId(id, "source"));
     if (box) locateSource(box);

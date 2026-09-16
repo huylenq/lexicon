@@ -12,8 +12,8 @@ export function fileMapChildrenVisible(node: FileMapNode, zoom: number, collapse
   return !collapsed.has(node.path) && node.w * zoom >= 100 && node.h * zoom >= 65;
 }
 
-/** Deterministic ordered partition. Selection, search and zoom never change geometry. */
-export function fileMapLayout(files: string[], metrics: Record<string, FileMetric> = {}) {
+/** Shared physical path hierarchy for Files and the authored paths in Linked Sources. */
+export function fileTree(files: string[]) {
   const root: FileMapNode = { path: "", name: "File Map", directory: true, count: 0, weight: 0, children: [], x: 0, y: 0, w: 0, h: 0 };
   const nodes = new Map<string, FileMapNode>([["", root]]);
   for (const file of files) {
@@ -30,6 +30,12 @@ export function fileMapLayout(files: string[], metrics: Record<string, FileMetri
       parent = node;
     }
   }
+  return { root, nodes };
+}
+
+/** Deterministic ordered partition. Selection, search and zoom never change geometry. */
+export function fileMapLayout(files: string[], metrics: Record<string, FileMetric> = {}) {
+  const { root, nodes } = fileTree(files);
   const weigh = (node: FileMapNode): number => {
     node.children.sort((a, b) => Number(b.directory) - Number(a.directory) || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
     node.count = node.directory ? node.children.reduce((sum, child) => sum + weigh(child), 0) : 1;

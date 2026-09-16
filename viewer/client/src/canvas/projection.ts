@@ -1,3 +1,4 @@
+import { mergeWholeFileReferences } from "./whole-file";
 import { internalWrite } from "./internalWrite";
 import { combinedLayout } from "./combined";
 import { type Editor, type TLShape, type TLShapeId } from "tldraw";
@@ -322,13 +323,20 @@ export function createProjection(
       const needed = new Set(projected.nodes.map((n) => n.id));
       for (const node of full.nodes)
         if (
-          (node.kind !== "code" && node.kind !== "file") ||
+          (node.kind !== "code" && node.kind !== "file" && node.kind !== "directory") ||
           legacyPositions[node.id] ||
           editor.getShape(modelShapeId(node.id))
         ) {
           needed.add(node.id);
           if (node.parentId) needed.add(node.parentId);
         }
+      // Restored source files may live several directories deep. Keep the full
+      // ancestor chain so every retained node is reachable by the layout engine.
+      const byId = new Map(full.nodes.map(node => [node.id, node]));
+      for (const id of needed) {
+        const parent = byId.get(id)?.parentId;
+        if (parent) needed.add(parent);
+      }
       full = {
         ...full,
         nodes: full.nodes.filter((n) => needed.has(n.id)),
@@ -339,8 +347,9 @@ export function createProjection(
             !!editor.getShape(modelShapeId(e.id)),
         ),
       };
+      const mergedFiles = new Set(full.nodes.filter(node => node.wholeFileTargets?.some(id => editor.getShape(modelShapeId(id)))).map(node => node.id));
       const parents = new Set(full.nodes.map(node => node.parentId).filter(Boolean));
-      const isGroup = (node: GraphVertex) => node.kind === "context" || node.kind === "file" ||
+      const isGroup = (node: GraphVertex) => node.kind === "context" || node.kind === "file" || node.kind === "directory" ||
         ((node.kind === "system" || node.kind === "container") && parents.has(node.id));
       const sizes = Object.fromEntries(full.nodes.filter(n => n.parentId || !isGroup(n)).map(node => {
         const { reserve } = objectSizes(editor, node.title, node.kind);
@@ -360,6 +369,11 @@ export function createProjection(
         for (const node of full.nodes) {
           const existing = editor.getShape<ObjectShape>(modelShapeId(node.id));
           if (!existing) continue;
+          // Upgrade the former flat file cards and spaced targets once. Later
+          // projections preserve the new parent-relative placements.
+          const parentId = node.parentId ? modelShapeId(node.parentId) : pageId;
+          if (node.kind === "file" && existing.parentId !== parentId) continue;
+          if (node.kind === "code" && (existing.meta.lexiconSourceList !== 1 || node.parentId && mergedFiles.has(node.parentId))) continue;
           // Container coordinates are parent-relative origins, not label centers.
           // Applying card-size compensation to them moves nested pages on reload.
           const size = existing.props.group ? undefined : sizes[node.id];
@@ -385,7 +399,7 @@ export function createProjection(
           const existing = editor.getShape<ObjectShape>(modelShapeId(node.id));
           if (!existing) continue;
           if (saved[node.id]) Object.assign(layout[node.id], saved[node.id]);
-          if (existing.props.group && isGroup(node)) {
+          if (existing.props.group && isGroup(node) && !(node.kind === "file" && (existing.meta.lexiconSourceList !== 1 || mergedFiles.has(node.id)))) {
             layout[node.id].width = Math.max(
               layout[node.id].width,
               existing.props.w,
@@ -454,11 +468,12 @@ export function createProjection(
             ...(scope ? { lexiconProjection: scope } : {}),
             lexiconHidden: hidden(node.id),
             lexiconLabel: node.title,
+            ...((node.kind === "file" || node.kind === "code") ? { lexiconSourceList: 1 } : {}),
           };
           if (!existing && props.group) newGroups.push(id);
           const position = mirrored ? { x: existing.x, y: existing.y } :
             !rearrange && existing?.parentId === parentId
-              ? saved[node.id]
+              ? saved[node.id] ?? { x: box.x, y: box.y }
               : { x: box.x, y: box.y };
           if (existing && !props.group && !rearrange && existing.parentId === parentId &&
             (existing.props.w !== props.w || existing.props.h !== props.h)) {
@@ -488,6 +503,7 @@ export function createProjection(
               meta,
             });
         }
+        mergeWholeFileReferences(editor, full.nodes, modelShapeId);
         const desiredEdges = new Set(
           connections.map((c) => modelShapeId(c.id)),
         );

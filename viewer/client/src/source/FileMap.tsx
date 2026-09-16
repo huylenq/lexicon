@@ -1,4 +1,7 @@
-import { sourceTargetLabel, selectedSourceTarget, revealedSourceTargets } from "./targets";
+import { isWholeFileSource } from "../../../shared/source";
+import { useSourceMetadata } from "./SourceMetadata";
+import { sourceGlyphs } from "./glyphs";
+import { sourceGlyphKind, sourceTargetLabel, selectedSourceTarget, revealedSourceTargets } from "./targets";
 import { sourceDetails, detailEndpoints, type SourceEndpoints } from "./detail";
 import { SourceDetailCard } from "./SourceDetailCard";
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -26,6 +29,7 @@ export type FileMapProps = {
 };
 /** Standalone bitmap renderer: no editor, shapes, or canvas document dependency. */
 export default function FileMap({ camera, bounds, projectFiles, selection, query, onSelect, onLocate, onPan, onVisible, onEndpoints, detailRequest, detailViewport, displayScale = 1 }: FileMapProps) {
+  const metadata = useSourceMetadata();
   const iconRevision = useSourceIconRevision();
   const dark = useSourceTheme();
   const canvas = useRef<HTMLCanvasElement>(null), surface = useRef<HTMLDivElement>(null);
@@ -60,7 +64,7 @@ export default function FileMap({ camera, bounds, projectFiles, selection, query
   const revealed = useMemo(() => revealedSourceTargets(projectFiles.index, selection), [projectFiles.index, selection]);
   const focusedFile = dismissed === detailKey ? undefined : selectedFile;
   useEffect(() => {
-    const targets = selectedFile ? projectFiles.files.get(selectedFile) || [] : [];
+    const targets = selectedFile ? (projectFiles.files.get(selectedFile) || []).filter(target => !isWholeFileSource(target.link)) : [];
     setDetailPage(Math.floor(Math.max(0, targets.findIndex(target => target.id === targetId)) / 8));
   }, [selectedFile, targetId, detailRequest, projectFiles.files]);
   const [detailArea, setDetailArea] = useState({ x: 0, y: 0, w: bounds.w, h: bounds.h });
@@ -204,7 +208,10 @@ export default function FileMap({ camera, bounds, projectFiles, selection, query
       for (const row of card.rows) {
         if (row.target.id === targetId) { ctx.fillStyle = accentSoft; ctx.fillRect(row.x, row.y, row.w, row.h); }
         const label = sourceTargetLabel(row.target.link);
-        ctx.fillStyle = muted; ctx.fillText(label.glyph, row.x + 5 * unit, row.y + 15 * unit);
+        const glyph = sourceGlyphs[sourceGlyphKind(row.target.link, metadata[row.target.id]?.symbolKind)];
+        ctx.save(); ctx.translate(row.x + 3 * unit, row.y + 6 * unit); ctx.scale(.9 * unit, .9 * unit);
+        ctx.strokeStyle = dark ? glyph.dark : glyph.light; ctx.lineWidth = 1.5; ctx.lineCap = "round"; ctx.lineJoin = "round";
+        ctx.stroke(new Path2D(glyph.path)); ctx.restore();
         ctx.fillStyle = ink; ctx.fillText(label.label, row.x + 30 * unit, row.y + 15 * unit);
       }
       if (card.total > card.rows.length) { ctx.fillStyle = muted; ctx.fillText("Open file for more linked targets…", card.x + 12 * unit, card.y + card.h - 12 * unit); }
@@ -215,7 +222,7 @@ export default function FileMap({ camera, bounds, projectFiles, selection, query
     element.dataset.drawnIcons = String(drawnIcons);
     element.dataset.fileLabels = String(fileLabels);
     element.dataset.rotatedLabels = String(rotatedLabels);
-  }, [visible, camera, bounds.w, bounds.h, dark, iconRevision, selectedFile, cursor, highlighted, linked, matching, query, displayScale, details, focusedDetail, detailedFiles, targetId]);
+  }, [metadata, visible, camera, bounds.w, bounds.h, dark, iconRevision, selectedFile, cursor, highlighted, linked, matching, query, displayScale, details, focusedDetail, detailedFiles, targetId]);
 
   const point = (event: { clientX: number; clientY: number }) => {
     const rect = surface.current!.getBoundingClientRect();

@@ -156,7 +156,7 @@ export function combinedRecords(records: TLRecord[], model: Model, offsets: Reco
     if (!dimension) continue;
     if (isModelShape(shape)) {
       // Linked Sources owns canonical file/target placements in Combined.
-      if (dimension !== "source" && (shape.props.graphId.startsWith("code:") || shape.props.graphId.startsWith("file:"))) continue;
+      if (dimension !== "source" && (shape.props.graphId.startsWith("code:") || shape.props.graphId.startsWith("file:") || shape.props.graphId.startsWith("directory:"))) continue;
       const item = items.get(shape.props.graphId);
       if (item && dimensionOf(item) && dimensionOf(item) !== dimension) continue;
       if (item?.type === "relationship") {

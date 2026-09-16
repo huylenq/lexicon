@@ -71,3 +71,39 @@ test("repository selections never manufacture Source targets", () => {
   expect(linkedSourcesGraph(index).nodes.some(node => node.id === "file:unlinked.ts")).toBe(false);
   expect(linkedSourcesGraph(indexModel({ schema: "3.2", issues: [], id: "empty", name: "Empty", description: "", items: [] }))).toEqual({ nodes: [], connections: [], omitted: 0 });
 });
+
+test("Linked Sources shares the Files hierarchy, compresses directory chains, and retains target identities", () => {
+  const paths = ["packages/api/src/router.ts", "packages/api/src/service.ts", "packages/api/tests/service.ts", "docs/spec.md", "README.md"];
+  const nested = indexModel({ schema: "3.2", issues: [], id: "nested", name: "Nested", description: "", items: [
+    { id: "context", type: "context", name: "Context", description: "", annotations: [], codeLinks: paths.flatMap(file =>
+      Array.from({ length: 8 }, (_, i) => ({ kind: "code" as const, file, symbol: `Target${i}`, role: "definition", description: "" }))) },
+  ] } as Model);
+  const graph = linkedSourcesGraph(nested);
+  const byId = new Map(graph.nodes.map(node => [node.id, node]));
+  expect(byId.get("directory:packages/api")).toMatchObject({ title: "packages/api", parentId: undefined });
+  expect(byId.get("directory:packages/api/src")).toMatchObject({ title: "src", parentId: "directory:packages/api" });
+  expect(byId.get("file:packages/api/src/service.ts")?.parentId).toBe("directory:packages/api/src");
+  expect(byId.get("file:README.md")?.parentId).toBeUndefined();
+  expect(graph.nodes.filter(node => node.kind === "code").map(node => node.id)).toEqual([...nested.targets.keys()]);
+});
+
+test("whole-file mappings share file geometry while retaining code/document target identities", () => {
+  const whole = indexModel({ schema: "3.2", issues: [], id: "whole", name: "Whole", description: "", items: [
+    { id: "context", type: "context", name: "Context", description: "", annotations: [], codeLinks: [
+      { kind: "code", file: "src/main.ts", role: "implementation", description: "Code." },
+      { kind: "document", file: "src/main.ts", role: "reference", description: "Document." },
+      { kind: "code", file: "src/main.ts", symbol: "run", role: "definition", description: "Run." },
+    ] },
+  ] } as Model);
+  const graph = projectGraph(whole, { view: "all" });
+  expect(whole.targets.size).toBe(3);
+  expect(graph.nodes.filter(node => node.kind === "code")).toHaveLength(1);
+  const file = graph.nodes.find(node => node.id === "file:src/main.ts")!;
+  expect(file.wholeFileTargets).toHaveLength(2);
+  for (const id of file.wholeFileTargets!) {
+    expect(sourceSelectionId(whole, { kind: "code", id })).toBe(file.id);
+    const mapping = whole.targets.get(id)!.mappings[0];
+    expect(graph.connections.find(edge => edge.id === `mapping:${mapping.id}`)).toMatchObject({ target: file.id, selection: { kind: "mapping", id: mapping.id } });
+  }
+  expect(sourceDetails(sourceFiles(whole), [fileMapLayout(["src/main.ts"]).nodes.get("src/main.ts")!], new Set(), { x: 0, y: 0, z: 1 }, { w: 800, h: 600 }, 1, "src/main.ts")[0].rows).toHaveLength(1);
+});

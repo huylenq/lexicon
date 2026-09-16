@@ -1,3 +1,4 @@
+import { isWholeFileSource } from "../../../shared/source";
 import type { Target } from "../graph/model";
 import type { FileMapNode, FileMapRect } from "./fileMapLayout";
 
@@ -17,7 +18,7 @@ export function sourceDetails(files: Map<string, Target[]>, visible: FileMapNode
   const ordered = focusedFile ? [...visible.filter(n => n.path === focusedFile), ...visible.filter(n => n.path !== focusedFile)] : visible;
   for (const node of ordered) {
     if (node.directory || !budget) continue;
-    const all = files.get(node.path) || [], focused = node.path === focusedFile;
+    const all = (files.get(node.path) || []).filter(target => !isWholeFileSource(target.link)), focused = node.path === focusedFile;
     const targets = focused ? all : all.filter(target => revealed.has(target.id));
     if (!targets.length) continue;
     const tile = { x: (node.x + camera.x) * camera.z, y: (node.y + camera.y) * camera.z, w: node.w * camera.z, h: node.h * camera.z };

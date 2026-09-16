@@ -242,7 +242,7 @@ test("Linked Sources retains symbol and document identities across presentations
   await expect(page.locator('.canvas-card[data-model-id^="code:"]')).toHaveCount(0);
   await page.getByRole("radio", { name: "Linked Sources", exact: true }).check();
   const targets = page.locator('.canvas-card[data-model-id^="code:"]');
-  await expect(targets.filter({ hasText: "validation-rules" }).locator('.source-target-glyph')).toHaveText("§");
+  await expect(targets.filter({ hasText: "validation-rules" }).locator('[data-source-target-kind="heading"] svg path')).toHaveAttribute("d", /.+/);
   await expect(page.locator('[data-model-id="file:policy.md"] .source-label img')).toHaveCount(1);
   await page.getByRole("radio", { name: "Planes", exact: true }).click();
   await expect(page.locator('.planes-stage[data-ready="true"]')).toBeVisible();
@@ -559,7 +559,7 @@ test("Combined includes canonical Linked Sources with drawing ownership and shar
   await expect.poll(async () => {
     const records = await store();
     const sources = Object.values(records).filter(r => r.type === "lexicon-object" && r.meta.lexiconProjection === "layers-source");
-    const combined = Object.values(records).filter(r => r.type === "lexicon-object" && r.meta.lexiconProjection === "combined" && /^(code|file):/.test(r.props.graphId));
+    const combined = Object.values(records).filter(r => r.type === "lexicon-object" && r.meta.lexiconProjection === "combined" && /^(code|file|directory):/.test(r.props.graphId));
     return sources.length > 0 && combined.length === sources.length && combined.every(r => r.meta.combinedDimension === "source" && records[r.meta.combinedSourceId]?.props.graphId === r.props.graphId);
   }).toBe(true);
   const handle = page.getByRole("button", { name: "Drag Linked Sources", exact: true });
@@ -831,4 +831,105 @@ test("Combined source links use orthogonal routes and follow their plane and rel
   await page.getByRole("button", { name: "Fit model", exact: true }).click();
   await page.screenshot({ path: "../output/source-preview/combined-orthogonal-sources.png" });
   expect(await readFile(join(root, "lexicon/model.xml"), "utf8")).toBe(xml);
+});
+
+test("compact linked lists retain directory nesting and upgrade saved file layouts", async ({ page, request }) => {
+  await mkdir(join(root, "docs/design"), { recursive: true });
+  await mkdir(join(root, "src/runtime/chat"), { recursive: true });
+  await writeFile(join(root, "docs/design/agent.md"), Array.from({ length: 18 }, (_, i) => `## Section ${i}\nDescription.`).join("\n\n"));
+  await writeFile(join(root, "src/runtime/chat/service.ts"), "export class ChatService {}\n");
+  const added = Array.from({ length: 18 }, (_, i) => `<code-link kind="document" file="docs/design/agent.md" heading="section-${i}" role="specification">Section ${i}.</code-link>`).join("") +
+    '<code-link kind="code" file="src/runtime/chat/service.ts" symbol="ChatService" role="implementation">Runs chat.</code-link>';
+  xml = xml.replace("</concept>", `${added}</concept>`);
+  await writeFile(join(root, "lexicon/model.xml"), xml);
+  await page.goto(`/p/${id}?item=order`);
+  await page.getByRole("radio", { name: "Linked Sources", exact: true }).check();
+  const stage = page.locator('.canvas-stage');
+  await expect(stage.locator('[data-model-id="directory:docs/design"]')).toBeVisible();
+  await expect(stage.getByRole("button", { name: "directory: docs/design", exact: true })).toBeVisible();
+  await expect(stage.getByRole("button", { name: "directory: runtime/chat", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Fit model", exact: true }).click();
+  const state = async () => (await (await request.get(`/api/projects/${id}/canvas`)).json());
+  const records = async (): Promise<any[]> => Object.values((await state()).document?.snapshot.store || {});
+  const source = (all: any[]) => all.filter(r => r.type === "lexicon-object" && r.meta.lexiconProjection === "layers-source");
+  await expect.poll(async () => source(await records()).filter(r => r.props.graphId.startsWith("directory:")).length).toBe(3);
+  const before = source(await records());
+  const file = before.find(r => r.props.graphId === "file:docs/design/agent.md");
+  const rows = before.filter(r => r.parentId === file.id).sort((a, b) => a.y - b.y);
+  expect(rows).toHaveLength(18);
+  expect(rows[1].y - rows[0].y).toBe(30);
+  expect(rows.every(r => r.props.h === 28)).toBe(true);
+  expect(file.props.h).toBeLessThan(600);
+  const service = before.find(r => r.props.graphId === "file:src/runtime/chat/service.ts");
+  const chat = before.find(r => r.props.graphId === "directory:src/runtime/chat");
+  const src = before.find(r => r.props.graphId === "directory:src");
+  expect(service.parentId).toBe(chat.id); expect(chat.parentId).toBe(src.id);
+  await page.getByRole("button", { name: "Toggle reader", exact: true }).click();
+  await expect(page.locator(".reading-pane")).toBeHidden();
+  await page.getByRole("button", { name: "Toggle navigation", exact: true }).click();
+  await expect(page.getByRole("complementary", { name: "Model navigation" })).toBeHidden();
+  await page.getByRole("button", { name: "Fit model", exact: true }).click();
+  await page.waitForTimeout(350); // Let the canvas fit animation settle before visual review.
+  await expect(stage.locator('[data-model-id="file:docs/design/agent.md"]')).toBeVisible();
+  await page.screenshot({ path: "/tmp/lexicon-linked-compact-light.png" });
+  await page.getByRole("button", { name: "Use dark theme", exact: true }).click();
+  await page.screenshot({ path: "/tmp/lexicon-linked-compact-dark.png", animations: "disabled" });
+  await stage.getByRole("button", { name: "code: section-17", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Section 17", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Close Source Reader", exact: true }).click();
+  await expect(page.locator(".canvas-save-indicator")).toContainText("Saved to project");
+  await page.goto("about:blank");
+  const old = await state();
+  for (const record of Object.values(old.document.snapshot.store) as any[]) {
+    if (record.meta?.lexiconProjection !== "layers-source") continue;
+    if (record.props?.graphId?.startsWith("directory:")) delete old.document.snapshot.store[record.id];
+    if (record.props?.graphId?.startsWith("file:")) {
+      record.parentId = "page:layers-source-links"; record.x = 900; record.y = 700;
+      record.props.h = 1300; delete record.meta.lexiconSourceList;
+    }
+    if (record.props?.graphId?.startsWith("code:")) {
+      record.y = 52 + (rows.findIndex(row => row.id === record.id) + 1) * 62;
+      record.props.h = 44; delete record.meta.lexiconSourceList;
+    }
+  }
+  expect((await request.put(`/api/projects/${id}/canvas`, { data: { revision: old.revision, document: old.document } })).ok()).toBe(true);
+  await page.goto(`/p/${id}?item=order`);
+  await page.getByRole("radio", { name: "Linked Sources", exact: true }).check();
+  await expect.poll(async () => source(await records()).find(r => r.id === file.id)?.props.h).toBe(file.props.h);
+  const upgraded = source(await records());
+  for (const row of rows) expect(upgraded.find(r => r.id === row.id)).toMatchObject({ parentId: row.parentId, y: row.y, props: { h: 28 } });
+  expect(upgraded.find(r => r.id === file.id)?.parentId).toBe(file.parentId);
+  await page.reload();
+  await expect(stage.locator('[data-model-id="directory:docs/design"]')).toBeVisible();
+  await expect.poll(async () => source(await records()).find(r => r.id === file.id)?.props.h).toBe(file.props.h);
+  expect(await readFile(join(root, "lexicon/model.xml"), "utf8")).toBe(xml);
+});
+
+test("Source directories follow file bounds while dragging and after undo", async ({ page }) => {
+  await page.goto(`/p/${id}?item=order`);
+  await page.getByRole("radio", { name: "Linked Sources", exact: true }).check();
+  const stage = page.locator('.canvas-stage');
+  const file = stage.locator('[data-source-kind="file"]').filter({ has: page.getByRole('button', { name: 'file: order.ts', exact: true }) });
+  const directory = stage.locator('[data-model-id="directory:src"]');
+  await expect(file).toBeVisible();
+  await expect(directory).toBeVisible();
+  const initial = (await directory.boundingBox())!;
+  const heading = (await file.locator('.canvas-object-heading').boundingBox())!;
+  await page.mouse.move(heading.x + heading.width / 2, heading.y + heading.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(heading.x + heading.width / 2 - 100, heading.y + heading.height / 2 - 100, { steps: 12 });
+  const assertContains = async () => {
+    const outer = (await directory.boundingBox())!, inner = (await file.boundingBox())!;
+    expect(outer.x).toBeLessThan(inner.x);
+    expect(outer.y).toBeLessThan(inner.y);
+    expect(outer.x + outer.width).toBeGreaterThan(inner.x + inner.width);
+    expect(outer.y + outer.height).toBeGreaterThan(inner.y + inner.height);
+  };
+  await expect.poll(async () => (await directory.boundingBox())!.x).toBeLessThan(initial.x - 50);
+  await assertContains();
+  await page.mouse.up();
+  await assertContains();
+  await page.keyboard.press('ControlOrMeta+z');
+  await expect.poll(async () => (await directory.boundingBox())!.x).toBeCloseTo(initial.x, 0);
+  await assertContains();
 });

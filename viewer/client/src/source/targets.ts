@@ -1,12 +1,17 @@
-import type { SourceLink } from "../../../shared/model";
+import { sourceGlyphs, type SourceGlyphKind } from "./glyphs";
+import type { SourceLink, SymbolKind } from "../../../shared/model";
 import type { GraphIndex, GraphSelection, Target } from "../graph/model";
 
 /** Labels describe authored locators; they do not infer AST kinds from names. */
-export function sourceTargetLabel(link: SourceLink) {
+export function sourceTargetLabel(link: SourceLink, symbolKind?: SymbolKind) {
   if (link.heading) return { glyph: "§", label: link.heading, kind: "Heading" };
-  if (link.symbol) return { glyph: "◇", label: link.symbol, kind: "Symbol" };
+  if (link.symbol) return { glyph: "◇", label: link.symbol, kind: symbolKind ? sourceGlyphs[symbolKind].label : "Symbol" };
   if (link.line) return { glyph: ":", label: `Line ${link.line}`, kind: "Line" };
   return { glyph: "▤", label: "Whole file", kind: link.kind === "document" ? "Document" : "File" };
+}
+
+export function sourceGlyphKind(link: SourceLink, symbolKind?: SymbolKind): SourceGlyphKind {
+  return link.heading ? "heading" : link.symbol ? symbolKind || "symbol" : link.line ? "line" : link.kind === "document" ? "document" : "file";
 }
 
 export function sourceFiles(index: GraphIndex) {

@@ -22,6 +22,7 @@ import {
   type TLHandleDragInfo,
 } from "tldraw";
 import { useRouteMorph } from "./useRouteMorph";
+import { isDirectory } from "./sizing";
 import { connectionDrawing, connectionExportDrawing, isAtlasRoad } from "./rounded-route";
 import ObjectName from "../ObjectName";
 import {
@@ -77,7 +78,7 @@ function ObjectCard({ shape }: { shape: ObjectShape }) {
       style={{ left: frame.x, top: frame.y, width: frame.w, height: frame.h }}
       className={`canvas-object ${shape.props.group ? "canvas-group" : "canvas-card"} ${!model.matches(shape.props.graphId) ? "canvas-dimmed" : ""}`}
       data-model-id={shape.props.graphId}
-      data-source-kind={vertex?.kind === "file" || vertex?.kind === "code" ? vertex.kind : undefined}
+      data-source-kind={vertex?.kind === "file" || vertex?.kind === "code" || vertex?.kind === "directory" ? vertex.kind : undefined}
       data-atlas-label={model.mapEnabled && vertex ? vertex.kind : undefined}
       data-context-boundary={boundary ? model.mapEnabled ? "territory" : "rectangle" : undefined}
       data-map-building={primary && vertex && isAtlasLandmark(vertex.kind) && landmarkFor({ classification: vertex.subtitle, landmark: shape.meta.lexiconLandmark, elementKind: vertex.kind }) !== "none" ? "true" : undefined}
@@ -117,6 +118,7 @@ function ObjectCard({ shape }: { shape: ObjectShape }) {
           ) : model.mapEnabled && vertex && isAtlasLandmark(vertex.kind) ? (
             <span className="atlas-concept-name object-name-text">{vertex.title}</span>
           ) : vertex?.kind === "file" ? <SourceFileLabel file={vertex.subtitle} />
+          : vertex?.kind === "directory" ? <span className="source-directory-label" title={vertex.subtitle}>{vertex.title}/</span>
           : vertex?.sourceLink ? <SourceTargetLabel link={vertex.sourceLink} />
           : vertex ? (
             <ObjectName
@@ -156,9 +158,9 @@ export class LexiconObjectUtil extends BaseBoxShapeUtil<ObjectShape> {
     return { graphId: "", w: 190, h: 70, group: false, territory: null };
   }
   override canResize(shape: ObjectShape) {
-    return shape.props.group && !isContext(shape);
+    return shape.props.group && !isContext(shape) && !isDirectory(shape);
   }
-  override hideResizeHandles(shape: ObjectShape) { return isContext(shape); }
+  override hideResizeHandles(shape: ObjectShape) { return isContext(shape) || isDirectory(shape); }
   override hideSelectionBoundsBg(shape: ObjectShape) { return isContext(shape); }
   override canResizeChildren() {
     return false;
@@ -206,7 +208,7 @@ export class LexiconObjectUtil extends BaseBoxShapeUtil<ObjectShape> {
               ...(isContext(shape) ? (() => {
                 const b = contextLabelFrame(this.editor, shape, atlas);
                 return { x: b.x, y: b.y, width: b.w, height: b.h };
-              })() : { width: shape.props.w, height: 44 }),
+              })() : { x: frame.x, y: frame.y, width: frame.w, height: 44 }),
               isFilled: true,
               isLabel: true,
             }),

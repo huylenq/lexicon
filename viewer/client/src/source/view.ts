@@ -1,5 +1,5 @@
 import type { TLPageId } from "tldraw";
-import { fileId, projectGraph, type GraphIndex, type GraphSelection, type Projection } from "../graph/model";
+import { fileId, sourceNodeId, projectGraph, type GraphIndex, type GraphSelection, type Projection } from "../graph/model";
 import { sourceSelectionFile } from "./useProjectFiles";
 import { selectedSourceTarget } from "./targets";
 import { pageIds } from "../planes/document";
@@ -14,7 +14,7 @@ export function linkedSourcesGraph(index: GraphIndex): Projection {
 
 export function sourceSelectionId(index: GraphIndex, selection?: GraphSelection) {
   const target = selectedSourceTarget(index, selection);
-  if (target) return target;
+  if (target) return sourceNodeId(index.targets.get(target)!.link);
   const file = sourceSelectionFile(index, selection);
   return file && [...index.targets.values()].some(target => target.link.file === file) ? fileId(file) : undefined;
 }
