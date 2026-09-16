@@ -245,8 +245,9 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onPlanes: (
       if (!combined || showCrossDimensionRelationships) return graph;
       const dimensions = new Map(model.items.map(item => [`item:${item.id}`, dimensionOf(item)]));
       return { ...graph, connections: graph.connections.filter(edge => {
+        if (edge.kind === "mapping") return false;
         const from = dimensions.get(edge.source), to = dimensions.get(edge.target);
-        return edge.kind !== "relationship" || !from || !to || from === to;
+        return !from || !to || from === to;
       }) };
     },
     [index, workspace.view, showCrossDimensionRelationships],
