@@ -187,10 +187,10 @@ function ReaderProject({ projectId }: { projectId: string }) {
       }
       const bareKey = !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey;
       const inDialog = e.target instanceof Element && !!e.target.closest('[role="dialog"], [role="menu"], select');
-      if (bareKey && !editingText && !inDialog && ["i", "s", "\\"].includes(e.key)) {
+      if (bareKey && !editingText && !inDialog && ["w", "s", "\\"].includes(e.key)) {
         e.preventDefault();
         e.stopPropagation();
-        if (e.key === "i") toggleReader();
+        if (e.key === "w") toggleReader();
         else if (e.key === "s") toggleSources();
         else {
           setChatOpen(true);
@@ -478,7 +478,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
         <div className="header-actions">
           <div className="pane-toggles" role="group" aria-label="Pane visibility">
           <button className="quiet icon-button pane-toggle" aria-label="Toggle reader" aria-controls="main-content"
-            aria-pressed={reading.stack.visible && (!compact || mobileRead)} title="Toggle reader (i)"
+            aria-pressed={reading.stack.visible && (!compact || mobileRead)} title="Toggle reader (w)"
             onClick={toggleReader}><Icon name="overview" size={18} /></button>
           <button
             ref={codeToggle}

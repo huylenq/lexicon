@@ -8,11 +8,14 @@ for (const width of [1600, 800]) {
     const sources = page.getByRole('button', { name: 'Toggle source workspace', exact: true });
     const agent = page.getByRole('button', { name: 'Agent', exact: true });
     await expect(reader).toHaveAttribute('aria-pressed', 'true');
+    await expect(reader).toHaveAttribute('title', 'Toggle reader (w)');
     await agent.focus();
     await page.keyboard.press('i');
+    await expect(reader).toHaveAttribute('aria-pressed', 'true');
+    await page.keyboard.press('w');
     await expect(reader).toHaveAttribute('aria-pressed', 'false');
     await expect(agent).toBeFocused();
-    await page.keyboard.press('i');
+    await page.keyboard.press('w');
     await expect(reader).toHaveAttribute('aria-pressed', 'true');
     await expect(page.locator('main [data-reader-card].active > header h1')).toHaveText('Order');
     await page.keyboard.press('s');
@@ -26,14 +29,14 @@ for (const width of [1600, 800]) {
     const input = page.getByRole('textbox', { name: 'Message the coding agent' });
     await expect(input).toBeFocused();
     await input.fill('draft ');
-    await input.pressSequentially('is\\/');
-    await expect(input).toHaveValue('draft is\\/');
+    await input.pressSequentially('wis\\/');
+    await expect(input).toHaveValue('draft wis\\/');
     await expect(agent).toHaveAttribute('aria-pressed', 'true');
     await page.keyboard.press('Meta+Backslash');
     await expect(agent).toHaveAttribute('aria-pressed', 'false');
     await agent.focus();
     await page.keyboard.press('Backslash');
-    await expect(input).toHaveValue('draft is\\/');
+    await expect(input).toHaveValue('draft wis\\/');
     await expect(input).toBeFocused();
     await agent.focus();
     await page.keyboard.press('Backslash');
@@ -48,8 +51,8 @@ for (const width of [1600, 800]) {
     await page.keyboard.press('/');
     const search = page.getByRole('textbox', { name: 'Search model' });
     await expect(search).toBeFocused();
-    await search.pressSequentially('is\\/');
-    await expect(search).toHaveValue('is\\/');
+    await search.pressSequentially('wis\\/');
+    await expect(search).toHaveValue('wis\\/');
   });
 }
 
@@ -59,7 +62,7 @@ test('pane shortcuts work from the canvas without taking drawing shortcuts', asy
   await draw.click();
   await page.keyboard.press('v');
   await expect(page.getByTestId('tools.select').filter({ visible: true })).toHaveAttribute('aria-pressed', 'true');
-  await page.keyboard.press('i');
+  await page.keyboard.press('w');
   await expect(page.getByRole('button', { name: 'Toggle reader', exact: true })).toHaveAttribute('aria-pressed', 'false');
   await page.keyboard.press('d');
   await expect(draw).toHaveAttribute('aria-pressed', 'true');
