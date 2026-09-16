@@ -108,3 +108,9 @@ For browser checks in another worktree, choose an unused port with `LEXICON_TEST
 Choose **Layers** in the canvas toolbar to explore domain meaning and software architecture on separate planes. The reader, navigation, source workspace, and Agent stay in place when changing canvas presentations. Relationships explain correspondence between dimensions; code links open source evidence. Hovering or selecting a connector marks both endpoints.
 
 Layers saves its Domain and Architecture pages in `lexicon/canvas.json`, alongside existing pages, notes, and media. Undo and Redo span both planes; Refresh model updates their semantic references in place. The ordinary canvas remains the default. See [Layers promotion](../LAYERS.md) for validation and remaining interaction work, or run `bun run dev:layers` for an isolated Shop development session.
+
+### Project file settings
+
+Open **Project settings** in the project header to edit source include/exclude globs. Settings are shared in the resolved artifact root's `lexicon/settings.json`. Patterns are relative to the source checkout; empty includes select all files, any include may match, and exclusions win. Default exclusions are `**/*.lock` and `**/.*/**` for lock files and dot-prefixed directories at any depth; remove either pattern to include those files. Git ignore rules apply as well, including to tracked files. Saving refreshes Source without changing model XML or existing evidence links.
+
+The Lexicon skill uses the same inventory through `bun skills/lexicon/scripts/lexicon.ts files <artifact-root> --code-root <source-root>` from the bundle root. Invalid settings stop discovery and report an error. In Project settings, use **Load default filters** to prepare a replacement, then edit and save it; Cancel leaves the original file untouched. The skill’s `files` command lists paths without computing LOC metrics. See [project settings](../MODEL.md#project-settings) for the file format.

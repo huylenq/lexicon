@@ -47,3 +47,5 @@ The project description should explain the system and the model's scope in langu
 Apply both passes in [review.md](review.md). First ask whether the right things were modeled, then whether the model is correct. Completion means a reader can explain the system's defining ideas, what persists, and what governs change, with evidence for essential connections. Object counts, a connected graph, and directory coverage are not completion targets. Further detail grows through human questions and refinement.
 
 Every source link requires `kind="code"` or `kind="document"`. Choose it from the evidence being modeled. Code symbols and document headings are different locators; do not turn a document into code by assigning an implementation role.
+
+Before discovery, follow the project file scope and shared `files` inventory command in [SKILL.md](SKILL.md#project-file-scope). Apply it throughout initialization.

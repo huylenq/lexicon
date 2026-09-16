@@ -1,3 +1,4 @@
+import { listRepositoryFiles } from "./projectFiles";
 import { resolve } from "node:path";
 import { loadModel } from "./model";
 import { readCode } from "./code";
@@ -6,9 +7,18 @@ const [command, rawRoot = "..", ...flags] = process.argv.slice(2);
 const root = resolve(rawRoot);
 const codeIndex = flags.indexOf("--code-root");
 const codeRoot = codeIndex >= 0 ? resolve(flags[codeIndex + 1] || "") : root;
+if (command === "files") {
+  try {
+    const inventory = await listRepositoryFiles(codeRoot, root);
+    if (inventory.truncated) throw new Error("File inventory exceeds 100,000 files. Narrow the project include globs.");
+    console.log(inventory.files.join("\n"));
+  }
+  catch (error) { console.error((error as Error).message); process.exit(1); }
+  process.exit(0);
+}
 if (command !== "check") {
   console.error(
-    "Usage: bun server/cli.ts check <artifact-root> [--code-root <code-root>]",
+    "Usage: bun server/cli.ts <check|files> <artifact-root> [--code-root <code-root>]",
   );
   process.exit(1);
 }

@@ -1,3 +1,4 @@
+import ProjectSettings from "./ProjectSettings";
 import {
   lazy,
   Suspense,
@@ -175,6 +176,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
       if (e.isComposing || e.repeat) return;
+      if (e.target instanceof Element && e.target.closest("dialog[open]")) return;
       const editingText =
         e.target instanceof HTMLInputElement ||
         e.target instanceof HTMLTextAreaElement ||
@@ -476,6 +478,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
           </>}
         </nav>
         <div className="header-actions">
+          <ProjectSettings projectId={projectId} readOnly={data?.project.example} />
           <div className="pane-toggles" role="group" aria-label="Pane visibility">
           <button className="quiet icon-button pane-toggle" aria-label="Toggle reader" aria-controls="main-content"
             aria-pressed={reading.stack.visible && (!compact || mobileRead)} title="Toggle reader (w)"

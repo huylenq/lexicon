@@ -52,3 +52,15 @@ Install dependencies with `bun install --frozen-lockfile` in `<bundle>/viewer/` 
 After standalone edits, run the checker and inspect the result through the reader when available. For MCP edits, use the server receipt for save and validation status, inspect the resulting model, and check the visible result when requested. For embedded chat, report the proposed patch until the server confirms application. Pure inspection and navigation require no model checker. Report coverage and correctness separately, including important unresolved questions, broken or unchecked links, and reviews not performed. Check whether Git ignores the artifact and report that without changing ignore rules. Counts and resolving links do not establish semantic quality.
 
 For any schema mismatch, keep the document intact and read [migrations/README.md](migrations/README.md). Explain questions without changes; an explicit migration uses the matching delta and current-schema validation. Embedded Chat keeps migration and ordinary incremental patches distinct. Initialization creates a starting point that the team refines through use and existing Git review.
+
+## Project file scope
+
+Before source discovery or adding evidence, read `<artifact-root>/lexicon/settings.json` when present. `files.include` is a list of source-root-relative globs (empty means all); `files.exclude` removes matching files. Without a settings file, exclusions default to `["**/*.lock", "**/.*/**"]` (lock files and dot-prefixed directories at any depth); explicitly saved exclusions replace this default. Include matches are combined with OR, then exclusions and Git ignore rules are applied. `*` stays within a directory; `**` spans directories. Do not discover or model excluded files. Existing model items and source links remain intact when scope changes.
+
+Use the shared inventory instead of independently interpreting patterns:
+
+```sh
+bun <skill-directory>/scripts/lexicon.ts files <artifact-root> --code-root <code-root>
+```
+
+This command also excludes project-root `lexicon/` artifacts. Read those artifacts separately to maintain the model. Invalid settings must be corrected before discovery; do not silently fall back to an unfiltered scan.

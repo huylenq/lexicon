@@ -220,3 +220,13 @@ Explain an item's connections as part of its description: what it needs from ano
 The viewer renders references with the target's existing type or classification icon and item navigation. List previews show readable text; opening the item exposes clickable references. An unavailable target remains readable with a dotted underline and an unavailable-item hint. References are plain-text enrichment, so existing XML storage and schema remain unchanged.
 
 An inline mention does not create a Relationship, graph edge, containment claim, or Flow step. Author a Relationship when the connection itself needs an identity, evidence, annotations, or reuse in a Flow. Descriptions should elaborate the reason, conditions, or consequences of a connection, rather than enumerate linked neighbors or repeat mechanical edge labels. Do not force a reference into every description when no connection helps explain the item.
+
+## Project settings
+
+`lexicon/settings.json` stores shared project configuration beside the model, independently of XML and canvas presentation. The first setting filters source discovery for the skill and the viewer's Source inventory:
+
+```json
+{"files":{"include":["src/**","docs/**/*.md"],"exclude":["**/*.test.ts"]}}
+```
+
+Globs are relative to the selected source root. Any include can match; empty includes mean all files. Exclusions win, and Git ignore rules apply even to tracked files. Root `lexicon/` artifacts remain outside source discovery. Missing settings include all files and default `files.exclude` to `["**/*.lock", "**/.*/**"]`, excluding `.lock` files and dot-prefixed directories at any depth. Dotfiles outside those directories remain included. Explicitly saved exclusions replace this default; saving an empty list allows lock files and dot-prefixed directories. Invalid settings report an error. Existing authored model items and links remain readable; changing scope does not rewrite the model. Linked worktrees use settings from the resolved artifact root. Project settings in the viewer saves this file and refreshes the Source inventory. The skill's `files` command enumerates the same scope.

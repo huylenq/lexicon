@@ -1,3 +1,4 @@
+import { readProjectSettings, writeProjectSettings } from "./settings";
 import { Hono } from "hono";
 import { serveStatic } from "hono/bun";
 import { readFile, realpath, stat } from "node:fs/promises";
@@ -267,6 +268,19 @@ app.post("/api/projects/:id/chat/:action", async (c) => {
   else if (action === "answer") chat.answer(p.id, body.requestId, body.answers);
   else return c.json({ error: "Unknown conversation action." }, 404);
   return c.json(chat.state(p.id));
+});
+app.get("/api/projects/:id/settings", async (c) => {
+  const p = project(c.req.param("id"));
+  if (!p) return c.json({ error: "Project not found." }, 404);
+  return c.json(readProjectSettings(p.artifactRoot || await artifactRoot(p.root)));
+});
+app.put("/api/projects/:id/settings", async (c) => {
+  const p = project(c.req.param("id"));
+  if (!p) return c.json({ error: "Project not found." }, 404);
+  if (p.example) return c.json({ error: "Example settings are read-only." }, 400);
+  if (!c.req.header("content-type")?.includes("application/json")) return c.json({ error: "JSON request required." }, 415);
+  try { return c.json(await writeProjectSettings(await artifactRoot(p.root), await c.req.json())); }
+  catch (error) { return c.json({ error: (error as Error).message }, 400); }
 });
 app.get("/api/projects/:id/code", async (c) => {
   const p = project(c.req.param("id"));
