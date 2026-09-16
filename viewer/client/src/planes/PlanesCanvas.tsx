@@ -2,7 +2,6 @@ import { linkedSourcesGraph, sourceSelectionId } from "../source/view";
 import { FilesButton } from "../source/FilesButton";
 import type { SourceEndpoints } from "../source/detail";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { measurePlane, unprojectPoint } from "./geometry";
 import ModelLegend from "../ModelLegend";
 import { createPortal } from "react-dom";
 import { CanvasViewControls } from "../canvas/CanvasViewControls";
@@ -30,6 +29,9 @@ import type { FileMapRect } from "../source/fileMapLayout";
 import { SourceLinkBridges } from "../source/SourceLinkBridges";
 import { SourceSearch } from "../source/SourceSearch";
 
+// Both projections share a viewing angle so switching only changes depth scaling.
+const DEFAULT_TILT = 45;
+
 function GestureMouse({ button }: { button: "left" | "right" | "wheel" | "middle" }) {
   return <svg className="gesture-mouse" width="20" height="26" viewBox="0 0 20 26" role="img"
     aria-label={button === "wheel" ? "Mouse wheel" : `${button} mouse button`}>
@@ -50,20 +52,25 @@ export default function PlanesCanvas(props: CanvasPaneProps & { onFlat: () => vo
   const [sourceQuery, setSourceQuery] = useState("");
   const selected = props.selection?.kind === "item" ? props.selection.id : "";
   const choose = useCallback((id: string) => { if (id !== selected) onSelect({ kind: "item", id }); }, [selected, onSelect]);
+  const [cameraMode, setCameraMode] = useState<"isometric" | "perspective">("isometric");
+  const orientCamera = () => {
+    setTilt(DEFAULT_TILT);
+    setRotation(0);
+    setRoll(0);
+  };
   const [gap, setGap] = useState(138);
-  const [tilt, setTilt] = useState(45);
+  const [tilt, setTilt] = useState(DEFAULT_TILT);
   const [rotation, setRotation] = useState(0);
   const [roll, setRoll] = useState(0);
   const [surface, setSurface] = useState(8);
   const [showControls, setShowControls] = useState(false);
   const wrapAngle = (value: number) => ((value + 180) % 360 + 360) % 360 - 180;
-  const resetView = () => { setCameraView({ x: 0, y: 0, z: 1 }); setTilt(45); setRotation(0); setRoll(0); setGap(138); fit(); };
+  const resetView = () => { orientCamera(); setGap(138); fit(); };
   const [cameraView, setCameraView] = useState({ x: 0, y: 0, z: 1 });
   const [zoom, setZoom] = useState(1);
   const [located, setLocated] = useState<{ plane: Plane; bounds: Box }>();
   // Render more detail as the viewer magnifies, without enlarging the backing viewport.
   const renderScale = Math.max(1, cameraView.z);
-  const [pan, setPan] = useState({ x: 0, y: 0 });
   const [allLinks, setAllLinks] = useState(true);
   const [hoveredRelationship, setHoveredRelationship] = useState("");
   const [handles, setHandles] = useState<Partial<Record<Plane, PlaneHandle>>>({});
@@ -221,10 +228,10 @@ export default function PlanesCanvas(props: CanvasPaneProps & { onFlat: () => vo
       const { editor } = handles[plane]!;
       const bounds = located?.plane === plane ? located.bounds : handles[plane]!.bounds;
       const z = (plane === "source" ? Math.min((WIDTH - 120) / bounds.w, (HEIGHT - 100) / bounds.h) : base) * zoom * renderScale;
-      editor.setCamera({ x: -bounds.center.x + (planeWidth / 2 + pan.x * renderScale) / z,
-        y: -bounds.center.y + (planeHeight / 2 + pan.y * renderScale) / z, z }, { force: true });
+      editor.setCamera({ x: -bounds.center.x + planeWidth / 2 / z,
+        y: -bounds.center.y + planeHeight / 2 / z, z }, { force: true });
     }
-  }, [handles, ready, zoom, pan, revision, planeWidth, planeHeight, renderScale, located, projecting]);
+  }, [handles, ready, zoom, revision, planeWidth, planeHeight, renderScale, located, projecting]);
 
   useEffect(() => {
     for (const plane of planes) {
@@ -266,11 +273,11 @@ export default function PlanesCanvas(props: CanvasPaneProps & { onFlat: () => vo
   };
   const fit = () => {
     refreshBounds(); setLocated(undefined);
-    setCameraView({ x: 0, y: 0, z: 1 }); setZoom(1); setPan({ x: 0, y: 0 }); setRevision(n => n + 1);
+    setCameraView({ x: 0, y: 0, z: 1 }); setZoom(1); setRevision(n => n + 1);
   };
   const locateSource = (rect: FileMapRect) => {
     setLocated({ plane: "source", bounds: new Box(rect.x, rect.y, rect.w, rect.h) });
-    setCameraView({ x: 0, y: 0, z: 1 }); setZoom(1); setPan({ x: 0, y: 0 });
+    setCameraView({ x: 0, y: 0, z: 1 }); setZoom(1);
   };
   const locate = (id: string) => {
     const target = index.items.get(id), plane = target && dimensionOf(target);
@@ -278,7 +285,7 @@ export default function PlanesCanvas(props: CanvasPaneProps & { onFlat: () => vo
     const bounds = handle && handle.editor.getShapePageBounds(planeShapeId(`item:${id}`, plane));
     if (!plane || !bounds) { fit(); return; }
     refreshBounds(); setLocated({ plane, bounds });
-    setCameraView({ x: 0, y: 0, z: 1 }); setZoom(1); setPan({ x: 0, y: 0 });
+    setCameraView({ x: 0, y: 0, z: 1 }); setZoom(1);
   };
   useEffect(() => {
     if (!ready || projecting || !props.command || props.command.action !== "locate") return;
@@ -318,6 +325,12 @@ export default function PlanesCanvas(props: CanvasPaneProps & { onFlat: () => vo
         controls={<CanvasViewControls presentation="planes"
           onPresentation={async presentation => { if (presentation === "flat") { await storage.retry(); onFlat(); } }} />}>
         <div className="assistant-toolbar-slot" ref={props.assistantHost} />
+        <button className="quiet planes-camera-toggle" aria-label={`Camera: ${cameraMode === "isometric" ? "Isometric" : "Perspective"}`}
+          title={`Switch to ${cameraMode === "isometric" ? "Perspective" : "Isometric"} camera`}
+          onClick={() => {
+            const mode = cameraMode === "isometric" ? "perspective" : "isometric";
+            setCameraMode(mode);
+          }}>{cameraMode === "isometric" ? "Isometric" : "Perspective"}</button>
         <CanvasButton icon="fit" label="Fit model" onClick={fit} />
         <CanvasButton icon="refresh" label="Reset view" onClick={resetView} />
         <CanvasButton icon="locate" label="Locate" disabled={!item && !sourceSelectionFile(index, props.selection)} onClick={() => {
@@ -385,13 +398,8 @@ export default function PlanesCanvas(props: CanvasPaneProps & { onFlat: () => vo
           else if (previous.mode === "rotate") {
             setRotation(wrapAngle(angle(next.rotation))); setTilt(Math.max(event.shiftKey ? -75 : -85, Math.min(event.shiftKey ? 75 : 85, angle(next.tilt))));
           } else {
-            try {
-              const transform = measurePlane(handle.element);
-              const a = unprojectPoint(transform, previous), b = unprojectPoint(transform, { x: event.clientX, y: event.clientY });
-              const x = (b.x - a.x) * planeWidth / renderScale, y = (b.y - a.y) * planeHeight / renderScale;
-              // A plane viewed edge-on has no stable inverse; avoid camera jumps.
-              if (Math.abs(x) < 2000 && Math.abs(y) < 2000) setPan(p => ({ x: p.x + x, y: p.y + y }));
-            } catch { /* Rotate away from edge-on before panning this plane. */ }
+            // Pan in screen pixels, independent of plane tilt, depth, and zoom.
+            setCameraView(view => ({ ...view, x: view.x + dx, y: view.y + dy }));
           }
         }}
         onPointerUp={event => { if (drag.current?.id === event.pointerId) { drag.current = undefined; event.currentTarget.releasePointerCapture(event.pointerId); } }}
@@ -417,7 +425,7 @@ export default function PlanesCanvas(props: CanvasPaneProps & { onFlat: () => vo
               <div title="Ctrl-left-drag vertically separates the planes. Drag up to increase the gap."><dt>Separate</dt><dd><kbd aria-label="Control" title="Control">⌃</kbd> + <GestureMouse button="left" /> <span className="gesture-direction">↕</span></dd></div>
             </dl>
         </aside>}
-        <div className="planes-camera" style={{ transform: `translate(${cameraView.x}px, ${cameraView.y}px) scale(${cameraView.z})` }}>
+        <div className="planes-camera" style={{ perspective: cameraMode === "perspective" ? "2400px" : "none", transform: `translate(${cameraView.x}px, ${cameraView.y}px) scale(${cameraView.z})` }}>
         <div className="planes-scene" style={sceneStyle}>
           {([...planes].reverse()).map(plane => <section key={plane} className={`plane-sheet ${plane}`} data-plane={plane}
             data-sheet-y={0}

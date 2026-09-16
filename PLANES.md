@@ -4,9 +4,9 @@ Planes presents Domain, Architecture, and Linked Sources in the existing canvas 
 
 ## Navigation
 
-Choose Planes in the canvas toolbar. A plane's label opens its 2D view. Domain and Architecture share a fitted diagram scale. Linked Sources fits its linked file and target drawing independently. All three participate in shared pan, zoom, tilt, rotation, and separation.
+Choose Planes in the canvas toolbar. The Isometric camera mode uses orthographic projection: parallel lines stay parallel and depth does not change object scale. Both camera modes start at the same 45-degree tilt with no rotation or roll. The camera toggle in the toolbar switches between Isometric and Perspective, changing only projection while retaining the current angle, pan, zoom, and separation. Perspective makes distant content smaller. A plane's label opens its 2D view. Domain and Architecture share a fitted diagram scale. Linked Sources fits its linked file and target drawing independently. All three participate in shared pan, zoom, tilt, rotation, and separation.
 
-Left-drag blank space to pan. Right-drag, middle-drag, or Shift-left-drag pan anywhere. Alt/Option-left-drag orbits; Ctrl-left-drag vertically separates the planes; Ctrl-Alt/Option-left-drag rolls. Shift snaps orbit and roll to 15-degree increments. Scroll or pinch zooms around the pointer. The question-mark button opens the gesture reference. Plane options also provides sliders; Reset view restores the initial orientation and fitted framing.
+Left-drag blank space to pan. Right-drag, middle-drag, or Shift-left-drag pan anywhere. Alt/Option-left-drag orbits; Ctrl-left-drag vertically separates the planes; Ctrl-Alt/Option-left-drag rolls. Shift snaps orbit and roll to 15-degree increments. Scroll or pinch zooms around the pointer. The question-mark button opens the gesture reference. Plane options also provides sliders; Reset view restores the shared starting orientation, default separation, and fitted framing. Orbit and roll retain the selected projection. Panning moves the whole scene with the pointer in screen coordinates at every angle and zoom.
 
 Click a model object or relationship to read it. Its declared sources connect to target objects on the Linked Sources plane. Connections are grouped by owner and target, with a visible limit of 120 groups, prioritizing the selected target or owner. Turning off All connections shows only links for the active selection. Clicking a source connection opens its mapping or mapping group. A relationship's source connection begins at the midpoint between its participants. Flow sources remain accessible in the reader; flows have no independent plane anchor.
 
@@ -46,7 +46,7 @@ Existing project pages and media are preserved. The earlier browser-only Planes 
 
 ## Implementation and checks
 
-CSS transforms orient the surfaces. Editors measure geometry in untransformed coordinates; four corner markers recover pointer positions on tilted planes. Linked Sources uses the same camera coordinates and perspective mapping as the other planes.
+CSS transforms orient the surfaces. Editors measure geometry in untransformed coordinates; four corner markers recover pointer positions on tilted planes. Linked Sources uses the same camera coordinates and projection mapping as the other planes.
 
 Run unit tests, typecheck, and the client build from `viewer/`. `tests/linked-sources.browser.ts` covers Linked Sources and Files navigation and recovery; `tests/project-files.test.ts` covers inventory boundaries, reading limits, hierarchy geometry, and overview aggregation. The viewport adapter depends on tldraw 5.4 behavior and needs checking on SDK upgrades. Safari, Firefox, multi-touch, and very large live repositories still require separate acceptance checks.
 

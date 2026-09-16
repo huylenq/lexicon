@@ -47,7 +47,7 @@
 
 .plane-editor { background-color: color-mix(in srgb, var(--plane-grid) var(--plane-opacity, 8%), transparent); }
 
-.planes-camera { position: absolute; inset: 0; perspective: 2400px; transform-origin: 0 0; pointer-events: none; }
+.planes-camera { position: absolute; inset: 0; perspective: none; transform-origin: 0 0; pointer-events: none; }
 .plane-editor { background: none; }
 .domain { --plane-grid: #5f9f8a; }
 .architecture { --plane-grid: #9681b8; }
