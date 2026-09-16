@@ -11,6 +11,7 @@ export type Workspace = GraphOptions & {
   chatWidth: number;
   map?: boolean;
   crossDimensionRelationships?: boolean;
+  drawingLayer?: "domain" | "architecture";
   atlasSkin?: "ink" | "village";
 };
 export const defaults = (): Workspace => ({
@@ -39,6 +40,8 @@ export function readWorkspace(key: string): Workspace {
       );
     for (const name of ["sidebar", "allCode", "map", "crossDimensionRelationships"] as const)
       if (typeof value[name] === "boolean") result[name] = value[name];
+    if (value.drawingLayer === "domain" || value.drawingLayer === "architecture")
+      result.drawingLayer = value.drawingLayer;
     if (value.atlasSkin === "ink" || value.atlasSkin === "village")
       result.atlasSkin = value.atlasSkin;
     if (["all", "domain", "architecture"].includes(value.view))

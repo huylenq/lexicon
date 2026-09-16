@@ -126,6 +126,13 @@ export function moveCombinedDimension(editor: Editor, dimension: ElementDimensio
 
 /** Mirror source records, including groups, drawings, assets and internal bindings. */
 export function combinedRecords(records: TLRecord[], model: Model, offsets: Record<ElementDimension, DimensionOffset>): TLRecord[] {
+  // Pasting on a source page copies metadata too; only the original record owns a mirror id.
+  const mirrorId = (record: TLShape | Extract<TLRecord, { typeName: "binding" }>) => {
+    const prefix = record.typeName === "shape" ? "shape:" : "binding:";
+    const saved = record.meta.combinedMirrorId;
+    return typeof saved === "string" && record.id === `${prefix}combined-origin:${saved.slice(prefix.length)}`
+      ? saved : `${prefix}combined-copy:${record.id.slice(prefix.length)}`;
+  };
   const allShapes = records.filter((r): r is TLShape => r.typeName === "shape");
   const byId = new Map(allShapes.map(shape => [shape.id, shape]));
   const items = new Map(model.items.map(item => [`${item.type === "relationship" ? "relation" : "item"}:${item.id}`, item]));
@@ -158,7 +165,7 @@ export function combinedRecords(records: TLRecord[], model: Model, offsets: Reco
   }
   const ids = new Map(selected.map(({ shape }) => [shape.id, isModelShape(shape) && isPrimary(shape)
     ? modelShapeId(shape.props.graphId, "combined")
-    : `shape:combined-copy:${shape.id.slice(6)}` as TLShape["id"]]));
+    : mirrorId(shape) as TLShape["id"]]));
   const result: TLRecord[] = selected.map(({ shape, dimension }) => {
     const parentId = ids.get(shape.parentId as TLShape["id"]) || combinedPage;
     const offset = parentId === combinedPage ? offsets[dimension] : { x: 0, y: 0 };
@@ -167,7 +174,7 @@ export function combinedRecords(records: TLRecord[], model: Model, offsets: Reco
         ...(isModelShape(shape) ? { lexiconProjection: "combined" } : {}) } };
   });
   for (const binding of records) if (binding.typeName === "binding" && ids.has(binding.fromId) && ids.has(binding.toId)) result.push({
-    ...binding, id: `binding:combined-copy:${binding.id.slice(8)}` as typeof binding.id,
+    ...binding, id: mirrorId(binding) as typeof binding.id,
     fromId: ids.get(binding.fromId)!, toId: ids.get(binding.toId)!, meta: { ...binding.meta, combinedSourceId: binding.id },
   });
   return result;

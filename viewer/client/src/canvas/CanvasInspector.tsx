@@ -158,6 +158,10 @@ export function CanvasInspector({
       setError("Open this model object on the canvas first.");
       return;
     }
+    if (note.shape.meta.combinedDimension && editor.getShape(id)?.meta.combinedDimension !== note.shape.meta.combinedDimension) {
+      setError("Attach this note to an object in its drawing layer.");
+      return;
+    }
     const page = editor
       .getShapePageTransform(note.shape)
       .applyToPoint({ x: 0, y: 0 });

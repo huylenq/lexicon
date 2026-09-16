@@ -1,6 +1,10 @@
-import { useRef, type PointerEvent } from "react";
+import { createContext, useContext, useRef, type PointerEvent } from "react";
 import { Box, useEditor, useValue } from "tldraw";
 import { combinedPage, combinedOffset, moveCombinedDimension, type DimensionOffset } from "./combined";
+
+import type { ElementDimension } from "../../../shared/model";
+
+export const CombinedDrawingLayer = createContext<{ active: ElementDimension; select: (dimension: ElementDimension) => void }>({ active: "domain", select: () => {} });
 
 import { InkMapBackground } from "./terrain/InkMap";
 import "./combined-background.css";
@@ -26,11 +30,13 @@ function useRegions() {
 }
 
 export function CombinedBackground() {
+  const drawingLayer = useContext(CombinedDrawingLayer);
   const regions = useRegions();
   return <>
     <InkMapBackground />
     <div className="combined-regions" aria-label="Combined dimensions">
       {regions.map(region => <section key={region.dimension} className="combined-region" data-dimension={region.dimension}
+        data-active={drawingLayer.active === region.dimension}
         aria-label={region.dimension === "domain" ? "Domain region" : "Architecture region"}
         style={{ left: region.x, top: region.y, width: region.width, height: region.height }} />)}
     </div>
@@ -39,6 +45,7 @@ export function CombinedBackground() {
 
 /** Handles sit above the canvas so tldraw cannot consume their drag gestures. */
 export function CombinedHandles() {
+  const drawingLayer = useContext(CombinedDrawingLayer);
   const editor = useEditor();
   const regions = useRegions();
   const drag = useRef<{ pointer: number; x: number; y: number; offset: DimensionOffset; mark?: string }>();
@@ -57,7 +64,9 @@ export function CombinedHandles() {
     {regions.map(region => <h2 key={region.dimension} data-dimension={region.dimension}
       style={{ left: region.x + 18, top: region.y + 12 }}>
       <button type="button" aria-label={`Drag ${region.dimension === "domain" ? "Domain" : "Architecture"}`}
-        title="Drag to move the whole dimension. Arrow keys move it; Shift moves farther."
+        aria-pressed={drawingLayer.active === region.dimension}
+        title="Select to draw on this dimension. Drag to move it; arrow keys move it, Shift moves farther."
+        onClick={event => { event.stopPropagation(); drawingLayer.select(region.dimension); }}
         onPointerDown={event => {
           if (event.button !== 0) return;
           event.stopPropagation();

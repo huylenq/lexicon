@@ -44,6 +44,7 @@ import {
   LexiconObjectUtil,
 } from "./shapes";
 import { openFlatPage, flatPageIds, separateDimensions } from "./combined";
+import { enableCombinedDrawing } from "./combinedEditing";
 import { syncCombined } from "./combined";
 import { createProjection } from "./projection";
 import { isModelShape, modelShapeId } from "./references";
@@ -55,7 +56,7 @@ import { canvasThemes, syncCanvasTheme } from "./theme";
 import { MapStylePanel } from "./terrain/InkMap";
 import { EdgeAppearance } from "./EdgeAppearance";
 import { NeighborHighlight } from "./NeighborHighlight";
-import { CombinedBackground, CombinedHandles } from "./CombinedBackground";
+import { CombinedBackground, CombinedHandles, CombinedDrawingLayer } from "./CombinedBackground";
 import { RadialNeighbors } from "./RadialNeighbors";
 import { MinimapGroups } from "./MinimapGroups";
 import { useSyncCanvasPresentation } from "./presentation";
@@ -512,7 +513,7 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
   useLayoutEffect(() => {
     if (!editor) return;
     editor.setCurrentTool("select");
-    editor.updateInstanceState({ isReadonly: combined });
+    editor.updateInstanceState({ isReadonly: false });
   }, [editor, combined]);
 
   useEffect(() => {
@@ -649,10 +650,14 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
     }
   }, [command?.sequence, editor, loading]);
 
-  const addNote = () => {
-    if (combined) return;
+  useEffect(() => {
     if (!editor) return;
-    const targetId = noteTarget?.id;
+    return enableCombinedDrawing(editor, () => latest.current.workspace.drawingLayer || "domain");
+  }, [editor]);
+
+  const addNote = () => {
+    if (!editor) return;
+    const targetId = noteTarget && (!combined || noteTarget.meta.combinedDimension === (workspace.drawingLayer || "domain")) ? noteTarget.id : undefined;
     const bounds = targetId && editor.getShapePageBounds(targetId);
     const center = editor.getViewportPageBounds().center;
     const position = bounds
@@ -771,6 +776,8 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
   }, [needsAttention]);
 
   return (
+    <CombinedDrawingLayer.Provider value={{ active: workspace.drawingLayer || "domain",
+      select: drawingLayer => { editor?.complete(); setWorkspace(w => w.drawingLayer === drawingLayer ? w : { ...w, drawingLayer }); } }}>
     <ToolbarDock.Provider value={toolHost}>
     <CanvasActions.Provider
       value={{
@@ -860,10 +867,10 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
           <CanvasButton
             icon="plus"
             label="Add note"
-            title={combined ? "Add drawings and notes in Domain or Architecture" :
+            title={combined ? `Add a note to ${workspace.drawingLayer === "architecture" ? "Architecture" : "Domain"}` :
               noteTarget ? "Add a note attached to the selection" : "Add a note"
             }
-            disabled={combined || !editor || loading}
+            disabled={!editor || loading}
             onClick={addNote}
           />
           <span className="canvas-inspector-toggles" ref={setInspectorHost} />
@@ -1144,5 +1151,6 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onLayers: (
       </>
     </CanvasActions.Provider>
     </ToolbarDock.Provider>
+    </CombinedDrawingLayer.Provider>
   );
 }

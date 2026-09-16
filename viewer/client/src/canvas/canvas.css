@@ -203,3 +203,24 @@
 .edge-hops-toggle strong { font-size: 12px; font-weight: 600; }
 .edge-hops-toggle small { color: var(--muted); font-size: 11px; }
 .edge-hops-toggle input { accent-color: var(--accent); }
+
+/* The drawing destination stays attached to the native tray in both toolbar positions. */
+.canvas-drawing-layer-badge {
+  --dimension-color: #7467b8;
+  grid-column: 1; grid-row: 2; align-self: center;
+  padding: 3px 7px; border: 1px solid transparent;
+  color: color-mix(in srgb, var(--dimension-color) 20%, var(--muted));
+  background: transparent; font: 400 11px/16px system-ui, sans-serif;
+  white-space: nowrap; pointer-events: none;
+}
+.canvas-drawing-layer-badge[data-dimension="architecture"] { --dimension-color: #238b85; }
+
+.tlui-main-toolbar__left:has(> .canvas-drawing-layer-badge) {
+  display: grid; grid-template-columns: auto auto; align-items: center; column-gap: 6px;
+}
+.tlui-main-toolbar__left:has(> .canvas-drawing-layer-badge) > .tlui-main-toolbar__tools { grid-column: 2; grid-row: 2; }
+.tlui-main-toolbar__left:has(> .canvas-drawing-layer-badge) > .tlui-main-toolbar__extras { grid-column: 2; grid-row: 1; }
+.canvas-docked-tools .tlui-main-toolbar__left:has(> .canvas-drawing-layer-badge) { grid-template-columns: auto auto 34px; }
+.canvas-docked-tools .tlui-main-toolbar__left:has(> .canvas-drawing-layer-badge) > .tlui-main-toolbar__extras { grid-column: 3; grid-row: 1; }
+.canvas-docked-tools .tlui-main-toolbar__left:has(> .canvas-drawing-layer-badge) > .tlui-main-toolbar__tools,
+.canvas-docked-tools .canvas-drawing-layer-badge { grid-row: 1; }

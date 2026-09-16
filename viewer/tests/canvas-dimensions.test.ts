@@ -70,3 +70,20 @@ test("Combined mirrors grouped drawings and bindings with only top-level offsets
   expect(result.find(r => r.typeName === "binding")).toMatchObject({ toId: modelShapeId("item:architecture", "combined") });
   expect(JSON.stringify(records)).toBe(before);
 });
+
+
+test("Combined-authored shapes and attachments retain mirror identities on rebuild", () => {
+  const model = { items: [{ id: "a", type: "system" }] } as Model;
+  const target = modelShapeId("item:a", "architecture");
+  const records = [
+    { id: target, typeName: "shape", type: "lexicon-object", parentId: "page:lexicon-architecture", x: 0, y: 0, props: { graphId: "item:a" }, meta: { lexiconProjection: "architecture" } },
+    { id: "shape:combined-origin:authored", typeName: "shape", type: "note", parentId: "page:lexicon-architecture", x: -500, y: 40, props: {}, meta: { combinedMirrorId: "shape:authored" } },
+    { id: "binding:combined-origin:authored", typeName: "binding", type: "lexicon-note", fromId: "shape:combined-origin:authored", toId: target, props: { x: -500, y: 40 }, meta: { combinedMirrorId: "binding:authored" } },
+  ] as unknown as TLRecord[];
+  records.push({ ...records[1], id: "shape:duplicate" } as TLRecord);
+  const result = combinedRecords(records, model, { domain: { x: 0, y: 0 }, architecture: { x: 900, y: 20 } });
+  expect(new Set(result.map(r => r.id)).size).toBe(result.length);
+  expect(result.some(r => r.id === "shape:combined-copy:duplicate")).toBe(true);
+  expect(result.find(r => r.typeName === "shape" && r.type === "note")).toMatchObject({ id: "shape:authored", x: 400, y: 60, meta: { combinedSourceId: "shape:combined-origin:authored", combinedDimension: "architecture" } });
+  expect(result.find(r => r.typeName === "binding")).toMatchObject({ id: "binding:authored", fromId: "shape:authored", toId: modelShapeId("item:a", "combined") });
+});
