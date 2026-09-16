@@ -29,7 +29,7 @@
 }
 .reader-workspace.reader-hidden > .reader-stack,
 .reader-workspace.reader-hidden > .canvas-divider { display: none; }
-.reader-cards { display: flex; flex-direction: column; gap: 18px; padding: 3px 3px 50vh; }
+.reader-cards { display: flex; flex-direction: column; gap: 18px; padding: 12px 12px 50vh; }
 .reader-card {
   --card-radius: 10px;
   --card-border-width: 1px;
@@ -156,7 +156,7 @@
 .reader-bottom-morph-slot { height: 36px; }
 .reader-bottom-titles .reader-collapsed-grid { direction: rtl; }
 .reader-bottom-titles .reader-collapsed-card { direction: ltr; }
-.reader-bottom-titles > .reader-sticky-list { position: absolute; bottom: 0; left: 0; right: 0; padding: 12px 3px 3px; }
+.reader-bottom-titles > .reader-sticky-list { position: absolute; bottom: 0; left: 0; right: 0; padding: 12px; }
 .reader-card-morphing, .reader-card-morphing.active { visibility: hidden; pointer-events: none; }
 .reader-morph-body { overflow: hidden; pointer-events: none; }
 .reader-morph-body[data-expanded] { pointer-events: auto; }
@@ -166,7 +166,7 @@
 .reader-morph .type-icon .icon { width: calc(18px - 4px * var(--morph-progress)); height: calc(18px - 4px * var(--morph-progress)); }
 .reader-morph .icon-button { width: calc(30px - 6px * var(--morph-progress)); min-width: 0; height: calc(30px - 6px * var(--morph-progress)); padding: 3px; }
 /* Collapsed cards float directly over the canvas; only the cards get a surface. */
-.reader-sticky-list { position: relative; display: flex; flex-direction: column; gap: 8px; padding: 3px 3px 12px; background: transparent; }
+.reader-sticky-list { position: relative; display: flex; flex-direction: column; gap: 8px; padding: 12px; background: transparent; }
 .reader-sticky-list:empty { display: none; }
 .reader-collapsed-card .reader-card-header { min-height: 34px; padding: 2px 8px; border-bottom: 0; }
 .reader-collapsed-card .reader-card-title h1 { font-size: 12px !important; }
@@ -205,7 +205,7 @@
 .header-breadcrumb > button { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
 .header-breadcrumb > button > span, .header-breadcrumb .object-name-text { overflow: hidden; text-overflow: ellipsis; }
 @media (max-width: 1000px) {
-  .reader-cards { padding-inline: 8px; }
+  .reader-cards { padding-inline: 12px; }
   .header-breadcrumb > button:not([aria-current="page"]), .header-breadcrumb > span { display: none; }
   .header-breadcrumb > button { flex-shrink: 1; }
 }

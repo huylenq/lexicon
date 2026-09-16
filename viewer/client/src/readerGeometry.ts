@@ -2,8 +2,8 @@
 const tileMinWidth = 220;
 const tileHeight = 36;
 const gap = 8;
-const inset = 3;
-const railPadding = 15;
+const inset = 12;
+const railPadding = 24;
 const rowHeight = tileHeight + gap;
 
 export function readerLayout(width: number, height: number) {
