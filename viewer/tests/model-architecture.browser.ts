@@ -976,3 +976,42 @@ test("Combined remains stable while another view polls the same canvas", async (
   }
   expect(new Set(revisions.slice(1)).size).toBe(1);
 });
+
+for (const width of [1600, 600]) test(`radial Reader hover is temporary and leaves navigation untouched at ${width}px`, async ({ page }) => {
+  await page.setViewportSize({ width, height: 1000 });
+  await page.goto(`/p/${id}`);
+  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  await page.getByRole("button", { name: "concept: Order", exact: true }).hover();
+  const neighbor = page.getByRole("button", { name: "Go to Order Handling", exact: true });
+  const preview = page.getByRole("region", { name: "Neighbor Reader preview" });
+  const before = await page.evaluate(() => ({ url: location.href, history: history.state, storage: JSON.stringify(sessionStorage) }));
+  await neighbor.hover();
+  await expect(preview).toBeVisible();
+  await expect(preview.locator("h1")).toHaveText("Order Handling");
+  await preview.hover();
+  await page.waitForTimeout(400);
+  await expect(preview).toBeVisible();
+  expect(await page.evaluate(() => ({ url: location.href, history: history.state, storage: JSON.stringify(sessionStorage) }))).toEqual(before);
+  const bounds = await preview.boundingBox();
+  expect(bounds!.x).toBeGreaterThanOrEqual(0);
+  expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width);
+  await page.screenshot({ path: `../output/radial-reader-preview-${width}.png` });
+  await page.mouse.move(5, 5);
+  await expect(preview).toBeHidden();
+  await page.getByRole("button", { name: "concept: Order", exact: true }).hover();
+  await neighbor.focus();
+  await expect(preview).toBeVisible();
+  await page.keyboard.press("Tab");
+  await expect(preview.getByRole("button", { name: "Read card: Order Handling", exact: true })).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(preview.getByRole("button", { name: "Pin Order Handling", exact: true })).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(preview).toBeHidden();
+  await expect(neighbor).toBeFocused();
+  await neighbor.hover();
+  await expect(preview).toBeVisible();
+  await preview.getByRole("button", { name: "Pin Order Handling", exact: true }).click();
+  await expect(preview).toBeHidden();
+  await expect(page.locator('main [data-reader-card].active h1')).toHaveText("Order Handling");
+  expect(await readFile(join(root, "lexicon/model.xml"), "utf8")).toBe(xml);
+});

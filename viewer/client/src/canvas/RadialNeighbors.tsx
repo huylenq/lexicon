@@ -5,6 +5,7 @@ import { planeNeighbors, type PlaneNeighbor } from "../graph/planeNeighbors";
 import type { GraphSelection } from "../graph/model";
 import { objectAppearance } from "../ObjectName";
 import Icon from "../Icon";
+import { useReaderHover } from "../ReaderHover";
 import { holdNeighborAnchor, neighborAnchors, neighborEdges } from "./NeighborHighlight";
 import { canvasPresentation } from "./presentation";
 import { radialPositions, type RadialBox } from "./radial-layout";
@@ -60,6 +61,7 @@ function RadialRing({ editor, neighbors, exiting, onInside, onNavigate }: {
   editor: Editor; neighbors: Neighbors; exiting: boolean; onInside: (inside: boolean) => void; onNavigate: (vertex: PlaneNeighbor) => void;
 }) {
   const [positions, setPositions] = useState<Position[]>([]);
+  const hover = useReaderHover("Neighbor Reader preview");
   const labelsKey = JSON.stringify(neighbors.targets.map(({ id, title }) => ({ id, title })));
   useLayoutEffect(() => {
     let frame = 0;
@@ -132,17 +134,18 @@ function RadialRing({ editor, neighbors, exiting, onInside, onNavigate }: {
     onPointerEnter={() => onInside(true)} onPointerLeave={event => { if (!event.currentTarget.contains(document.activeElement)) onInside(false); }}
     onFocusCapture={() => onInside(true)} onBlurCapture={event => { if (!event.currentTarget.contains(event.relatedTarget)) onInside(false); }}
     onPointerDown={event => event.stopPropagation()} onKeyDown={event => event.stopPropagation()}>
-    {neighbors.targets.map((vertex, i) => positions[i] && <RadialIcon key={vertex.id} vertex={vertex} position={positions[i]} onNavigate={() => onNavigate(vertex)} />)}
+    {neighbors.targets.map((vertex, i) => positions[i] && <RadialIcon key={vertex.id} vertex={vertex} position={positions[i]} hover={hover.bind(vertex.selection)} onNavigate={() => { hover.dismiss(); onNavigate(vertex); }} />)}
+    {hover.preview}
   </div>, document.body);
 }
 
-function RadialIcon({ vertex, position, onNavigate }: { vertex: PlaneNeighbor; position: Position; onNavigate: () => void }) {
+function RadialIcon({ vertex, position, onNavigate, hover }: { vertex: PlaneNeighbor; position: Position; onNavigate: () => void; hover: ReturnType<ReturnType<typeof useReaderHover>["bind"]> }) {
   const left = position.nameSide === "left";
   const room = left ? position.x - 12 : window.innerWidth - position.x - 42;
   const { icon, tone } = objectAppearance(vertex.kind === "file" ? "code" : vertex.kind, vertex.kind === "concept" ? vertex.subtitle : undefined);
   return <button className="radial-neighbor object-name" data-tone={tone} data-radial-node={vertex.id}
     title={vertex.subtitle ? `${vertex.title} · ${vertex.subtitle}` : vertex.title} aria-label={`Go to ${vertex.title}`} data-name-side={left ? "left" : "right"} style={{ left: position.x, top: position.y, "--radial-name-width": `${position.nameWidth ?? Math.max(80, Math.min(360, room))}px`, "--radial-dx": `${position.dx}px`, "--radial-dy": `${position.dy}px` } as CSSProperties}
-    onClick={onNavigate}>
+    {...hover} onClick={onNavigate}>
     <span className="type-icon"><Icon name={icon} size={17} /></span>
     <span className="radial-neighbor-name" aria-hidden="true">{vertex.title}</span>
   </button>;

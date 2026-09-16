@@ -1,8 +1,9 @@
-import { Fragment } from "react";
+import { Fragment, type ComponentProps } from "react";
 import { Link } from "react-router-dom";
 import type { Model } from "../../shared/model";
 import { descriptionParts } from "../../shared/description";
 import ObjectName from "./ObjectName";
+import { useReaderHover } from "./ReaderHover";
 import { cardParams, readerLink } from "./readerNavigation";
 import type { ReaderOpenMode } from "./readerState";
 import "./description.css";
@@ -20,12 +21,22 @@ export default function Description({ text, model, params, onSelect }: {
     const label = part.label || target?.name || part.id;
     if (!target) return <span key={index} className="description-missing" title={`Unavailable item: ${part.id}`}>{label}</span>;
     if (!onSelect || !params) return <Fragment key={index}>{label}</Fragment>;
-    return <Link key={index} className="description-reference"
+    return <ReferenceLink key={index} itemId={target.id} className="description-reference"
       to={`?${cardParams(params, { kind: "item", id: target.id })}`}
       aria-label={`Open ${target.name}`}
       {...readerLink(mode => onSelect(target.id, mode))}>
       <ObjectName type={target.type} name={label} size={14}
         classification={target.type === "concept" ? target.classification : undefined} />
-    </Link>;
+    </ReferenceLink>;
   })}</>;
+}
+
+function ReferenceLink({ itemId, onClick, onAuxClick, ...props }: ComponentProps<typeof Link> & { itemId: string }) {
+  const hover = useReaderHover("Inline Reader preview");
+  return <>
+    <Link {...props} {...hover.bind({ kind: "item", id: itemId })}
+      onClick={event => { hover.dismiss(); onClick?.(event); }}
+      onAuxClick={event => { hover.dismiss(); onAuxClick?.(event); }} />
+    {hover.preview}
+  </>;
 }

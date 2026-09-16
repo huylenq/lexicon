@@ -295,9 +295,11 @@ export default function ReaderStackViewport({ reading, model, layoutKey, notice,
     return <section className={`reader-card ${reading.stack.active === key ? "active" : ""} ${cardMorph ? "reader-card-morphing" : ""}`} key={`${key}:${cardMode(key)}`}
       data-reader-card={key} data-reader-mode={cardMode(key)} aria-label={title}
       onPointerDownCapture={event => {
+        if (!event.currentTarget.contains(event.target as Node)) return;
         if (event.button === 0 && !(event.target as Element).closest("[data-reader-link], [data-close-card], [data-pin-card]")) reading.open(card, { reveal: false });
       }}
       onFocusCapture={event => {
+        if (!event.currentTarget.contains(event.target as Node)) return;
         if (!(event.target as Element).closest("[data-reader-link], [data-close-card], [data-pin-card]")) reading.open(card, { reveal: false });
       }}>
       {/* The outline extends one border above the header's box. Keep that

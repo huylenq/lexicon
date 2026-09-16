@@ -24,6 +24,7 @@ import { useAgentSession } from "./useAgentSession";
 import type { NavigationCommand } from "../../shared/agent";
 import useAssistantWindow from "./useAssistantWindow";
 import ReaderCardBody from "./ReaderCardBody";
+import { ReaderHover } from "./ReaderHover";
 import ReaderCardHeader from "./ReaderCardHeader";
 import PaneSeparator from "./PaneSeparator";
 import {
@@ -177,6 +178,8 @@ function ReaderProject({ projectId }: { projectId: string }) {
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
       if (e.isComposing || e.repeat) return;
+      // The temporary card consumes Escape before pane-level dismissal.
+      if (e.key === "Escape" && document.querySelector("[data-reader-hover]")) return;
       if (e.target instanceof Element && e.target.closest("dialog[open]")) return;
       const editingText =
         e.target instanceof HTMLInputElement ||
@@ -467,6 +470,20 @@ function ReaderProject({ projectId }: { projectId: string }) {
         </button>
   );
   return (
+    <ReaderHover.Provider value={(selection, dismiss) => selection.kind === "code" ? null : <>
+      <ReaderCardHeader card={selection} item={selection.kind === "item" ? graphIndex?.items.get(selection.id) : undefined}
+        title={titleForCard(selection)} preview collapsed={false} copied={copied === cardKey(selection)}
+        onOpen={mode => { dismiss(); selectGraph(selection, mode); }} onClose={dismiss}
+        onCopy={() => copyCardLink(selection)}
+        onCanvasAction={action => { dismiss(); graphAction(action, selection); }} />
+      <div className="reader-card-body">
+        <ReaderCardBody card={selection} model={model} graphIndex={graphIndex} params={params} loading={loading}
+          onSelect={(id, mode) => { dismiss(); select(id, mode); }}
+          onSelectGraph={(target, mode) => { dismiss(); selectGraph(target, mode); }}
+          onCode={(id, index) => { dismiss(); code(id, index); }}
+          onOpenChat={() => { dismiss(); setChatOpen(true); }} />
+      </div>
+    </>}>
     <div
       ref={readerSurface}
       className={`reader ${assistantWindow.dockTarget ? "assistant-dock-target" : ""} ${chatOpen && agentAttached && !compact ? "agent-attached" : ""} ${model && sourceNavigation.open ? "with-source-reader" : ""} with-canvas ${!workspace.sidebar ? "without-sidebar" : ""} ${mobileRead && reading.stack.visible ? "mobile-reading" : "mobile-canvas"} ${model && mobileSource ? "mobile-source" : ""}`}
@@ -760,5 +777,6 @@ function ReaderProject({ projectId }: { projectId: string }) {
         empty={data.model?.items.length === 0} problem={data.problem} example={data.project.example}
         onClose={() => { setChatOpen(false); chatToggle.current?.focus(); }} onModelChanged={refresh} onSelect={select} />}
     </div>
+    </ReaderHover.Provider>
   );
 }

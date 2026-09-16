@@ -1,0 +1,14 @@
+
+.reader-card.reader-hover-card {
+  position: fixed;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  box-shadow: 0 12px 40px #0003;
+}
+.reader-hover-card > .reader-card-header { flex-shrink: 0; }
+.reader-hover-card > .reader-card-body { overflow: auto; overscroll-behavior: contain; }
+.reader-hover-card article { padding: 20px 24px 28px; }
+.reader-hover-card .context-grid { grid-template-columns: 1fr; }
