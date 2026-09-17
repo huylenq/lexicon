@@ -2,6 +2,7 @@ import type { Box, Point } from "../graph/layout";
 import { routeRuns, segmentBlocked, expand, clearance, type Run } from "./obstacle-routing";
 import { relationshipRoute } from "./routes";
 import { clearRouteLabel, labelBox } from "./route-labels";
+import { previewRelationship } from "./route-preview";
 
 export type SceneRelationship = {
   id: string; sourceId: string; targetId: string;
@@ -11,22 +12,37 @@ export type SceneRelationship = {
 export type SceneObstacle = Box & { id: string; padding?: number };
 export type SceneObstacles = { paths: SceneObstacle[]; labels: SceneObstacle[] };
 // A single collection is convenient when the same objects block paths and labels.
-type ObstacleInput = SceneObstacle[] | SceneObstacles;
+export type ObstacleInput = SceneObstacle[] | SceneObstacles;
 export type RelationshipRoute = ReturnType<typeof relationshipRoute>;
 
-type CachedRoute = { input: string; route: RelationshipRoute };
+export type CachedRoute = { input: string; edge: SceneRelationship; route: RelationshipRoute };
 export type RoutingStats = { reused: number; routed: number };
 const inputKey = (edge: SceneRelationship) => JSON.stringify(edge);
 
-/** Keep clear routes during gestures; a settled pass remains deterministic for saves and undo. */
+/** Preview endpoint movement without searching; only settled routes enter the cache. */
 export function createRelationshipRouter() {
   let previous = new Map<string, CachedRoute>();
   const stats: RoutingStats = { reused: 0, routed: 0 };
   return {
     stats,
+    snapshot: () => previous,
+    accept(edges: SceneRelationship[], routes: Map<string, RelationshipRoute>) {
+      previous = new Map(edges.flatMap(edge => {
+        const route = routes.get(edge.id);
+        return route ? [[edge.id, { input: inputKey(edge), edge, route }]] : [];
+      }));
+    },
+    preview(edges: SceneRelationship[]) {
+      return new Map(edges.map(edge => {
+        const cached = previous.get(edge.id);
+        return [edge.id, cached ? previewRelationship(edge, cached.edge, cached.route)
+          : relationshipRoute(edge.source, edge.target, edge.lane,
+            edge.sourceId === edge.targetId, undefined, edge.labelWidth, { preferred: edge.preferred })];
+      }));
+    },
     route(edges: SceneRelationship[], obstacles: ObstacleInput, incremental = false) {
       const result = routeRelationships(edges, obstacles, incremental ? previous : undefined, stats);
-      previous = new Map(edges.map(edge => [edge.id, { input: inputKey(edge), route: result.get(edge.id)! }]));
+      previous = new Map(edges.map(edge => [edge.id, { input: inputKey(edge), edge, route: result.get(edge.id)! }]));
       return result;
     },
   };

@@ -1,20 +1,19 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import type { Point } from "../graph/layout";
-import { dragSettleDelay, endpointOffset, matchRoutePoints, mixPoint, morphDuration, offsetPoint, routeFractionAt, routeStops, sameRoute, simplifyRoute, softenRoute } from "./route-morph";
+import { endpointOffset, matchRoutePoints, mixPoint, morphDuration, offsetPoint, routeFractionAt, routeStops, sameRoute, simplifyRoute, softenRoute } from "./route-morph";
 
 type Morph<T> = { same: (a: T, b: T) => boolean; attach: (shown: T, target: T) => T; prepare: (from: T, to: T) => (t: number) => T };
-/** Coalesce live routing; only the endpoint attachments follow every pointer update. */
+/** Drag previews are already orthogonal. Animate only settled geometry changes. */
 export function useGeometryMorph<T>(value: T, morph: Morph<T>, dragging: boolean, enabled = true) {
-  const target = useRef(value), shown = useRef(value), previousDragging = useRef(dragging);
-  const frame = useRef<number>(), timer = useRef<ReturnType<typeof setTimeout>>();
+  const target = useRef(value), shown = useRef(value);
+  const frame = useRef<number>();
   const moving = useRef(false), latest = useRef(morph);
   latest.current = morph;
   const [, render] = useState(0);
   const redraw = () => render(n => n + 1);
   const cancel = () => {
     if (frame.current !== undefined) cancelAnimationFrame(frame.current);
-    clearTimeout(timer.current);
-    frame.current = undefined; timer.current = undefined;
+    frame.current = undefined;
   };
   const snap = () => { cancel(); moving.current = false; shown.current = target.current; };
   const start = () => {
@@ -32,23 +31,12 @@ export function useGeometryMorph<T>(value: T, morph: Morph<T>, dragging: boolean
   };
   useLayoutEffect(() => {
     const changed = !morph.same(target.current, value);
-    const released = previousDragging.current && !dragging;
-    previousDragging.current = dragging;
     target.current = value;
-    if (!enabled || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    if (dragging || !enabled || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       if (changed || moving.current) { snap(); redraw(); }
       return;
     }
-    if (changed) {
-      cancel();
-      if (dragging) {
-        shown.current = morph.attach(shown.current, value);
-        if (morph.same(shown.current, value)) { moving.current = false; redraw(); return; }
-        moving.current = true;
-        timer.current = setTimeout(start, dragSettleDelay);
-        redraw();
-      } else start();
-    } else if (released && timer.current !== undefined) start();
+    if (changed) start();
   });
   useLayoutEffect(() => {
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -56,7 +44,7 @@ export function useGeometryMorph<T>(value: T, morph: Morph<T>, dragging: boolean
     media.addEventListener("change", stop);
     return () => { cancel(); media.removeEventListener("change", stop); };
   }, []);
-  return { value: enabled ? shown.current : value, animating: enabled && moving.current };
+  return { value: enabled && !dragging ? shown.current : value, animating: enabled && !dragging && moving.current };
 }
 
 export type RouteFrame = { points: Point[]; label: Point };

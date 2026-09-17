@@ -30,7 +30,7 @@ for (const edgeCount of [2, 300]) test(`${edgeCount} edges: crossing hops surviv
       ["horizontal", [{ x: 0, y: 100 }, { x: 300, y: 100 }], 40, 100],
       ["vertical", [{ x: 150, y: 0 }, { x: 150, y: 200 }], 150, 20],
     ] as const) {
-      const copy = { ...source, id: `shape:hop-${name}${pair ? `-${pair}` : ""}`, parentId: records.find(r => r.typeName === "page").id,
+      const copy = { ...source, id: `shape:hop-${name}${pair ? `-${pair}` : ""}`, parentId: source.parentId,
         x: -400 + pair % 15 * 400, y: 700 + Math.floor(pair / 15) * 300, index: name === "horizontal" ? "a9" : "aA", props: { ...source.props, points,
           path: points.map((p, i) => `${i ? "L" : "M"} ${p.x} ${p.y}`).join(" "), labelX, labelY, labelWidth: 60 } };
       document.snapshot.store[copy.id] = copy;
@@ -39,7 +39,7 @@ for (const edgeCount of [2, 300]) test(`${edgeCount} edges: crossing hops surviv
       ["rounded", [{ x: 0, y: 240 }, { x: 200, y: 240 }, { x: 200, y: 0 }], 20, 240],
       ["rounded-under", [{ x: 175, y: 0 }, { x: 175, y: 300 }], 175, 20],
     ] as const) {
-      const copy = { ...source, id: `shape:hop-${name}`, parentId: records.find(r => r.typeName === "page").id,
+      const copy = { ...source, id: `shape:hop-${name}`, parentId: source.parentId,
         x: -400, y: 1000, index: name === "rounded" ? "aB" : "aC", props: { ...source.props, points,
           path: points.map((p, i) => `${i ? "L" : "M"} ${p.x} ${p.y}`).join(" "), labelX, labelY, labelWidth: 60 } };
       document.snapshot.store[copy.id] = copy;
@@ -49,7 +49,7 @@ for (const edgeCount of [2, 300]) test(`${edgeCount} edges: crossing hops surviv
       ["crowded-vertical", "M 150 0 L 150 200", [{ x: 150, y: 0 }, { x: 150, y: 200 }]],
       ["crowded-curve", "M 0 95 Q 150 95 300 95", [{ x: 0, y: 95 }, { x: 300, y: 95 }]],
     ] as const) {
-      const copy = { ...source, id: `shape:hop-${name}`, parentId: records.find(r => r.typeName === "page").id,
+      const copy = { ...source, id: `shape:hop-${name}`, parentId: source.parentId,
         x: -400, y: 1400, index: "aD", props: { ...source.props, path, points, labelX: -100, labelY: -50, labelWidth: 60 } };
       document.snapshot.store[copy.id] = copy;
     }

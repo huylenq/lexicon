@@ -162,7 +162,14 @@ export function createCanvasPersistence({
     );
     return false;
   };
-  const flushNow = async () => {
+  // Recheck after every await before automatic work reads or replaces the scene.
+  // Explicit saves still capture a held gesture; automatic saves resume later.
+  const canContinue = (automatic: boolean) => {
+    if (closed || !ready || applying) return false;
+    if (automatic && editor.inputs.getIsDragging()) { schedule(); return false; }
+    return true;
+  };
+  const flushNow = async (automatic: boolean) => {
     if (!ready || closed || applying || inFlight || blocked) return;
     const document = capture(),
       serialized = canonicalJson(document);
@@ -174,13 +181,16 @@ export function createCanvasPersistence({
     setStatus("saving");
     try {
       await cache(document).catch(reportCacheFailure);
-      if (closed) return;
+      if (!canContinue(automatic)) return;
       let next: CanvasState;
       try {
         next = await api.save(revision, document, requests.signal);
       } catch (error) {
         if (error instanceof CanvasRequestError && error.status === 409) {
-          if (await reconcile(await readRemote(), capture())) schedule();
+          if (!canContinue(automatic)) return;
+          const latest = await readRemote();
+          if (!canContinue(automatic)) return;
+          if (await reconcile(latest, capture()) && !closed) schedule();
           return;
         }
         throw error;
@@ -190,8 +200,15 @@ export function createCanvasPersistence({
       setStatus("saved");
       setConflicts([]);
       if (!next.missingAssets.length) setMessage("");
-      await cache().catch(reportCacheFailure);
-      if (canonicalJson(capture()) !== lastSaved) schedule();
+      if (editor.inputs.getIsDragging()) {
+        setStatus("saving");
+        scheduleCache(100);
+        schedule();
+      } else {
+        await cache().catch(reportCacheFailure);
+        if (!canContinue(automatic)) return;
+        if (canonicalJson(capture()) !== lastSaved) schedule();
+      }
     } catch (e) {
       if (!closed) {
         setStatus("local");
@@ -206,9 +223,10 @@ export function createCanvasPersistence({
   let saving: Promise<void> | undefined;
   // A view switch must join an existing autosave, then capture any newer edits,
   // before disposing the editor that owns them.
-  const flush = async () => {
+  const flush = async (automatic = false) => {
     while (saving) await saving;
-    const task = flushNow();
+    if (automatic && editor.inputs.getIsDragging()) { schedule(); return; }
+    const task = flushNow(automatic);
     saving = task;
     try { await task; }
     finally { if (saving === task) saving = undefined; }
@@ -216,16 +234,25 @@ export function createCanvasPersistence({
   const schedule = () => {
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => {
-      void flush();
+      timer = undefined;
+      if (editor.inputs.getIsDragging()) { schedule(); return; }
+      void flush(true);
     }, 600);
+  };
+  // Automatic snapshots wait for a finished gesture; explicit flush/unload still
+  // capture immediately so switching views or closing does not lose the gesture.
+  const scheduleCache = (delay: number) => {
+    if (cacheTimer) return;
+    cacheTimer = setTimeout(() => {
+      cacheTimer = undefined;
+      if (!ready || closed || applying) return;
+      if (editor.inputs.getIsDragging()) { scheduleCache(100); return; }
+      void cache().catch(reportCacheFailure);
+    }, delay);
   };
   const changed = () => {
     if (!ready || closed || applying) return;
-    if (!cacheTimer)
-      cacheTimer = setTimeout(() => {
-        cacheTimer = undefined;
-        void cache().catch(reportCacheFailure);
-      }, 100);
+    scheduleCache(100);
     if (!blocked) {
       setStatus("saving");
       schedule();
@@ -235,11 +262,7 @@ export function createCanvasPersistence({
   const stopSession = editor.store.listen(
     () => {
       if (!ready || closed || applying) return;
-      if (!cacheTimer)
-        cacheTimer = setTimeout(() => {
-          cacheTimer = undefined;
-          void cache().catch(reportCacheFailure);
-        }, 300);
+      scheduleCache(300);
     },
     { scope: "session" },
   );
@@ -249,12 +272,13 @@ export function createCanvasPersistence({
       closed ||
       inFlight ||
       blocked ||
+      editor.inputs.getIsDragging() ||
       document.visibilityState === "hidden"
     )
       return;
     try {
       const next = await readRemote();
-      if (closed || inFlight || blocked || next.revision === revision) return;
+      if (!ready || closed || applying || inFlight || blocked || editor.inputs.getIsDragging() || next.revision === revision) return;
       const local = capture();
       const localJson = canonicalJson(local);
       if (localJson === lastSaved && next.document && !next.issue) {

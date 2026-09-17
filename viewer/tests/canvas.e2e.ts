@@ -26,6 +26,10 @@ async function open(page: Page) {
   await page.getByRole("button", { name: "Toggle navigation", exact: true }).click();
   await page.getByRole("button", { name: "Fit model", exact: true }).click();
 }
+async function openRecovery(page: Page) {
+  if (!(await page.getByRole("dialog", { name: "Canvas recovery", exact: true }).isVisible()))
+    await page.getByRole("button", { name: /^Canvas recovery/ }).click();
+}
 async function exportDocument(page: Page) {
   const menu = page.locator(".canvas-file-menu");
   if (!(await menu.getAttribute("open"))) await menu.locator("summary").click();
@@ -1061,6 +1065,7 @@ test("failed project saves recover after reload and retry without losing local n
   await page.reload(); await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
   expect(records((await exportDocument(page)).data).some((r) => r.type === "note" && JSON.stringify(r).includes("Recovered after"))).toBe(true);
   await expect(page.locator('[data-save-status="local"]')).toBeVisible();
+  await openRecovery(page);
   unavailable = false; await page.getByRole("button", { name: "Retry save" }).click(); await saved(page);
   expect((await durableNotes()).join()).toContain("Recovered after");
 });
@@ -1089,10 +1094,11 @@ test("an unsaved first canvas requires review when another browser creates the p
     await page.reload();
     await staleSave;
     await expect(page.locator('[data-save-status="conflict"]')).toBeVisible();
-    await page.getByRole("button", { name: "Review versions" }).click();
-    await expect(page.getByRole("dialog", { name: "Review canvas versions" })).toBeVisible();
-    expect(await readFile(file, "utf8")).toBe(before);
     expect(records((await exportDocument(page)).data).some((r) => r.type === "note" && JSON.stringify(r).includes("Private draft"))).toBe(true);
+    await openRecovery(page);
+    await page.getByRole("button", { name: "Review versions" }).click();
+    await expect(page.getByRole("region", { name: "Review canvas versions" })).toBeVisible();
+    expect(await readFile(file, "utf8")).toBe(before);
     await page.getByRole("button", { name: "Use project version", exact: true }).click();
     await saved(page);
     expect((await durableNotes()).join()).toContain("Project note created in the other browser.");
@@ -1107,9 +1113,11 @@ test("two tabs merge independent notes and require review for overlapping edits"
   const resumeSaving = async (tab: Page, resume: () => void) => {
     // Focus before restoring the server: a pending autosave can then remove Retry.
     // Keyboard activation remains valid whether Retry submits or that save wins first.
+    await openRecovery(tab);
     await tab.getByRole("button", { name: "Retry save" }).focus();
     resume();
     await tab.keyboard.press("Enter");
+    await tab.keyboard.press("Escape");
   };
   await page.route(`**/api/projects/${projectId}/canvas`, (route) => route.request().method() === "PUT" && holdA ? route.abort() : route.continue());
   await other.route(`**/api/projects/${projectId}/canvas`, (route) => route.request().method() === "PUT" && holdB ? route.abort() : route.continue());
@@ -1134,8 +1142,9 @@ test("two tabs merge independent notes and require review for overlapping edits"
   await resumeSaving(other, () => { holdB = false; });
   await expect(other.locator('[data-save-status="conflict"]')).toBeVisible();
   const version = await readFile(join(root, "lexicon/canvas.json"), "utf8");
+  await openRecovery(other);
   await other.getByRole("button", { name: "Review versions" }).click();
-  await expect(other.getByRole("dialog", { name: "Review canvas versions" })).toBeVisible();
+  await expect(other.getByRole("region", { name: "Review canvas versions" })).toBeVisible();
   await other.getByRole("button", { name: "Use project version", exact: true }).click(); await saved(other);
   expect(await readFile(join(root, "lexicon/canvas.json"), "utf8")).toBe(version);
   await context.close();
@@ -1358,6 +1367,7 @@ test("dragging preserves a remote route and its label, including cancellation", 
   await page.getByRole("radio", { name: "Standard", exact: true }).check();
   const remote = page.locator('svg.canvas-connection:has([data-connection-id="relation:archived"])');
   const geometry = () => remote.evaluate(el => ({ path: el.querySelector('path')!.getAttribute('d'), x: el.querySelector('foreignObject')!.getAttribute('x'), y: el.querySelector('foreignObject')!.getAttribute('y') }));
+  await expect(page.locator('[data-route-morphing="true"]')).toHaveCount(0);
   const before = await geometry();
   const c = (await page.getByRole("button", { name: "concept: Order Total", exact: true }).boundingBox())!;
   await page.mouse.move(c.x + c.width / 2, c.y + c.height / 2);

@@ -1,7 +1,6 @@
 import type { Point } from "../graph/layout";
 
 export const morphDuration = 180;
-export const dragSettleDelay = 60;
 export const mixPoint = (a: Point, b: Point, t: number): Point => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
 export function routeStops(points: Point[]) {
   const result = [0];

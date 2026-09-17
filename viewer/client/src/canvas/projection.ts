@@ -21,8 +21,9 @@ import type {
 import { isModelShape, isPrimary, modelShapeId as referenceId } from "./references";
 import { relationshipRoute } from "./routes";
 import { labelBox } from "./route-labels";
-import { createRelationshipRouter, type RelationshipRoute } from "./scene-routing";
-import { connectionLabelWidth, objectFrame, objectSizes } from "./sizing";
+import type { RelationshipRoute } from "./scene-routing";
+import { createAsyncRelationshipRouter } from "./async-routing";
+import { connectionLabelWidth, isDirectory, objectFrame, objectSizes } from "./sizing";
 import { contextPreferences, diagramContextFrame, contextLabelFrame, isContext } from "./contexts";
 
 /** Semantic relationships and source links share orthogonal drawing and hit geometry. */
@@ -59,13 +60,24 @@ export function createProjection(
   scope?: string,
 ) {
   const modelShapeId = (id: string) => referenceId(id, scope);
-  const relationshipRouter = createRelationshipRouter();
-  const sourceRouter = createRelationshipRouter();
+  const canApplyRoutes = () => !disposed && editor.getCurrentPageId() === pageId && !editor.inputs.getIsDragging();
+  const routesChanged = () => { if (canApplyRoutes()) write(() => syncConnections(true)); };
+  const relationshipRouter = createAsyncRelationshipRouter(routesChanged, canApplyRoutes);
+  const sourceRouter = createAsyncRelationshipRouter(routesChanged, canApplyRoutes);
   let settleRoutes = false;
+  let disposed = false;
   let writing = false;
   let generation = 0;
   let connections: GraphConnection[] = [];
   let edgeIds = new Set<string>();
+  let edgesById = new Map<string, GraphConnection>();
+  let edgesByAnchor = new Map<string, GraphConnection>();
+  let previewFrame: number | undefined;
+  const cancelPreview = () => {
+    if (previewFrame !== undefined) cancelAnimationFrame(previewFrame);
+    previewFrame = undefined;
+    dirty.clear();
+  };
   let lanes = new Map<string, number>();
   let adjacency = new Map<string, Set<string>>();
   const dirty = new Set<string>();
@@ -95,11 +107,20 @@ export function createProjection(
   };
   const hidden = (id: string) =>
     !visible.has(id) || (!!focus && !focus.has(id));
-  const syncConnections = (incremental = false) => {
-    if (incremental) settleRoutes = true;
+  const syncConnections = (incremental = false, preview = false, affected?: Set<string>) => {
+    const current = affected
+      ? [...affected].flatMap(id => { const edge = edgesById.get(id); return edge ? [edge] : []; })
+      : connections;
+    // A moved code target may depend on a label whose relationship did not move.
+    const labelEdges = affected
+      ? [...new Map(current.flatMap(edge => {
+          const relationship = edge.kind === "relationship" ? edge : edgesByAnchor.get(edge.source);
+          return relationship ? [[relationship.id, relationship] as const] : [];
+        })).values()]
+      : connections;
     const anchors = new Map<string, Box>();
     // Scene bounds identify newly obstructed routes as well as incident edges.
-    const obstacles = [...vertices.keys()].flatMap(id => {
+    const obstacles = preview ? [] : [...vertices.keys()].flatMap(id => {
       if (hidden(id)) return [];
       const shape = editor.getShape<ObjectShape>(modelShapeId(id));
       if (!shape || shape.type !== "lexicon-object") return [];
@@ -108,14 +129,18 @@ export function createProjection(
       const point = editor.getShapePageTransform(shape).applyToPoint(frame);
       return [{ id, ...point, width: frame.w, height: frame.h }];
     });
+    const boundsCache = new Map<string, Box | undefined>();
     const bounds = (id: string) => {
+      if (boundsCache.has(id)) return boundsCache.get(id);
       const shape = editor.getShape<ObjectShape>(modelShapeId(id));
       if (!shape || shape.type !== "lexicon-object") return;
       const frame = isContext(shape) ? diagramContextFrame(editor, shape) : objectFrame(editor, shape, vertices.get(id), false);
       const point = editor.getShapePageTransform(shape).applyToPoint(frame);
-      return { ...point, width: frame.w, height: frame.h };
+      const box = { ...point, width: frame.w, height: frame.h };
+      boundsCache.set(id, box);
+      return box;
     };
-    const routed = relationshipRouter.route(connections.flatMap(edge => {
+    const relationshipEdges = current.flatMap(edge => {
       if (edge.kind !== "relationship" || hidden(edge.id)) return [];
       const source = bounds(edge.source), target = bounds(edge.target);
       if (!source || !target) return [];
@@ -123,10 +148,12 @@ export function createProjection(
       return [{ id: edge.id, sourceId: edge.source, targetId: edge.target, source, target,
         lane: edge.source < edge.target ? lane : -lane,
         labelWidth: connectionLabelWidth(editor, edge.label) }];
-    }), obstacles, incremental);
+    });
+    const routed = preview ? relationshipRouter.preview(relationshipEdges)
+      : relationshipRouter.read(relationshipEdges, obstacles, false, incremental);
     // Source links can originate at a relationship label, so route semantic edges
     // first. Both passes use the same ports, obstacle avoidance, and label placement.
-    const relationshipLabels = connections.flatMap(edge => {
+    const relationshipLabels = labelEdges.flatMap(edge => {
       if (edge.kind !== "relationship") return [];
       const route = routed.get(edge.id);
       const existing = !route && editor.getShape<ConnectionShape>(modelShapeId(edge.id));
@@ -137,7 +164,7 @@ export function createProjection(
       anchors.set(id, labelBox(position, width, 0));
       return route ? [{ id, ...labelBox(route, width) }] : [];
     });
-    const sourceRoutes = sourceRouter.route(connections.flatMap(edge => {
+    const sourceEdges = current.flatMap(edge => {
       if (edge.kind !== "mapping" || hidden(edge.id)) return [];
       const source = bounds(edge.source) || anchors.get(edge.source), target = bounds(edge.target);
       if (!source || !target) return [];
@@ -145,9 +172,17 @@ export function createProjection(
       return [{ id: edge.id, sourceId: edge.source, targetId: edge.target, source, target,
         lane: edge.source < edge.target ? lane : -lane,
         labelWidth: connectionLabelWidth(editor, edge.label) }];
-    }), [...obstacles, ...relationshipLabels], incremental);
+    });
+    const sourceRoutes = preview ? sourceRouter.preview(sourceEdges)
+      : sourceRouter.read(sourceEdges, [...obstacles, ...relationshipLabels], false, incremental);
     for (const [id, route] of sourceRoutes) routed.set(id, route);
-    for (const edge of connections) {
+    for (const edge of current) {
+      if (hidden(edge.id) && editor.getShape(modelShapeId(edge.id))) {
+        const shape = editor.getShape<ConnectionShape>(modelShapeId(edge.id));
+        if (shape && !shape.meta.lexiconHidden) editor.updateShape({ id: shape.id, type: shape.type,
+          meta: { ...shape.meta, lexiconHidden: true } });
+        continue;
+      }
       const a =
         bounds(edge.source) ||
         anchors.get(edge.source);
@@ -160,7 +195,7 @@ export function createProjection(
         edge.source < edge.target ? lane : -lane,
         edge.source === edge.target,
         edge.label,
-        obstacles.filter(o => o.id !== edge.source && o.id !== edge.target),
+        undefined,
         routed.get(edge.id),
         connectionLabelWidth(editor, edge.label),
       );
@@ -199,9 +234,15 @@ export function createProjection(
         });
     }
   };
-  const queueContext = (shape: TLShape) => {
-    const parent = editor.getShape(shape.parentId);
-    if (parent && isContext(parent)) markConnections(parent.props.graphId);
+  const queueAncestorConnections = (shape: TLShape) => {
+    // Fitted frames depend recursively on descendants, even when an ancestor's
+    // own record is unchanged. Its incident edges must follow the derived frame.
+    let parent = editor.getShape(shape.parentId);
+    while (parent) {
+      if (parent.type === "lexicon-object" && (isContext(parent) || isDirectory(parent)))
+        markConnections(parent.props.graphId);
+      parent = editor.getShape(parent.parentId);
+    }
   };
   const disposes = [
     editor.sideEffects.registerBeforeDeleteHandler("shape", (shape) => {
@@ -261,7 +302,10 @@ export function createProjection(
     ),
     editor.sideEffects.registerAfterChangeHandler("shape", (previous, next) => {
       if (next.type !== "lexicon-object" || editor.getAncestorPageId(next) !== pageId) return;
-      if (!writing && (previous.x !== next.x || previous.y !== next.y || JSON.stringify(previous.props) !== JSON.stringify(next.props))) queueContext(next);
+      if (!writing && (previous.x !== next.x || previous.y !== next.y || previous.parentId !== next.parentId || JSON.stringify(previous.props) !== JSON.stringify(next.props))) {
+        queueAncestorConnections(next);
+        if (previous.parentId !== next.parentId) queueAncestorConnections(previous);
+      }
       if (!isPrimary(next)) return;
       if (
         !writing &&
@@ -293,20 +337,35 @@ export function createProjection(
           });
       });
     }),
-    editor.sideEffects.registerAfterCreateHandler("shape", shape => { if (!writing && shape.type === "lexicon-object" && editor.getAncestorPageId(shape) === pageId) queueContext(shape); }),
-    editor.sideEffects.registerAfterDeleteHandler("shape", shape => { if (!writing && shape.type === "lexicon-object" && editor.getAncestorPageId(shape) === pageId) queueContext(shape); }),
+    editor.sideEffects.registerAfterCreateHandler("shape", shape => { if (!writing && shape.type === "lexicon-object" && editor.getAncestorPageId(shape) === pageId) queueAncestorConnections(shape); }),
+    editor.sideEffects.registerAfterDeleteHandler("shape", shape => { if (!writing && shape.type === "lexicon-object" && editor.getAncestorPageId(shape) === pageId) queueAncestorConnections(shape); }),
     editor.sideEffects.registerOperationCompleteHandler(() => {
       if (!writing && dirty.size) {
-        dirty.clear();
-        write(() => syncConnections(editor.inputs.getIsDragging()));
+        const dragging = editor.inputs.getIsDragging();
+        settleRoutes = dragging;
+        if (dragging) {
+          if (previewFrame === undefined) previewFrame = requestAnimationFrame(() => {
+            previewFrame = undefined;
+            const affected = new Set(dirty);
+            dirty.clear();
+            if (disposed || editor.getCurrentPageId() !== pageId) return;
+            if (editor.inputs.getIsDragging()) write(() => syncConnections(true, true, affected));
+            else { settleRoutes = false; write(() => syncConnections(true)); }
+          });
+        } else {
+          cancelPreview();
+          write(() => syncConnections(!isHistoryReplay(editor)));
+        }
       }
     }),
   ];
 
   const settle = () => {
-    if (!settleRoutes || editor.inputs.getIsDragging()) return;
+    if ((!settleRoutes && !relationshipRouter.needsRetry() && !sourceRouter.needsRetry()) ||
+      !canApplyRoutes()) return;
     settleRoutes = false;
-    write(() => syncConnections());
+    cancelPreview();
+    write(() => syncConnections(true));
   };
   editor.on("event", settle);
   disposes.push(() => { editor.off("event", settle); });
@@ -321,6 +380,10 @@ export function createProjection(
       available: Projection = full,
       recordHistory = rearrange,
     ) {
+      cancelPreview();
+      relationshipRouter.invalidate(true);
+      sourceRouter.invalidate(true);
+      settleRoutes = false;
       const token = ++generation;
       const availableIds = new Set([...available.nodes, ...available.connections].map(item => item.id));
       // Materialize code only when it is opened, preserving previously placed references.
@@ -424,7 +487,9 @@ export function createProjection(
       connections.sort(
         (a, b) => Number(a.kind === "mapping") - Number(b.kind === "mapping"),
       );
-      edgeIds = new Set(connections.map((e) => e.id));
+      edgesById = new Map(connections.map(edge => [edge.id, edge]));
+      edgesByAnchor = new Map(connections.filter(edge => edge.kind === "relationship").map(edge => [anchorId(edge.id), edge]));
+      edgeIds = new Set(edgesById.keys());
       adjacency = new Map();
       lanes = new Map();
       const peers = new Map<string, GraphConnection[]>();
@@ -553,11 +618,14 @@ export function createProjection(
           if (territory !== shape.props.territory)
             editor.updateShape<ObjectShape>({ id: shape.id, type: shape.type, props: { territory } });
         }
-        syncConnections();
+        syncConnections(false, editor.inputs.getIsDragging());
         if (newEdges.length) editor.sendToBack(newEdges);
         if (newGroups.length) editor.sendToBack(newGroups);
       }, recordHistory);
-      return true;
+      // Semantic label anchors settle before their dependent source links.
+      await relationshipRouter.whenIdle();
+      await sourceRouter.whenIdle();
+      return token === generation;
     },
     visibleIds(): TLShapeId[] {
       return [...visible]
@@ -567,7 +635,11 @@ export function createProjection(
     },
     write,
     dispose() {
+      disposed = true;
+      cancelPreview();
       generation++;
+      relationshipRouter.dispose();
+      sourceRouter.dispose();
       disposes.forEach((dispose) => dispose());
     },
   };

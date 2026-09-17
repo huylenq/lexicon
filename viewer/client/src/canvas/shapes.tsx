@@ -326,10 +326,10 @@ function ConnectionCard({ shape }: { shape: ConnectionShape }) {
   const p = shape.props;
   const road = useValue("Visible relationship route", () => roadInput(editor, shape), [editor, shape]);
   const drawing = useValue("Rounded relationship drawing", () => connectionDrawing(shape, editor), [editor, shape]);
-  const label = road || p;
+  const label = road || (drawing.label ? { labelX: drawing.label.x, labelY: drawing.label.y } : p);
   const dragging = useValue("Dragging relationship endpoints", () => editor.inputs.getIsDragging(), [editor]);
-  // A morph must not reconnect underpass gaps or drift a bridge off its crossing.
-  const morph = useRouteMorph(road?.points || drawing.points, { x: label.labelX, y: label.labelY }, { x: shape.x, y: shape.y }, dragging, isPrimary(shape) && (!!road || !drawing.hitPaths));
+  // Standard centerlines morph together before the scene adds crossing bridges/gaps.
+  const morph = useRouteMorph(road?.points || drawing.points, { x: label.labelX, y: label.labelY }, { x: shape.x, y: shape.y }, dragging, isPrimary(shape) && !!road);
   const marker = `arrow-${encodeURIComponent(shape.id)}`;
   const end = morph.points.at(-1) || { x: 0, y: 0 };
   const before = morph.points.at(-2) || end;
@@ -345,7 +345,7 @@ function ConnectionCard({ shape }: { shape: ConnectionShape }) {
       data-flow-highlight={flow || undefined}
       data-atlas-road={isAtlasRoad(shape, model) || undefined}
     >
-      <g data-route-current="true" data-route-morphing={morph.animating || undefined}>
+      <g data-route-current="true" data-route-morphing={morph.animating || drawing.animating || undefined}>
       <path
         d={morph.animating ? pathFor(morph.points) : drawing.path}
         fill="none"
@@ -448,8 +448,8 @@ export class LexiconConnectionUtil extends ShapeUtil<ConnectionShape> {
       children: [
         ...routeGeometry,
         new Rectangle2d({
-          x: (road || p).labelX - p.labelWidth / 2,
-          y: (road || p).labelY - 15,
+          x: (road?.labelX ?? drawing?.label?.x ?? p.labelX) - p.labelWidth / 2,
+          y: (road?.labelY ?? drawing?.label?.y ?? p.labelY) - 15,
           width: p.labelWidth,
           height: 30,
           isFilled: true,

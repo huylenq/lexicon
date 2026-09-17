@@ -16,6 +16,7 @@ test("restoring a nested source file retains every layout ancestor", async () =>
   });
   const shapes = new Map<string, any>();
   const editor = {
+    inputs: { getIsDragging: () => false },
     getCurrentPageId: () => "page:test",
     getShape: (id: string) => shapes.get(id),
     getCurrentPageShapes: () => [...shapes.values()],

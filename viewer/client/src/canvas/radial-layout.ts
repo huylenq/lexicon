@@ -91,3 +91,12 @@ export function radialPositions(anchor: RadialBox, count: number, obstacles: Rad
   }
   return best;
 }
+
+/** Conservative bounds of every icon/name candidate evaluated by radialPositions. */
+export function radialCandidateBounds(anchor: RadialBox, count: number, names: { w: number; h: number }[]): RadialBox {
+  const radius = gap + size / 2, pitch = size + 12;
+  const capacity = Math.max(1, Math.floor((2 * (anchor.w + anchor.h) + 2 * Math.PI * radius) / pitch));
+  const rings = Math.floor(Math.max(0, count - 1) / capacity);
+  const padding = radius + rings * pitch + size / 2 + Math.max(0, ...names.map(n => Math.max(n.w, n.h)));
+  return { x: anchor.x - padding, y: anchor.y - padding, w: anchor.w + padding * 2, h: anchor.h + padding * 2 };
+}

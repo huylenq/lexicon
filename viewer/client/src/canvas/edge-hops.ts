@@ -1,7 +1,7 @@
 import type { Box, Point } from "../graph/layout";
 import { bezierPoint, bezierSamples, bezierSlice, cross, distanceAt, parameterAt, refineCrossing, subtract, type CurveSample } from "./edge-beziers";
 
-export type EdgeDrawing = { path: string; points: Point[]; hitPaths?: Point[][] };
+export type EdgeDrawing = { path: string; points: Point[]; hitPaths?: Point[][]; label?: Point; animating?: boolean };
 export type HopRoute = { id: string; x: number; y: number; drawing: EdgeDrawing };
 export const hopRadius = 6;
 const clearance = hopRadius + 3, underpassHalfGap = 2.5, cellSize = 128;
@@ -113,7 +113,7 @@ export function crossingDrawings(routes: HopRoute[], obstacles: Box[] = []) {
       for (const v of crossed) mark(v, h.a.y - v.route.y, false);
     }
   }
-  const bridges = curveCrossings(pieces, occupied, blockers, marks);
+  const bridges = generalCrossings(pieces, occupied, blockers, marks);
   return new Map(routes.map(route => [route.id, marks.has(route.id)
     ? draw(parsed.get(route.id)!, marks.get(route.id)!)
     : bridges.has(route.id) ? { ...route.drawing, hitPaths: [route.drawing.points] } : route.drawing]));
@@ -124,7 +124,10 @@ function draw(parts: Command[], marks: Map<number, Mark[]>): EdgeDrawing {
   const points: Point[] = [], hitPaths: Point[][] = [];
   const push = (p: Point) => { points.push(p); hitPaths.at(-1)!.push(p); current = p; };
   const move = (p: Point) => { path += `M ${p.x} ${p.y} `; hitPaths.push([]); push(p); };
-  const line = (p: Point) => { path += `L ${p.x} ${p.y} `; push(p); };
+  const line = (p: Point) => {
+    if (current.x === p.x && current.y === p.y) return;
+    path += `L ${p.x} ${p.y} `; push(p);
+  };
   const bezier = (controls: Point[]) => {
     path += `${controls.length === 3 ? "Q" : "C"} ${controls.slice(1).map(p => `${p.x} ${p.y}`).join(" ")} `;
     if (controls.length === 3) {
@@ -180,7 +183,7 @@ function draw(parts: Command[], marks: Map<number, Mark[]>): EdgeDrawing {
     }
     line(end);
   }
-  return { path: path.trim(), points, hitPaths };
+  return { path: path.trim(), points, hitPaths: hitPaths.filter(part => part.length > 1) };
 }
 
 function mergeIntervals(intervals: { lo: number; hi: number; hop: boolean }[]) {
@@ -193,13 +196,29 @@ function mergeIntervals(intervals: { lo: number; hi: number; hop: boolean }[]) {
   return merged;
 }
 
-function curveCrossings(pieces: Piece[], grid: EdgeSpatialGrid<Piece>, blockers: EdgeSpatialGrid<Box>, marks: Map<string, Map<number, Mark[]>>) {
+const diagonal = (piece: Piece) => !piece.curved && piece.controls[0].x !== piece.controls[1].x && piece.controls[0].y !== piece.controls[1].y;
+const needsGeneralCrossing = (piece: Piece) => piece.curved || diagonal(piece);
+
+/** Curves and intermediate diagonal morph segments keep an exact underpass.
+ * Axis-aligned pairs retain the raised horizontal hops handled above. */
+function generalCrossings(pieces: Piece[], grid: EdgeSpatialGrid<Piece>, blockers: EdgeSpatialGrid<Box>, marks: Map<string, Map<number, Mark[]>>) {
   const bridges = new Set<string>();
-  if (!pieces.some(p => p.curved)) return bridges;
+  const candidates = pieces.filter(needsGeneralCrossing);
+  if (!candidates.length) return bridges;
+  const commands = new Map<string, Map<number, Piece>>();
+  for (const piece of pieces) {
+    let route = commands.get(piece.route.id);
+    if (!route) commands.set(piece.route.id, route = new Map());
+    route.set(piece.command, piece);
+  }
   const seen = new Set<string>();
-  for (const over of pieces.filter(piece => piece.curved)) for (const under of grid.query(over.box)) {
-    // Curves pass over lines; two curves use stable identity, independent of paint order.
-    if (over.route.id === under.route.id || (under.curved && over.route.id > under.route.id) || !overlaps(over.box, under.box)) continue;
+  for (const candidate of candidates) for (const other of grid.query(candidate.box)) {
+    if (candidate.route.id === other.route.id || (needsGeneralCrossing(other) && candidate.route.id > other.route.id) || !overlaps(candidate.box, other.box)) continue;
+    // Curves pass over lines. Horizontal lines remain above diagonals, and
+    // diagonals above verticals. Two curves or diagonals use stable identity,
+    // independent of paint order and segment direction.
+    const otherAbove = !candidate.curved && (other.curved || other.controls[0].y === other.controls[1].y);
+    const [over, under] = otherAbove ? [other, candidate] : [candidate, other];
     // Sample only candidate curves, once each; distant rounded corners need no subdivision.
     const overSamples = over.samples ||= bezierSamples(over.controls), underSamples = under.samples ||= bezierSamples(under.controls);
     for (let ai = 1; ai < overSamples.length; ai++) for (let bi = 1; bi < underSamples.length; bi++) {
@@ -220,14 +239,25 @@ function curveCrossings(pieces: Piece[], grid: EdgeSpatialGrid<Piece>, blockers:
       if ([over, under].some(piece => [piece.route.drawing.points[0], piece.route.drawing.points.at(-1)!].some(p =>
         Math.hypot(point.x - p.x - piece.route.x, point.y - p.y - piece.route.y) < clearance))) continue;
       const distance = distanceAt(underSamples, hit.u), halfGap = underpassHalfGap / hit.sine;
-      // Keep cuts inside their drawing command, clear of a bend or route endpoint.
-      if (distance <= halfGap || underSamples.at(-1)!.distance - distance <= halfGap) continue;
-      let lo = parameterAt(underSamples, distance - halfGap), hi = parameterAt(underSamples, distance + halfGap);
+      // A morph's rounded bend is sampled into short line commands. Carry its
+      // gap across adjacent lines so crossing a sample boundary cannot close it.
       if (!under.curved) {
-        const horizontal = Math.abs(under.controls[1].x - under.controls[0].x) >= Math.abs(under.controls[1].y - under.controls[0].y);
-        const axis = (t: number) => { const p = bezierPoint(under.controls, t); return horizontal ? p.x - under.route.x : p.y - under.route.y; };
-        const ends = [axis(lo), axis(hi)]; lo = Math.min(...ends); hi = Math.max(...ends);
+        const gaps = linearGap(under, distance, halfGap, commands.get(under.route.id)!);
+        if (!gaps || gaps.some(gap => (marks.get(under.route.id)?.get(gap.command) || []).some(mark =>
+          mark.hop && mark.at + hopRadius > gap.lo && mark.at - hopRadius < gap.hi))) continue;
+        let routeMarks = marks.get(under.route.id);
+        if (!routeMarks) marks.set(under.route.id, routeMarks = new Map());
+        for (const gap of gaps) {
+          const list = routeMarks.get(gap.command) || [];
+          list.push({ at: 0, hop: false, lo: gap.lo, hi: gap.hi });
+          routeMarks.set(gap.command, list);
+        }
+        bridges.add(over.route.id);
+        continue;
       }
+      // Curves retain exact cuts inside their original drawing command.
+      if (distance <= halfGap || underSamples.at(-1)!.distance - distance <= halfGap) continue;
+      const lo = parameterAt(underSamples, distance - halfGap), hi = parameterAt(underSamples, distance + halfGap);
       let routeMarks = marks.get(under.route.id);
       if (!routeMarks) marks.set(under.route.id, routeMarks = new Map());
       const gaps = routeMarks.get(under.command) || [];
@@ -237,4 +267,30 @@ function curveCrossings(pieces: Piece[], grid: EdgeSpatialGrid<Piece>, blockers:
     }
   }
   return bridges;
+}
+
+/** Return line-local intervals, or decline if the gap would cross a move/curve. */
+function linearGap(piece: Piece, distance: number, halfGap: number, commands: Map<number, Piece>) {
+  const length = (p: Piece) => Math.hypot(p.controls[1].x - p.controls[0].x, p.controls[1].y - p.controls[0].y);
+  const result: { command: number; lo: number; hi: number }[] = [];
+  let first = piece, lo = distance - halfGap, hi = distance + halfGap;
+  while (lo < 0) {
+    const previous = commands.get(first.command - 1);
+    if (!previous || previous.curved) return;
+    first = previous;
+    const n = length(first); lo += n; hi += n;
+  }
+  for (let current: Piece | undefined = first; current; current = commands.get(current.command + 1)) {
+    if (current.curved) return;
+    const n = length(current), [a, b] = current.controls, { route } = current;
+    if (n) {
+      const horizontal = Math.abs(b.x - a.x) >= Math.abs(b.y - a.y);
+      const axis = (distance: number) => horizontal ? a.x + (b.x - a.x) * distance / n - route.x
+        : a.y + (b.y - a.y) * distance / n - route.y;
+      const ends = [axis(lo), axis(Math.min(hi, n))];
+      result.push({ command: current.command, lo: Math.min(...ends), hi: Math.max(...ends) });
+    }
+    if (hi <= n) return result;
+    lo = 0; hi -= n;
+  }
 }

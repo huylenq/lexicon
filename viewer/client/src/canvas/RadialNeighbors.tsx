@@ -8,7 +8,7 @@ import Icon from "../Icon";
 import { useReaderHover } from "../ReaderHover";
 import { holdNeighborAnchor, neighborAnchors, neighborEdges } from "./NeighborHighlight";
 import { canvasPresentation } from "./presentation";
-import { radialPositions, type RadialBox } from "./radial-layout";
+import { radialCandidateBounds, radialPositions, type RadialBox } from "./radial-layout";
 import "./radial-neighbors.css";
 import { routeObstacles } from "./radial-obstacles";
 type Position = { x: number; y: number; dx: number; dy: number; nameSide?: "left" | "right"; nameWidth?: number };
@@ -90,6 +90,11 @@ function RadialRing({ editor, neighbors, exiting, onInside, onNavigate }: {
       let next: typeof positions = [];
       if (bounds?.width && bounds.height) {
         const box = (b: DOMRect): RadialBox => ({ x: b.x, y: b.y, w: b.width, h: b.height });
+        const viewport = editor.getContainer().getBoundingClientRect();
+        const x = Math.max(8, viewport.left), y = Math.max(8, viewport.top);
+        const availableWidth = Math.max(32, Math.min(window.innerWidth - 8, viewport.right) - x);
+        measureNames(Math.max(32, Math.min(360, availableWidth - 38)));
+        const candidates = radialCandidateBounds(box(bounds), labels.length, names);
         const obstacles = [...editor.getContainer().querySelectorAll('.canvas-object')].filter(el => el !== source).map(el =>
           box((el.classList.contains('canvas-group') ? el.querySelector('.canvas-object-heading') ?? el : el).getBoundingClientRect()));
         // Include relationship text, arrowheads, and the actual curved/orthogonal routes.
@@ -98,6 +103,10 @@ function RadialRing({ editor, neighbors, exiting, onInside, onNavigate }: {
           if (b.width && b.height) obstacles.push(box(b));
         }
         for (const path of editor.getContainer().querySelectorAll<SVGPathElement>('[data-route-current] > path, .map-road-bank, .map-road-direction')) {
+          // Paths outside all candidate icon/name positions contribute zero overlap.
+          const b = path.getBoundingClientRect();
+          if (b.right + 3 < candidates.x || b.left - 3 > candidates.x + candidates.w ||
+              b.bottom + 3 < candidates.y || b.top - 3 > candidates.y + candidates.h) continue;
           const matrix = path.getScreenCTM();
           if (!matrix) continue;
           const key = `${path.getAttribute('d')}:${matrix.toString()}`;
@@ -109,10 +118,6 @@ function RadialRing({ editor, neighbors, exiting, onInside, onNavigate }: {
           const b = el.getBoundingClientRect();
           if (b.width && b.height) obstacles.push(box(b));
         }
-        const viewport = editor.getContainer().getBoundingClientRect();
-        const x = Math.max(8, viewport.left), y = Math.max(8, viewport.top);
-        const availableWidth = Math.max(32, Math.min(window.innerWidth - 8, viewport.right) - x);
-        measureNames(Math.max(32, Math.min(360, availableWidth - 38)));
         const geometry = JSON.stringify([box(bounds), obstacles, box(viewport), window.innerWidth, window.innerHeight, names]);
         if (geometry === lastGeometry) { frame = requestAnimationFrame(place); return; }
         lastGeometry = geometry;

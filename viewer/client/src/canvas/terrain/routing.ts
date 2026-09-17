@@ -1,11 +1,12 @@
-import { computed, type Editor } from "tldraw";
+import { atom, computed, type Editor } from "tldraw";
 import type { Box, Point } from "../../graph/layout";
 import { canvasPresentation } from "../presentation";
 import { contextFrame, contextLabelFrame, contextTerritory, isContext } from "../contexts";
 import { objectFrame } from "../sizing";
 import { isPrimary, primaryShapesOnPage } from "../references";
 import { relationshipRoute } from "../routes";
-import { createRelationshipRouter, type SceneRelationship, type SceneObstacles, type SceneObstacle, type RelationshipRoute } from "../scene-routing";
+import type { SceneRelationship, SceneObstacles, SceneObstacle, RelationshipRoute } from "../scene-routing";
+import { createAsyncRelationshipRouter } from "../async-routing";
 import { borderPort } from "../territory";
 import { choice, dockRoad, isAtlasLandmark, landmarkFor, landmarkPlacement, paths, type PathKind } from "./generate";
 import { villageLandmarkPlacement } from "./village";
@@ -116,18 +117,34 @@ function attachCoasts(route: RelationshipRoute, details: RoadDetails): AtlasRout
 
 /** One page-space scene feeds paint, native hit geometry, labels, and terrain. */
 function createAtlasRouting(editor: Editor) {
-  const router = createRelationshipRouter();
   let previousKey = "", previous = new Map<string, AtlasRoute>();
+  let pageId = editor.getCurrentPageId();
+  const revision = atom("Atlas settled routing", 0);
+  const router = createAsyncRelationshipRouter(() => {
+    previousKey = "";
+    revision.set(revision.get() + 1);
+  }, () => !editor.inputs.getIsDragging() && editor.getCurrentPageId() === pageId && canvasPresentation(editor).get().mapEnabled);
+  editor.disposables.add(() => router.dispose());
   return computed("Atlas relationship routes", () => {
+    revision.get();
     const view = canvasPresentation(editor).get();
-    if (!view.mapEnabled) return new Map<string, AtlasRoute>();
+    if (!view.mapEnabled) {
+      router.invalidate();
+      previousKey = "";
+      return new Map<string, AtlasRoute>();
+    }
+    if (pageId !== editor.getCurrentPageId()) {
+      pageId = editor.getCurrentPageId();
+      router.invalidate(true);
+      previousKey = "";
+    }
     const shapes = primaryShapesOnPage(editor);
     const { endpoints, obstacles } = collectLandmarks(editor, view, shapes);
     const { edges, details } = collectRoads(editor, view, endpoints, shapes);
     const dragging = editor.inputs.getIsDragging();
-    const key = JSON.stringify([edges, obstacles, [...details].map(([id, d]) => [id, d.kind, d.source.coast, d.target.coast]), dragging]);
+    const key = JSON.stringify([pageId, edges, obstacles, [...details].map(([id, d]) => [id, d.kind, d.source.coast, d.target.coast]), dragging]);
     if (key === previousKey) return previous;
-    const routes = router.route(edges, obstacles, dragging);
+    const routes = router.read(edges, obstacles, dragging);
     const result = new Map([...routes].map(([id, route]) => [id, attachCoasts(route, details.get(id)!)]));
     previousKey = key;
     previous = result;

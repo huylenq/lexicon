@@ -141,3 +141,73 @@ test("a short dogleg moves its bend to fit a long label without covering an arro
   expect(label.x).toBeGreaterThan(source.x + source.width + 24);
   expect(label.x + label.width).toBeLessThan(edge.target.x - 24);
 });
+
+
+describe("drag previews", () => {
+  test("endpoint previews leave the settled cache untouched and retain remote routes", () => {
+    const router = createRelationshipRouter();
+    const far = { ...edges[0], id: "far", sourceId: "f1", targetId: "f2",
+      source: { ...source, y: 700 }, target: { ...target, y: 700 } };
+    const scene = [edges[0], far];
+    const initial = router.route(scene, [obstacle]);
+    const stats = { ...router.stats };
+    for (let x = 1; x <= 100; x++) {
+      const moved = [{ ...edges[0], source: { ...source, x: -x } }, far];
+      const preview = router.preview(moved);
+      expect(preview.get("far")).toBe(initial.get("far"));
+      expect(preview.get("a")!.points[0].x).toBe(initial.get("a")!.points[0].x - x);
+      expect(preview.get("a")!.points.at(-1)).toEqual(initial.get("a")!.points.at(-1));
+    }
+    expect(router.stats).toEqual(stats);
+    expect(router.preview(scene).get("a")).toBe(initial.get("a"));
+    const moved = [{ ...edges[0], source: { ...source, x: -100 } }, far];
+    const settled = router.route(moved, [obstacle], true);
+    expect(router.stats).toEqual({ reused: 1, routed: 1 });
+    expect(settled.get("far")).toBe(initial.get("far"));
+    router.route(moved, [obstacle], true);
+    expect(router.stats).toEqual({ reused: 2, routed: 0 });
+  });
+
+  test("previews translate self loops and resize ports without drift", () => {
+    const router = createRelationshipRouter();
+    const loop = { ...edges[0], targetId: "source", target: source };
+    const initial = router.route([loop], []).get(loop.id)!;
+    const translated = { ...source, x: source.x + 50, y: source.y + 30 };
+    const preview = router.preview([{ ...loop, source: translated, target: translated }]).get(loop.id)!;
+    expect(preview.points).toEqual(initial.points.map(p => ({ x: p.x + 50, y: p.y + 30 })));
+    expect(preview.x).toBeCloseTo(initial.x + 50);
+    expect(preview.y).toBeCloseTo(initial.y + 30);
+    const resized = { ...source, width: source.width * 2, height: source.height * 2 };
+    const next = router.preview([{ ...loop, source: resized, target: resized }]).get(loop.id)!;
+    for (const i of [0, next.points.length - 1]) {
+      expect(next.points[i]).toEqual({ x: source.x + (initial.points[i].x - source.x) * 2,
+        y: source.y + (initial.points[i].y - source.y) * 2 });
+    }
+  });
+
+  test("moving one neighbor freezes other ports and keeps incident previews orthogonal", () => {
+    const router = createRelationshipRouter();
+    const other = { ...edges[1], sourceId: "neighbor", source: { ...source, y: 300 } };
+    const scene = [edges[0], other];
+    const initial = router.route(scene, [obstacle]);
+    for (const position of [{ x: 850, y: 100 }, { x: 700, y: -300 }, { x: 700, y: 500 }]) {
+      const moved = [{ ...edges[0], source: { ...source, ...position } }, other];
+      const preview = router.preview(moved);
+      expect(preview.get(other.id)).toBe(initial.get(other.id));
+      const route = preview.get(edges[0].id)!;
+      expect(route.points.at(-1)).toEqual(initial.get(edges[0].id)!.points.at(-1));
+      for (const { a, b } of routeRuns(route.points)) expect(a.x === b.x || a.y === b.y).toBe(true);
+    }
+  });
+
+  test("an isolated moving obstacle is deferred until settlement", () => {
+    const router = createRelationshipRouter();
+    const initial = router.route(edges, [obstacle]);
+    expect(router.preview(edges)).toEqual(initial);
+    const moved = { ...obstacle, y: 20 };
+    const settled = router.route(edges, [moved], true);
+    expect(router.stats.routed).toBeGreaterThan(0);
+    for (const route of settled.values()) for (const run of routeRuns(route.points))
+      expect(segmentBlocked(run.a, run.b, [moved])).toBe(false);
+  });
+});

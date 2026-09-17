@@ -5,6 +5,7 @@ import { labelBox } from "./route-labels";
 import type { Box, Point } from "../graph/layout";
 import { canvasPresentation, type CanvasPresentation } from "./presentation";
 import { isPrimary } from "./references";
+import { createSceneMorph } from "./scene-morph";
 import { choice, paths } from "./terrain/generate";
 
 /** Matches the Standard path hidden by Atlas's road renderer. */
@@ -95,15 +96,17 @@ function baseDrawing(shape: ConnectionShape, radius: number, obstacles: Box[] = 
 
 function createDrawingScene(editor: Editor, exportedShapes?: () => ConnectionShape[]) {
   let previousKey = "", previous = new Map<string, EdgeDrawing>();
+  const animate = exportedShapes || typeof window === "undefined" ? undefined : createSceneMorph(editor);
   return computed("Diagram crossing drawings", () => {
     const radius = edgeCornerRadius.get(), hops = edgeCrossingHops.get();
     // SVG exports draw Standard geometry and have their own included shape set.
     const view = canvasPresentation(editor).get();
     const shapes = (exportedShapes ? exportedShapes() : editor.getCurrentPageShapes()).filter((s): s is ConnectionShape =>
       s.type === "lexicon-connection" && !editor.isShapeHidden(s) && (!!exportedShapes || !isAtlasRoad(s, view)));
-    const entries = shapes.map(shape => ({ shape, transform: editor.getShapePageTransform(shape) }));
+    const displayed = animate ? animate(shapes) : shapes.map(shape => ({ shape, animating: false }));
+    const entries = displayed.map(({ shape, animating }) => ({ shape, animating, transform: editor.getShapePageTransform(shape) }));
     // Camera, selection, hover, and unrelated document changes reuse the scene.
-    const key = JSON.stringify([radius, hops, entries.map(({ shape, transform }) => [shape.id, shape.props, transform])]);
+    const key = JSON.stringify([radius, hops, entries.map(({ shape, transform, animating }) => [shape.id, shape.props, transform, animating])]);
     if (key === previousKey) return previous;
     const labels = entries.map(({ shape, transform }) => {
       const box = labelBox({ x: shape.props.labelX, y: shape.props.labelY }, shape.props.labelWidth);
@@ -133,10 +136,16 @@ function createDrawingScene(editor: Editor, exportedShapes?: () => ConnectionSha
       }
     }
     if (hops) for (const [id, drawing] of crossingDrawings(routes, pageLabels.map(label => label.box))) result.set(id, drawing);
+    for (const { shape, animating } of entries) {
+      if (!animating) continue;
+      const drawing = result.get(shape.id)!;
+      result.set(shape.id, { ...drawing, animating, label: { x: shape.props.labelX, y: shape.props.labelY } });
+    }
     // Unchanged paths keep their identity, so moving one edge does not repaint the page.
     for (const [id, drawing] of result) {
       const saved = previous.get(id);
-      if (saved?.path === drawing.path && !!saved.hitPaths === !!drawing.hitPaths) result.set(id, saved);
+      if (saved?.path === drawing.path && !!saved.hitPaths === !!drawing.hitPaths && saved.animating === drawing.animating
+          && saved.label?.x === drawing.label?.x && saved.label?.y === drawing.label?.y) result.set(id, saved);
     }
     previousKey = key; previous = result;
     return result;
@@ -165,7 +174,7 @@ export async function connectionExportDrawing(shape: ConnectionShape, editor: Ed
 
 export function connectionDrawing(shape: ConnectionShape, editor?: Editor): EdgeDrawing {
   const radius = edgeCornerRadius.get();
-  if (!editor || (!radius && !edgeCrossingHops.get())) return baseDrawing(shape, radius);
+  if (!editor) return baseDrawing(shape, radius);
   let scene = scenes.get(editor);
   if (!scene) { scene = createDrawingScene(editor); scenes.set(editor, scene); }
   return scene.get().get(shape.id) || baseDrawing(shape, radius);

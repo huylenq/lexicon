@@ -54,6 +54,45 @@ test("translated copies share page-space crossings without changing local endpoi
   v.x += 100;
   expect(crossingDrawings([h, v]).get(h.id)).toBe(h.drawing);
 });
+test("diagonal crossings keep exact gaps with stable ordering and reversed directions", () => {
+  const definitions = [
+    [route("diagonal", [{ x: 0, y: 0 }, { x: 100, y: 100 }]), horizontal(), "diagonal"],
+    [route("diagonal", [{ x: 0, y: 0 }, { x: 100, y: 100 }]), vertical(), "vertical-50"],
+    [route("a-diagonal", [{ x: 0, y: 0 }, { x: 100, y: 100 }]), route("b-diagonal", [{ x: 0, y: 100 }, { x: 100, y: 0 }]), "b-diagonal"],
+  ] as const;
+  for (const [a, b, underId] of definitions) for (const reversed of [false, true]) {
+    const edges = [a, b].map(edge => ({ ...edge, drawing: roundedRoute(reversed ? [...edge.drawing.points].reverse() : edge.drawing.points, 0) }));
+    const drawings = crossingDrawings(edges);
+    expect(crossingDrawings([...edges].reverse())).toEqual(drawings);
+    const gap = drawings.get(underId)!.hitPaths!;
+    expect(gap).toHaveLength(2);
+    const before = gap[0].at(-1)!, after = gap[1][0];
+    expect((before.x + after.x) / 2).toBeCloseTo(50, 6);
+    expect((before.y + after.y) / 2).toBeCloseTo(50, 6);
+    for (const edge of edges) {
+      const drawing = drawings.get(edge.id)!;
+      expect(drawing.points[0]).toEqual(edge.drawing.points[0]);
+      expect(drawing.points.at(-1)).toEqual(edge.drawing.points.at(-1));
+      expect(drawing.path).not.toMatch(/NaN|Infinity/);
+      const [start, end] = edge.drawing.points;
+      for (const point of drawing.points) expect((point.x - start.x) * (end.y - start.y) - (point.y - start.y) * (end.x - start.x)).toBeCloseTo(0, 6);
+    }
+    expect(drawings.get(edges.find(edge => edge.id !== underId)!.id)!.hitPaths).toHaveLength(1);
+  }
+});
+test("diagonal junctions, collinear overlaps, labels, and self-crossings stay intact", () => {
+  const d = route("diagonal", [{ x: 0, y: 0 }, { x: 100, y: 100 }]);
+  for (const other of [vertical(0), { ...d, id: "collinear" }]) {
+    const result = crossingDrawings([d, other]);
+    expect(result.get(d.id)).toBe(d.drawing);
+    expect(result.get(other.id)).toBe(other.drawing);
+  }
+  const h = horizontal(), covered = crossingDrawings([d, h], [{ x: 40, y: 40, width: 20, height: 20 }]);
+  expect(covered.get(d.id)).toBe(d.drawing);
+  expect(covered.get(h.id)).toBe(h.drawing);
+  const self = route("self", [{ x: 0, y: 0 }, { x: 100, y: 100 }, { x: 100, y: 0 }, { x: 0, y: 100 }]);
+  expect(crossingDrawings([self]).get(self.id)).toBe(self.drawing);
+});
 test("multiple crossings split vertical hit geometry without reconnecting gaps", () => {
   const h1 = { ...horizontal(), y: -15 }, h2 = { ...horizontal(), id: "h2", y: 15 }, v = vertical();
   const drawing = crossingDrawings([h1, h2, v]).get(v.id)!;

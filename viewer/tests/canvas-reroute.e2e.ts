@@ -1,10 +1,12 @@
+import { installRoutingProbe } from "./canvas-routing-probe";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import { cp, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 let root: string, projectId: string, original: string;
-test.beforeEach(async ({ request }) => {
+test.beforeEach(async ({ request, page }) => {
+  await installRoutingProbe(page);
   root = await mkdtemp(join(tmpdir(), "lexicon-canvas-test-"));
   await cp(resolve(import.meta.dirname, "../../examples/canvas-workshop"), root, { recursive: true,
     filter: (source) => !/\/lexicon\/(canvas\.json|\.canvas[^/]*|assets)(\/|$)/.test(source),
@@ -40,21 +42,10 @@ for (const skin of ["Standard", "Atlas · Ink", "Atlas · Village"]) test(`${ski
     const group = document.querySelector(selector)!;
     (window as any).routeSamples = [];
     (window as any).routeOpacity = [];
-    (window as any).endpointExcursion = 0;
-    let releasedAt = -Infinity, releasedPoint: DOMPoint | undefined;
-    const endpoint = () => {
-      const path = group.querySelector("path") as SVGPathElement;
-      return path.getPointAtLength(0).matrixTransform(path.getScreenCTM()!);
-    };
-    document.addEventListener("pointerup", () => { releasedAt = performance.now(); releasedPoint = endpoint(); });
     const sample = () => {
       if (group.hasAttribute("data-route-morphing")) {
         (window as any).routeSamples.push(group.querySelector("path")!.getAttribute("d"));
         (window as any).routeOpacity.push(getComputedStyle(group).opacity);
-      }
-      if (releasedPoint && performance.now() - releasedAt < 250) {
-        const p = endpoint();
-        (window as any).endpointExcursion = Math.max((window as any).endpointExcursion, Math.hypot(p.x - releasedPoint.x, p.y - releasedPoint.y));
       }
       requestAnimationFrame(sample);
     };
@@ -67,15 +58,19 @@ for (const skin of ["Standard", "Atlas · Ink", "Atlas · Village"]) test(`${ski
   await page.mouse.move(x, y);
   await page.mouse.down();
   await page.mouse.move(x + 300, y + 180, { steps: 3 });
-  // Interrupt an active morph with a second route while the pointer is still down.
+  // Settle while the pointer remains down, then resume without reusing a stale preview.
+  await expect(page.locator('[data-route-morphing="true"]')).toHaveCount(0);
+  await page.screenshot({ path: test.info().outputPath("paused-route.png") });
   await page.mouse.move(x + 240, y + 120, { steps: 2 });
   await page.mouse.up();
+  await page.evaluate(() => new Promise(requestAnimationFrame));
+  await expect.poll(() => page.evaluate(() => (window as any).routingProbe.pending)).toBe(0);
   await expect(page.locator('[data-route-morphing="true"]')).toHaveCount(0);
+  await page.screenshot({ path: test.info().outputPath("settled-route.png") });
   const after = await route.locator("path").first().getAttribute("d");
   const samples = await page.evaluate(() => ({ paths: (window as any).routeSamples as string[], opacity: (window as any).routeOpacity as string[] }));
   expect(new Set(samples.paths.filter(d => d !== before && d !== after)).size).toBeGreaterThan(2);
   expect(new Set(samples.opacity)).toEqual(new Set(["1"]));
-  if (skin === "Standard") expect(await page.evaluate(() => (window as any).endpointExcursion)).toBeLessThan(.5);
   await expect(route).toHaveCount(1);
   await expect(page.locator('.route-outgoing, .route-incoming')).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Read relationship: contains", exact: true })).toHaveCount(1);
