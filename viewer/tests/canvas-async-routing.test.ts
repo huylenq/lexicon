@@ -156,3 +156,17 @@ test("partial and empty previews preserve the full settled scene", () => {
   expect(t.jobs.at(-1)!.previous!.size).toBe(2);
   t.router.dispose();
 });
+
+
+test("recreated page routers retain displayed routes until a settled reply", () => {
+  const t = setup();
+  const displayed = { points: [{ x: 100, y: 40 }, { x: 100, y: -100 }, { x: 600, y: -100 }, { x: 600, y: 40 }], x: 350, y: -100 };
+  const fallback = () => displayed;
+  expect(t.router.read([edge], [], false, false, fallback).get(edge.id)).toEqual(displayed);
+  expect(t.jobs).toHaveLength(1);
+  t.reply();
+  const settled = t.router.read([edge], [], false, false, fallback).get(edge.id);
+  expect(settled).toEqual(runRoutingJob(t.jobs[0]).routes.get(edge.id));
+  expect(settled).not.toEqual(displayed);
+  t.router.dispose();
+});

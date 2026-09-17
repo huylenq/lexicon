@@ -107,6 +107,12 @@ export function createProjection(
   };
   const hidden = (id: string) =>
     !visible.has(id) || (!!focus && !focus.has(id));
+  const displayedRoute = (id: string): RelationshipRoute | undefined => {
+    const shape = editor.getShape<ConnectionShape>(modelShapeId(id));
+    if (!shape || shape.type !== "lexicon-connection") return;
+    return { points: shape.props.points.map(p => ({ x: p.x + shape.x, y: p.y + shape.y })),
+      x: shape.x + shape.props.labelX, y: shape.y + shape.props.labelY };
+  };
   const syncConnections = (incremental = false, preview = false, affected?: Set<string>) => {
     const current = affected
       ? [...affected].flatMap(id => { const edge = edgesById.get(id); return edge ? [edge] : []; })
@@ -150,7 +156,7 @@ export function createProjection(
         labelWidth: connectionLabelWidth(editor, edge.label) }];
     });
     const routed = preview ? relationshipRouter.preview(relationshipEdges)
-      : relationshipRouter.read(relationshipEdges, obstacles, false, incremental);
+      : relationshipRouter.read(relationshipEdges, obstacles, false, incremental, displayedRoute);
     // Source links can originate at a relationship label, so route semantic edges
     // first. Both passes use the same ports, obstacle avoidance, and label placement.
     const relationshipLabels = labelEdges.flatMap(edge => {
@@ -174,7 +180,7 @@ export function createProjection(
         labelWidth: connectionLabelWidth(editor, edge.label) }];
     });
     const sourceRoutes = preview ? sourceRouter.preview(sourceEdges)
-      : sourceRouter.read(sourceEdges, [...obstacles, ...relationshipLabels], false, incremental);
+      : sourceRouter.read(sourceEdges, [...obstacles, ...relationshipLabels], false, incremental, displayedRoute);
     for (const [id, route] of sourceRoutes) routed.set(id, route);
     for (const edge of current) {
       if (hidden(edge.id) && editor.getShape(modelShapeId(edge.id))) {

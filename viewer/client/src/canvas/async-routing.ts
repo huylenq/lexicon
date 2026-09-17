@@ -1,4 +1,4 @@
-import { createRelationshipRouter, type ObstacleInput, type SceneRelationship } from "./scene-routing";
+import { createRelationshipRouter, type ObstacleInput, type RelationshipRoute, type SceneRelationship } from "./scene-routing";
 import type { RoutingReply, RoutingRequest } from "./routing-job";
 
 export type RoutingWorker = Pick<Worker, "postMessage" | "terminate" | "onmessage" | "onerror">;
@@ -66,7 +66,7 @@ export function createAsyncRelationshipRouter(onChange: () => void, canApply = (
       invalidate();
       return cache.preview(edges);
     },
-    read(edges: SceneRelationship[], obstacles: ObstacleInput, dragging = false, incremental = true) {
+    read(edges: SceneRelationship[], obstacles: ObstacleInput, dragging = false, incremental = true, displayed?: (id: string) => RelationshipRoute | undefined) {
       if (disposed) return cache.preview(edges);
       if (!edges.length) {
         invalidate(true);
@@ -83,7 +83,15 @@ export function createAsyncRelationshipRouter(onChange: () => void, canApply = (
           pump();
         } else if (key === settledKey && requestedKey && requestedKey !== key) invalidate();
       }
-      return cache.preview(edges);
+      const preview = cache.preview(edges);
+      // A recreated page router has no cache yet. Keep its displayed routes until
+      // the worker replies instead of replacing them with obstacle-free guesses.
+      if (!dragging && displayed) for (const edge of edges) {
+        if (cache.snapshot().has(edge.id)) continue;
+        const route = displayed(edge.id);
+        if (route) preview.set(edge.id, route);
+      }
+      return preview;
     },
     invalidate,
     needsRetry: () => retryAfterGesture,

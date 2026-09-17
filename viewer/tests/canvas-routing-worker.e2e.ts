@@ -173,3 +173,28 @@ test("automatic recovery and saving wait through a paused drag, then persist rel
   await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
   await expect.poll(async () => (await node.boundingBox())!.x).toBeCloseTo(moved.x, 1);
 });
+
+test("returning to a plane preserves settled paths while its routing worker restarts", async ({ page }) => {
+  await page.goto(`/p/${projectId}`);
+  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  await expect.poll(() => page.evaluate(() => (window as any).routingProbe.pending)).toBe(0);
+  await expect(page.locator('[data-route-morphing="true"]')).toHaveCount(0);
+  const paths = () => page.locator('.canvas-connection').evaluateAll(elements => Object.fromEntries(elements.map(element => [
+    element.querySelector('[data-connection-id]')?.getAttribute('data-connection-id'),
+    element.querySelector('[data-route-current] > path')?.getAttribute('d'),
+  ])));
+  const initial = await paths();
+  expect(Object.keys(initial).length).toBeGreaterThan(0);
+  await page.getByRole('radio', { name: 'Architecture', exact: true }).check();
+  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  await expect.poll(() => page.evaluate(() => (window as any).routingProbe.pending)).toBe(0);
+  await page.evaluate(() => { (window as any).routingProbe.delay = 800; });
+  await page.getByRole('radio', { name: 'Domain', exact: true }).check();
+  await expect.poll(() => page.evaluate(() => (window as any).routingProbe.pending)).toBeGreaterThan(0);
+  await page.waitForTimeout(250);
+  expect(await paths()).toEqual(initial);
+  await expect(page.locator('[data-route-morphing="true"]')).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => (window as any).routingProbe.pending)).toBe(0);
+  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  expect(await paths()).toEqual(initial);
+});
