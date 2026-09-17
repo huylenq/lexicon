@@ -12,7 +12,7 @@ import type {
   ModelItem,
   ModelDocument,
 } from "../shared/model";
-import { MODEL_SCHEMA, parentOf, isModelElement } from "../shared/model";
+import { MODEL_SCHEMA, parentOf, isModelElement, isArchitecture } from "../shared/model";
 
 export const children = (e: Element, name?: string): Element[] =>
   e.children.filter(
@@ -150,9 +150,23 @@ export function validateModel(model: Model): Model {
         steps.add(step.id);
         if (!step.label.trim())
           model.issues.push({ severity: "error", item: item.id, message: `Step ${step.id} needs an action label.` });
-        if (targets.get(step.relationship)?.type !== "relationship")
+        const relationship = targets.get(step.relationship);
+        if (relationship?.type !== "relationship")
           model.issues.push({ severity: "error", item: item.id,
             message: `Step ${step.id} must reference a relationship: ${step.relationship}` });
+        else if ([relationship.from, relationship.to].some(id => {
+          const participant = targets.get(id);
+          return !participant || !isArchitecture(participant);
+        }))
+          model.issues.push({ severity: "error", item: item.id,
+            message: `Step ${step.id} requires Architecture participants at both relationship endpoints.` });
+        for (const field of ["caller", "callee", "callSite"] as const) {
+          if (step[field] === undefined) continue;
+          const link = item.codeLinks.find(link => link.id === step[field]);
+          if (!step[field] || !link || link.kind !== "code" || (!link.symbol?.trim() && !link.line))
+            model.issues.push({ severity: "error", item: item.id,
+              message: `Step ${step.id} ${field} must reference a code link owned by this Flow with a symbol or line target.` });
+        }
       }
     }
   }
@@ -173,7 +187,7 @@ export function parseModel(xml: string): Model {
     component: ["id"],
     relationship: ["id", "from", "to"],
     flow: ["id"],
-    step: ["id", "relationship"],
+    step: ["id", "relationship", "caller", "callee", "call-site"],
     annotation: ["kind", "evidence"],
     "code-link": ["kind", "id", "file", "symbol", "heading", "line", "role"],
     name: [],
@@ -285,6 +299,9 @@ export function parseModel(xml: string): Model {
     } else if (e.name === "flow") {
       items.push({ ...common(e), type: "flow", steps: children(e, "step").map(step => ({
         id: step.attributes.id || "", relationship: step.attributes.relationship || "", label: prose(step),
+        ...(step.attributes.caller !== undefined ? { caller: step.attributes.caller || "" } : {}),
+        ...(step.attributes.callee !== undefined ? { callee: step.attributes.callee || "" } : {}),
+        ...(step.attributes["call-site"] !== undefined ? { callSite: step.attributes["call-site"] || "" } : {}),
       })) });
     } else if (e.name === "relationship") {
       items.push({
@@ -402,7 +419,7 @@ export function serializeModel(model: Model): string {
       );
     if (item.type === "flow")
       for (const step of item.steps)
-        lines.push(`${pad}  <step id="${esc(step.id)}" relationship="${esc(step.relationship)}">${esc(step.label)}</step>`);
+        lines.push(`${pad}  <step id="${esc(step.id)}" relationship="${esc(step.relationship)}"${step.caller !== undefined ? ` caller="${esc(step.caller)}"` : ""}${step.callee !== undefined ? ` callee="${esc(step.callee)}"` : ""}${step.callSite !== undefined ? ` call-site="${esc(step.callSite)}"` : ""}>${esc(step.label)}</step>`);
     for (const c of model.items)
       if (parentOf(c) === item.id) emit(c, depth + 1);
     lines.push(`${pad}</${item.type}>`);

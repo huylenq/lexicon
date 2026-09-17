@@ -8,7 +8,7 @@ test("childless systems and containers fit centered cards while parents retain b
   let id: string | undefined;
   try {
     await mkdir(join(root, "lexicon"));
-    await writeFile(join(root, "lexicon/model.xml"), `<lexicon schema="3.2" id="empty-architecture">
+    await writeFile(join(root, "lexicon/model.xml"), `<lexicon schema="3.3" id="empty-architecture">
       <name>Architecture</name><description>Leaf sizing</description>
       <system id="external"><name>External</name><description>Empty system</description></system>
       <system id="parent"><name>Parent</name><description>Parent system</description>

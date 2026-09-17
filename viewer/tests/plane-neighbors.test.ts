@@ -4,7 +4,7 @@ import { indexModel, projectGraph, targetId } from "../client/src/graph/model";
 import { isCrossPlaneRelationship, planeNeighbors, selectionPlane } from "../client/src/graph/planeNeighbors";
 import { fileSelectionId } from "../shared/files";
 
-const index = indexModel(parseModel(`<lexicon schema="3.2" id="planes"><name>Planes</name><description>Navigation</description>
+const index = indexModel(parseModel(`<lexicon schema="3.3" id="planes"><name>Planes</name><description>Navigation</description>
 <context id="orders"><name>Orders</name><description>Orders</description>
 <concept id="order"><name>Order</name><description>Order</description>
 <code-link kind="code" file="order.ts" symbol="Order" role="definition">Definition</code-link>

@@ -38,7 +38,21 @@
   border-radius: 4px;
 }
 .flow-step-number { font-weight: 600; color: var(--muted); }
-.flow-arrow { display: block; position: absolute; bottom: 12px; left: 0; color: var(--ink); pointer-events: none; }
+.flow-arrow { display: block; color: var(--ink); pointer-events: none; }
 .flow-participant:hover, .flow-message:hover { background: var(--accent-soft); color: var(--accent); }
 .flow-hint { margin: 10px 0 0; font-size: 12px; color: var(--muted); }
 .flow-steps > .flow-missing, .flow-missing { padding: 12px 24px; color: var(--error); overflow-wrap: anywhere; }
+.flow-participant { display: block; }
+.flow-participant-group { display: flex; flex-direction: column; }
+.flow-participant-group > .flow-participant { min-height: 44px; }
+.flow-code-toggle { display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer; }
+.flow-code-lanes { display: grid; margin-top: 8px; flex: 1; }
+.flow-code-lane { display: flex; align-items: center; justify-content: center; padding: 0 8px; min-width: 0; text-align: center; }
+.flow-code-target { display: flex; flex-direction: column; gap: 3px; width: 100%; padding: 6px; border: 1px solid var(--line); border-radius: 4px; background: var(--panel); color: var(--ink); text-align: inherit; overflow-wrap: anywhere; white-space: normal; }
+.flow-code-target code { font-size: 12px; }
+.flow-code-target span, .flow-code-unspecified { font-size: 11px; color: var(--muted); }
+.flow-code-target:hover { background: var(--accent-soft); color: var(--accent); }
+.flow-code-target:focus-visible, .flow-code-toggle input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.flow-call-site { position: relative; padding: 4px 6px; background: var(--paper); }
+.flow-call-site > span { display: block; margin-bottom: 4px; font-size: 11px; color: var(--muted); }
+.flow-code-error { position: relative; background: var(--paper); color: var(--error); font-size: 12px; overflow-wrap: anywhere; }

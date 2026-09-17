@@ -8,7 +8,7 @@ Descriptions now explain connections inline. In Order, follow the linked lines, 
 
 Follow Shop → Shop API → Order Handling to see C4 containment. Combined, Domain, and Architecture filter the shared canvas; Domain also supports Atlas. These are exploration filters rather than a full set of scoped C4 diagrams.
 
-Open **Place an Order**. Its ordered interactions reuse customer-orders, handles-order, and saves-order. Select a participant for its responsibility or a message for its relationship and code. Flow conditions explain validation and response behavior; the source rejects invalid quantities before storage. Open **Reject Invalid Quantities** for the validation failure path: it reuses the same elements and stops before storage.
+Open **Place an Order**. Its ordered interactions reuse customer-orders, handles-order, and saves-order. Select a participant for its responsibility or a message for its relationship and code. Enable **Show code** to expand handle, Checkout.place, and OrderRepository.save under their Architecture participants; select a symbol or call site to open source. The human caller stays a user role, and its message explicitly identifies HTTP POST /orders. Flow conditions explain validation and response behavior; the source rejects invalid quantities before storage. Open **Reject Invalid Quantities** for the validation failure path: it stops before storage. Its final step is an internal interaction within Order Handling. In code detail, Checkout.place calls Order.constructor under that same component; Order remains a Domain concept that explains what is being validated.
 
 The library example is read-only. For an editable isolated copy, run from viewer/:
 

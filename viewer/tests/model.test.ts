@@ -15,7 +15,7 @@ import { join, resolve } from "node:path";
 import { loadModel, parseModel, serializeModel, readModelDocument } from "../server/model";
 import { readSource } from "../server/source";
 
-const native = `<lexicon schema="3.2" id="shop"><name>Shop</name><description>Ordering goods.</description>
+const native = `<lexicon schema="3.3" id="shop"><name>Shop</name><description>Ordering goods.</description>
 <context id="orders"><name>Orders</name><description>Accept customer orders.</description>
 <concept id="order" classification="aggregate"><name>Order</name><description>Items purchased together.</description>
 <annotation kind="rule" evidence="intended">Total follows the items.</annotation>
@@ -90,7 +90,7 @@ describe("the four-object model", () => {
   });
   test("rejects unsupported schema, malformed XML and entity declarations", () => {
     expect(() =>
-      parseModel(native.replace('schema="3.2"', 'schema="9.0"')),
+      parseModel(native.replace('schema="3.3"', 'schema="9.0"')),
     ).toThrow();
     expect(() => parseModel("<lexicon>")).toThrow();
     expect(() =>
@@ -194,7 +194,7 @@ describe("links into source", () => {
 test("the checker reports mismatches without converting or writing the original", async () =>
   temp(async (dir) => {
     await mkdir(join(dir, "lexicon"));
-    const original = native.replace('schema="3.2"', 'schema="2.0"');
+    const original = native.replace('schema="3.3"', 'schema="2.0"');
     await writeFile(join(dir, "lexicon/model.xml"), original);
     const result = spawnSync(process.execPath, [resolve(import.meta.dir, "../server/cli.ts"), "check", dir], { encoding: "utf8" });
     expect(result.status).toBe(1);
@@ -203,7 +203,7 @@ test("the checker reports mismatches without converting or writing the original"
   }));
 
 test("optional code-link IDs round-trip and must be unique within their owner", () => {
-  const xml = `<lexicon schema="3.2" id="test"><name>Test</name><description>Test.</description><context id="ctx"><name>Context</name><description>Scope.</description><code-link kind="code" id="definition" file="a.ts" role="definition">Definition.</code-link></context></lexicon>`;
+  const xml = `<lexicon schema="3.3" id="test"><name>Test</name><description>Test.</description><context id="ctx"><name>Context</name><description>Scope.</description><code-link kind="code" id="definition" file="a.ts" role="definition">Definition.</code-link></context></lexicon>`;
   const model = parseModel(xml);
   expect(model.items[0].codeLinks[0].id).toBe("definition");
   expect(parseModel(serializeModel(model)).items[0].codeLinks[0].id).toBe("definition");

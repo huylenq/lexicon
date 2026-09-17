@@ -27,7 +27,7 @@ afterAll(async () => {
 });
 const req = (path: string, init?: RequestInit) =>
   app.request(`http://localhost${path}`, init);
-const xml = `<lexicon schema="3.2" id="tiny"><name>Tiny</name><description>A test model.</description><context id="scope"><name>Scope</name><description>A meaning.</description><concept id="thing"><name>Thing</name><description>The modeled thing.</description><code-link kind="code" file="thing.ts" role="definition" symbol="Thing">Its representation.</code-link></concept></context></lexicon>`;
+const xml = `<lexicon schema="3.3" id="tiny"><name>Tiny</name><description>A test model.</description><context id="scope"><name>Scope</name><description>A meaning.</description><concept id="thing"><name>Thing</name><description>The modeled thing.</description><code-link kind="code" file="thing.ts" role="definition" symbol="Thing">Its representation.</code-link></concept></context></lexicon>`;
 
 test("chat uses the installed workflow texts and keeps initialization out of existing-model refinement", async () => {
   const project = { id: "prompt", root: scratch, artifactRoot: scratch, example: false };
@@ -287,9 +287,9 @@ test("canvas model commands share validated model edits, exact undo, and stale-w
 });
 
 const migration = (candidate: string) => `Preserved the model.\n\`\`\`lexicon-migration\n${candidate}\n\`\`\``;
-const oldXml = xml.replace('schema="3.2"', 'schema="2.0"').replaceAll(' kind="code"', '');
+const oldXml = xml.replace('schema="3.3"', 'schema="2.0"').replaceAll(' kind="code"', '');
 test("unsupported and malformed documents register and load without semantic data or canvas writes", async () => {
-  for (const original of [oldXml, xml.replace('schema="3.2"', 'schema="9.0"'), '<lexicon schema="3.2">']) {
+  for (const original of [oldXml, xml.replace('schema="3.3"', 'schema="9.0"'), '<lexicon schema="3.3">']) {
     const p = await chatFixture("unavailable-" + crypto.randomUUID());
     await writeFile(join(p.root, "lexicon/model.xml"), original);
     await writeFile(join(p.root, "lexicon/canvas.json"), "preserved presentation");
@@ -298,7 +298,7 @@ test("unsupported and malformed documents register and load without semantic dat
     const registered = await response.json();
     const loaded = await (await req(`/api/projects/${registered.id}/model`)).json();
     expect(loaded.model).toBeUndefined();
-    expect(loaded.problem.expectedSchema).toBe("3.2");
+    expect(loaded.problem.expectedSchema).toBe("3.3");
     expect(loaded.modelRevision).toBe(fingerprint(original));
     expect((await req(`/api/projects/${registered.id}/chat`)).status).toBe(200);
     expect((await req(`/api/projects/${registered.id}/canvas`, { method: "PUT", headers: { "content-type": "application/json" }, body: "{}" })).status).toBe(400);
@@ -315,22 +315,24 @@ test("unsupported and malformed documents register and load without semantic dat
   }
 });
 test("agent migration validates current XML and restores unsupported bytes through persisted undo", async () => {
-  for (const version of ["2.0", "3.0-prototype", "3.0", "3.1"]) {
+  for (const version of ["2.0", "3.0-prototype", "3.0", "3.1", "3.2"]) {
     const p = await chatFixture("migration-" + version);
-    const original = xml.replace('schema="3.2"', `schema="${version}"`).replaceAll(' kind="code"', '') + '\n<!-- original spacing -->\n';
+    const versioned = xml.replace('schema="3.3"', `schema="${version}"`);
+    const original = (version === "3.2" ? versioned : versioned.replaceAll(' kind="code"', '')) + '\n<!-- original spacing -->\n';
     await writeFile(join(p.root, "lexicon/model.xml"), original);
     await writeFile(join(p.root, "lexicon/canvas.json"), "authored notes");
     const service = fakeChat(async input => {
-      if (!["3.0", "3.1"].includes(version)) expect(input.prompt).toContain(`Schema ${version} to 3.0`);
-      if (version !== "3.1") expect(input.prompt).toContain("Schema 3.0 to 3.1");
-      expect(input.prompt).toContain("Schema 3.1 to 3.2");
+      if (!["3.0", "3.1", "3.2"].includes(version)) expect(input.prompt).toContain(`Schema ${version} to 3.0`);
+      if (!["3.1", "3.2"].includes(version)) expect(input.prompt).toContain("Schema 3.0 to 3.1");
+      if (version !== "3.2") expect(input.prompt).toContain("Schema 3.1 to 3.2");
+      expect(input.prompt).toContain("Schema 3.2 to 3.3");
       expect(input.prompt).toContain("lexicon-migration");
       return migration(xml);
     });
-    await service.start(p, { text: "Migrate the existing model to schema 3.2.", provider: "codex", modelRevision: fingerprint(original) });
+    await service.start(p, { text: "Migrate the existing model to schema 3.3.", provider: "codex", modelRevision: fingerprint(original) });
     const result = await untilChat(service, p.id, s => !s.running);
     expect(result.messages.at(-1)?.error).toBeUndefined();
-    expect(result.messages.at(-1)?.change?.migrated).toEqual({ from: version, to: "3.2" });
+    expect(result.messages.at(-1)?.change?.migrated).toEqual({ from: version, to: "3.3" });
     expect(parseModel(await readFile(join(p.root, "lexicon/model.xml"), "utf8"))).toEqual(parseModel(xml));
     const recovered = fakeChat(async () => "unused");
     await recovered.undo(p);
@@ -347,7 +349,7 @@ test("migration rejects invalid candidates, ordinary patches, missing deltas, an
     [oldXml, migration(xml.replace('id="thing"', 'id="scope"')), "Duplicate ID"],
     [oldXml, '```lexicon-patch\n{"project":{"name":"Wrong"}}\n```', "needs migration"],
     [xml, migration(xml), "already uses the current schema"],
-    [xml.replace('schema="3.2"', 'schema="9.0"'), migration(xml), "No migration instructions"],
+    [xml.replace('schema="3.3"', 'schema="9.0"'), migration(xml), "No migration instructions"],
   ];
   for (const [original, output, error] of cases) {
     const p = await chatFixture("bad-migration-" + crypto.randomUUID());

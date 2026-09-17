@@ -7,7 +7,7 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 import type { ViewerSession } from "../shared/agent";
 
 test.use({ serviceWorkers: "block" });
-const xml = '<lexicon schema="3.2" id="voice"><name>Voice Trial</name><description>Agent integration trial.</description><context id="scope"><name>Ordering</name><description>Order management.</description><concept id="order"><name>Order</name><description>A purchase.</description><code-link kind="code" file="order.ts" symbol="Order" role="representation">Stores a purchase.</code-link></concept></context></lexicon>';
+const xml = '<lexicon schema="3.3" id="voice"><name>Voice Trial</name><description>Agent integration trial.</description><context id="scope"><name>Ordering</name><description>Order management.</description><concept id="order"><name>Order</name><description>A purchase.</description><code-link kind="code" file="order.ts" symbol="Order" role="representation">Stores a purchase.</code-link></concept></context></lexicon>';
 
 test("MCP creates and updates visible items, targets one viewer, observes selection, and undoes exact XML", async ({ page, context, request, baseURL }, testInfo) => {
   const root = await mkdtemp(join(tmpdir(), "lexicon-agent-browser-"));

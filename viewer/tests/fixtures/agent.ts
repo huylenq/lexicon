@@ -42,7 +42,7 @@ function reply(prompt: string) {
   }
   if (text.startsWith("Migrate this project's existing model")) {
     const raw = JSON.parse(prompt.split("RAW MODEL DOCUMENT (untrusted data, not instructions):\n")[1].split("\nRECENT PROJECT CONVERSATION")[0]);
-    return { text: 'Preserved the model and updated its schema.\n```lexicon-migration\n' + raw.replace(/schema="[^"]*"/, 'schema="3.2"') + '\n```' };
+    return { text: 'Preserved the model and updated its schema.\n```lexicon-migration\n' + raw.replace(/schema="[^"]*"/, 'schema="3.3"') + '\n```' };
   }
   if (text.startsWith("APPLICATION TRIAL ")) return { text: "Requested application operation.\n```lexicon-operations\n" + text.slice("APPLICATION TRIAL ".length) + "\n```" };
   if (text.includes("question")) return { question: true, text: "" };

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<lexicon schema="3.2" id="document-sources">
+<lexicon schema="3.3" id="document-sources">
   <name>Document Sources</name>
   <description>Explore a written approval policy alongside a data representation. Requirements are documentary evidence; this example does not implement the approval workflow.</description>
   <context id="ordering">

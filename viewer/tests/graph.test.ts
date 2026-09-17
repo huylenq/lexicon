@@ -13,7 +13,7 @@ import {
 import { connectionPath } from "../client/src/graph/layout";
 import { fileSelectionId } from "../shared/files";
 
-const xml = `<lexicon schema="3.2" id="shop"><name>Shop</name><description>Example.</description>
+const xml = `<lexicon schema="3.3" id="shop"><name>Shop</name><description>Example.</description>
 <context id="sales"><name>Sales</name><description>Sells.</description>
 <concept id="order"><name>Order</name><description>A purchase.</description>
 <code-link kind="code" file="order.ts" symbol="Order" role="representation">Stores orders.</code-link>

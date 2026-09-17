@@ -13,7 +13,7 @@ const itemFields = {
   name: string, description: string, parent: string, classification: { type: "string" }, from: string, to: string,
   annotations: { type: "array", items: object({ kind: string, text: string, evidence: { enum: ["intended", "observed", "enforced"] } }, ["kind", "text"]) },
   codeLinks: { type: "array", items: sourceLink },
-  steps: { type: "array", items: object({ id: string, relationship: string, label: string }, ["id", "relationship", "label"]) },
+  steps: { type: "array", items: object({ id: string, relationship: string, label: string, caller: string, callee: string, callSite: string }, ["id", "relationship", "label"]) },
 };
 const item = object({ id: string, type: { enum: ["context", "concept", "person", "system", "container", "component", "relationship", "flow"] }, ...itemFields }, ["id", "type", "name", "description"]);
 const annotation = (readOnlyHint: boolean) => ({ readOnlyHint, destructiveHint: !readOnlyHint, openWorldHint: false });

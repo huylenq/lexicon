@@ -125,7 +125,10 @@ export function applyPatch(model: Model, raw: unknown): Model {
       for (const step of item.steps) {
         if (!object(step) || [step.id, step.relationship, step.label].some(value => typeof value !== "string"))
           throw new Error("Steps need id, relationship, and label text.");
-        keys(step, ["id", "relationship", "label"]);
+        keys(step, ["id", "relationship", "label", "caller", "callee", "callSite"]);
+        for (const field of ["caller", "callee", "callSite"])
+          if (step[field] !== undefined && typeof step[field] !== "string")
+            throw new Error(`Step ${field} must be a Flow-owned code-link ID.`);
       }
     }
     for (const a of item.annotations) {

@@ -9,7 +9,7 @@ import { parseModel, serializeModel } from "../server/model";
 import { applyPatch, validateChangedLinks } from "../server/chat/model-edit";
 import { codeTargetId, codeLinkKey } from "../shared/model";
 
-const xml = (attrs = 'heading="approval"') => `<lexicon schema="3.2" id="docs"><name>Docs</name><description>Requirements.</description><context id="orders"><name>Orders</name><description>Ordering.</description><code-link kind="document" id="requirement" file="spec.md" role="specification" ${attrs}>Defines approval.</code-link></context></lexicon>`;
+const xml = (attrs = 'heading="approval"') => `<lexicon schema="3.3" id="docs"><name>Docs</name><description>Requirements.</description><context id="orders"><name>Orders</name><description>Ordering.</description><code-link kind="document" id="requirement" file="spec.md" role="specification" ${attrs}>Defines approval.</code-link></context></lexicon>`;
 const markdown = '# Order **specification**\n\n## Approval\n\nA reviewer approves.\n\n### Details\n\nReview identity is recorded.\n\n## Approval\n\nSecond section.\n\n```md\n# Not a heading\n```\n\nSetext heading\n--------------\n\n## café & 安全\n';
 
 test("CommonMark headings resolve formatting, duplicates, Unicode and setext without treating code fences as headings", () => {
@@ -58,9 +58,9 @@ test("resolver, edit validation, and CLI agree on Markdown heading failures", as
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 
-test("heading documents require schema 3.2 and retain selectors through unrelated edits", () => {
+test("heading documents require schema 3.3 and retain selectors through unrelated edits", () => {
   const source = xml();
-  expect(() => parseModel(source.replace('schema="3.2"', 'schema="3.0"'))).toThrow('Expected');
+  expect(() => parseModel(source.replace('schema="3.3"', 'schema="3.0"'))).toThrow('Expected');
   const model = parseModel(source);
   const edited = applyPatch(model, { project: { name: 'Renamed project' } });
   expect(parseModel(serializeModel(edited)).items[0].codeLinks[0].heading).toBe('approval');

@@ -1,6 +1,6 @@
 # The Lexicon model
 
-A project has a stable ID, name, description, and one shared semantic document: `lexicon/model.xml`, rooted at `<lexicon schema="3.2">`. The parser, validator, edit protocol, and viewer use only this current schema. Other versions open a document-status screen with Agent available for discussion and explicit migration. See [Migration](MIGRATION.md).
+A project has a stable ID, name, description, and one shared semantic document: `lexicon/model.xml`, rooted at `<lexicon schema="3.3">`. The parser, validator, edit protocol, and viewer use only this current schema. Other versions open a document-status screen with Agent available for discussion and explicit migration. See [Migration](MIGRATION.md).
 
 | Item | XML | Meaning |
 |---|---|---|
@@ -41,7 +41,7 @@ Domain and Architecture describe modeled meaning and software structure. Source 
 | Plane | A visual grouping for Domain, Architecture, or Linked Sources, shown individually in 2D or alongside other planes in Combined and Planes |
 | Page | A tldraw presentation container holding shapes and layout |
 
-Domain and architecture membership follows an element's existing type. Source targets are reached through SourceLinks; they are not a new Element type. Relationships can cross dimensions, and Flows order occurrences of relationships. Neither is assigned wholesale to one dimension.
+Domain and architecture membership follows an element's existing type. Source targets are reached through SourceLinks; they are not a new Element type. Relationships can cross dimensions. Flows order interactions between Architecture participants; Domain concepts provide explanatory context and code links identify participating implementation. A Flow is a Behavior item, independent of canvas placement.
 
 Linked Sources derives its file and target objects exclusively from authored source links, with no separate filesystem or parser index. Links that reference the same target share one target object while retaining each link's owner, identity, role, and explanation. File grouping preserves precise symbol, heading, line, and whole-file targets. A target remains addressable when its source is stale, missing, or ambiguous; displaying it does not establish that it resolves.
 
@@ -80,7 +80,7 @@ ModelItem
 | Container | Explain an application or data store and its responsibility within the system | Exactly one SoftwareSystem parent; owns Components |
 | Component | Explain functionality behind an interface within an application or data store; a domain classification does not establish a Component | Exactly one Container parent |
 | Relationship | Explain a directed connection, what connects the endpoints, and applicable conditions | Exactly two Element endpoints; may cross domain, architecture, and containment boundaries |
-| Flow | Explain one scenario's trigger, relevant preconditions, ordered interactions, and outcome | Owns one or more ordered FlowSteps referencing Relationships |
+| Flow | Explain one scenario's trigger, relevant preconditions, ordered interactions, and outcome | Owns one or more ordered FlowSteps referencing Relationships between Architecture elements |
 
 Annotations and SourceLinks are owned metadata on any item. FlowSteps are owned occurrences, not Elements or independent ModelItems. Containment does not imply a runtime call, aggregate membership, or consistency enforcement. Domain and architecture elements may correspond through an explained Relationship without sharing identity or parentage.
 
@@ -88,9 +88,9 @@ Annotations and SourceLinks are owned metadata on any item. FlowSteps are owned 
 
 State the connection's meaning in its name and description. Domain associations explain membership, classification, or other business meaning. Dependencies explain what one responsibility needs from another and through what mechanism. Implementation correspondences explain how software realizes a domain idea. Runtime interactions explain an action from one participant toward another under relevant conditions. These are review distinctions, not an exclusive enum or new XML attributes; a connection may need more than one explanation.
 
-A Flow step must describe an interaction supported by the referenced Relationship's direction and participants. A connection such as “is classified by” or “implements” does not alone justify a message. Do not turn every static connection into a scenario step. If the observed interaction makes a different claim, author a distinct, supported Relationship. Reuse a Relationship when the claim is the same and only its occurrence or action wording differs.
+A Flow step must describe an interaction supported by the referenced Relationship's direction and Architecture participants. Both endpoints must be Person, SoftwareSystem, Container, or Component; Domain elements remain available as explanatory context through relationships and descriptions. A connection such as “is classified by” or “implements” does not alone justify a message. Do not turn every static connection into a scenario step. If the observed interaction makes a different claim, author a distinct, supported Relationship. Reuse a Relationship when the claim is the same and only its occurrence or action wording differs.
 
-Use the Flow description and annotations to state its trigger, preconditions where relevant, and outcome. Ground consequential steps and ordering in connecting source, not merely declarations of the participants. Explain domain participants' implementation correspondence when tracing a runtime scenario. Capture an important refusal or failure as a separate named Flow when it helps answer the question. Do not invent branches or claim that the successful path covers all behavior.
+Use the Flow description and annotations to state its trigger, preconditions where relevant, and outcome. Ground consequential steps and ordering in connecting source, not merely declarations of the participants. Explain affected domain concepts and their implementation correspondence without using them as runtime participants. Capture an important refusal or failure as a separate named Flow when it helps answer the question. Do not invent branches or claim that the successful path covers all behavior.
 
 ### Enforcement and semantic review
 
@@ -116,7 +116,7 @@ An aggregate is represented by a concept classified `aggregate`, relationships t
 
 ## Source links
 
-Source links connect model items to implementation code or supporting documents. Schema 3.2 requires an explicit migration from earlier schemas. Older viewers reject the new schema so they cannot silently discard source kinds or locators during edits. `SourceLink` is the union of `CodeLink` and `DocumentLink`; each has an explicit, required `kind`. Documents add evidence without becoming a new domain or architecture element.
+Source links connect model items to implementation code or supporting documents. Schema 3.3 requires an explicit migration from earlier schemas. Older viewers reject the new schema so they cannot silently discard source kinds or locators during edits. `SourceLink` is the union of `CodeLink` and `DocumentLink`; each has an explicit, required `kind`. Documents add evidence without becoming a new domain or architecture element.
 
 ### Taxonomy
 
@@ -172,9 +172,22 @@ For a document-only model, state the source document, version, and scope. Label 
 
 ## Flows and sequence diagrams
 
-A Flow has ordinary item fields plus one or more ordered steps. Each `<step id="…" relationship="…">action label</step>` references an existing relationship; its endpoints supply the participants. Step IDs are unique within their flow and survive reordering. A relationship can occur repeatedly with distinct step IDs and labels. Embedded patches use `steps: [{id, relationship, label}]` and replace the whole flow atomically.
+A Flow has ordinary item fields plus one or more ordered steps. Each `<step id="…" relationship="…">action label</step>` references an existing relationship whose endpoints are Architecture elements. Step IDs are unique within their flow and survive reordering. A relationship can occur repeatedly with distinct step IDs and labels. A self-relationship describes an internal action within one responsibility.
 
-A sequence diagram derives one lifeline per referenced element and one message per step. Order means interaction order, without duration, completion, reply pairing, concurrency, branching, or instance aliases. Use annotations for preconditions, outcomes, and evidence; author a separate scenario for an alternate path. Structural validation cannot establish that a relationship is an actual runtime interaction. Inspect the entrypoint and connecting code.
+Steps optionally identify precise participating code through `caller`, `callee`, and `call-site` attributes. Each value references an explicit ID in the same Flow's code links; the link must have `kind="code"` and a symbol or line target. The caller belongs to the relationship's source participant, the callee to its destination. The call site locates the operation connecting them. These responsibility and interaction claims require source review. Whole-file and documentary links remain useful Flow evidence but cannot be used for these precise code roles.
+
+```xml
+<code-link kind="code" id="handler" file="src/api.ts" symbol="handle" role="caller">Accepts order requests.</code-link>
+<code-link kind="code" id="place" file="src/checkout.ts" symbol="Checkout.place" role="callee">Creates and stores a valid order.</code-link>
+<code-link kind="code" id="dispatch" file="src/api.ts" line="8" role="call-site">Calls Checkout.place after parsing JSON.</code-link>
+<step id="create" relationship="handles-order" caller="handler" callee="place" call-site="dispatch">Create and validate the order</step>
+```
+
+Embedded patches use `steps: [{id, relationship, label, caller?, callee?, callSite?}]` and replace the whole Flow atomically. References are Flow-local, so deleting or renaming a used code-link ID requires updating its steps in the same edit. Links use the ordinary source checker, source navigation, and Linked Sources projection.
+
+The sequence defaults to one lifeline per Architecture participant and one message per step. **Show code** expands referenced code targets into lifelines grouped under those participants. Unspecified code remains an explicitly unspecified lane; a human participant remains a user role. Repeated references to the same target under one participant share a lifeline. Different code targets under one Component can exchange messages without creating extra Components. These lifelines identify code locations, not runtime instances. Select a target or call site to open Source Reader.
+
+Order means interaction order, without duration, completion, reply pairing, concurrency, branching, or instance aliases. Code detail preserves the same steps and labels. State the actual mechanism in the label and relationship: an HTTP request or event delivery must not be presented as a direct function call. Leave unavailable caller, callee, or call-site references absent. Use annotations for preconditions, outcomes, and evidence; author a separate scenario for an alternate path. Structural validation checks participant types and code references, but cannot establish ownership, runtime interaction, or order. Inspect the entrypoint and connecting code.
 
 This approach follows [C4 dynamic diagrams](https://c4model.com/diagrams/dynamic) and [ordered relationship occurrences](https://docs.structurizr.com/dsl/cookbook/dynamic-view/). The combined DDD/C4/Flow language is Lexicon's design. See [flow authoring](skills/lexicon/flows.md) and the [Shop example](examples/shop/README.md).
 
@@ -192,7 +205,7 @@ Selection, focus, connection visibility, and navigation remain viewing state. Vi
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<lexicon schema="3.2" id="shop">
+<lexicon schema="3.3" id="shop">
   <name>Shop</name>
   <description>Accept and fulfill customer purchases.</description>
   <context id="ordering">

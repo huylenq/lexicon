@@ -13,7 +13,7 @@ const links: SourceLink[] = [
   { kind: "document", file: "design.md", heading: "Rules", role: "specification", description: "" },
   { kind: "document", file: "design.md", heading: "Lifecycle", role: "rationale", description: "" },
 ];
-const index = indexModel({ schema: "3.2", issues: [], id: "shop", name: "Shop", description: "", items: [
+const index = indexModel({ schema: "3.3", issues: [], id: "shop", name: "Shop", description: "", items: [
   { id: "order", type: "context", name: "Order", description: "", annotations: [], codeLinks: links },
   { id: "other", type: "context", name: "Other", description: "", annotations: [], codeLinks: [links[0]] },
 ] } as Model);
@@ -69,12 +69,12 @@ test("repository selections never manufacture Source targets", () => {
   expect(sourceSelectionId(index, { kind: "code", id: fileSelectionId("unlinked.ts") })).toBeUndefined();
   expect(sourceSelectionId(index, { kind: "code", id: fileSelectionId("tiny.ts") })).toBe("file:tiny.ts");
   expect(linkedSourcesGraph(index).nodes.some(node => node.id === "file:unlinked.ts")).toBe(false);
-  expect(linkedSourcesGraph(indexModel({ schema: "3.2", issues: [], id: "empty", name: "Empty", description: "", items: [] }))).toEqual({ nodes: [], connections: [], omitted: 0 });
+  expect(linkedSourcesGraph(indexModel({ schema: "3.3", issues: [], id: "empty", name: "Empty", description: "", items: [] }))).toEqual({ nodes: [], connections: [], omitted: 0 });
 });
 
 test("Linked Sources shares the Files hierarchy, compresses directory chains, and retains target identities", () => {
   const paths = ["packages/api/src/router.ts", "packages/api/src/service.ts", "packages/api/tests/service.ts", "docs/spec.md", "README.md"];
-  const nested = indexModel({ schema: "3.2", issues: [], id: "nested", name: "Nested", description: "", items: [
+  const nested = indexModel({ schema: "3.3", issues: [], id: "nested", name: "Nested", description: "", items: [
     { id: "context", type: "context", name: "Context", description: "", annotations: [], codeLinks: paths.flatMap(file =>
       Array.from({ length: 8 }, (_, i) => ({ kind: "code" as const, file, symbol: `Target${i}`, role: "definition", description: "" }))) },
   ] } as Model);
@@ -88,7 +88,7 @@ test("Linked Sources shares the Files hierarchy, compresses directory chains, an
 });
 
 test("whole-file mappings share file geometry while retaining code/document target identities", () => {
-  const whole = indexModel({ schema: "3.2", issues: [], id: "whole", name: "Whole", description: "", items: [
+  const whole = indexModel({ schema: "3.3", issues: [], id: "whole", name: "Whole", description: "", items: [
     { id: "context", type: "context", name: "Context", description: "", annotations: [], codeLinks: [
       { kind: "code", file: "src/main.ts", role: "implementation", description: "Code." },
       { kind: "document", file: "src/main.ts", role: "reference", description: "Document." },

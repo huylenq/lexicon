@@ -1,9 +1,10 @@
 # Schema migration instructions
 
-Lexicon parses and writes only the schema in `MODEL.md` (currently `3.2`). This directory holds human-readable deltas for agents, not executable converters or old-schema validators. Each future schema change must add its delta here and update the current parser, contract, fixtures, and docs together. Keep earlier deltas so agents can compose a path; the final document must validate against the installed schema.
+Lexicon parses and writes only the schema in `MODEL.md` (currently `3.3`). This directory holds human-readable deltas for agents, not executable converters or old-schema validators. Each future schema change must add its delta here and update the current parser, contract, fixtures, and docs together. Keep earlier deltas so agents can compose a path; the final document must validate against the installed schema.
 
 Available deltas:
 
+- [3.2 to 3.3](3.2-to-3.3.md)
 - [3.1 to 3.2](3.1-to-3.2.md)
 - [3.0 to 3.1](3.0-to-3.1.md)
 - [2.0 to 3.0](2.0-to-3.0.md)

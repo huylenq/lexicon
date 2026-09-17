@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — Flow participants and code detail
+
+- Schema 3.3 requires Architecture participants in Flow steps. Domain relationships continue to explain concepts and correspondence.
+- Steps optionally reference Flow-owned caller, callee, and call-site code links. Validation checks their IDs, kind, and precise locators; source checks and navigation use the existing link system.
+- Show code expands sequence lifelines under Architecture responsibilities, including internal interactions within one Component. The Shop and canvas workshop examples and Lexicon authoring guidance use the new contract.
+- Add the 3.2-to-3.3 migration delta. Existing project documents remain untouched until explicitly migrated.
+
 ## Unreleased — Source plane navigation
 
 - Keep linked code and document targets on Linked Sources; remove inline source expansion from semantic planes. Cross-dimension radials navigate between targets and their model owners, retaining exact source selections through history. Combined and Planes show source connections directly.

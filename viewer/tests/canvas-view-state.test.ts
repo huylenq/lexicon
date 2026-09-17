@@ -3,7 +3,7 @@ import { parseModel } from "../server/model";
 import { defaults } from "../client/src/graph/storage";
 import { resolveCanvasView, withCanvasSkin } from "../client/src/canvas/viewState";
 
-const model = (architecture: boolean) => parseModel(`<lexicon schema="3.2" id="test">
+const model = (architecture: boolean) => parseModel(`<lexicon schema="3.3" id="test">
   <name>Test</name><description>View preferences.</description>
   <context id="domain"><name>Domain</name><description>Meaning.</description></context>
   ${architecture ? '<system id="system"><name>System</name><description>Structure.</description></system>' : ''}

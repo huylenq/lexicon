@@ -16,7 +16,7 @@ Domain meaning describes the ideas, language, and rules people use to reason abo
 
 These are distinct dimensions of one system. A domain context can span several software components; a component can serve several domain concepts. Neither dimension supplies the other's containment tree. Relationships explain their correspondence, and source links connect either dimension to inspected source. A position on a canvas establishes no semantic relationship.
 
-Flows explain scenarios through ordered interactions between existing participants. They can draw on several dimensions. They do not require another hierarchy.
+Flows explain runtime scenarios through ordered interactions between Architecture participants. Domain concepts explain the affected meaning and rules. Optional step references identify the caller, callee, and call site in source, and the sequence can expand those code targets under their Architecture responsibilities. Flows do not require another hierarchy.
 
 A view should preserve these distinctions while making connections easy to follow. Planes can show Domain, Architecture, and Linked Sources together as separate planes. The Linked Sources plane projects authored source links as shared file and target objects, including references that may be stale. Files browsing shows physical files and directories separately from the planes, with source links connecting those locations to the shared model. It does not create model membership or a separate source index. Separation and tilt help expose correspondence; they carry no claim about runtime direction, dependency, or importance. A reader must be able to focus on each dimension and identify both ends of a connection. Canvas presentations share one workspace, with the same navigation, reading, source, and conversation controls.
 
@@ -34,7 +34,7 @@ Human judgment guides the abstractions. Implementation evidence grounds their ex
 
 ## The model
 
-The project supplies a name, a short explanation, and the objects needed to understand it. Contexts and Concepts describe domain meaning. Person, Software System, Container, and Component describe software structure. Relationships explain connections; Flows describe ordered occurrences of those relationships in a scenario. Each item can carry annotations and source links. Descriptions elaborate meaningful connections in prose, with inline references that let readers follow the explanation. These references complement relationship items without creating edges; their value comes from explaining why and how the items matter to one another.
+The project supplies a name, a short explanation, and the objects needed to understand it. Contexts and Concepts describe domain meaning. Person, Software System, Container, and Component describe software structure. Relationships explain connections; Flows describe ordered occurrences of Architecture interaction relationships in a scenario. Each item can carry annotations and source links. Descriptions elaborate meaningful connections in prose, with inline references that let readers follow the explanation. These references complement relationship items without creating edges; their value comes from explaining why and how the items matter to one another.
 
 Structural containment is stored once. Concepts belong to contexts, containers to systems, and components to containers. Domain membership and consistency claims remain explained relationships and annotations. Views reuse the same identities; canvas drawings and layout remain separate authored presentation.
 

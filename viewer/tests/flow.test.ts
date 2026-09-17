@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import { parseModel, serializeModel } from "../server/model";
 import { applyPatch } from "../server/chat/model-edit";
 import { flowsFor, type Flow } from "../shared/model";
+import { projectSequence } from "../client/src/graph/flow";
 import { indexModel, projectGraph, neighborhood } from "../client/src/graph/model";
 
 const xml = await readFile(new URL("../../examples/shop/lexicon/model.xml", import.meta.url), "utf8");
@@ -55,14 +56,11 @@ test("flows are scenarios, not relationship endpoints or structural parents", ()
   expect(() => applyPatch(before, { upsert: [{ ...flow(), parent: "api" }] })).toThrow("Unknown field");
 });
 
-test("a domain-only flow uses the same schema without requiring architecture", () => {
-  const oldXml = '<lexicon schema="3.2" id="demo"><name>Demo</name><description>Example.</description><context id="c"><name>Context</name><description>Meaning.</description><concept id="a"><name>A</name><description>First participant.</description></concept><concept id="b"><name>B</name><description>Second participant.</description></concept></context><relationship id="r" from="a" to="b"><name>calls</name><description>An interaction.</description></relationship></lexicon>';
+test("a domain-only model remains valid but cannot supply runtime Flow participants", () => {
+  const oldXml = '<lexicon schema="3.3" id="demo"><name>Demo</name><description>Example.</description><context id="c"><name>Context</name><description>Meaning.</description><concept id="a"><name>A</name><description>First participant.</description></concept><concept id="b"><name>B</name><description>Second participant.</description></concept></context><relationship id="r" from="a" to="b"><name>calls</name><description>An interaction.</description></relationship></lexicon>';
   const old = parseModel(oldXml);
-  expect(serializeModel(old)).toContain('schema="3.2"');
-  const next = applyPatch(old, { upsert: [{ ...flow(), codeLinks: [], steps: [{ id: "call", relationship: "r", label: "Start work" }] }] });
-  expect(next.schema).toBe("3.2");
-  expect(parseModel(serializeModel(next)).issues).toEqual([]);
-  expect(() => parseModel(serializeModel(next).replace('schema="3.2"', 'schema="2.0"'))).toThrow();
+  expect(serializeModel(old)).toContain('schema="3.3"');
+  expect(() => applyPatch(old, { upsert: [{ ...flow(), codeLinks: [], steps: [{ id: "call", relationship: "r", label: "Start work" }] }] })).toThrow("Architecture participants");
   expect(old).toEqual(parseModel(oldXml));
 });
 
@@ -75,4 +73,66 @@ test("the static graph reuses flow participants while sequence references preser
   for (const id of ["api", "checkout", "handles-order"]) expect(flowsFor(current, id).map(flow => flow.id)).toEqual(["place-order", "reject-order"]);
   expect(flowsFor(current, "repository").map(flow => flow.id)).toEqual(["place-order"]);
   expect(flowsFor(current, "order-lines")).toEqual([]);
+});
+
+
+test("step code references roundtrip and remain bound to stable Flow-owned IDs when links reorder", () => {
+  const current = model(), before = flow();
+  const reordered = { ...before, codeLinks: [...before.codeLinks].reverse() };
+  const after = applyPatch(current, { upsert: [reordered] });
+  const restored = parseModel(serializeModel(after)).items.find(i => i.id === before.id) as Flow;
+  expect(restored).toEqual(reordered);
+  const projection = projectSequence(indexModel(after), restored, true);
+  expect(projection.rows[1].callSite?.link).toMatchObject({ file: "src/api.ts", line: 8 });
+  expect(projection.lanes.find(l => l.actor.id === "checkout")?.code?.link.symbol).toBe("Checkout.place");
+  expect(() => applyPatch(current, { upsert: [{ ...before, codeLinks: before.codeLinks.filter(l => l.id !== "sequence") }] })).toThrow("must reference a code link");
+});
+
+test("step code roles reject dangling, foreign, documentary, whole-file and malformed references", () => {
+  for (const field of ["caller", "callee", "callSite"]) {
+    for (const reference of ["missing", "implementation", "", 7, null, {}, []]) {
+      const changed = { ...flow(), steps: [{ ...flow().steps[0], [field]: reference }] };
+      expect(() => applyPatch(model(), { upsert: [changed] })).toThrow();
+    }
+    for (const link of [
+      { id: "bad", kind: "code", file: "src/api.ts", role: "implementation", description: "Whole file." },
+      { id: "bad", kind: "document", file: "README.md", line: 1, role: "specification", description: "Policy." },
+    ]) {
+      const changed = { ...flow(), codeLinks: [...flow().codeLinks, link], steps: [{ ...flow().steps[0], [field]: "bad" }] };
+      expect(() => applyPatch(model(), { upsert: [changed] })).toThrow("symbol or line target");
+    }
+  }
+  expect(parseModel(xml.replace('callee="entry"', 'callee="unknown"')).issues.some(i => i.message.includes("callee must reference"))).toBe(true);
+});
+
+test("participant restrictions apply when a referenced relationship changes; cross-dimension relationships remain legal", () => {
+  const current = model(), relationship = current.items.find(i => i.id === "handles-order")!;
+  expect(() => applyPatch(current, { upsert: [{ ...relationship, to: "order" }] })).toThrow("Architecture participants");
+  expect(current.items.find(i => i.id === "creates-order")).toMatchObject({ from: "checkout", to: "order" });
+  expect(current.issues).toEqual([]);
+});
+
+test("code sequence groups internal calls by responsibility and preserves unspecified humans and occurrence order", () => {
+  const current = model(), index = indexModel(current);
+  const rejected = current.items.find(i => i.id === "reject-order") as Flow;
+  const plain = projectSequence(index, rejected, false), expanded = projectSequence(index, rejected, true);
+  expect(plain.lanes.map(l => l.actor.id)).toEqual(["customer", "api", "checkout"]);
+  expect(plain.rows[2].fromLane).toBe(plain.rows[2].toLane);
+  expect(expanded.rows.map(r => r.step)).toEqual(plain.rows.map(r => r.step));
+  expect(expanded.groups.find(g => g.actor.id === "checkout")?.lanes.map(l => l.code?.link.symbol)).toEqual(["Checkout.place", "Order.constructor"]);
+  expect(expanded.rows[2].fromLane).not.toBe(expanded.rows[2].toLane);
+  expect(expanded.lanes[0].code).toBeUndefined();
+  expect(expanded.rows[0].step.label).toContain("HTTP POST");
+  const repeated = projectSequence(index, { ...rejected, steps: [...rejected.steps, { ...rejected.steps[2], id: "again" }] }, true);
+  expect(repeated.lanes).toEqual(expanded.lanes);
+  expect(repeated.rows).toHaveLength(4);
+});
+
+test("unavailable participant and code references remain explicit in sequence projection", () => {
+  const current = model(), broken = { ...flow(), steps: [{ ...flow().steps[0], caller: "gone" }] };
+  expect(projectSequence(indexModel(current), broken, true).rows[0].missingCode).toEqual(["caller"]);
+  const domain = { ...broken, steps: [{ id: "invalid", label: "Invalid", relationship: "creates-order" }] };
+  const projection = projectSequence(indexModel(current), domain, true);
+  expect(projection.lanes).toEqual([]);
+  expect(projection.rows[0].relationship).toBeUndefined();
 });

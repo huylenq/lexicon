@@ -4,7 +4,7 @@ import type { CanvasPlane } from "./planes";
 import { fileSelectionId, fileSelectionPath } from "../../../shared/files";
 import { sourceTargetLabel } from "../source/targets";
 import type { SourceLink, Flow, Model, ModelItem } from "../../../shared/model";
-import { sourceTargetId as targetId, sourceLinkKey, legacySourceLinkKey, legacySourceTargetId, parentOf, dimensionOf, isModelElement, typeNames, type ModelElement, type ElementDimension } from "../../../shared/model";
+import { sourceTargetId as targetId, sourceLinkKey, legacySourceLinkKey, legacySourceTargetId, parentOf, dimensionOf, isModelElement, isArchitecture, typeNames, type ModelElement, type ElementDimension } from "../../../shared/model";
 
 export type GraphSelection =
   | { kind: "item"; id: string }
@@ -331,7 +331,7 @@ export function projectFlow(index: GraphIndex, flow: Flow) {
     const relationship = index.items.get(step.relationship);
     const from = relationship?.type === "relationship" ? index.items.get(relationship.from) : undefined;
     const to = relationship?.type === "relationship" ? index.items.get(relationship.to) : undefined;
-    if (relationship?.type !== "relationship" || !from || !to || !isModelElement(from) || !isModelElement(to))
+    if (relationship?.type !== "relationship" || !from || !to || !isArchitecture(from) || !isArchitecture(to))
       return { step };
     participants.set(from.id, from);
     participants.set(to.id, to);

@@ -17,7 +17,7 @@ test("one model roundtrips domain and architecture with containment authored onl
   expect(parentOf(current.items.find(i => i.id === "checkout")!)).toBe("api");
   expect(parentOf(current.items.find(i => i.id === "api")!)).toBe("shop");
   expect(parseModel(serializeModel(current))).toEqual(current);
-  expect(current.items.filter(i => i.type === "relationship")).toHaveLength(6);
+  expect(current.items.filter(i => i.type === "relationship")).toHaveLength(7);
   // A named domain relation is not another structural parent.
   expect(parentOf(current.items.find(i => i.id === "order-line")!)).toBe("ordering");
 });
@@ -36,8 +36,8 @@ test("invalid ownership, cycles, and dangling links cannot be saved", () => {
 
 test("only the installed schema is readable and writable", () => {
   for (const schema of ["2.0", "3.0-prototype", "3.0", "3.1", "9.0"])
-    expect(() => parseModel(xml.replace('schema="3.2"', `schema="${schema}"`))).toThrow("Expected");
-  expect(() => serializeModel({ ...model(), schema: "2.0" } as unknown as Model)).toThrow("Only schema 3.2");
+    expect(() => parseModel(xml.replace('schema="3.3"', `schema="${schema}"`))).toThrow("Expected");
+  expect(() => serializeModel({ ...model(), schema: "2.0" } as unknown as Model)).toThrow("Only schema 3.3");
 });
 
 test("a parent move preserves identity, evidence and relationships without implicit cascading deletion", () => {
@@ -76,7 +76,7 @@ test("the worked example's source links resolve and its claimed validation runs"
   expect((await handle(request([{ sku: "book", quantity: -1 }]))).status).toBe(400);
 });
 
-test("dimensions partition elements while relationships and flows retain cross-dimension meaning", () => {
+test("dimensions partition elements while relationships explain correspondence and Flows describe behavior", () => {
   const current = model(), index = indexModel(current);
   const domain = projectGraph(index, { view: "domain" });
   const architecture = projectGraph(index, { view: "architecture" });

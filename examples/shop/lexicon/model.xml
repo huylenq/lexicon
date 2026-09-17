@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<lexicon schema="3.2" id="shop-prototype">
+<lexicon schema="3.3" id="shop-prototype">
   <name>Shop</name>
   <description>A small order API used to examine domain meaning, software structure, and runtime collaboration. It validates quantities and keeps accepted orders in process memory. It has no pricing, payment, inventory, authentication, or durable storage.</description>
   <context id="ordering">
@@ -72,23 +72,34 @@
     <description>[[api]] parses the request body and passes its product quantities to [[checkout]] for validation and creation. Parsing must succeed before this handoff; construction failures then return through the handler as HTTP 400.</description>
     <code-link kind="code" id="dispatch" file="src/api.ts" symbol="handle" role="usage">The handler invokes checkout.place after parsing the JSON request body.</code-link>
   </relationship>
+  <relationship id="validates-order" from="checkout" to="checkout">
+    <name>constructs and validates an order within</name>
+    <description>Within [[checkout]], Checkout.place invokes Order.constructor to validate the requested quantities before storage. [[order]] describes the business meaning of the resulting object; the executing responsibility remains Order Handling.</description>
+    <code-link kind="code" id="construction" file="src/checkout.ts" line="6" role="call-site">Constructs Order before calling the repository.</code-link>
+  </relationship>
   <flow id="place-order">
     <name>Place an Order</name>
     <description>A valid POST /orders request reaches [[api]], which delegates to [[checkout]] to create an [[order]] and save it through [[repository]]. The caller receives the created order with HTTP 201; the accepted request remains only in process memory. [[reject-order]] explains what happens when the supplied quantities fail validation.</description>
     <annotation kind="scope" evidence="observed">This scenario assumes valid product quantities. Parsing or order validation failures produce HTTP 400 before the repository is called. A successful request returns the created order with HTTP 201.</annotation>
     <code-link kind="code" id="entry" file="src/api.ts" symbol="handle" role="entrypoint">Routes the request and reports success or failure.</code-link>
     <code-link kind="code" id="sequence" file="src/checkout.ts" symbol="Checkout.place" role="implementation">Constructs and validates Order before saving it through the repository.</code-link>
-    <step id="submit" relationship="customer-orders">Submit product quantities</step>
-    <step id="create" relationship="handles-order">Create and validate the order</step>
-    <step id="save" relationship="saves-order">Save the accepted order</step>
+    <code-link kind="code" id="save" file="src/repository.ts" symbol="OrderRepository.save" role="callee">Stores the validated order in process memory.</code-link>
+    <code-link kind="code" id="dispatch-call" file="src/api.ts" line="8" role="call-site">After parsing JSON, calls Checkout.place directly.</code-link>
+    <code-link kind="code" id="save-call" file="src/checkout.ts" line="7" role="call-site">Calls OrderRepository.save after successful construction.</code-link>
+    <step id="submit" relationship="customer-orders" callee="entry">Submit product quantities via HTTP POST /orders</step>
+    <step id="create" relationship="handles-order" caller="entry" callee="sequence" call-site="dispatch-call">Create and validate the order</step>
+    <step id="save" relationship="saves-order" caller="sequence" callee="save" call-site="save-call">Save the accepted order</step>
   </flow>
   <flow id="reject-order">
     <name>Reject Invalid Quantities</name>
     <description>A POST /orders request supplies a JSON array with an empty SKU or a nonpositive or fractional quantity. [[checkout]] attempts to construct an [[order]], whose validation throws; [[api]] returns HTTP 400 and [[repository]] is not called. Unlike [[place-order]], this path produces no stored order.</description>
     <code-link kind="code" id="source" file="src/api.ts" symbol="handle" role="implementation">Defines the scenario ordering and outcome.</code-link>
     <annotation kind="scope" evidence="observed">This is the domain validation path. Malformed JSON fails earlier, before dispatch; unmatched routes return HTTP 404. Neither alternate is expanded here.</annotation>
-    <step id="submit" relationship="customer-orders">Submit invalid product quantities</step>
-    <step id="dispatch" relationship="handles-order">Attempt order creation</step>
-    <step id="validate" relationship="creates-order">Construct Order and reject invalid lines</step>
+    <code-link kind="code" id="place" file="src/checkout.ts" symbol="Checkout.place" role="caller">Attempts construction before saving the order.</code-link>
+    <code-link kind="code" id="constructor" file="src/order.ts" symbol="Order.constructor" role="callee">Rejects invalid quantities inside the Order Handling responsibility.</code-link>
+    <code-link kind="code" id="construct-call" file="src/checkout.ts" line="6" role="call-site">Construction throws before the repository is called.</code-link>
+    <step id="submit" relationship="customer-orders" callee="source">Submit invalid product quantities via HTTP POST /orders</step>
+    <step id="dispatch" relationship="handles-order" caller="source" callee="place">Attempt order creation</step>
+    <step id="validate" relationship="validates-order" caller="place" callee="constructor" call-site="construct-call">Construct Order and reject invalid lines</step>
   </flow>
 </lexicon>

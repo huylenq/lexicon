@@ -1,8 +1,8 @@
 # Model schema migration
 
-Lexicon reads and writes only schema **3.2**. Older, unversioned, and newer XML is preserved and shown as a version mismatch; malformed XML shows a repair state. There are no old-schema semantic readers, serializers, or automatic converters.
+Lexicon reads and writes only schema **3.3**. Older, unversioned, and newer XML is preserved and shown as a version mismatch; malformed XML shows a repair state. There are no old-schema semantic readers, serializers, or automatic converters.
 
-Open the project in the viewer, choose **Open Agent**, and ask about the document or choose **Migrate to schema 3.2**. Asking a question does not request a change. The agent follows the matching [schema delta](skills/lexicon/migrations/README.md), preserves the model's meaning and identities, and returns a complete current-schema document. The server validates it and all declared code links, checks that model.xml still matches the starting snapshot, and saves atomically. **Undo edit** restores the exact previous bytes, including an unsupported document; the mismatch screen then returns. External edits prevent save or undo from overwriting them.
+Open the project in the viewer, choose **Open Agent**, and ask about the document or choose **Migrate to schema 3.3**. Asking a question does not request a change. The agent follows the matching [schema delta](skills/lexicon/migrations/README.md), preserves the model's meaning and identities, and returns a complete current-schema document. The server validates it and all declared code links, checks that model.xml still matches the starting snapshot, and saves atomically. **Undo edit** restores the exact previous bytes, including an unsupported document; the mismatch screen then returns. External edits prevent save or undo from overwriting them.
 
 Readable schema-3 models use ordinary incremental patches. Migration is reserved for unavailable documents. A future or unknown version without a documented migration path remains intact; the agent explains the missing path. A malformed document can be repaired on explicit request when its intended content is clear.
 

@@ -12,7 +12,7 @@ import { sourceTargetId, legacySourceTargetId, legacySourceLinkKey, type CodeLin
 const base = { file: 'source.ts', role: 'reference', description: 'Evidence.' };
 const code: CodeLink = { ...base, kind: 'code' };
 const document: DocumentLink = { ...base, kind: 'document' };
-const xml = (links: string) => `<lexicon schema="3.2" id="taxonomy"><name>Taxonomy</name><description>Evidence.</description><context id="scope"><name>Scope</name><description>Meaning.</description>${links}</context></lexicon>`;
+const xml = (links: string) => `<lexicon schema="3.3" id="taxonomy"><name>Taxonomy</name><description>Evidence.</description><context id="scope"><name>Scope</name><description>Meaning.</description>${links}</context></lexicon>`;
 const element = (attributes: string) => `<code-link file="source.ts" role="reference" ${attributes}>Evidence.</code-link>`;
 
 test('kind and locator contracts are enforced in XML, edits, and TypeScript', () => {

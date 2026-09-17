@@ -61,7 +61,7 @@ Code references share a target for identical declared file/symbol or file/line l
 
 Old `?canvas=graph` and `?canvas=tldraw` links open the same tldraw canvas and normalize to an ordinary project URL, preserving the selected item and code location.
 
-Earlier XML models open through a read-only import adapter. See [MIGRATION.md](../MIGRATION.md). The model format is in [MODEL.md](../MODEL.md).
+Earlier XML models open a preserved-document mismatch screen with Agent available for explicit migration. See [MIGRATION.md](../MIGRATION.md). The model format is in [MODEL.md](../MODEL.md).
 
 ## Chat
 
@@ -77,7 +77,7 @@ The selected concept or relationship and its source links appear above the compo
 
 Ask exploratory questions to discuss the model. Explicit requests such as “rename this concept” or “split this into two concepts” produce incremental edits. Agents read source; the server validates and saves the model. New source links must resolve, and unsupported symbol checks are reported. Invalid edits and edits based on an externally changed model are rejected without overwriting the file. **Undo edit** restores the previous contents, provided the file has not changed since. The team shares and reviews model changes through Git.
 
-An unmodeled project opens without generating or writing anything. Start with a question or request a small overview. The built-in example supports explanation only; schema mismatches keep Chat available for discussion and explicit migration using the agent delta instructions. Only schema 3.2 is parsed, and migration supports exact-file undo. Linked worktrees can share model artifacts with their primary checkout.
+An unmodeled project opens without generating or writing anything. Start with a question or request a small overview. The built-in example supports explanation only; schema mismatches keep Chat available for discussion and explicit migration using the agent delta instructions. Only schema 3.3 is parsed, and migration supports exact-file undo. Linked worktrees can share model artifacts with their primary checkout.
 
 Conversation history, native session IDs, and undo snapshots live in the viewer's local SQLite registry. **New conversation** clears the visible conversation and starts fresh provider sessions while retaining model undo history. CLI paths can be set with `LEXICON_CODEX_BIN`, `LEXICON_GROK_BIN`, `LEXICON_CLAUDE_BIN`, `LEXICON_PI_BIN`, `LEXICON_OMP_BIN`, and `LEXICON_HERMES_BIN` when they are not on the server's PATH. The ACP entries accept a full command line; extra arguments are passed to the agent, replacing its configured spawn arguments.
 
@@ -128,3 +128,7 @@ The Lexicon skill uses the same inventory through `bun skills/lexicon/scripts/le
 ### Source naming and compatibility
 
 The client uses `SourceReader`, the shared `CanvasPane` for every 2D plane and Combined, and the experimental `FilesPane`/`FileMap`; shared filesystem data is `FileInventory`. The Files API is `/api/projects/:id/files` with `/files/file` for content. Earlier `/repository` endpoints and `repository=1` browsing URLs remain accepted. Serialized `repository:` file selections, `source` dimension keys, canvas page IDs, and `code`/`codePane` URL fields retain their identities so saved links, layouts, and recovery data continue to work. The semantic model still uses `SourceLink` with the schema's existing `codeLinks` and `<code-link>` compatibility names.
+
+### Flow code detail
+
+Flows use Architecture participants. Open a Flow and enable **Show code** to expand its caller and callee targets into lifelines under their responsible participant. Select a symbol or call site to open Source Reader without replacing the Flow. Code detail preserves the step order and transport labels. Internal interactions can expand into several code lifelines within one Component. Unspecified code remains labeled; unavailable targets report the ordinary source-reading error. See [Flow authoring](../skills/lexicon/flows.md) and [schema 3.3 migration](../skills/lexicon/migrations/3.2-to-3.3.md).

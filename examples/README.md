@@ -27,3 +27,5 @@ When modeling is requested, a useful first question is: how does a basket become
 - `viewer/sample-lexicon/` contains historical order-placement prose, without an active model.
 - The root `lexicon/docs/` and `viewer/lexicon/docs/` contain historical design notes. There is no active Lexicon self-model or self-registration to remove.
 - `quarantine/` preserves the earlier implementation and its fixtures.
+
+Flows use Architecture participants in schema 3.3. Shop demonstrates optional caller, callee, and call-site links, including an internal constructor call on the rejection path. The canvas workshop keeps input checking and summation within Total Calculator, while its Domain relationships explain the data and result. Documentary source links remain evidence and cannot serve as code lifelines.

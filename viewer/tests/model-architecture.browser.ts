@@ -422,7 +422,7 @@ test("a flow opens a sequence with participant, relationship, source, search, an
   await expect(sequence.locator(".flow-participant")).toHaveCount(4);
   await expect(sequence.locator(".flow-steps > li")).toHaveCount(3);
   await expect(sequence.locator(".flow-message")).toHaveText([
-    "1. Submit product quantities", "2. Create and validate the order", "3. Save the accepted order",
+    "1. Submit product quantities via HTTP POST /orders", "2. Create and validate the order", "3. Save the accepted order",
   ]);
   await sequence.getByRole("link", { name: "Open participant: Order Handling", exact: true }).click();
   await expect(active.locator("h1")).toHaveText("Order Handling");
@@ -494,7 +494,7 @@ test("broken flow references produce a readable notice and retain the unresolved
   await writeFile(join(root, "lexicon/model.xml"), xml.replace('relationship="saves-order"', 'relationship="missing"'));
   await page.goto(`/p/${id}?item=place-order`);
   const active = page.locator("main [data-reader-card].active");
-  await expect(active.locator(".flow-missing")).toContainText("Unavailable relationship or participant: missing");
+  await expect(active.locator(".flow-missing")).toContainText("Unavailable relationship or Architecture participant: missing");
   await active.locator(".issues summary").click();
   await expect(active.locator(".issues")).toContainText("Step save must reference a relationship: missing");
   expect(errors).toEqual([]);

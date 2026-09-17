@@ -1,0 +1,107 @@
+import { expect, test } from "@playwright/test";
+import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
+
+let root: string, id: string, xml: string;
+test.beforeEach(async ({ request }) => {
+  root = await mkdtemp(join(tmpdir(), "lexicon-flow-code-"));
+  await cp(resolve(import.meta.dirname, "../../examples/shop"), root, { recursive: true });
+  await rm(join(root, "lexicon/canvas.json"), { force: true });
+  await rm(join(root, "lexicon/.canvas.previous.json"), { force: true });
+  xml = await readFile(join(root, "lexicon/model.xml"), "utf8");
+  const response = await request.post("/api/projects", { data: { root } });
+  expect(response.ok()).toBe(true);
+  id = (await response.json()).id;
+});
+test.afterEach(async ({ request, page }) => {
+  await page.goto("about:blank");
+  await request.delete(`/api/projects/${id}`);
+  await rm(root, { recursive: true, force: true, maxRetries: 3 });
+});
+
+test("flow code expands internal calls under Architecture and opens exact source without replacing the Flow", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  await page.goto(`/p/${id}?item=reject-order`);
+  const active = page.locator("main [data-reader-card].active");
+  const sequence = page.getByRole("region", { name: "Sequence diagram: Reject Invalid Quantities" });
+  await expect(sequence.locator(".flow-participant")).toHaveCount(3);
+  await expect(sequence.locator('[data-step-id="validate"] svg > path')).toHaveAttribute("d", / V 26 H /);
+  const toggle = page.getByRole("checkbox", { name: "Show code" });
+  await toggle.focus();
+  await page.keyboard.press("Space");
+  await expect(toggle).toBeChecked();
+  await expect(toggle).toBeFocused();
+  const handling = sequence.locator('[data-participant="checkout"]');
+  await expect(handling.getByRole("button", { name: "Open code: Checkout.place", exact: true })).toBeVisible();
+  await expect(handling.getByRole("button", { name: "Open code: Order.constructor", exact: true })).toBeVisible();
+  await expect(sequence.locator(".flow-lifelines > span")).toHaveCount(4);
+  await expect(sequence.locator('[data-step-id="validate"] svg > path')).not.toHaveAttribute("d", / V 26 H /);
+  await expect(sequence.locator('[data-participant="customer"]')).toContainText("User role");
+  await expect(sequence.locator('[data-step-id="submit"]')).toContainText("HTTP POST /orders");
+  await sequence.evaluate(el => { el.scrollLeft = el.scrollWidth; });
+  await page.screenshot({ path: "../output/flow-code-internal.png" });
+  await handling.getByRole("button", { name: "Open code: Order.constructor", exact: true }).click();
+  await expect(page.locator(".source-scroll")).toContainText("constructor(readonly id: string");
+  await expect(active.locator("h1")).toHaveText("Reject Invalid Quantities");
+  await page.getByRole("button", { name: "Go back", exact: true }).click();
+  await expect(toggle).toBeChecked();
+  await sequence.getByRole("button", { name: "Open call site for step 3: src/checkout.ts:6", exact: true }).click();
+  await expect(page.locator(".source-scroll")).toContainText("new Order(crypto.randomUUID(), lines)");
+  await expect(page).toHaveURL(/line%22%2C6/);
+  await expect(active.locator("h1")).toHaveText("Reject Invalid Quantities");
+  expect(await readFile(join(root, "lexicon/model.xml"), "utf8")).toBe(xml);
+  expect(errors).toEqual([]);
+});
+
+test("flow code supports search, domain navigation, history, dark theme, and a narrow screen", async ({ page }) => {
+  await page.goto(`/p/${id}?item=ordering`);
+  const active = page.locator("main [data-reader-card].active");
+  await expect(active.locator("h1")).toHaveText("Ordering");
+  await page.locator(".sidebar .nav-item").filter({ hasText: /^Order$/ }).click();
+  await expect(active.locator("h1")).toHaveText("Order");
+  await page.getByPlaceholder("Find...").fill("Order.constructor");
+  await page.locator(".sidebar .nav-item").filter({ hasText: /^Reject Invalid Quantities$/ }).click();
+  await page.getByPlaceholder("Find...").fill("");
+  await page.getByRole("checkbox", { name: "Show code" }).check();
+  const sequence = page.getByRole("region", { name: "Sequence diagram: Reject Invalid Quantities" });
+  await sequence.getByRole("link", { name: "Open participant: Order Handling", exact: true }).click();
+  await expect(active.locator("h1")).toHaveText("Order Handling");
+  await page.getByRole("button", { name: "Go back", exact: true }).click();
+  await expect(active.locator("h1")).toHaveText("Reject Invalid Quantities");
+  await page.getByRole("checkbox", { name: "Show code" }).check();
+  await page.getByRole("button", { name: "Use dark theme", exact: true }).click();
+  await page.screenshot({ path: "../output/flow-code-dark.png" });
+  await page.setViewportSize({ width: 430, height: 900 });
+  await expect(sequence).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(430);
+  expect(await sequence.evaluate(el => el.scrollWidth > el.clientWidth)).toBe(true);
+  await sequence.evaluate(el => { el.scrollLeft = el.scrollWidth; });
+  const constructor = sequence.getByRole("button", { name: "Open code: Order.constructor", exact: true });
+  await expect(constructor).toBeInViewport();
+  await page.waitForTimeout(250);
+  await page.screenshot({ path: "../output/flow-code-mobile.png" });
+  await constructor.click();
+  await expect(page.locator(".source-scroll")).toContainText("constructor(readonly id: string");
+  expect(await readFile(join(root, "lexicon/model.xml"), "utf8")).toBe(xml);
+});
+
+test("flow code keeps unresolved references and missing implementation readable", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  await writeFile(join(root, "lexicon/model.xml"), xml.replace('callee="constructor"', 'callee="gone"'));
+  await page.goto(`/p/${id}?item=reject-order`);
+  const active = page.locator("main [data-reader-card].active");
+  await page.getByRole("checkbox", { name: "Show code" }).check();
+  await expect(active.locator('[data-step-id="validate"]')).toContainText("Unavailable code reference: callee");
+  await expect(active.locator('[data-participant="checkout"]')).toContainText("Code not specified");
+  await writeFile(join(root, "lexicon/model.xml"), xml);
+  await rm(join(root, "src/order.ts"));
+  await page.reload();
+  await page.getByRole("checkbox", { name: "Show code" }).check();
+  await page.getByRole("button", { name: "Open code: Order.constructor", exact: true }).click();
+  await expect(page.getByRole("complementary", { name: "Source Reader", exact: true })).toContainText(/unavailable|not found|ENOENT|could not|missing/i);
+  await expect(active.locator("h1")).toHaveText("Reject Invalid Quantities");
+  expect(errors).toEqual([]);
+});

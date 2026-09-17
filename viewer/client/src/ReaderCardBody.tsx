@@ -107,7 +107,7 @@ export default function ReaderCardBody({ card, model, graphIndex, params, loadin
               {item && isArchitecture(item) && <div className="eyebrow">{typeNames[item.type]}</div>}
               {item?.type === "flow" && <div className="eyebrow">Flow · {item.steps.length} steps</div>}
               <p className="prose"><Description text={item?.description || model.description} model={model} params={params} onSelect={select} /></p>
-              {item?.type === "flow" && <FlowSequence flow={item} model={model} params={params} onSelect={select} />}
+              {item?.type === "flow" && <FlowSequence flow={item} model={model} params={params} onSelect={select} onCode={code} />}
               {!item && (
                 <>
                   <div className="stats">

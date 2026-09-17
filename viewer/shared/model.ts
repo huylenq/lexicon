@@ -1,5 +1,5 @@
 /** The model contract shared by the parser, reader, and command line. */
-export const MODEL_SCHEMA = "3.2" as const;
+export const MODEL_SCHEMA = "3.3" as const;
 export interface Annotation {
   kind: string;
   text: string;
@@ -83,6 +83,10 @@ export interface FlowStep {
   id: string;
   relationship: string;
   label: string;
+  /** IDs of precise code links owned by this Flow; endpoints belong to its architecture participants. */
+  caller?: string;
+  callee?: string;
+  callSite?: string;
 }
 export interface Flow extends Item {
   type: "flow";
@@ -102,7 +106,7 @@ export const isArchitecture = (item: ModelItem): item is ArchitectureElement =>
 export type Dimension = "domain" | "architecture" | "code";
 export type ElementDimension = Exclude<Dimension, "code">;
 export const elementDimensions: readonly ElementDimension[] = ["domain", "architecture"];
-/** Relationships and flows can span dimensions; source targets use SourceLinks. */
+/** Relationships can span dimensions; Flows describe Architecture interactions with optional source detail. */
 export const dimensionOf = (item: ModelItem): ElementDimension | undefined =>
   isModelElement(item) ? (isArchitecture(item) ? "architecture" : "domain") : undefined;
 
