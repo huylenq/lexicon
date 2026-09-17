@@ -1,3 +1,4 @@
+import { useSequenceDrag } from "./useSequenceDrag";
 import { SourceMetadataProvider } from "./source/SourceMetadata";
 import ProjectSettings from "./ProjectSettings";
 import {
@@ -25,6 +26,7 @@ import { useAgentSession } from "./useAgentSession";
 import type { NavigationCommand } from "../../shared/agent";
 import useAssistantWindow from "./useAssistantWindow";
 import ReaderCardBody from "./ReaderCardBody";
+import FlowSequence from "./FlowSequence";
 import { ReaderHover } from "./ReaderHover";
 import ReaderCardHeader from "./ReaderCardHeader";
 import PaneSeparator from "./PaneSeparator";
@@ -431,8 +433,24 @@ function ReaderProject({ projectId }: { projectId: string }) {
       ? [model?.items.find(i => i.id === item.from)?.name || item.from, item.name, model?.items.find(i => i.id === item.to)?.name || item.to].join(" ")
       : item.name) : card.kind === "overview" ? model?.name || "Overview" : card.kind === "item" ? "Unavailable item" : card.kind === "mapping" ? "Source link" : "Connections";
   };
+  const [sequenceHover, setSequenceHover] = useState<string>();
+  const [sequenceHeight, setSequenceHeight] = useState(48);
+  const [sequenceInspection, setSequenceInspection] = useState<{ flowId: string; itemId: string } | null>(null);
   const activeCard = reading.stack.cards.find(card => cardKey(card) === reading.stack.active);
   const breadcrumbItem = activeCard?.kind === "item" ? model?.items.find(i => i.id === activeCard.id) : undefined;
+  const sequenceItem = breadcrumbItem?.type === "flow" ? breadcrumbItem
+    : sequenceInspection && breadcrumbItem?.id === sequenceInspection.itemId ? model?.items.find(i => i.id === sequenceInspection.flowId) : undefined;
+  const sequenceFlow = sequenceItem?.type === "flow" ? sequenceItem : undefined;
+  useEffect(() => {
+    if (sequenceInspection && breadcrumbItem?.id !== sequenceInspection.itemId && breadcrumbItem?.id !== sequenceInspection.flowId)
+      setSequenceInspection(null);
+  }, [breadcrumbItem?.id, sequenceInspection]);
+  useEffect(() => setSequenceHover(undefined), [sequenceFlow?.id]);
+  const [lastSequenceId, setLastSequenceId] = useState<string>();
+  useEffect(() => { if (sequenceFlow) setLastSequenceId(sequenceFlow.id); }, [sequenceFlow?.id]);
+  const retainedSequence = model?.items.find(i => i.id === lastSequenceId);
+  const displayedSequence = sequenceFlow || (retainedSequence?.type === "flow" ? retainedSequence : undefined);
+  const sequenceDrag = useSequenceDrag(Boolean(sequenceFlow));
   const breadcrumbOwner = breadcrumbItem ? model?.items.find(i => i.id === parentOf(breadcrumbItem)) : undefined;
   const renderCardHeader = (card: ReaderCard, collapsed = false, style?: CSSProperties) => (
     <ReaderCardHeader card={card} item={card.kind === "item" ? graphIndex?.items.get(card.id) : undefined}
@@ -555,7 +573,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
         </div>
       </header>
       <aside
-        className={`sidebar ${menu ? "open" : ""}`}
+        className={`sidebar canvas-overlay ${menu ? "open" : ""}`}
         id="browse-pane"
         ref={browsePane}
         style={{ height: query.trim() ? searchHeight : undefined }}
@@ -678,12 +696,12 @@ function ReaderProject({ projectId }: { projectId: string }) {
       <div
         className="pane-area"
         ref={paneArea}
-        style={{ "--source-reader-width": `${workspace.codeWidth}%` } as CSSProperties}
+        style={{ "--source-reader-width": `${workspace.codeWidth}%`, "--sequence-height": `${sequenceHeight}%` } as CSSProperties}
       >
         <div
           className={`reader-workspace canvas-workspace ${!reading.stack.visible ? "reader-hidden" : ""}`}
           ref={workArea}
-          style={{ "--reader-width": `${100 - workspace.width}%` } as CSSProperties}
+          style={{ "--reader-width": `${100 - workspace.width}%`, "--sequence-reader-width": `${100 - workspace.width}cqw` } as CSSProperties}
         >
           {model && (
             <div
@@ -703,6 +721,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
                   workspace={workspace}
                   setWorkspace={setWorkspace}
                   selection={graphSelection}
+                  sequenceHover={sequenceFlow ? sequenceHover : undefined}
                   query={query}
                   matches={matches.map((i) => i.id)}
                   onSelect={selectGraph}
@@ -733,6 +752,21 @@ function ReaderProject({ projectId }: { projectId: string }) {
             renderBody={card => cardBodies.get(cardKey(card))}
             notice={<>{error && <ErrorNotice message={error} />}
               {!model && loading && <p className="empty" role="status">Opening the model…</p>}</>} />}
+          {model && displayedSequence && <div className="sequence-positioner"><aside {...sequenceDrag} className="sequence-pane canvas-overlay" aria-label="Flow sequence" hidden={!sequenceFlow}
+            onMouseEnter={() => setSequenceHover("")} onMouseLeave={() => setSequenceHover(undefined)}>
+            <PaneSeparator className="sequence-divider" label="Resize sequence"
+              container={workArea} edge="bottom" unit="percent" min={20} max={75} step={2}
+              value={sequenceHeight} onChange={setSequenceHeight} />
+            <FlowSequence key={displayedSequence.id} flow={displayedSequence} model={model} params={params}
+              onSelect={(id, mode) => {
+                if (id) setSequenceInspection({ flowId: displayedSequence.id, itemId: id });
+                select(id, mode);
+              }} onHover={id => setSequenceHover(id ?? "")} onCode={code} onLocate={id => graphAction("locate", { kind: "item", id })}
+              onLocateCode={(id, index) => {
+                const mapping = graphIndex?.mappings.get(graphIndex.legacyMappings.get(mappingId(id, index)) || "");
+                if (mapping) graphAction("locate", { kind: "code", id: mapping.target });
+              }} />
+          </aside></div>}
         </div>
         {model && sourceNavigation.open && (
           <PaneSeparator className="source-reader-divider" label="Resize Source Reader"
@@ -763,6 +797,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
             canForward={sourceNavigation.canForward}
           />
         )}
+
       </div>
       {dockedChat && (
         <PaneSeparator className="chat-divider" label="Resize Agent and reader"

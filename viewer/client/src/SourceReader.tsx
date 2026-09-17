@@ -83,8 +83,8 @@ export default function SourceReader({
       ? lines.length
       : Math.min(lines.length, result.endLine + 4, start + 250);
   return (
-    <aside id="source-reader" className="source-reader" aria-label="Source Reader" hidden={!open}>
-      <div className="source-reader-heading" ref={heading} tabIndex={-1}>
+    <aside id="source-reader" className="source-reader workspace-pane" aria-label="Source Reader" hidden={!open}>
+      <div className="source-reader-heading workspace-pane-heading" ref={heading} tabIndex={-1}>
         <span className="pane-title">Source Reader</span>
         <div className="source-navigation">
           <button

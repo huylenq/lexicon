@@ -1,3 +1,5 @@
+import { useContext } from "react";
+import { FlowHighlight, SequenceHover } from "../FlowHighlight";
 import { memo, useId, useMemo } from "react";
 import { useGeometryMorph } from "../useRouteMorph";
 import { roadFrame, roadMorph } from "./road-morph";
@@ -63,6 +65,10 @@ const DistrictGround = memo(function DistrictGround({ district, detail, skin, pr
 
 function RoadDrawing({ road, detail, opacity, dragging }: { road: MapScene["roads"][number]; detail: boolean; opacity: number; dragging: boolean }) {
   const editor = useEditor();
+  const flowIds = useContext(FlowHighlight);
+  const sequenceHover = useContext(SequenceHover);
+  const hovered = useValue("Sequence hovered road", () => !!sequenceHover && canvasPresentation(editor).get().connections.get(road.id)?.relationships.includes(sequenceHover), [editor, road.id, sequenceHover]);
+  const flow = useValue("Flow road", () => canvasPresentation(editor).get().connections.get(road.id)?.relationships.some(id => flowIds.has(id)), [editor, road.id, flowIds]);
   const neighbor = useValue("Highlighted neighbor road", () => isNeighborConnection(editor, canvasPresentation(editor).get().connections.get(road.id)), [editor, road.id]);
   const crossDimension = useValue("Cross-dimension road", () => {
     const view = canvasPresentation(editor).get();
@@ -72,7 +78,7 @@ function RoadDrawing({ road, detail, opacity, dragging }: { road: MapScene["road
   const morph = useGeometryMorph(frame, roadMorph, dragging);
   const { tracks, marks, direction, texture } = morph.value;
   const banks = tracks.slice(1, 3), ruts = tracks.slice(3, 5);
-  return <g data-map-road={road.id} data-path-kind={road.kind} data-neighbor={neighbor || undefined} opacity={opacity}>
+  return <g data-map-road={road.id} data-path-kind={road.kind} data-neighbor={neighbor || flow || hovered || undefined} data-hovered={hovered || undefined} data-flow-highlight={flow || undefined} opacity={opacity}>
     <g data-route-current="true" data-route-morphing={morph.animating || undefined}>
       {crossDimension ? <path d={pathFor(tracks[0])} fill="none" stroke="var(--map-ink)" strokeWidth={1.8} strokeDasharray="6 5" /> : <>
       <path d={pathFor([...banks[0], ...[...banks[1]].reverse()], true)} className="map-road-ground" />

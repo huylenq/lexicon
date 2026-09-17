@@ -1,3 +1,4 @@
+import { FlowHighlight, SequenceHover } from "./FlowHighlight";
 import { isCrossPlaneRelationship, selectionPlane } from "../graph/planeNeighbors";
 import { SourceSearch } from "../source/SourceSearch";
 import { sourceFiles } from "../source/targets";
@@ -133,7 +134,7 @@ export default function CanvasPane(input: CanvasPaneProps) {
     if (props.command.selection.kind === "code" || props.command.selection.kind === "mapping") {
       if (props.command.action === "reveal-file" && !experimentalFiles) { props.command.complete?.("Enable Files / File Map in Development options."); return; }
       const linked = props.command.action !== "reveal-file" && !!sourceSelectionId(linkedIndex, props.command.selection);
-      if (linked) props.setWorkspace(w => ({ ...w, source: true }));
+      if (linked && !planes) props.setWorkspace(w => !w.source && w.view === "all" ? w : ({ ...w, source: true }));
       // An unchanged URL must keep its history state, including a hovered radial origin.
       if (linked ? params.has("files") || params.has("repository") : params.get("files") !== "1" || params.has("repository")) {
         setParams(previous => {
@@ -151,8 +152,19 @@ export default function CanvasPane(input: CanvasPaneProps) {
       props.setWorkspace(w => ({ ...w, source: false, view: !w.source && w.view === "all" ? "all" : item && dimensionOf(item) || w.view }));
     }
   }, [props.command?.sequence]);
+  const flowHighlights = useMemo(() => {
+    const ids = new Set<string>();
+    const item = props.selection?.kind === "item" ? linkedIndex.items.get(props.selection.id) : undefined;
+    if (item?.type === "flow") for (const step of item.steps) {
+      const edge = linkedIndex.items.get(step.relationship);
+      if (edge?.type === "relationship") {
+        ids.add(edge.id); ids.add(edge.from); ids.add(edge.to);
+      }
+    }
+    return ids;
+  }, [linkedIndex, props.selection]);
   const mapEnabled = !browsing && !planes && view.skin !== "standard";
-  return <section className="canvas-pane" aria-label="Model canvas" data-map={mapEnabled}
+  return <FlowHighlight.Provider value={flowHighlights}><SequenceHover.Provider value={props.sequenceHover}><section className="canvas-pane" aria-label="Model canvas" data-map={mapEnabled}
     data-presentation={browsing ? "files" : planes ? "planes" : "flat"}
     data-atlas-skin={props.workspace.atlasSkin ?? "ink"}>
     {browsing
@@ -160,7 +172,7 @@ export default function CanvasPane(input: CanvasPaneProps) {
       : planes
       ? <Suspense fallback={<p className="canvas-loading" role="status">Opening planes…</p>}><PlanesCanvas {...props} onFlat={() => present(false)} /></Suspense>
       : <FlatCanvasPane {...props} view={view} onPlanes={() => present(true)} />}
-  </section>;
+  </section></SequenceHover.Provider></FlowHighlight.Provider>;
 }
 
 function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onPlanes: () => void }) {

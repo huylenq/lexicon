@@ -1,6 +1,7 @@
 /* Discrete display transitions keep mounted panes painted through their exit.
    No transform/opacity remains after opening, preserving Reader backdrop blur. */
 @media (prefers-reduced-motion: no-preference) {
+  .reader-workspace .sequence-pane,
   .reader > .sidebar,
   .pane-area > .source-reader,
   .reader-workspace > .reader-stack,
@@ -25,6 +26,7 @@
     --pane-enter-y: 0px;
   }
 
+  .reader-workspace .sequence-pane[hidden],
   .reader.without-sidebar > .sidebar:not(.open),
   .pane-area > .source-reader[hidden],
   .reader-workspace.reader-hidden > .reader-stack,
@@ -72,6 +74,7 @@
   }
 
   @starting-style {
+    .reader-workspace .sequence-pane,
     .reader > .sidebar,
     .pane-area > .source-reader,
     .reader-workspace > .reader-stack,

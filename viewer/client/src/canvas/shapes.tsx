@@ -1,5 +1,6 @@
 import { SourceFileLabel, SourceTargetLabel } from "../source/SourceLabel";
-import { useId } from "react";
+import { useContext, useId } from "react";
+import { FlowHighlight, SequenceHover } from "./FlowHighlight";
 import {
   BaseBoxShapeUtil,
   BindingUtil,
@@ -63,7 +64,10 @@ function ObjectCard({ shape }: { shape: ObjectShape }) {
         (connection.source === id && references.has(connection.target)) ||
         (connection.target === id && references.has(connection.source))));
   }, [editor, shape.props.graphId, model.connections]);
+  const sequenceHover = useContext(SequenceHover);
   const vertex = model.vertices.get(shape.props.graphId);
+  const sequenceHovered = vertex?.selection?.kind === "item" && vertex.selection.id === sequenceHover;
+  const flow = useContext(FlowHighlight).has(vertex?.selection?.kind === "item" ? vertex.selection.id : "");
   const missing = !vertex;
   const primary = isPrimary(shape);
   const frame = useValue("Visible model bounds", () => visibleObjectFrame(editor, shape), [editor, shape]);
@@ -78,13 +82,15 @@ function ObjectCard({ shape }: { shape: ObjectShape }) {
       style={{ left: frame.x, top: frame.y, width: frame.w, height: frame.h }}
       className={`canvas-object ${shape.props.group ? "canvas-group" : "canvas-card"} ${!model.matches(shape.props.graphId) ? "canvas-dimmed" : ""}`}
       data-model-id={shape.props.graphId}
+      data-hovered={sequenceHovered || undefined}
       data-source-kind={vertex?.kind === "file" || vertex?.kind === "code" || vertex?.kind === "directory" ? vertex.kind : undefined}
       data-atlas-label={model.mapEnabled && vertex ? vertex.kind : undefined}
       data-context-boundary={boundary ? model.mapEnabled ? "territory" : "rectangle" : undefined}
       data-map-building={primary && vertex && isAtlasLandmark(vertex.kind) && landmarkFor({ classification: vertex.subtitle, landmark: shape.meta.lexiconLandmark, elementKind: vertex.kind }) !== "none" ? "true" : undefined}
       data-missing={missing || undefined}
       data-selected={selected || undefined}
-      data-neighbor={neighbor || undefined}
+      data-neighbor={neighbor || flow || undefined}
+      data-flow-highlight={flow || undefined}
     >
       {boundary?.points && <svg className="canvas-territory-selection" aria-hidden="true">
         <path d={pathFor(boundary.points.map(p => ({ x: p.x - frame.x, y: p.y - frame.y })), true)} />
@@ -312,6 +318,10 @@ function ConnectionCard({ shape }: { shape: ConnectionShape }) {
   const selected = useValue("Selected relationship", () => editor.getSelectedShapeIds().includes(shape.id), [editor, shape.id]);
   const model = useCanvasPresentation(editor);
   const connection = model.connections.get(shape.props.graphId);
+  const flowIds = useContext(FlowHighlight);
+  const sequenceHover = useContext(SequenceHover);
+  const sequenceHovered = !!sequenceHover && connection?.relationships.includes(sequenceHover);
+  const flow = connection?.relationships.some(id => flowIds.has(id));
   const neighbor = useValue("Highlighted neighbor connection", () => isNeighborConnection(editor, connection), [editor, connection]);
   const p = shape.props;
   const road = useValue("Visible relationship route", () => roadInput(editor, shape), [editor, shape]);
@@ -329,9 +339,10 @@ function ConnectionCard({ shape }: { shape: ConnectionShape }) {
   return (
     <svg
       className={`tl-svg-container canvas-connection ${connection?.kind === "mapping" ? "canvas-mapping" : ""} ${!model.matches(p.graphId) ? "canvas-dimmed" : ""}`}
-      data-hovered={hovered || undefined}
+      data-hovered={(sequenceHover === undefined && hovered) || sequenceHovered || undefined}
       data-selected={selected || undefined}
-      data-neighbor={neighbor || undefined}
+      data-neighbor={neighbor || flow || undefined}
+      data-flow-highlight={flow || undefined}
       data-atlas-road={isAtlasRoad(shape, model) || undefined}
     >
       <g data-route-current="true" data-route-morphing={morph.animating || undefined}>

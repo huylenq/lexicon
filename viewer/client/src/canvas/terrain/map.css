@@ -207,3 +207,6 @@
   stroke: var(--accent); stroke-width: 1; stroke-opacity: .6; vector-effect: non-scaling-stroke;
 }
 .canvas-object-title:is(:hover, :focus-visible) .atlas-concept-name { text-decoration: underline; text-underline-offset: 3px; }
+
+.canvas-map [data-map-road][data-hovered="true"] { color: var(--accent); }
+.canvas-connection[data-atlas-road="true"][data-hovered="true"] .canvas-connection-label { border-color: var(--accent); }

@@ -16,7 +16,7 @@
 
 .reader > .chat-pane,
 .reader > .assistant-launcher.agent-toggle,
-.reader > .sidebar,
+.reader .canvas-overlay,
 .reader .reader-card::before,
 .reader .toolbar,
 .reader-card-header::after {
@@ -37,7 +37,7 @@
 
 .reader > .chat-pane,
 .reader > .assistant-launcher.agent-toggle,
-.reader > .sidebar,
+.reader .canvas-overlay,
 .reader .toolbar {
   box-shadow: var(--glass-shadow);
 }
@@ -77,3 +77,11 @@
 .reader .tlui-main-toolbar__extras__controls {
   border-color: transparent;
 }
+
+/* Shared floating canvas containers: Browse and the horizontal sequence. */
+.reader .canvas-overlay {
+  border: 1px solid var(--pane-edge, var(--line));
+  border-radius: 12px;
+  overflow: hidden;
+}
+:root[data-theme="dark"] .reader .canvas-overlay { border-radius: 10px; }

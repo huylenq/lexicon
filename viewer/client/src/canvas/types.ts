@@ -25,6 +25,7 @@ export type CanvasPaneProps = {
   workspace: Workspace;
   setWorkspace: Dispatch<SetStateAction<Workspace>>;
   selection?: GraphSelection;
+  sequenceHover?: string;
   query: string;
   matches: string[];
   onSelect: (selection: GraphSelection, mode?: ReaderOpenMode) => void;

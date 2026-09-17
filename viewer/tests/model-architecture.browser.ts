@@ -417,7 +417,7 @@ test("a flow opens a sequence with participant, relationship, source, search, an
   page.on("pageerror", error => errors.push(error.message));
   await page.goto(`/p/${id}?item=place-order`);
   const active = page.locator("main [data-reader-card].active");
-  const sequence = active.getByRole("region", { name: "Sequence diagram: Place an Order", exact: true });
+  const sequence = page.getByRole("region", { name: "Sequence diagram: Place an Order", exact: true });
   await expect(sequence).toBeVisible();
   await expect(sequence.locator(".flow-participant")).toHaveCount(4);
   await expect(sequence.locator(".flow-steps > li")).toHaveCount(3);
