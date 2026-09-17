@@ -238,6 +238,7 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onPlanes: (
   const syncing = useRef(false);
   const projectingModel = useRef(true);
   const initialFit = useRef(false);
+  const framedPages = useRef(new Set<TLPageId>());
   const rearrangeNext = useRef(false);
   const pendingLocate = useRef<GraphSelection>();
   const pendingAgentLocate = useRef<CanvasPaneProps["command"]>();
@@ -366,6 +367,7 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onPlanes: (
     if (!editor || !projection.current) return;
     const bounds = projection.current.visibleIds().map(id => editor.getShapePageBounds(id)).filter((box): box is Box => !!box);
     if (bounds.length) fitBounds(Box.Common(bounds));
+    framedPages.current.add(editor.getCurrentPageId());
   };
   const reveal = async (chosen: GraphSelection) => {
     const view = selectionPlane(index, chosen);
@@ -406,7 +408,16 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onPlanes: (
           : undefined;
       // Project documents contain placements, but the camera belongs to this
       // browser. A first visit still needs a fit when the document already exists.
-      initialFit.current = !legacy?.viewport && !boot.snapshot?.session;
+      const session = boot.snapshot?.session;
+      // Session snapshots include untouched pages with a default camera too.
+      // Restore visited cameras without treating those empty defaults as framed.
+      framedPages.current = new Set((session?.pageStates || []).filter(page =>
+        page.pageId === session?.currentPageId || page.camera &&
+        (page.camera.x !== 0 || page.camera.y !== 0 || page.camera.z !== 1),
+      ).map(page => page.pageId));
+      const initialPage = flatPageIds[latest.current.workspace.view || "domain"];
+      initialFit.current = !legacy?.viewport && !framedPages.current.has(initialPage);
+      if (legacy?.viewport) framedPages.current.add(initialPage);
       if (legacy?.viewport) {
         const { x, y, zoom } = legacy.viewport;
         pendingCamera.current = { x: x / zoom, y: y / zoom, z: zoom };
@@ -558,7 +569,7 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onPlanes: (
       seedCombined.current = workspace.view === "all" && !editor.getPage(flatPageIds.all)?.meta.combinedOffsets;
       projection.current = createProjection(editor, page.positions, "DOWN", page.scope);
       projectionView.current = workspace.view || "domain";
-      initialFit.current = true;
+      initialFit.current = !framedPages.current.has(editor.getCurrentPageId());
     }
     let active = true;
     // Returning to Combined only mirrors existing page geometry and reroutes edges.
@@ -851,7 +862,7 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onPlanes: (
           controls={<CanvasViewControls presentation="flat"
             onPresentation={async presentation => { if (presentation === "planes") { await storage.retry(); props.onPlanes(); } }}
             view={props.view}
-            onDimension={view => { initialFit.current = true; setFocus(undefined); setWorkspace(w => ({ ...w, source: view === "source", view: view === "source" ? w.view : view })); }}
+            onDimension={view => { setFocus(undefined); setWorkspace(w => ({ ...w, source: view === "source", view: view === "source" ? w.view : view })); }}
             onSkin={skin => setWorkspace(w => withCanvasSkin(w, skin))}
           />}
         >
