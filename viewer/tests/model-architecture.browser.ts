@@ -987,6 +987,7 @@ test("Combined remains stable while another view polls the same canvas", async (
   expect(new Set(revisions.slice(1)).size).toBe(1);
 });
 
+
 for (const width of [1600, 600]) test(`radial Reader hover is temporary and leaves navigation untouched at ${width}px`, async ({ page }) => {
   await page.setViewportSize({ width, height: 1000 });
   await page.goto(`/p/${id}`);

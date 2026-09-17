@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<lexicon schema="3.3" id="lexicon">
+  <name>Lexicon</name>
+  <description>A local, model-centered application for understanding a codebase through its domain meaning, software architecture, and inspected source. This initial self-index covers the active Viewer and the product guidance that governs it.</description>
+  <context id="shared-understanding">
+    <name>Shared Understanding</name>
+    <description>The durable account a team develops while making a codebase easier to understand.</description>
+    <code-link kind="document" id="shared-understanding-manifesto" file="MANIFESTO.md" role="rationale" heading="progressive">Explains that one shared model develops through questions and incremental refinement.</code-link>
+    <concept id="project" classification="entity">
+      <name>Project</name>
+      <description>An indexed codebase with a selected source root and an artifact root where its shared [[lexicon-model|Lexicon Model]] can live.</description>
+      <code-link kind="code" id="project-registration" file="viewer/server/index.ts" role="implementation" symbol="project">Resolves built-in and registered projects before the Viewer serves their model, source, canvas, or conversation.</code-link>
+    </concept>
+    <concept id="lexicon-model" classification="aggregate">
+      <name>Lexicon Model</name>
+      <description>The versioned, shared semantic document that names a project’s domain ideas, architecture, relationships, flows, annotations, and [[source-evidence|source evidence]].</description>
+      <annotation kind="rule" evidence="enforced">Only schema 3.3 parses and serializes as a current model; unavailable or mismatched documents remain separate from an empty model.</annotation>
+      <code-link kind="document" id="model-format" file="MODEL.md" role="specification" heading="the-lexicon-model">Defines the current model document and the meaning of its supported item types.</code-link>
+      <code-link kind="code" id="model-contract" file="viewer/shared/model.ts" role="definition" symbol="MODEL_SCHEMA">Defines the shared schema version and model contract consumed by the viewer and server.</code-link>
+      <code-link kind="code" id="model-parsing" file="viewer/server/model.ts" role="implementation" symbol="parseModel">Parses the XML document into the shared model representation.</code-link>
+    </concept>
+    <concept id="source-evidence" classification="value">
+      <name>Source Evidence</name>
+      <description>A declared mapping from a model item to an implementation or documentary target, retaining its kind, locator, role, and explanation without making that target a new semantic item.</description>
+      <code-link kind="document" id="source-evidence-taxonomy" file="MODEL.md" role="specification" heading="taxonomy">Separates code and document source kinds, locators, roles, and evidence qualification.</code-link>
+      <code-link kind="code" id="source-evidence-contract" file="viewer/shared/model.ts" role="definition" symbol="SourceLink">Defines the explicit code and document source-link variants used by the shared contract.</code-link>
+    </concept>
+  </context>
+  <context id="guided-exploration">
+    <name>Guided Exploration</name>
+    <description>The work of asking questions, following model connections, inspecting evidence, and explicitly refining the shared account of a project.</description>
+    <code-link kind="document" id="guided-exploration-readme" file="README.md" role="rationale" heading="explore-a-system">Describes browsing concepts and relationships before opening the implementation behind an explanation.</code-link>
+    <concept id="model-refinement" classification="service">
+      <name>Model Refinement</name>
+      <description>An explicit, validated change to a [[lexicon-model|Lexicon Model]] made after a team member’s question or request; exploratory discussion does not itself change the document.</description>
+      <annotation kind="rule" evidence="enforced">The server checks the starting snapshot and changed source links before saving, and undo refuses to overwrite an externally changed model.</annotation>
+      <code-link kind="code" id="model-refinement-save" file="viewer/server/chat/model-edit.ts" role="implementation" symbol="saveXml">Validates and saves an explicit model edit only when its expected document fingerprint still matches.</code-link>
+    </concept>
+  </context>
+  <person id="team-member">
+    <name>Team Member</name>
+    <description>A person who asks questions about a [[project|Project]], uses the Viewer to inspect its model and evidence, and decides which refinements belong in the shared account.</description>
+  </person>
+  <system id="lexicon-viewer">
+    <name>Lexicon Viewer</name>
+    <description>The local application that lets a team explore and refine a project’s [[lexicon-model|shared model]] alongside its source evidence.</description>
+    <code-link kind="document" id="viewer-purpose" file="README.md" role="rationale" heading="lexicon">States the Viewer’s purpose of connecting domain meaning, architecture, and code in one shared model.</code-link>
+    <container id="viewer-client">
+      <name>Viewer Client</name>
+      <description>The browser application that coordinates the reader, canvas, source reader, and agent conversation around the current project model.</description>
+      <code-link kind="code" id="viewer-client-reader" file="viewer/client/src/Reader.tsx" role="implementation" symbol="Reader">Mounts the project reader and composes its model, canvas, source, and conversation surfaces.</code-link>
+      <component id="reader-workspace">
+        <name>Reader Workspace</name>
+        <description>The navigable reading surface that loads a project model, opens model cards, and coordinates the adjacent canvas and source reader.</description>
+        <code-link kind="code" id="reader-project" file="viewer/client/src/Reader.tsx" role="implementation" symbol="ReaderProject">Fetches the current project model and coordinates reader, canvas, source, and chat state.</code-link>
+      </component>
+      <component id="canvas-workspace">
+        <name>Canvas Workspace</name>
+        <description>The tldraw-based presentation of model elements, relationships, and derived source targets; its views and drawings do not change semantic membership.</description>
+        <code-link kind="code" id="canvas-pane" file="viewer/client/src/canvas/CanvasPane.tsx" role="implementation" symbol="CanvasPane">Selects the flat, Planes, or optional Files presentation from the shared model and workspace state.</code-link>
+      </component>
+      <component id="source-reader">
+        <name>Source Reader</name>
+        <description>The evidence-reading surface that opens a declared code or document target and lets a reader return to the owning model item.</description>
+        <code-link kind="code" id="source-reader-pane" file="viewer/client/src/SourceReader.tsx" role="implementation" symbol="SourceReader">Renders the source-reading pane for the selected declared target.</code-link>
+      </component>
+      <component id="agent-conversation">
+        <name>Agent Conversation</name>
+        <description>The client conversation surface that carries selected model context to a local coding runtime and refreshes the reader after an applied model change.</description>
+        <code-link kind="code" id="agent-conversation-pane" file="viewer/client/src/ChatPane.tsx" role="implementation" symbol="ChatPane">Connects the conversation UI to project chat events, provider status, and model-change refreshes.</code-link>
+      </component>
+    </container>
+    <container id="viewer-server">
+      <name>Local Viewer Server</name>
+      <description>The loopback server that registers projects, serves models and declared source, persists viewer artifacts, and coordinates local agent conversations.</description>
+      <code-link kind="code" id="viewer-server-api" file="viewer/server/index.ts" role="implementation" symbol="app">Defines the local API that serves project models, source links, canvas state, settings, and conversation actions.</code-link>
+      <component id="model-service">
+        <name>Model Service</name>
+        <description>The model boundary that reads, parses, validates, serializes, and loads the current XML document without silently interpreting older schemas.</description>
+        <code-link kind="code" id="model-service-document" file="viewer/server/model.ts" role="implementation" symbol="readModelDocument">Separates a current parsed model from a schema-mismatch or invalid-document problem.</code-link>
+        <code-link kind="code" id="model-service-validation" file="viewer/server/model.ts" role="enforcement" symbol="validateModel">Checks structural model invariants before serialization or after parsing.</code-link>
+      </component>
+      <component id="conversation-service">
+        <name>Conversation Service</name>
+        <description>The server-side conversation coordinator that starts local agent turns, records their state, applies explicit edits, and supports stop, reset, canvas commands, and undo.</description>
+        <code-link kind="code" id="conversation-service-class" file="viewer/server/chat/service.ts" role="implementation" symbol="ChatService">Coordinates project conversation state and delegates explicit model edits through the server-owned flow.</code-link>
+      </component>
+      <component id="source-service">
+        <name>Source Service</name>
+        <description>The constrained source resolver that reads only declared targets inside the selected code root and reports their code or document status.</description>
+        <code-link kind="code" id="source-service-reader" file="viewer/server/source.ts" role="implementation" symbol="readSource">Resolves a declared source link into a bounded code or documentary excerpt.</code-link>
+      </component>
+    </container>
+  </system>
+  <relationship id="team-member-explores-project" from="team-member" to="project">
+    <name>explores</name>
+    <description>A Team Member selects a Project to ask questions, follow its model, and inspect declared evidence through the local Viewer.</description>
+  </relationship>
+  <relationship id="project-keeps-model" from="project" to="lexicon-model">
+    <name>keeps</name>
+    <description>A Project’s selected artifact root holds its one shared Lexicon Model when it has been authored.</description>
+    <code-link kind="code" id="project-model-artifact-root" file="viewer/server/index.ts" role="implementation" symbol="artifactRoot">Finds the artifact root that owns a project’s model document, including the primary worktree fallback.</code-link>
+  </relationship>
+  <relationship id="model-declares-source-evidence" from="lexicon-model" to="source-evidence">
+    <name>declares</name>
+    <description>The Lexicon Model owns source links so a reader can trace an explanation to code or documentary evidence without treating files as semantic members.</description>
+  </relationship>
+  <relationship id="viewer-supports-exploration" from="lexicon-viewer" to="guided-exploration">
+    <name>supports</name>
+    <description>The Viewer realizes Guided Exploration by keeping reading, visual navigation, source inspection, and conversation around the same shared model.</description>
+  </relationship>
+  <relationship id="reader-loads-model" from="reader-workspace" to="model-service">
+    <name>loads</name>
+    <description>The Reader Workspace requests the selected project model from the Local Viewer Server before it renders reading and canvas surfaces.</description>
+    <code-link kind="code" id="reader-model-request" file="viewer/client/src/Reader.tsx" role="implementation" symbol="ReaderProject">Fetches the project model from the local API and stores it as the current reader data.</code-link>
+    <code-link kind="code" id="server-model-endpoint" file="viewer/server/index.ts" role="implementation" line="142">Serves the current model document and revision for a project.</code-link>
+  </relationship>
+  <relationship id="reader-coordinates-canvas" from="reader-workspace" to="canvas-workspace">
+    <name>coordinates</name>
+    <description>The Reader Workspace supplies the current model, selection, commands, and local workspace state to the Canvas Workspace.</description>
+  </relationship>
+  <relationship id="canvas-projects-model" from="canvas-workspace" to="lexicon-model">
+    <name>presents</name>
+    <description>The Canvas Workspace projects model elements and declared source targets into Diagram, Atlas, Combined, Planes, or optional Files presentations without redefining their semantics.</description>
+    <code-link kind="code" id="canvas-model-projection" file="viewer/client/src/graph/model.ts" role="implementation" symbol="indexModel">Indexes model items and authored source links for graph and source-target projection.</code-link>
+  </relationship>
+  <relationship id="reader-opens-source" from="reader-workspace" to="source-reader">
+    <name>opens</name>
+    <description>When a reader chooses a declared source mapping or target, the Reader Workspace opens it in the Source Reader while preserving reading navigation.</description>
+  </relationship>
+  <relationship id="source-reader-resolves-evidence" from="source-reader" to="source-service">
+    <name>resolves</name>
+    <description>The Source Reader asks the Local Viewer Server for a declared target; the Source Service confines the result to the selected source root and reports missing or ambiguous locators explicitly.</description>
+    <code-link kind="code" id="source-reader-request" file="viewer/client/src/SourceReader.tsx" role="implementation" symbol="SourceReader">Requests the selected target from the project code endpoint before rendering it.</code-link>
+    <code-link kind="code" id="server-source-endpoint" file="viewer/server/index.ts" role="implementation" line="304">Finds a declared source link and delegates it to the constrained source resolver.</code-link>
+  </relationship>
+  <relationship id="team-member-requests-refinement" from="team-member" to="model-refinement">
+    <name>requests</name>
+    <description>A Team Member must make the change request explicit; exploratory questions remain discussion rather than an automatic document mutation.</description>
+  </relationship>
+  <relationship id="team-member-requests-change-through-conversation" from="team-member" to="agent-conversation">
+    <name>requests an explicit change through</name>
+    <description>A Team Member types an explicit refinement request into Agent Conversation. That surface is the software participant for the request; [[model-refinement]] remains the domain name of an authorized document change.</description>
+    <code-link kind="code" id="conversation-send" file="viewer/client/src/ChatPane.tsx" role="implementation" symbol="ChatPane">The conversation pane is the surface a Team Member uses to send an explicit request with selected context.</code-link>
+  </relationship>
+  <relationship id="agent-conversation-submits-turn" from="agent-conversation" to="conversation-service">
+    <name>submits</name>
+    <description>The Agent Conversation sends the selected context, model revision, and a user message to the Local Viewer Server, then receives streamed conversation state.</description>
+    <code-link kind="code" id="agent-turn-request" file="viewer/client/src/ChatPane.tsx" role="implementation" symbol="ChatPane">Maintains the project chat event stream and submits user conversation actions through the local API.</code-link>
+    <code-link kind="code" id="server-chat-endpoint" file="viewer/server/index.ts" role="implementation" line="259">Routes send, stop, undo, reset, and answer actions to the conversation coordinator.</code-link>
+  </relationship>
+  <relationship id="conversation-applies-refinement" from="conversation-service" to="model-refinement">
+    <name>applies</name>
+    <description>After a local coding agent returns an explicit edit, the Conversation Service validates the model snapshot and changed evidence before it saves the Model Refinement or reports why it was rejected.</description>
+    <code-link kind="code" id="conversation-edit-application" file="viewer/server/chat/service.ts" role="implementation" symbol="ChatService">Owns the turn lifecycle that applies explicit model edits and records their result in conversation state.</code-link>
+  </relationship>
+  <relationship id="conversation-validates-edit-through-model-service" from="conversation-service" to="model-service">
+    <name>validates an edit through</name>
+    <description>After extracting an explicit patch or migration, Conversation Service applies it in memory and asks Model Service to parse and serialize the candidate. Structural failure leaves the on-disk document unchanged.</description>
+    <code-link kind="code" id="conversation-applies-patch" file="viewer/server/chat/service.ts" role="implementation" symbol="ChatService">Applies an explicit patch or migration during the turn, then serializes the candidate before commit.</code-link>
+    <code-link kind="code" id="model-serialize-candidate" file="viewer/server/model.ts" role="enforcement" symbol="serializeModel">Serializes only a structurally valid schema 3.3 document.</code-link>
+  </relationship>
+  <relationship id="refinement-changes-model" from="model-refinement" to="lexicon-model">
+    <name>changes</name>
+    <description>A successful Model Refinement replaces the current document only after structural and changed-link validation against the turn’s starting snapshot.</description>
+  </relationship>
+  <relationship id="conversation-persists-validated-document" from="conversation-service" to="conversation-service">
+    <name>replaces the shared document within</name>
+    <description>Within Conversation Service, a validated candidate is written only when the artifact still matches the turn’s starting snapshot and changed source links resolve. [[model-refinement]] names that authorized change; [[lexicon-model]] names the document that is replaced.</description>
+    <code-link kind="code" id="conversation-commit-model" file="viewer/server/chat/service.ts" role="implementation" symbol="ChatService">Commits a validated candidate after changed-link checks and records exact previous bytes for undo.</code-link>
+    <code-link kind="code" id="save-model-xml" file="viewer/server/chat/model-edit.ts" role="implementation" symbol="saveXml">Replaces model.xml only when the artifact still matches the expected snapshot.</code-link>
+  </relationship>
+  <flow id="inspect-declared-evidence">
+    <name>Inspect Declared Evidence</name>
+    <description>A Team Member opens an indexed Project, whose current model has already been loaded into the Reader Workspace, then follows one declared source mapping. The outcome is a bounded source excerpt alongside the model explanation, not a new source link.</description>
+    <step id="open-source" relationship="reader-opens-source">Open the selected declared source target</step>
+    <step id="resolve-source" relationship="source-reader-resolves-evidence">Resolve and render the declared evidence</step>
+  </flow>
+  <flow id="explicit-model-refinement">
+    <name>Explicit Model Refinement</name>
+    <description>A Team Member asks for a concrete change after discussion. The Agent Conversation submits the turn; the Conversation Service validates and applies it. The outcome is either a saved, undoable new Lexicon Model or a visible rejection that preserves the existing document.</description>
+    <step id="ask-for-change" relationship="team-member-requests-change-through-conversation">Request an explicit model change</step>
+    <step id="submit-turn" relationship="agent-conversation-submits-turn">Send the selected context and request</step>
+    <step id="apply-change" relationship="conversation-validates-edit-through-model-service">Validate and apply the agent’s explicit edit</step>
+    <step id="save-model" relationship="conversation-persists-validated-document">Replace the shared model only when validation succeeds</step>
+  </flow>
+</lexicon>

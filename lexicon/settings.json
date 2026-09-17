@@ -1,0 +1,15 @@
+{
+  "files": {
+    "include": [
+      "viewer/**",
+      "README.md",
+      "MANIFESTO.md",
+      "MODEL.md",
+      "AGENT-CAPABILITIES.md"
+    ],
+    "exclude": [
+      "**/*.lock",
+      "**/.*/**"
+    ]
+  }
+}

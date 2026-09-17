@@ -12,3 +12,4 @@
 
 # Isolated modeling prototype runtime
 viewer/.model-prototype/
+/output/

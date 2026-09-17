@@ -53,6 +53,22 @@ test("Shop example descriptions link domain meaning to implementation and scenar
   await expect(active.locator(".description-missing")).toHaveCount(0);
 });
 
+for (const gesture of ["middle", "Meta"] as const) {
+  test(`inline Reader links open pinned cards with ${gesture}`, async ({ page }) => {
+    await page.goto("/p/shop?item=order");
+    const origin = page.locator('[data-reader-card="item:order"]');
+    await origin.getByRole("button", { name: "Pin Order", exact: true }).click();
+    await origin.locator(".description-reference").getByText("Order Handling", { exact: true })
+      .click(gesture === "middle" ? { button: "middle" } : { modifiers: ["Meta"] });
+    await expect(page.locator('[data-reader-card="item:checkout"].active'))
+      .toHaveAttribute("data-reader-mode", "pinned");
+    await expect(origin).toHaveAttribute("data-reader-mode", "pinned");
+    await expect(page.locator("[data-reader-card]")).toHaveCount(2);
+    expect(page.context().pages()).toHaveLength(1);
+  });
+}
+
+
 for (const width of [1600, 390]) test(`inline Reader hover preserves navigation at ${width}px`, async ({ page }) => {
   await page.setViewportSize({ width, height: 1000 });
   await page.goto("/p/shop?item=order");
