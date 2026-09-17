@@ -106,6 +106,11 @@ function ObjectCard({ shape }: { shape: ObjectShape }) {
           onPointerEnter={() => hoverNeighborLabel(editor, shape.id)}
           onPointerLeave={() => hoverNeighborLabel(editor)}
           aria-label={`${vertex?.kind || "Missing object"}: ${vertex?.title || shape.props.graphId}`}
+          onPointerDown={event => {
+            if (event.button !== 0 && event.button !== 1) return;
+            // Overlapping directory frames must not steal a visible object's title gesture.
+            editor.dispatch({ ...getPointerInfo(editor, event), type: "pointer", name: "pointer_down", target: "shape", shape });
+          }}
           onClick={(event) => {
             // Pointer gestures belong to tldraw; retain keyboard activation.
             if (event.detail === 0)
