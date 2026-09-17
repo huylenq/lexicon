@@ -1,3 +1,5 @@
+import type { Bounds } from "../../../../shared/canvas-geometry";
+import type { FrameCache } from "../frameCache";
 import { atlasRoad } from "./routing";
 import type { Editor, VecLike } from "tldraw";
 import type { ConnectionShape, ObjectShape } from "../../../../shared/canvas-schema";
@@ -7,10 +9,27 @@ import { objectFrame } from "../sizing";
 import { contextFrame, contextLabelFrame, isContext } from "../contexts";
 import { roadGeometry } from "./generate";
 
-export function visibleObjectFrame(editor: Editor, shape: ObjectShape, enabled?: boolean) {
+export function visibleObjectFrame(editor: Editor, shape: ObjectShape, enabled?: boolean, frames?: FrameCache) {
   const view = canvasPresentation(editor).get();
-  return isContext(shape) ? contextFrame(editor, shape, enabled ?? view.mapEnabled)
-    : objectFrame(editor, shape, view.vertices.get(shape.props.graphId), enabled ?? view.mapEnabled);
+  return isContext(shape) ? contextFrame(editor, shape, enabled ?? view.mapEnabled, frames)
+    : objectFrame(editor, shape, view.vertices.get(shape.props.graphId), enabled ?? view.mapEnabled, frames);
+}
+
+/** Occupied space includes movable descendants beyond an authored file frame. */
+export function occupiedObjectFrame(editor: Editor, shape: ObjectShape, frames: FrameCache): Bounds {
+  return frames.get(shape, "occupied", () => {
+    const frame = visibleObjectFrame(editor, shape, undefined, frames);
+    if (!shape.props.group) return frame;
+    let x = frame.x, y = frame.y, right = x + frame.w, bottom = y + frame.h;
+    for (const id of editor.getSortedChildIdsForParent(shape.id)) {
+      const child = editor.getShape(id);
+      if (child?.type !== "lexicon-object" || editor.isShapeHidden(child)) continue;
+      const box = occupiedObjectFrame(editor, child, frames);
+      x = Math.min(x, child.x + box.x); y = Math.min(y, child.y + box.y);
+      right = Math.max(right, child.x + box.x + box.w); bottom = Math.max(bottom, child.y + box.y + box.h);
+    }
+    return { x, y, w: right - x, h: bottom - y };
+  });
 }
 
 export function roadInput(editor: Editor, shape: ConnectionShape) {

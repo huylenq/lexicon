@@ -1,4 +1,5 @@
 import { mergeWholeFileReferences } from "./whole-file";
+import { enableObjectShoving } from "./shoveObjects";
 import { internalWrite, isHistoryReplay } from "./internalWrite";
 import { combinedLayout } from "./combined";
 import { type Editor, type TLShape, type TLShapeId } from "tldraw";
@@ -251,6 +252,7 @@ export function createProjection(
     }
   };
   const disposes = [
+    enableObjectShoving(editor),
     editor.sideEffects.registerBeforeDeleteHandler("shape", (shape) => {
       if (
         !writing && !isHistoryReplay(editor) &&
@@ -275,7 +277,8 @@ export function createProjection(
         } else if (
           previous.type === "lexicon-object" &&
           next.type === "lexicon-object" &&
-          previous.props.group
+          previous.props.group &&
+          (next.props.w !== previous.props.w || next.props.h !== previous.props.h)
         ) {
           const children = editor
             .getSortedChildIdsForParent(previous.id)

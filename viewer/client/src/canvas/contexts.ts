@@ -2,6 +2,7 @@ import type { Editor, TLShape } from "tldraw";
 import type { ObjectShape } from "../../../shared/canvas-schema";
 import type { Bounds, Territory, TerritoryPreferences } from "../../../shared/canvas-geometry";
 import { landLabelCurve } from "./terrain/labels";
+import type { FrameCache } from "./frameCache";
 import { objectSizes } from "./sizing";
 import { applyTerritoryEdits, fitContextFrame, generateTerritory, migrateTerritory, pointBounds, roundTerritory } from "./territory";
 
@@ -10,11 +11,11 @@ export const isContext = (shape: TLShape): shape is ContextShape =>
   shape.type === "lexicon-object" && shape.props.group && shape.props.graphId.startsWith("item:");
 
 /** Only inner model nodes shape a context; notes, roads, and source targets do not. */
-export function contextContents(editor: Editor, shape: ObjectShape, atlas = false): Bounds[] {
+export function contextContents(editor: Editor, shape: ObjectShape, atlas = false, frames?: FrameCache): Bounds[] {
   return editor.getSortedChildIdsForParent(shape.id).flatMap(id => {
     const child = editor.getShape(id);
     if (child?.type !== "lexicon-object") return [];
-    const box = child.props.group ? contextFrame(editor, child, atlas) : { x: 0, y: 0, w: child.props.w, h: child.props.h };
+    const box = child.props.group ? contextFrame(editor, child, atlas, frames) : { x: 0, y: 0, w: child.props.w, h: child.props.h };
     return [{ ...box, x: child.x + box.x, y: child.y + box.y }];
   });
 }
@@ -22,8 +23,8 @@ export function contextHeading(editor: Editor, shape: ObjectShape) {
   const size = objectSizes(editor, String(shape.meta.lexiconLabel || "Context"), "context").diagram;
   return { w: Math.max(100, size.w), h: Math.max(40, size.h) };
 }
-export function diagramContextFrame(editor: Editor, shape: ObjectShape): Bounds {
-  return fitContextFrame(contextContents(editor, shape), contextHeading(editor, shape));
+export function diagramContextFrame(editor: Editor, shape: ObjectShape, frames?: FrameCache): Bounds {
+  return fitContextFrame(contextContents(editor, shape, false, frames), contextHeading(editor, shape));
 }
 const atlasHeadings = new WeakMap<Editor, Map<string, { w: number; h: number }>>();
 function atlasContextHeading(editor: Editor, shape: ObjectShape) {
@@ -43,9 +44,9 @@ function atlasContextHeading(editor: Editor, shape: ObjectShape) {
 }
 type Derived = { key: string; territory: Territory; control: Territory; preferences: TerritoryPreferences | null };
 const derived = new WeakMap<Editor, WeakMap<ObjectShape, Derived>>();
-function derive(editor: Editor, shape: ObjectShape): Derived {
+function derive(editor: Editor, shape: ObjectShape, frames?: FrameCache): Derived {
   // Read children before consulting the cache so tldraw tracks their geometry.
-  const boxes = contextContents(editor, shape, true), heading = atlasContextHeading(editor, shape);
+  const boxes = contextContents(editor, shape, true, frames), heading = atlasContextHeading(editor, shape);
   const key = JSON.stringify([boxes, heading]);
   let cache = derived.get(editor);
   if (!cache) derived.set(editor, cache = new WeakMap());
@@ -67,8 +68,9 @@ export function contextControlTerritory(editor: Editor, shape: ObjectShape): Ter
 export function contextPreferences(editor: Editor, shape: ObjectShape) {
   return derive(editor, shape).preferences;
 }
-export function contextFrame(editor: Editor, shape: ObjectShape, atlas: boolean) {
-  return atlas ? pointBounds(contextTerritory(editor, shape).points) : diagramContextFrame(editor, shape);
+export function contextFrame(editor: Editor, shape: ObjectShape, atlas: boolean, frames?: FrameCache): Bounds {
+  const measure = () => atlas ? pointBounds(derive(editor, shape, frames).territory.points) : diagramContextFrame(editor, shape, frames);
+  return frames ? frames.get(shape, atlas ? "context-atlas" : "context-diagram", measure) : measure();
 }
 export function contextLabelFrame(editor: Editor, shape: ObjectShape, atlas: boolean) {
   const heading = atlas ? atlasContextHeading(editor, shape) : contextHeading(editor, shape), frame = diagramContextFrame(editor, shape);

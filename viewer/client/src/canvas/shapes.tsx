@@ -1,4 +1,5 @@
 import { SourceFileLabel, SourceTargetLabel } from "../source/SourceLabel";
+import { finishObjectShoving } from "./shoveObjects";
 import { useContext, useId } from "react";
 import { FlowHighlight, SequenceHover } from "./FlowHighlight";
 import {
@@ -165,6 +166,9 @@ export class LexiconObjectUtil extends BaseBoxShapeUtil<ObjectShape> {
   static override type = "lexicon-object" as const;
   static override props = objectProps;
   static override migrations = objectMigrations;
+  override onTranslateEnd() {
+    finishObjectShoving(this.editor);
+  }
   getDefaultProps() {
     return { graphId: "", w: 190, h: 70, group: false, territory: null };
   }

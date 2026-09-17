@@ -1,6 +1,7 @@
 import type { Editor } from "tldraw";
 import type { GraphVertex } from "../graph/model";
 import type { ObjectShape } from "../../../shared/canvas-schema";
+import type { FrameCache } from "./frameCache";
 import { isPrimary } from "./references";
 import { fitContextFrame } from "./territory";
 import type { Bounds } from "../../../shared/canvas-geometry";
@@ -44,19 +45,24 @@ export function objectSizes(editor: Editor, title: string, kind: string, landmar
 export const isDirectory = (shape: ObjectShape) => shape.props.group && shape.props.graphId.startsWith("directory:");
 
 /** Directory presentation follows its files, including nested directory frames. */
-export function directoryFrame(editor: Editor, shape: ObjectShape): Bounds {
+export function directoryFrame(editor: Editor, shape: ObjectShape, frames?: FrameCache): Bounds {
+  const measure = () => measureDirectoryFrame(editor, shape, frames);
+  return frames ? frames.get(shape, "directory", measure) : measure();
+}
+
+function measureDirectoryFrame(editor: Editor, shape: ObjectShape, frames?: FrameCache): Bounds {
   const children = editor.getSortedChildIdsForParent(shape.id).flatMap(id => {
     const child = editor.getShape(id);
     if (child?.type !== "lexicon-object") return [];
-    const frame = isDirectory(child) ? directoryFrame(editor, child)
+    const frame = isDirectory(child) ? directoryFrame(editor, child, frames)
       : { x: 0, y: 0, w: child.props.w, h: child.props.h };
     return [{ ...frame, x: child.x + frame.x, y: child.y + frame.y }];
   });
   return fitContextFrame(children, objectSizes(editor, String(shape.meta.lexiconLabel || "Directory"), "directory").diagram);
 }
 
-export function objectFrame(editor: Editor, shape: ObjectShape, vertex: GraphVertex | undefined, atlas: boolean): Bounds {
-  if (isDirectory(shape)) return directoryFrame(editor, shape);
+export function objectFrame(editor: Editor, shape: ObjectShape, vertex: GraphVertex | undefined, atlas: boolean, frames?: FrameCache): Bounds {
+  if (isDirectory(shape)) return directoryFrame(editor, shape, frames);
   if (shape.props.group || !vertex || vertex.kind === "code") return { x: 0, y: 0, w: shape.props.w, h: shape.props.h };
   const sizes = objectSizes(editor, vertex.title, vertex.kind, shape.meta.lexiconLandmark, vertex.subtitle, !isPrimary(shape));
   const size = atlas ? sizes.atlas : sizes.diagram;
