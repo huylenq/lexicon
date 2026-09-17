@@ -1,3 +1,5 @@
+import { fitContainerFrame as fitContextFrame } from "../../../shared/container-frame";
+export { fitContainerFrame as fitContextFrame } from "../../../shared/container-frame";
 import polygonClipping, { type MultiPolygon, type Polygon } from "polygon-clipping";
 import type { Bounds, Point, Territory, TerritoryEdit, TerritoryPreferences, TerritoryRegion } from "../../../shared/canvas-geometry";
 
@@ -10,12 +12,6 @@ export const corners = (b: Bounds): Point[] => [{ x: b.x, y: b.y }, { x: b.x + b
 export function pointBounds(points: Point[]): Bounds {
   const x = Math.min(...points.map(p => p.x)), y = Math.min(...points.map(p => p.y));
   return { x, y, w: Math.max(...points.map(p => p.x)) - x, h: Math.max(...points.map(p => p.y)) - y };
-}
-export function fitContextFrame(boxes: Bounds[], heading: { w: number; h: number }): Bounds {
-  if (!boxes.length) return { x: 0, y: 0, w: Math.max(260, heading.w + 24), h: heading.h + 44 };
-  const b = pointBounds(boxes.flatMap(corners));
-  return { x: b.x - 28, y: b.y - heading.h - 22,
-    w: Math.max(260, b.w + 56, heading.w + 24), h: b.h + heading.h + 50 };
 }
 function nearestOnSegment(p: Point, a: Point, b: Point) {
   const dx = b.x - a.x, dy = b.y - a.y;

@@ -24,7 +24,7 @@ import { relationshipRoute } from "./routes";
 import { labelBox } from "./route-labels";
 import type { RelationshipRoute } from "./scene-routing";
 import { createAsyncRelationshipRouter } from "./async-routing";
-import { connectionLabelWidth, isDirectory, objectFrame, objectSizes } from "./sizing";
+import { connectionLabelWidth, isDirectory, isSourceFile, objectFrame, objectSizes } from "./sizing";
 import { contextPreferences, diagramContextFrame, contextLabelFrame, isContext } from "./contexts";
 
 /** Semantic relationships and source links share orthogonal drawing and hit geometry. */
@@ -246,7 +246,7 @@ export function createProjection(
     // own record is unchanged. Its incident edges must follow the derived frame.
     let parent = editor.getShape(shape.parentId);
     while (parent) {
-      if (parent.type === "lexicon-object" && (isContext(parent) || isDirectory(parent)))
+      if (parent.type === "lexicon-object" && (isContext(parent) || isDirectory(parent) || isSourceFile(parent)))
         markConnections(parent.props.graphId);
       parent = editor.getShape(parent.parentId);
     }
@@ -274,29 +274,6 @@ export function createProjection(
           // Only authored preferences live in the record. The visible polygon is
           // derived from them and current children, including during undo/redo.
           props = { ...previous.props, territory: next.props.territory };
-        } else if (
-          previous.type === "lexicon-object" &&
-          next.type === "lexicon-object" &&
-          previous.props.group &&
-          (next.props.w !== previous.props.w || next.props.h !== previous.props.h)
-        ) {
-          const children = editor
-            .getSortedChildIdsForParent(previous.id)
-            .map((id) => editor.getShape(id))
-            .filter(
-              (s): s is ObjectShape => !!s && s.type === "lexicon-object",
-            );
-          const w = Math.max(
-            260,
-            next.props.w,
-            ...children.map((s) => s.x + s.props.w + 16),
-          );
-          const h = Math.max(
-            88,
-            next.props.h,
-            ...children.map((s) => s.y + s.props.h + 16),
-          );
-          props = { ...previous.props, w, h };
         }
         return {
           ...next,
@@ -427,7 +404,7 @@ export function createProjection(
       const parents = new Set(full.nodes.map(node => node.parentId).filter(Boolean));
       const isGroup = (node: GraphVertex) => node.kind === "context" || node.kind === "file" || node.kind === "directory" ||
         ((node.kind === "system" || node.kind === "container") && parents.has(node.id));
-      const sizes = Object.fromEntries(full.nodes.filter(n => n.parentId || !isGroup(n)).map(node => {
+      const sizes = Object.fromEntries(full.nodes.filter(n => n.parentId || !isGroup(n) || n.kind === "file" || n.kind === "directory").map(node => {
         const { reserve } = objectSizes(editor, node.title, node.kind);
         return [node.id, { width: reserve.w, height: reserve.h }];
       }));

@@ -15,7 +15,7 @@ export function visibleObjectFrame(editor: Editor, shape: ObjectShape, enabled?:
     : objectFrame(editor, shape, view.vertices.get(shape.props.graphId), enabled ?? view.mapEnabled, frames);
 }
 
-/** Occupied space includes movable descendants beyond an authored file frame. */
+/** Occupied space combines the visible frame and any visible descendants. */
 export function occupiedObjectFrame(editor: Editor, shape: ObjectShape, frames: FrameCache): Bounds {
   return frames.get(shape, "occupied", () => {
     const frame = visibleObjectFrame(editor, shape, undefined, frames);
@@ -52,7 +52,7 @@ export function roadCoveredAt(editor: Editor, shape: ConnectionShape, point: Vec
     if (other.type === "lexicon-connection" || editor.isShapeHidden(other)) return false;
     const local = editor.getPointInShapeSpace(other, pagePoint);
     if (other.type === "lexicon-object" && other.props.group) {
-      const b = isContext(other) ? contextLabelFrame(editor, other, true) : { x: 0, y: 0, w: other.props.w, h: 44 };
+      const b = isContext(other) ? contextLabelFrame(editor, other, true) : { ...visibleObjectFrame(editor, other), h: 44 };
       return local.x >= b.x && local.x <= b.x + b.w && local.y >= b.y && local.y <= b.y + b.h;
     }
     if (editor.isShapeFrameLike(other) || other.type === "group") return false;

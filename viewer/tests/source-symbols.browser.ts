@@ -51,7 +51,8 @@ test("linked symbols have distinct glyphs, refresh from source, and retain a usa
   await expect(stage.locator('[data-source-target-kind="line"]')).toHaveCount(1);
   await expect(stage.getByRole("button", { name: "code: Whole file", exact: true })).toHaveCount(0);
   const save = async () => (await (await request.get(`/api/projects/${id}/canvas`)).json()).document?.snapshot.store || {};
-  await expect.poll(async () => Object.values(await save()).some((r: any) => r.props?.graphId === "file:docs/reference.md" && r.props.h === 44)).toBe(true);
+  const emptyHeight = await stage.locator('[data-model-id="file:docs/reference.md"]').evaluate(el => parseFloat((el as HTMLElement).style.height));
+  await expect.poll(async () => Object.values(await save()).some((r: any) => r.props?.graphId === "file:docs/reference.md" && r.props.h === emptyHeight)).toBe(true);
   for (const name of ["Toggle reader", "Toggle navigation"]) {
     const toggle = page.getByRole("button", { name, exact: true });
     if (await toggle.getAttribute("aria-pressed") === "true") await toggle.click();
@@ -93,7 +94,7 @@ test("whole-file edges, old URLs, and attached canvas content resolve to the fil
     props: { ...NoteShapeUtil.prototype.getDefaultProps(), richText: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "File evidence" }] }] } } } as any);
   const arrow = canvasSchema.types.shape.create({ id: "shape:whole-arrow", type: "arrow", parentId: "page:layers-source-links", index: "a8", x: 700, y: 300, props: ArrowShapeUtil.prototype.getDefaultProps() } as any);
   const noteBinding = canvasSchema.types.binding.create({ id: "binding:whole-note", type: "lexicon-note", fromId: note.id, toId: oldId, props: { x: 400, y: 200 } } as any);
-  const arrowBinding = canvasSchema.types.binding.create({ id: "binding:whole-arrow", type: "arrow", fromId: arrow.id, toId: oldId, props: { ...ArrowBindingUtil.prototype.getDefaultProps(), terminal: "end", normalizedAnchor: { x: .5, y: .5 } } } as any);
+  const arrowBinding = canvasSchema.types.binding.create({ id: "binding:whole-arrow", type: "arrow", fromId: arrow.id, toId: oldId, props: { ...ArrowBindingUtil.prototype.getDefaultProps(), terminal: "end", isPrecise: true, isExact: true, normalizedAnchor: { x: .5, y: .5 } } } as any);
   for (const record of [note, arrow, noteBinding, arrowBinding]) records[record.id] = record;
   const response = await request.put(`/api/projects/${id}/canvas`, { data: { revision: old.revision, document: old.document } });
   expect(response.ok(), await response.text()).toBe(true);
@@ -106,7 +107,15 @@ test("whole-file edges, old URLs, and attached canvas content resolve to the fil
   expect(upgraded[noteBinding.id].toId).toBe(file.id);
   expect(upgraded[arrowBinding.id].toId).toBe(file.id);
   expect(upgraded[note.id]).toMatchObject({ x: 750, y: 400 });
-  expect(upgraded[file.id].props.h).toBe(44);
+  const frame = await stage.locator('[data-model-id="file:docs/reference.md"]').evaluate(el => {
+    const s = (el as HTMLElement).style;
+    return { x: parseFloat(s.left), y: parseFloat(s.top), w: parseFloat(s.width), h: parseFloat(s.height) };
+  });
+  const anchor = upgraded[arrowBinding.id].props.normalizedAnchor;
+  // The old row's precise point was (10 + 228/2, 52 + 44/2) in file space.
+  expect(frame.x + anchor.x * frame.w).toBeCloseTo(124);
+  expect(frame.y + anchor.y * frame.h).toBeCloseTo(74);
+  expect(upgraded[file.id].props.h).toBe(frame.h);
   await page.getByRole("button", { name: "Close Source Reader", exact: true }).click();
   await page.getByRole("radio", { name: "Combined", exact: true }).check();
   await expect(stage.locator('[data-model-id="file:docs/reference.md"]')).toBeVisible();
@@ -140,4 +149,19 @@ test("whole-file edges, old URLs, and attached canvas content resolve to the fil
   expect(upgraded[noteBinding.id].toId).toBe(file.id);
   expect(upgraded[oldId]).toBeUndefined();
   expect(await readFile(join(root, "lexicon/model.xml"), "utf8")).toBe(xml);
+});
+
+test("fresh and arranged source file boundaries remain separated", async ({ page }) => {
+  const stage = page.locator('.canvas-stage');
+  for (const arrange of [false, true]) {
+    if (arrange) await page.getByRole("button", { name: "Arrange", exact: true }).click();
+    await expect(page.getByText("Arranging the canvas…")).toBeHidden();
+    await page.getByRole("button", { name: "Fit model", exact: true }).click();
+    await expect.poll(() => stage.locator('[data-source-kind="file"]').evaluateAll(elements => {
+      if (elements.length !== 3) return false;
+      const boxes = elements.map(el => el.getBoundingClientRect());
+      return boxes.every((a, i) => boxes.every((b, j) => i === j ||
+        a.right < b.left || b.right < a.left || a.bottom < b.top || b.bottom < a.top));
+    })).toBe(true);
+  }
 });

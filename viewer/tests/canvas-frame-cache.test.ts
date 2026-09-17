@@ -47,7 +47,7 @@ for (const kind of ["directory", "context", "atlas"] as const) {
   });
 }
 
-test("occupied file bounds retain targets outside the authored visible frame", () => {
+test("visible and occupied file bounds fit targets independently of legacy dimensions", () => {
   const file = { id: "shape:file", parentId: "page:test", type: "lexicon-object", x: 0, y: 0,
     props: { graphId: "file:test.ts", group: true, w: 300, h: 100 }, meta: {} } as unknown as ObjectShape;
   const target = { ...file, id: "shape:target", parentId: file.id, x: 700,
@@ -56,8 +56,12 @@ test("occupied file bounds retain targets outside the authored visible frame", (
     getSortedChildIdsForParent: (id: string) => id === file.id ? [target.id] : [],
     getShape: (id: string) => id === target.id ? target : id === file.id ? file : undefined,
     isShapeHidden: () => false,
+    textMeasure: { measureText: () => ({ w: 100, h: 20 }) },
   } as unknown as Editor;
-  expect(visibleObjectFrame(editor, file).w).toBe(300);
-  expect(occupiedObjectFrame(editor, file, new FrameCache()).w).toBe(800);
-  expect(file.props.w).toBe(300);
+  const before = visibleObjectFrame(editor, file);
+  expect(before.x).toBe(672);
+  expect(before.w).toBe(260);
+  expect(occupiedObjectFrame(editor, file, new FrameCache())).toEqual(visibleObjectFrame(editor, file));
+  file.props.w = 5000; file.props.h = 5000;
+  expect(visibleObjectFrame(editor, file)).toEqual(before);
 });

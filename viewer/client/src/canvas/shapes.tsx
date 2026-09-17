@@ -24,7 +24,6 @@ import {
   type TLHandleDragInfo,
 } from "tldraw";
 import { useRouteMorph } from "./useRouteMorph";
-import { isDirectory } from "./sizing";
 import { connectionDrawing, connectionExportDrawing, isAtlasRoad } from "./rounded-route";
 import ObjectName from "../ObjectName";
 import {
@@ -172,10 +171,8 @@ export class LexiconObjectUtil extends BaseBoxShapeUtil<ObjectShape> {
   getDefaultProps() {
     return { graphId: "", w: 190, h: 70, group: false, territory: null };
   }
-  override canResize(shape: ObjectShape) {
-    return shape.props.group && !isContext(shape) && !isDirectory(shape);
-  }
-  override hideResizeHandles(shape: ObjectShape) { return isContext(shape) || isDirectory(shape); }
+  override canResize() { return false; }
+  override hideResizeHandles() { return true; }
   override hideSelectionBoundsBg(shape: ObjectShape) { return isContext(shape); }
   override canResizeChildren() {
     return false;

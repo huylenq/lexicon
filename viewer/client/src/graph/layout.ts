@@ -1,3 +1,4 @@
+import { fitContainerFrame } from "../../../shared/container-frame";
 import type { Projection } from "./model";
 
 export type Point = { x: number; y: number };
@@ -11,9 +12,13 @@ export async function arrangeGraph(
   sizes: Record<string, { width: number; height: number }> = {},
   direction: "DOWN" | "RIGHT" = "DOWN",
 ): Promise<Layout> {
-  const { default: ELK } = await import("elkjs/lib/elk.bundled.js");
-  const elk = new ELK();
+  let elk: Promise<InstanceType<typeof import("elkjs/lib/elk.bundled.js").default>> | undefined;
+  const getElk = () => elk ??= import("elkjs/lib/elk.bundled.js").then(({ default: ELK }) => new ELK());
   const layout: Layout = {};
+  // Shape origins stay parent-relative; packing uses the derived visible origins.
+  const offsets: Positions = {};
+  const footprint = (id: string, position: Point = layout[id]): Box => ({ ...layout[id],
+    x: position.x + (offsets[id]?.x || 0), y: position.y + (offsets[id]?.y || 0) });
   const groups = graph.nodes.filter((n) => !n.parentId);
   async function arrangeGroup(group: Projection["nodes"][number]) {
     // Nested architecture territories need room for their own coast and heading
@@ -22,8 +27,10 @@ export async function arrangeGraph(
     const inset = architecture ? 80 : group.kind === "file" ? 10 : group.kind === "directory" ? 20 : 28;
     const heading = architecture ? 150 : group.kind === "directory" ? 44 : 60;
     const children = graph.nodes.filter((n) => n.parentId === group.id);
-    if (!children.length && group.kind === "file") {
-      layout[group.id] = { x: 0, y: 0, width: Math.max(280, sizes[group.id]?.width || 0), height: 44 };
+    if (!children.length && (group.kind === "file" || group.kind === "directory")) {
+      const frame = fitContainerFrame([], { w: sizes[group.id]?.width || 190, h: sizes[group.id]?.height || 42 });
+      offsets[group.id] = frame;
+      layout[group.id] = { x: 0, y: 0, width: frame.w, height: frame.h };
       return;
     }
     if (!children.length) {
@@ -42,10 +49,10 @@ export async function arrangeGraph(
         };
       });
     } else if (group.kind === "directory") {
-      packColumns(children.map(n => n.id), layout, inset, heading, 20);
+      packColumns(children.map(n => n.id), layout, inset, heading, 20, offsets);
     } else {
       const ids = new Set(children.map((n) => n.id));
-      const result = await elk.layout({
+      const result = await (await getElk()).layout({
         id: group.id,
         layoutOptions: {
           "elk.algorithm": "layered",
@@ -79,14 +86,23 @@ export async function arrangeGraph(
     // Previously placed children stay still. New children avoid them.
     const occupied: Box[] = children
       .filter((n) => saved[n.id])
-      .map((n) => ({ ...layout[n.id], ...saved[n.id] }));
+      .map((n) => footprint(n.id, saved[n.id]));
     for (const n of children) {
       if (saved[n.id]) layout[n.id] = { ...layout[n.id], ...saved[n.id] };
       else {
-        while (occupied.some((b) => intersects(layout[n.id], b, group.kind === "file" ? 0 : 16)))
+        while (occupied.some((b) => intersects(footprint(n.id), b, group.kind === "file" ? 0 : 16)))
           layout[n.id].y += 100;
-        occupied.push(layout[n.id]);
+        occupied.push(footprint(n.id));
       }
+    }
+    if (group.kind === "file" || group.kind === "directory") {
+      const frame = fitContainerFrame(children.map(n => {
+        const b = footprint(n.id);
+        return { x: b.x, y: b.y, w: b.width, h: b.height };
+      }), { w: sizes[group.id]?.width || 190, h: sizes[group.id]?.height || 42 });
+      offsets[group.id] = frame;
+      layout[group.id] = { x: 0, y: 0, width: frame.w, height: frame.h };
+      return;
     }
     layout[group.id] = {
       x: 0,
@@ -96,7 +112,7 @@ export async function arrangeGraph(
         ...children.map((n) => layout[n.id].x + layout[n.id].width + inset),
       ),
       height: Math.max(
-        group.kind === "file" ? 78 : 110,
+        110,
         ...children.map((n) => layout[n.id].y + layout[n.id].height + inset),
       ),
     };
@@ -109,7 +125,7 @@ export async function arrangeGraph(
   };
   if (domain.length) {
     const ids = new Set(domain.map((n) => n.id));
-    const result = await elk.layout({
+    const result = await (await getElk()).layout({
       id: "domain",
       layoutOptions: {
         "elk.algorithm": "layered",
@@ -147,34 +163,34 @@ export async function arrangeGraph(
     Math.max(0, ...domain.map((n) => layout[n.id].x + layout[n.id].width)) +
     150;
   const files = groups.filter((g) => g.kind === "file" || g.kind === "directory");
-  packColumns(files.map(n => n.id), layout, codeX, Math.min(0, ...domain.map(n => layout[n.id].y)), 48);
+  packColumns(files.map(n => n.id), layout, codeX, Math.min(0, ...domain.map(n => layout[n.id].y)), 48, offsets);
   const occupied = groups
     .filter((g) => saved[g.id])
-    .map((g) => ({ ...layout[g.id], ...saved[g.id] }));
+    .map((g) => footprint(g.id, saved[g.id]));
   for (const group of groups) {
     if (saved[group.id]) {
       layout[group.id] = { ...layout[group.id], ...saved[group.id] };
       continue;
     }
-    while (occupied.some((b) => intersects(layout[group.id], b, 32)))
+    while (occupied.some((b) => intersects(footprint(group.id), b, 32)))
       layout[group.id].y += 100;
-    occupied.push(layout[group.id]);
+    occupied.push(footprint(group.id));
   }
   return layout;
 }
 
 /** Each column takes only the width of its contents, including nested directories. */
-function packColumns(ids: string[], layout: Layout, x: number, y: number, gap: number) {
+function packColumns(ids: string[], layout: Layout, x: number, y: number, gap: number, offsets: Positions = {}) {
   const columns = Array.from({ length: Math.min(3, Math.ceil(Math.sqrt(ids.length))) }, () => ({ ids: [] as string[], width: 0, bottom: y }));
   for (const id of ids) {
     const column = columns.reduce((a, b) => a.bottom <= b.bottom ? a : b);
     column.ids.push(id);
     column.width = Math.max(column.width, layout[id].width);
-    layout[id].y = column.bottom;
+    layout[id].y = column.bottom - (offsets[id]?.y || 0);
     column.bottom += layout[id].height + gap;
   }
   for (const column of columns) {
-    for (const id of column.ids) layout[id].x = x;
+    for (const id of column.ids) layout[id].x = x - (offsets[id]?.x || 0);
     x += column.width + gap;
   }
 }

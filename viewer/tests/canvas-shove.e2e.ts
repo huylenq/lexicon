@@ -58,7 +58,7 @@ const position = (records: any[], scope: string, graph: string) => {
 const cases = [
   { view: "Domain", plane: "domain", scope: "domain", a: "concept: Order", b: "concept: Order Line", graphA: "item:order", graphB: "item:order-line" },
   { view: "Architecture", plane: "architecture", scope: "architecture", a: "component: Order Handling", b: "component: Order Repository", graphA: "item:checkout", graphB: "item:repository" },
-  { view: "Linked Sources", plane: "source", scope: "layers-source", a: "file: order.ts", b: "file: checkout.ts", graphA: "file:src/order.ts", graphB: "file:src/checkout.ts" },
+  { view: "Linked Sources", plane: "source", scope: "layers-source", a: "file: repository.ts", b: "file: checkout.ts", graphA: "file:src/repository.ts", graphB: "file:src/checkout.ts" },
 ];
 
 for (const mode of ["flat", "Combined", "Planes"]) for (const fixture of cases) {
@@ -80,11 +80,23 @@ for (const mode of ["flat", "Combined", "Planes"]) for (const fixture of cases) 
     const scope = mode === "Planes" ? `layers-${fixture.plane}` : mode === "Combined" ? "combined" : fixture.scope;
     const before = await records(page, request, scope);
     if (mode !== "Planes") await page.getByRole("button", { name: "Fit model", exact: true }).click();
+    if (mode === "Combined" && fixture.plane === "source") {
+      await page.mouse.move(800, 500);
+      for (let i = 0; i < 3; i++) {
+        const width = (await a.boundingBox())!.width;
+        await page.mouse.wheel(0, 250);
+        await expect.poll(async () => (await a.boundingBox())!.width).toBeLessThan(width * .95);
+      }
+      await settledTransform(a);
+    }
     const boxA = (await a.boundingBox())!, boxB = (await b.boundingBox())!;
     const neighborTransform = await transform(b);
-    // Architecture relationship labels may cross the heading's center.
-    const start = { x: boxA.x + (fixture.plane === "architecture" ? 8 : boxA.width / 2), y: boxA.y + boxA.height / 2 };
-    const end = { x: boxB.x + (fixture.plane === "architecture" ? 8 : boxB.width / 2), y: boxB.y + boxB.height / 2 };
+    // Relationship labels can cross file headings in tilted Planes; use their clear right edge.
+    const headingPoint = (box: typeof boxA) => ({
+      x: box.x + (fixture.plane === "architecture" ? 8 : fixture.plane === "source" ? box.width - 12 : box.width / 2),
+      y: box.y + box.height / 2,
+    });
+    const start = headingPoint(boxA), end = headingPoint(boxB);
     await page.mouse.move(start.x, start.y); await page.mouse.down();
     await page.mouse.move(end.x, end.y, { steps: 20 });
     await expect.poll(() => transform(b)).not.toBe(neighborTransform);
@@ -235,4 +247,80 @@ for (const skin of ["Standard", "Atlas · Ink"]) test(`${skin}: an expanding con
   expect(position(after, "domain", "item:ordering")).toEqual(position(before, "domain", "item:ordering"));
   await page.keyboard.press("ControlOrMeta+z");
   await expect.poll(async () => position(await records(page, request), "domain", "item:delivery")).toEqual(position(before, "domain", "item:delivery"));
+});
+
+async function expectEnclosed(file: Locator, target: Locator) {
+  await expect.poll(async () => {
+    const outer = await file.boundingBox(), inner = await target.locator('xpath=ancestor::*[@data-source-kind="code"]').boundingBox();
+    return !!outer && !!inner && inner.x >= outer.x && inner.y >= outer.y &&
+      inner.x + inner.width <= outer.x + outer.width + .1 && inner.y + inner.height <= outer.y + outer.height + .1;
+  }).toBe(true);
+}
+
+for (const mode of ["Linked Sources", "Combined", "Planes"]) test(`${mode}: file boundaries follow symbols during dragging and undo`, async ({ page, request }) => {
+  await page.goto(`/p/${project}`);
+  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  await page.getByRole("radio", { name: mode, exact: true }).click();
+  await page.getByRole("button", { name: "Toggle navigation", exact: true }).click();
+  await page.getByRole("button", { name: "Toggle reader", exact: true }).click();
+  const stage = mode === "Planes" ? page.locator('[data-plane="source"]') : page.locator('.canvas-stage');
+  const scope = mode === "Combined" ? "combined" : "layers-source";
+  await records(page, request, scope);
+  if (mode !== "Planes") await page.getByRole("button", { name: "Fit model", exact: true }).click();
+  const target = stage.getByRole("button", { name: "code: Order.constructor", exact: true });
+  const peer = stage.getByRole("button", { name: "code: Order", exact: true });
+  const file = stage.locator('[data-model-id="file:src/order.ts"]');
+  const before = await records(page, request, scope);
+  const graph = await target.evaluate(el => el.closest('[data-model-id]')!.getAttribute('data-model-id')!);
+  // In Planes, release left of the file at row height: the upper-left point
+  // belongs to the overlapping Architecture plane's Customer card.
+  const moves = mode === "Planes" ? [[-130, 0], [160, 160]] : [[-130, -90], [160, 160]];
+  for (const [dx, dy] of moves) {
+    const start = (await target.boundingBox())!;
+    // Cross-plane relationship labels can cover the symbol's text; its glyph stays exposed.
+    const point = { x: start.x + 4, y: start.y + start.height / 2 };
+    await expect.poll(() => target.evaluate((el, p) => el.contains(document.elementFromPoint(p.x, p.y)), point)).toBe(true);
+    await page.mouse.move(point.x, point.y);
+    await page.mouse.down();
+    await page.mouse.move(point.x + dx, point.y + dy, { steps: 15 });
+    await expectEnclosed(file, target);
+    await expectEnclosed(file, peer);
+    await page.mouse.up();
+    await expectEnclosed(file, target);
+    await expect.poll(async () => position(await records(page, request), scope, graph)).not.toEqual(position(before, scope, graph));
+    if (mode === "Planes") await page.getByRole("button", { name: "Undo", exact: true }).click();
+    else await page.keyboard.press("ControlOrMeta+z");
+    await expect.poll(async () => position(await records(page, request), scope, graph)).toEqual(position(before, scope, graph));
+    await expect.poll(async () => position(await records(page, request), scope, "file:src/order.ts")).toEqual(position(before, scope, "file:src/order.ts"));
+    await expectEnclosed(file, target);
+  }
+});
+
+test("saved escaped symbols get fitted file bounds despite legacy oversized dimensions", async ({ page, request }, info) => {
+  await page.goto(`/p/${project}`);
+  await page.getByRole("radio", { name: "Linked Sources", exact: true }).click();
+  await page.getByRole("button", { name: "Toggle navigation", exact: true }).click();
+  await page.getByRole("button", { name: "Toggle reader", exact: true }).click();
+  await records(page, request, "layers-source");
+  const saved = await (await request.get(`/api/projects/${project}/canvas`)).json();
+  const shapes = Object.values(saved.document.snapshot.store) as any[];
+  const fileShape = shapes.find(r => r.type === "lexicon-object" && r.meta.lexiconProjection === "layers-source" && r.props.graphId === "file:src/order.ts");
+  const rows = shapes.filter(r => r.type === "lexicon-object" && r.parentId === fileShape.id);
+  fileShape.props.w = 5000; fileShape.props.h = 5000;
+  for (const row of rows) row.x = -891.836;
+  expect((await request.put(`/api/projects/${project}/canvas`, { data: { revision: saved.revision, document: saved.document } })).ok()).toBe(true);
+  await page.reload();
+  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  await page.getByRole("button", { name: "Fit model", exact: true }).click();
+  const file = page.locator('.canvas-stage [data-model-id="file:src/order.ts"]');
+  for (const row of rows) {
+    const target = page.getByRole("button", { name: `code: ${row.meta.lexiconLabel}`, exact: true });
+    await expectEnclosed(file, target);
+  }
+  const fitted = await file.evaluate(el => ({ w: parseFloat((el as HTMLElement).style.width), h: parseFloat((el as HTMLElement).style.height) }));
+  expect(fitted.w).toBeLessThan(600);
+  expect(fitted.h).toBeLessThan(600);
+  const after = await records(page, request, "layers-source");
+  for (const row of rows) expect(position(after, "layers-source", row.props.graphId)).toEqual(position(shapes, "layers-source", row.props.graphId));
+  await page.screenshot({ path: info.outputPath("recovered-file-boundary.png") });
 });
