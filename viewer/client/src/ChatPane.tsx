@@ -73,7 +73,7 @@ export default function ChatPane({
   const [selection, setSelection] = useState<ChatSelection>();
   const provider = selection?.provider || initialProvider;
   const [checking, setChecking] = useState(false);
-  const probed = useRef(false);
+  const probed = useRef<Provider>();
   const [text, setText] = useState("");
   const [includeContext, setIncludeContext] = useState(true);
   const [error, setError] = useState("");
@@ -87,10 +87,11 @@ export default function ChatPane({
   const changed = useRef(onModelChanged);
   changed.current = onModelChanged;
   const changeStamp = useRef<string>();
-  const accept = useCallback((next: ChatState) => {
-    setState((previous) =>
-      previous && previous.revision > next.revision ? previous : next,
-    );
+  const acceptedRevision = useRef(-1);
+  const accept = useCallback((next: ChatState, reconnected = false) => {
+    if (!reconnected && acceptedRevision.current > next.revision) return;
+    acceptedRevision.current = next.revision;
+    setState(next);
     const stamp = JSON.stringify(
       next.messages
         .filter((m) => m.change)
@@ -101,45 +102,84 @@ export default function ChatPane({
     changeStamp.current = stamp;
   }, []);
   useEffect(() => {
-    let stream: EventSource;
-    let retry: ReturnType<typeof setTimeout>;
+    let stream: EventSource | undefined;
+    let retry: ReturnType<typeof setTimeout> | undefined;
     let closed = false;
+    let lastEvent = Date.now();
+    let healthy = false;
+    let polling = false;
+    const controller = new AbortController();
+    const refresh = async () => {
+      if (closed || polling) return;
+      polling = true;
+      try {
+        const next = await request<ChatState>(`/api/projects/${projectId}/chat`, {
+          signal: AbortSignal.any([controller.signal, AbortSignal.timeout(5000)]),
+        });
+        if (!closed) accept(next);
+      } catch { /* Keep the transcript while the local server reconnects. */ }
+      finally { polling = false; }
+    };
+    const reconnect = () => {
+      if (closed || retry) return;
+      healthy = false;
+      setConnected(false);
+      stream?.close();
+      void refresh();
+      retry = setTimeout(() => { retry = undefined; connect(); }, 2000);
+    };
     const connect = () => {
       if (closed) return;
+      lastEvent = Date.now();
+      let first = true;
       stream = new EventSource(`/api/projects/${projectId}/chat/events`);
       stream.addEventListener("state", (event) => {
-        setConnected(true);
-        accept(JSON.parse((event as MessageEvent).data));
+        if (closed) return;
+        try {
+          const next = JSON.parse((event as MessageEvent).data) as ChatState;
+          if (!Array.isArray(next.messages) || !Number.isFinite(next.revision)) throw new Error("Invalid chat state");
+          // A restarted server can restore a lower, last-persisted revision.
+          accept(next, first);
+          first = false;
+          lastEvent = Date.now();
+          healthy = true;
+          setConnected(true);
+        } catch { reconnect(); }
       });
-      stream.onerror = () => {
-        setConnected(false);
-        stream.close();
-        if (!closed) retry = setTimeout(connect, 2000);
-      };
+      stream.addEventListener("ping", () => { lastEvent = Date.now(); });
+      stream.onerror = reconnect;
     };
     connect();
+    // A stalled stream need not fire onerror. The server sends a ping every 5s.
+    const watchdog = setInterval(() => {
+      if (Date.now() - lastEvent > 15_000) reconnect();
+      if (!healthy) void refresh();
+    }, 2000);
     return () => {
       closed = true;
+      controller.abort();
       clearTimeout(retry);
-      stream.close();
+      clearInterval(watchdog);
+      stream?.close();
     };
   }, [projectId, accept]);
   const check = useCallback(async () => {
     setChecking(true);
     try {
-      setStatuses(await request<ProviderStatus[]>("/api/providers"));
+      const status = await request<ProviderStatus>(`/api/providers/${provider}/status`, { signal: AbortSignal.timeout(20_000) });
+      setStatuses(previous => [...(previous || []).filter(value => value.id !== status.id), status]);
     } catch (e) {
       setError((e as Error).message);
     } finally {
       setChecking(false);
     }
-  }, []);
+  }, [provider]);
   useEffect(() => {
-    if (open && !probed.current) {
-      probed.current = true;
+    if (open && probed.current !== provider) {
+      probed.current = provider;
       void check();
     }
-  }, [open, check]);
+  }, [open, provider, check]);
   useEffect(() => {
     if (open) input.current?.focus();
   }, [open, focusRequest]);
@@ -506,7 +546,7 @@ export default function ChatPane({
             <svg width="16" height="16" viewBox="0 0 20 20" aria-hidden="true"><rect x="5" y="5" width="10" height="10" rx="1" fill="currentColor" /></svg>
           </button>
         ) : (
-          <button type="submit" className="chat-send" aria-label="Send" title="Send message" disabled={!connected || busy || unavailable || !text.trim() || !modelReady}>
+          <button type="submit" className="chat-send" aria-label="Send" title="Send message" disabled={!state || busy || unavailable || !text.trim() || !modelReady}>
             <Icon name="arrow-right" size={20} className="chat-send-arrow" />
           </button>
         )}

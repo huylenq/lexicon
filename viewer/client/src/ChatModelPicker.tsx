@@ -43,10 +43,12 @@ export default function ChatModelPicker({ projectId, initialProvider, disabled, 
   };
   useEffect(() => {
     let cancelled = false;
-    for (const provider of providers) {
+    const controller = new AbortController();
+    const queue = [current.current.provider, ...providers.filter(provider => provider !== current.current.provider)];
+    const load = async (provider: Provider) => {
       setLoading((s) => ({ ...s, [provider]: true }));
       setErrors((s) => ({ ...s, [provider]: undefined }));
-      void request<ModelCatalog>(`/api/providers/${provider}/models`).then((catalog) => {
+      await request<ModelCatalog>(`/api/providers/${provider}/models`, { signal: AbortSignal.any([controller.signal, AbortSignal.timeout(20_000)]) }).then((catalog) => {
         if (cancelled) return;
         setCatalogs((s) => ({ ...s, [provider]: catalog }));
         if (current.current.provider !== provider) return;
@@ -63,7 +65,14 @@ export default function ChatModelPicker({ projectId, initialProvider, disabled, 
         if (!cancelled) setLoading((s) => ({ ...s, [provider]: false }));
       });
     }
-    return () => { cancelled = true; };
+    // Leave HTTP/1 connections available for chat events and actions. Loading
+    // all six runtimes at once can starve the event stream behind slow agents.
+    const worker = async () => {
+      while (!cancelled && queue.length) await load(queue.shift()!);
+    };
+    void worker();
+    void worker();
+    return () => { cancelled = true; controller.abort(); };
   }, [projectId, reload, onSelect]);
   const close = () => { setOpen(false); trigger.current?.focus(); };
   useEffect(() => {

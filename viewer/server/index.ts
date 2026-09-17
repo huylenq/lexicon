@@ -14,7 +14,7 @@ import { MODEL_SCHEMA, codeTargetId } from "../shared/model";
 import { streamSSE } from "hono/streaming";
 import { chat } from "./chat/service";
 import { modelOrEmpty, readXml, fingerprint } from "./chat/model-edit";
-import { probeProviders, listModels } from "./chat/providers";
+import { probeProvider, probeProviders, listModels } from "./chat/providers";
 import { providers, type Provider } from "../shared/chat";
 import { stopOwnedAgents } from "./chat/process";
 import { CanvasError, validateCanvas, readCanvas, saveCanvas, recoverCanvas, saveCanvasAsset, readCanvasAsset } from "./canvas";
@@ -158,6 +158,11 @@ app.get("/api/projects/:id/model", async (c) => {
   });
 });
 app.get("/api/providers", async (c) => c.json(await probeProviders()));
+app.get("/api/providers/:id/status", async (c) => {
+  const id = c.req.param("id") as Provider;
+  if (!providers.includes(id)) return c.json({ error: "Unknown coding agent." }, 404);
+  return c.json(await probeProvider(id));
+});
 async function canvasProject(id: string) {
   const p = project(id);
   if (!p) throw new CanvasError("Project not found.");

@@ -255,6 +255,11 @@ createInterface({ input: process.stdin }).on("line", (line) => {
         notification("item/completed", { threadId: "codex-owned", item: { type: "commandExecution", id: "read-1", command: "cat order.ts", status: "completed", aggregatedOutput: "export interface Order {}" } });
       }
     }
+    if (!grok && !acp && prompt.includes("stream in stages")) {
+      notification("item/agentMessage/delta", { threadId: "codex-owned", itemId: "reply", delta: "First streamed sentence." });
+      setTimeout(() => complete(" Second streamed sentence."), 4000);
+      return;
+    }
     const response = reply(prompt);
     if (!grok && !acp && prompt.includes("segments"))
       notification("item/agentMessage/delta", { threadId: "codex-owned", itemId: "commentary", delta: "Reading the source." });

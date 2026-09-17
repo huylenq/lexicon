@@ -609,39 +609,39 @@ export async function listModels(provider: Provider): Promise<ModelCatalog> {
     return { models, defaultModel: models.some(model => model.id === configured) ? configured : catalogDefault || models[0]?.id };
   } finally { await rpc.close(); }
 }
+export async function probeProvider(id: Provider): Promise<ProviderStatus> {
+  // Overrides may carry arguments ("agent.ts acp --acp-owner p-owned");
+  // probe the first token, passing any extras before --version.
+  const [command, ...extra] = (
+    process.env[`LEXICON_${id.toUpperCase()}_BIN`] || id
+  ).split(" ");
+  try {
+    await exec(command, [...extra, "--version"], { timeout: 15_000 });
+  } catch {
+    return {
+      id,
+      installed: false,
+      authenticated: null,
+      detail: `Install ${id} and sign in locally`,
+    };
+  }
+  try {
+    return await adapters[id].probe();
+  } catch (error) {
+    const message = (error as Error).message;
+    return {
+      id,
+      installed: true,
+      authenticated: null,
+      detail: /spawn .* ENOENT|Executable not found in \$?PATH/i.test(
+        message,
+      )
+        ? `Install ${id} and its ACP entry point, then sign in locally`
+        : message,
+    };
+  }
+}
+
 export async function probeProviders(): Promise<ProviderStatus[]> {
-  return Promise.all(
-    providers.map(async (id) => {
-      // Overrides may carry arguments ("agent.ts acp --acp-owner p-owned");
-      // probe the first token, passing any extras before --version.
-      const [command, ...extra] = (
-        process.env[`LEXICON_${id.toUpperCase()}_BIN`] || id
-      ).split(" ");
-      try {
-        await exec(command, [...extra, "--version"], { timeout: 15_000 });
-      } catch {
-        return {
-          id,
-          installed: false,
-          authenticated: null,
-          detail: `Install ${id} and sign in locally`,
-        };
-      }
-      try {
-        return await adapters[id].probe();
-      } catch (error) {
-        const message = (error as Error).message;
-        return {
-          id,
-          installed: true,
-          authenticated: null,
-          detail: /spawn .* ENOENT|Executable not found in \$?PATH/i.test(
-            message,
-          )
-            ? `Install ${id} and its ACP entry point, then sign in locally`
-            : message,
-        };
-      }
-    }),
-  );
+  return Promise.all(providers.map(probeProvider));
 }

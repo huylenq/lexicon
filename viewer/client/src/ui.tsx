@@ -5,9 +5,16 @@ export async function request<T>(
   options?: RequestInit,
 ): Promise<T> {
   const response = await fetch(path, options);
-  const data = await response.json();
+  const body = await response.text();
+  let data: T & { error?: string };
+  try {
+    data = JSON.parse(body);
+  } catch {
+    const detail = body.trim() ? "an invalid response" : "an empty response";
+    throw new Error(`Lexicon’s local server returned ${detail} (HTTP ${response.status}). Check that the server is running and try again.`);
+  }
   if (!response.ok)
-    throw new Error(data.error || "Unable to load this request.");
+    throw new Error(typeof data?.error === "string" ? data.error : `Unable to load this request (HTTP ${response.status}).`);
   return data;
 }
 export function Theme() {
