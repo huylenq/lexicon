@@ -400,6 +400,13 @@ function ConnectionCard({ shape }: { shape: ConnectionShape }) {
 export class LexiconConnectionUtil extends ShapeUtil<ConnectionShape> {
   static override type = "lexicon-connection" as const;
   static override props = connectionProps;
+  override canCull(shape: ConnectionShape) {
+    // Route animation changes geometry without changing the shape record, so
+    // tldraw's spatial index can still contain an earlier animation frame.
+    // Confirm against live bounds before hiding an allegedly off-screen edge.
+    const bounds = this.editor.getShapePageBounds(shape);
+    return !!bounds && !bounds.collides(this.editor.getViewportPageBounds());
+  }
   override hideInMinimap() {
     // A routed connection's bounding rectangle can cover most of the diagram.
     return true;
