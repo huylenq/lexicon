@@ -143,6 +143,38 @@ test("Escape restores a displaced neighbor and stops the preview animation", asy
   expect(position(await records(page, request), "domain", "item:order")).toEqual(position(before, "domain", "item:order"));
 });
 
+test("restored Architecture objects clear stale missing flags and shove again", async ({ page, request }) => {
+  await page.goto(`/p/${project}`);
+  await page.getByRole("radio", { name: "Architecture", exact: true }).click();
+  await page.getByRole("button", { name: "Toggle reader", exact: true }).click();
+  await records(page, request, "architecture");
+  const saved = await (await request.get(`/api/projects/${project}/canvas`)).json();
+  const shapes = Object.values(saved.document.snapshot.store) as any[];
+  // Persist the state left by a model edit that temporarily removed these items.
+  const restored = shapes.filter(r => r.meta?.lexiconProjection === "architecture" &&
+    (r.type === "lexicon-object" || r.type === "lexicon-connection"));
+  for (const shape of restored) shape.meta.lexiconMissing = true;
+  expect((await request.put(`/api/projects/${project}/canvas`, {
+    data: { revision: saved.revision, document: saved.document },
+  })).ok()).toBe(true);
+  await page.reload();
+  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  await page.getByRole("button", { name: "Fit model", exact: true }).click();
+  const a = page.getByRole("button", { name: "component: Order Handling", exact: true });
+  const b = page.getByRole("button", { name: "component: Order Repository", exact: true });
+  const first = (await a.boundingBox())!, second = (await b.boundingBox())!;
+  const original = await transform(b);
+  await page.mouse.move(first.x + 8, first.y + first.height / 2); await page.mouse.down();
+  await page.mouse.move(second.x + 8, second.y + second.height / 2, { steps: 20 });
+  await expect.poll(() => transform(b)).not.toBe(original);
+  await page.mouse.up();
+  const after = await records(page, request, "architecture");
+  for (const shape of restored) expect(after.find(r => r.id === shape.id).meta.lexiconMissing).toBe(false);
+  await page.keyboard.press("ControlOrMeta+z");
+  await expect.poll(async () => position(await records(page, request), "architecture", "item:repository"))
+    .toEqual(position(shapes, "architecture", "item:repository"));
+});
+
 test("source target rows shove the destination row and adjacent files beyond the authored file frame", async ({ page, request }) => {
   await page.goto(`/p/${project}`);
   await page.getByRole("radio", { name: "Linked Sources", exact: true }).check();

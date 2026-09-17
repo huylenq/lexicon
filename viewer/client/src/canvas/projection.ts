@@ -563,6 +563,11 @@ export function createProjection(
           connections.map((c) => modelShapeId(c.id)),
         );
         for (const shape of editor.getCurrentPageShapes()) {
+          // Metadata updates merge in tldraw. Clear old tombstones explicitly
+          // for restored items, including hidden edges and reference copies.
+          // Otherwise an object can render normally while shoving skips it.
+          if (isModelShape(shape) && shape.meta.lexiconMissing && availableIds.has(shape.props.graphId))
+            editor.updateShape({ id: shape.id, type: shape.type, meta: { lexiconMissing: false } });
           if (
             shape.type === "lexicon-connection" &&
             isPrimary(shape) &&
