@@ -4,6 +4,7 @@ import { canvasSchema } from "../shared/canvas-schema";
 import { enableCombinedDrawing } from "../client/src/canvas/combinedEditing";
 import { internalWrite, isHistoryReplay } from "../client/src/canvas/internalWrite";
 import type { CanvasPlane } from "../client/src/graph/planes";
+import { modelShapeId } from "../client/src/canvas/references";
 import { combinedPage, flatPageIds } from "../client/src/canvas/combined";
 
 function fixture() {
@@ -102,4 +103,76 @@ test("Linked Sources drawing edits retain page ownership through undo and redo",
   expect(store.get(sourceId)).toMatchObject({ parentId: flatPageIds.source, x: 100 });
   history.redo();
   expect(store.get(sourceId)).toMatchObject({ parentId: flatPageIds.source, x: 200 });
+});
+
+for (const dimension of ["domain", "architecture", "source"] as const) test(`Combined ${dimension} model movement writes through and replays without losing source metadata`, () => {
+  const { store, history, editor, activate } = fixture();
+  activate("domain");
+  const source = canvasSchema.types.shape.create({ id: modelShapeId("item:model", dimension), type: "lexicon-object",
+    parentId: flatPageIds[dimension], index: "a1" as any, x: 100, y: 80,
+    props: { graphId: "item:model", w: 190, h: 70, group: false, territory: null },
+    meta: { lexiconProjection: dimension } }) as TLShape;
+  const offset = dimension === "architecture" ? { x: 1000, y: 0 } : dimension === "source" ? { x: 2000, y: 100 } : { x: 0, y: 0 };
+  const mirror = { ...source, id: modelShapeId("item:model", "combined"), parentId: combinedPage,
+    x: source.x + offset.x, y: source.y + offset.y,
+    meta: { lexiconProjection: "combined", combinedDimension: dimension, combinedSourceId: source.id } };
+  internalWrite(editor, () => store.put([source, mirror]));
+  Editor.prototype.markHistoryStoppingPoint.call(editor, "move model");
+  store.put([{ ...mirror, x: mirror.x + 60, y: mirror.y + 30 }]);
+  expect(store.get(source.id)).toEqual({ ...source, x: 160, y: 110 });
+  history.undo();
+  expect(store.get(source.id)).toEqual(source);
+  expect(store.get(mirror.id)).toEqual(mirror);
+  history.redo();
+  expect(store.get(source.id)).toEqual({ ...source, x: 160, y: 110 });
+  store.remove([mirror.id]);
+  expect(store.get(mirror.id)).toBeDefined();
+});
+
+for (const type of ["lexicon-object", "lexicon-connection"] as const) test(`Combined ${type} Atlas appearance writes through with undo`, () => {
+  const { store, history, editor } = fixture();
+  const source = canvasSchema.types.shape.create({ id: modelShapeId(type === "lexicon-object" ? "item:atlas" : "relation:atlas", "architecture"), type,
+    parentId: flatPageIds.architecture, index: "a1" as any,
+    props: type === "lexicon-object" ? { graphId: "item:atlas", w: 190, h: 70, group: false, territory: null }
+      : { graphId: "relation:atlas", path: "", points: [], labelX: 0, labelY: 0, labelWidth: 100 },
+    meta: { lexiconProjection: "architecture" } }) as TLShape;
+  const mirror = { ...source, id: modelShapeId(type === "lexicon-object" ? "item:atlas" : "relation:atlas", "combined"), parentId: combinedPage,
+    meta: { lexiconProjection: "combined", combinedDimension: "architecture", combinedSourceId: source.id } };
+  internalWrite(editor, () => store.put([source, mirror]));
+  Editor.prototype.markHistoryStoppingPoint.call(editor, "Atlas appearance");
+  const appearance = { lexiconLandmark: "archive", lexiconTerrain: "woodland", lexiconPath: "trail" };
+  store.put([{ ...mirror, meta: { ...mirror.meta, ...appearance } }]);
+  expect(store.get(source.id)?.meta).toEqual({ ...source.meta, ...appearance });
+  history.undo();
+  expect(store.get(source.id)).toEqual(source);
+  history.redo();
+  expect(store.get(source.id)?.meta).toEqual({ ...source.meta, ...appearance });
+});
+
+test("duplicated Combined model references own separate source records through move, delete, and undo", () => {
+  const { store, history, editor, activate } = fixture();
+  activate("domain");
+  const source = canvasSchema.types.shape.create({ id: modelShapeId("item:copy", "architecture"), type: "lexicon-object",
+    parentId: flatPageIds.architecture, index: "a1" as any, x: 100, y: 80,
+    props: { graphId: "item:copy", w: 190, h: 70, group: false, territory: null },
+    meta: { lexiconProjection: "architecture" } }) as TLShape;
+  const mirror = { ...source, id: modelShapeId("item:copy", "combined"), parentId: combinedPage, x: 1100,
+    meta: { lexiconProjection: "combined", combinedDimension: "architecture", combinedSourceId: source.id } };
+  internalWrite(editor, () => store.put([source, mirror]));
+  const copyId = "shape:copy" as TLShapeId;
+  store.put([{ ...mirror, id: copyId, x: 1160 }]);
+  const copy = store.get(copyId)! as TLShape;
+  const copySourceId = copy.meta.combinedSourceId as TLShapeId;
+  expect(copySourceId).not.toBe(source.id);
+  expect(store.get(copySourceId)).toMatchObject({ x: 160, parentId: flatPageIds.architecture });
+  store.put([{ ...copy, x: 1260 }]);
+  expect(store.get(copySourceId)).toMatchObject({ x: 260 });
+  expect(store.get(source.id)).toEqual(source);
+  expect(store.get(mirror.id)).toEqual(mirror);
+  Editor.prototype.markHistoryStoppingPoint.call(editor, "delete copy");
+  store.remove([copyId]);
+  expect(store.get(copySourceId)).toBeUndefined();
+  history.undo();
+  expect(store.get(copySourceId)).toMatchObject({ x: 260 });
+  expect(store.get(source.id)).toEqual(source);
 });

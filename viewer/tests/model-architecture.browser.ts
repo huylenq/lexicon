@@ -131,7 +131,7 @@ test("Combined mirrors plane drawings and current placements while protecting mo
   await page.getByRole("radio", { name: "Combined", exact: true }).check();
   await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
   await expect(page.getByRole("button", { name: "Add note", exact: true })).toBeEnabled();
-  await expect(page.getByRole("button", { name: "Arrange", exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Arrange", exact: true })).toBeEnabled();
   await expect(page.getByTestId("canvas").getByText("Domain drawing stays with its plane", { exact: true })).toBeVisible();
   const verifyMirror = async () => {
     const records: any = await store();
@@ -165,6 +165,16 @@ test("Combined mirrors plane drawings and current placements while protecting mo
   }).not.toBe(before['shape:lexicon-view:domain:item%3Aorder'].x);
   await page.getByRole("radio", { name: "Combined", exact: true }).check();
   await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  await expect.poll(verifyMirror).toBe(true);
+  await page.getByRole("button", { name: "Fit model", exact: true }).click();
+  const combinedBefore: any = await store();
+  const combinedBox = (await order.boundingBox())!;
+  await page.mouse.move(combinedBox.x + 8, combinedBox.y + combinedBox.height - 5);
+  await page.mouse.down();
+  await page.mouse.move(combinedBox.x + 68, combinedBox.y + combinedBox.height + 25, { steps: 10 });
+  await page.mouse.up();
+  await expect.poll(async () => (await store())['shape:lexicon-view:domain:item%3Aorder']?.x)
+    .not.toBe(combinedBefore['shape:lexicon-view:domain:item%3Aorder'].x);
   await expect.poll(verifyMirror).toBe(true);
   const handle = page.getByRole("button", { name: "Drag Domain", exact: true });
   await handle.focus(); await handle.press("Shift+ArrowRight");
@@ -1014,4 +1024,137 @@ for (const width of [1600, 600]) test(`radial Reader hover is temporary and leav
   await expect(preview).toBeHidden();
   await expect(page.locator('main [data-reader-card].active h1')).toHaveText("Order Handling");
   expect(await readFile(join(root, "lexicon/model.xml"), "utf8")).toBe(xml);
+});
+
+for (const skin of ["Atlas · Ink", "Atlas · Village"]) test(`Combined ${skin} supports independent Arrange and saved appearance`, async ({ page, request }) => {
+  await page.goto(`/p/${id}`);
+  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  await page.getByRole("radio", { name: "Combined", exact: true }).check();
+  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  const store = async () => (await (await request.get(`/api/projects/${id}/canvas`)).json()).document?.snapshot.store || {};
+  await expect.poll(async () => (await store())['page:lexicon-combined']?.meta.combinedOffsets).toBeTruthy();
+  const offsets = (await store())['page:lexicon-combined'].meta.combinedOffsets;
+  await page.getByRole("button", { name: "Arrange", exact: true }).click();
+  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  await expect.poll(async () => (await store())['page:lexicon-combined']?.meta.combinedOffsets).toEqual(offsets);
+  const positions = (records: any) => Object.values(records).filter((r: any) =>
+    r.type === 'lexicon-object' && r.meta.lexiconProjection === 'domain' && !r.meta.lexiconMissing)
+    .map((r: any) => [r.props.graphId, r.x, r.y]).sort();
+  const domain = positions(await store());
+  await page.getByRole("radio", { name: "Domain", exact: true }).check();
+  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  await page.getByRole("button", { name: "Arrange", exact: true }).click();
+  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  await expect.poll(async () => positions(await store())).toEqual(domain);
+  await expect(page.locator('[data-model-id="item:checkout"]')).not.toBeVisible();
+  await expect(page.locator('[data-connection-id="relation:saves-order"]')).not.toBeVisible();
+  await expect.poll(async () => (await store())['shape:lexicon-view:domain:item%3Acheckout']?.meta)
+    .toMatchObject({ lexiconMissing: false });
+  await page.getByRole("radio", { name: "Combined", exact: true }).check();
+  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  await page.getByRole("radio", { name: skin, exact: true }).check();
+  await page.getByRole("button", { name: "Fit model", exact: true }).click();
+  const object = page.locator('[data-model-id="item:order"]');
+  const box = (await object.boundingBox())!;
+  await page.mouse.click(box.x + 8, box.y + box.height - 5);
+  await expect(page.getByLabel("Landmark", { exact: true })).toBeVisible();
+  await page.getByLabel("Landmark", { exact: true }).selectOption("archive");
+  await expect.poll(async () => (await store())['shape:lexicon-view:domain:item%3Aorder']?.meta.lexiconLandmark).toBe('archive');
+  const territory = (await page.locator('[data-model-id="item:ordering"]').boundingBox())!;
+  await page.mouse.click(territory.x + 4, territory.y + territory.height - 4);
+  await page.getByLabel("Terrain", { exact: true }).selectOption("woodland");
+  await expect.poll(async () => (await store())['shape:lexicon-view:domain:item%3Aordering']?.meta.lexiconTerrain).toBe('woodland');
+  const path = page.locator('[data-connection-id="relation:creates-order"]');
+  await path.focus();
+  await path.press('Enter');
+  await page.getByLabel("Path", { exact: true }).selectOption("trail");
+  await expect.poll(async () => (await store())['shape:lexicon-view:combined:relation%3Acreates-order']?.meta.lexiconPath).toBe('trail');
+  await page.reload();
+  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  await expect(page.locator('[data-map-landmark="item:order"]')).toHaveAttribute('data-landmark-kind', 'archive');
+  await expect.poll(async () => (await store())['shape:lexicon-view:combined:relation%3Acreates-order']?.meta.lexiconPath).toBe('trail');
+  await expect.poll(async () => (await store())['shape:lexicon-view:combined:item%3Aordering']?.meta.lexiconTerrain).toBe('woodland');
+  await page.screenshot({ path: test.info().outputPath('combined-atlas-arranged.png') });
+  expect(await readFile(join(root, 'lexicon/model.xml'), 'utf8')).toBe(xml);
+});
+
+
+test("Combined native duplicate moves independently and survives remirroring", async ({ page, request }) => {
+  await page.goto(`/p/${id}`);
+  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  await page.getByRole("radio", { name: "Combined", exact: true }).check();
+  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  await page.getByRole("button", { name: "Fit model", exact: true }).click();
+  const store = async () => (await (await request.get(`/api/projects/${id}/canvas`)).json()).document?.snapshot.store || {};
+  const sourceId = 'shape:lexicon-view:domain:item%3Aorder';
+  await expect.poll(async () => (await store())[sourceId]).toBeTruthy();
+  const original = (await store())[sourceId];
+  const object = page.locator('[data-model-id="item:order"]');
+  const box = (await object.boundingBox())!;
+  await page.mouse.click(box.x + 8, box.y + box.height - 5);
+  await page.keyboard.press('ControlOrMeta+d');
+  await expect(object).toHaveCount(2);
+  await page.keyboard.press('Shift+ArrowRight');
+  const copies = async () => Object.values(await store()).filter((r: any) => r.type === 'lexicon-object' &&
+    r.props.graphId === 'item:order' && r.meta.combinedSourceId && r.id !== 'shape:lexicon-view:combined:item%3Aorder') as any[];
+  await expect.poll(async () => (await copies()).length).toBe(1);
+  const copy = (await copies())[0];
+  expect(copy.meta.combinedSourceId).not.toBe(sourceId);
+  expect((await store())[sourceId]).toEqual(original);
+  await page.getByRole("radio", { name: "Domain", exact: true }).check();
+  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  await expect(object).toHaveCount(2);
+  await page.getByRole("radio", { name: "Combined", exact: true }).check();
+  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  await expect(object).toHaveCount(2);
+  await expect.poll(async () => (await store())[copy.id]?.x).toBe(copy.x);
+  expect((await store())[sourceId].x).toBe(original.x);
+});
+
+for (const view of ['Domain', 'Combined']) test(`${view} Arrange is one undoable layout action`, async ({ page, request }) => {
+  await page.goto(`/p/${id}`);
+  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  const store = async () => (await (await request.get(`/api/projects/${id}/canvas`)).json()).document?.snapshot.store || {};
+  const positions = async () => Object.values(await store()).filter((r: any) => r.typeName === 'shape' && r.type !== 'lexicon-connection')
+    .map((r: any) => [r.id, r.x, r.y, r.parentId, r.props]).sort((a: any, b: any) => a[0].localeCompare(b[0]));
+  for (const plane of view === 'Combined' ? ['Domain', 'Architecture', 'Linked Sources'] : ['Domain']) {
+    await page.getByRole('radio', { name: plane, exact: true }).check();
+    await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+    await page.getByRole('button', { name: 'Fit model', exact: true }).click();
+    const object = plane === 'Domain' ? page.locator('[data-model-id="item:order"]')
+      : plane === 'Architecture' ? page.locator('[data-model-id="item:customer"]')
+      : page.locator('[data-model-id^="file:"]').first();
+    const before = await positions();
+    const box = (await object.boundingBox())!;
+    await page.mouse.move(box.x + 8, box.y + box.height - 5);
+    await page.mouse.down();
+    await page.mouse.move(box.x + 78, box.y + box.height + 25, { steps: 10 });
+    await page.mouse.up();
+    await expect.poll(positions).not.toEqual(before);
+    const noteCount = Object.values(await store()).filter((r: any) => r.type === 'note').length;
+    await page.getByRole('button', { name: 'Add note', exact: true }).click();
+    const note = page.locator('.tl-container [contenteditable="true"]');
+    await note.fill(`${plane} layout note`);
+    await note.press('Escape');
+    await expect.poll(async () => Object.values(await store()).filter((r: any) => r.type === 'note').length).toBeGreaterThan(noteCount);
+
+  }
+  await page.getByRole('radio', { name: view, exact: true }).check();
+  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  if (view === 'Combined') await expect.poll(async () => Object.keys(await store()).some(key => key.includes('combined:item'))).toBe(true);
+  const before = await positions();
+  await page.getByRole('button', { name: 'Arrange', exact: true }).click();
+  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  await expect.poll(positions).not.toEqual(before);
+  const arranged = await positions();
+  await page.getByRole('button', { name: /^Undo —/ }).click();
+  await expect.poll(positions).toEqual(before);
+  await expect(page.getByRole('radio', { name: view, exact: true })).toBeChecked();
+  await page.getByRole('button', { name: /^Redo —/ }).click();
+  await expect.poll(positions).toEqual(arranged);
+  await page.getByRole('button', { name: /^Undo —/ }).click();
+  await expect.poll(positions).toEqual(before);
+  await page.reload();
+  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  await expect.poll(positions).toEqual(before);
 });

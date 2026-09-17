@@ -1,5 +1,5 @@
 import { mergeWholeFileReferences } from "./whole-file";
-import { internalWrite } from "./internalWrite";
+import { internalWrite, isHistoryReplay } from "./internalWrite";
 import { combinedLayout } from "./combined";
 import { type Editor, type TLShape, type TLShapeId } from "tldraw";
 import {
@@ -84,11 +84,11 @@ export function createProjection(
   let visible = new Set<string>();
   let focus: Set<string> | undefined;
   const pageId = editor.getCurrentPageId();
-  const write = (fn: () => void) => {
+  const write = (fn: () => void, recordHistory = false) => {
     const previous = writing;
     writing = true;
     try {
-      internalWrite(editor, () => editor.run(fn, { history: "ignore", ignoreShapeLock: true }));
+      internalWrite(editor, () => editor.run(fn, { history: recordHistory ? "record" : "ignore", ignoreShapeLock: true }));
     } finally {
       writing = previous;
     }
@@ -206,7 +206,7 @@ export function createProjection(
   const disposes = [
     editor.sideEffects.registerBeforeDeleteHandler("shape", (shape) => {
       if (
-        !writing &&
+        !writing && !isHistoryReplay(editor) &&
         editor.getAncestorPageId(shape) === pageId &&
         isModelShape(shape) &&
         isPrimary(shape) &&
@@ -217,7 +217,7 @@ export function createProjection(
     editor.sideEffects.registerBeforeChangeHandler(
       "shape",
       (previous, next) => {
-        if (writing || editor.getAncestorPageId(previous) !== pageId || !isModelShape(previous) || !isModelShape(next))
+        if (writing || isHistoryReplay(editor) || editor.getAncestorPageId(previous) !== pageId || !isModelShape(previous) || !isModelShape(next))
           return next;
         // A visual gesture cannot rename, rewire, or move a concept into a different context.
         let props = previous.props;
@@ -317,8 +317,12 @@ export function createProjection(
       projected: Projection,
       rearrange = false,
       focused?: Set<string>,
+      // Layout may be plane-scoped; membership still comes from the complete model.
+      available: Projection = full,
+      recordHistory = rearrange,
     ) {
       const token = ++generation;
+      const availableIds = new Set([...available.nodes, ...available.connections].map(item => item.id));
       // Materialize code only when it is opened, preserving previously placed references.
       const needed = new Set(projected.nodes.map((n) => n.id));
       for (const node of full.nodes)
@@ -522,8 +526,8 @@ export function createProjection(
                 type: shape.type,
                 meta: {
                   ...shape.meta,
-                  lexiconHidden: false,
-                  lexiconMissing: true,
+                  lexiconHidden: availableIds.has(shape.props.graphId),
+                  lexiconMissing: !availableIds.has(shape.props.graphId),
                 },
               });
             else editor.deleteShape(shape.id);
@@ -538,8 +542,8 @@ export function createProjection(
               type: shape.type,
               meta: {
                 ...shape.meta,
-                lexiconHidden: false,
-                lexiconMissing: true,
+                lexiconHidden: availableIds.has(shape.props.graphId),
+                lexiconMissing: !availableIds.has(shape.props.graphId),
               },
             });
         }
@@ -552,7 +556,7 @@ export function createProjection(
         syncConnections();
         if (newEdges.length) editor.sendToBack(newEdges);
         if (newGroups.length) editor.sendToBack(newGroups);
-      });
+      }, recordHistory);
       return true;
     },
     visibleIds(): TLShapeId[] {

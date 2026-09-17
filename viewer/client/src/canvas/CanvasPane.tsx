@@ -562,23 +562,24 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onPlanes: (
     }
     let active = true;
     // Returning to Combined only mirrors existing page geometry and reroutes edges.
-    // Only its first preparation (or a changed model) needs an asynchronous layout.
-    setLoading(!combined || preparedCombinedSources.current !== index);
+    // Initial preparation, model changes, and explicit Arrange prepare each source page.
+    setLoading(!combined || rearrangeNext.current || preparedCombinedSources.current !== index);
     const arrange = rearrangeNext.current;
     rearrangeNext.current = false;
+    const arrangeMark = arrange ? editor.markHistoryStoppingPoint("Arrange") : undefined;
     let preparing: ReturnType<typeof createProjection> | undefined;
     const update = async () => {
       if (combined) {
         storageRef.current.pause();
         projection.current!.dispose();
-        if (preparedCombinedSources.current !== index) {
+        if (arrange || preparedCombinedSources.current !== index) {
           for (const dimension of canvasPlanes) {
             editor.setCurrentPage(flatPageIds[dimension]);
             const source = createProjection(editor, {}, "DOWN", projectionScope(dimension));
             preparing = source;
             try {
               const plane = projectGraph(index, { ...workspace, view: dimension });
-              await source.update(dimension === "source" ? plane : full, plane);
+              await source.update(arrange || dimension === "source" ? plane : full, plane, arrange, undefined, full);
             }
             finally { source.dispose(); preparing = undefined; }
             if (!active) return false;
@@ -587,13 +588,13 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onPlanes: (
         }
         editor.setCurrentPage(flatPageIds.all);
         projection.current = createProjection(editor, {}, "DOWN", "combined");
-        projection.current.write(() => syncCombined(editor, model));
+        projection.current.write(() => syncCombined(editor, model), arrange);
       }
-      return projection.current!.update(workspace.view === "source" ? projected : full, projected, combined ? false : arrange, focused);
+      return projection.current!.update(workspace.view === "source" || arrange && !combined ? projected : full, projected, combined ? false : arrange, focused, full, arrange);
     };
     update().then((applied) => {
         if (!active || !applied) return;
-        if (seedCombined.current || (arrange && latest.current.workspace.view === "all")) {
+        if (seedCombined.current) {
           separateDimensions(editor, latest.current.model);
           seedCombined.current = false;
           initialFit.current = true;
@@ -638,6 +639,11 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onPlanes: (
           setLoading(false);
           pendingAgentLocate.current?.complete?.(e.message);
           pendingAgentLocate.current = undefined;
+        }
+      }).finally(() => {
+        if (arrangeMark) {
+          editor.squashToMark(arrangeMark);
+          editor.markHistoryStoppingPoint("Arrange complete");
         }
       });
     return () => {
@@ -876,8 +882,8 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onPlanes: (
           <CanvasButton
             icon="graph"
             label="Arrange"
-            title={combined ? "Arrange nodes in their individual plane view" : "Rearrange model objects; keep freeform content"}
-            disabled={combined || !editor || loading}
+            title={combined ? "Arrange each plane independently; keep plane positions and freeform content" : "Rearrange model objects; keep freeform content"}
+            disabled={!editor || loading}
             onClick={() => {
               rearrangeNext.current = true;
               setRevision((n) => n + 1);

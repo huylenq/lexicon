@@ -1,8 +1,8 @@
 import type { Editor, TLBinding, TLShape } from "tldraw";
 import { type CanvasPlane } from "../graph/planes";
-import { combinedOffset, combinedPage, flatPageIds } from "./combined";
+import { combinedOffset, combinedPage, flatPageIds, projectionScope } from "./combined";
 import { internalWrite, isInternalWrite, isHistoryReplay } from "./internalWrite";
-import { isModelShape } from "./references";
+import { isModelShape, isPrimary } from "./references";
 
 /** Write native edits through to their authored page in the same undo transaction. */
 export function enableCombinedDrawing(editor: Editor, activePlane: () => CanvasPlane) {
@@ -17,15 +17,38 @@ export function enableCombinedDrawing(editor: Editor, activePlane: () => CanvasP
     const { combinedSourceId, combinedDimension, combinedMirrorId, ...rest } = meta;
     return rest;
   };
+  const appearanceMeta = (original: TLShape["meta"], edited: TLShape["meta"]) => {
+    const meta = { ...original };
+    for (const key of ["lexiconLandmark", "lexiconTerrain", "lexiconPath"]) {
+      if (key in edited) meta[key] = edited[key];
+      else delete meta[key];
+    }
+    return meta;
+  };
   const saveShape = (shape: TLShape) => {
-    if (!isUserEdit() || !onCombined(shape) || isModelShape(shape) || !sourceId(shape)) return;
+    if (!isUserEdit() || !onCombined(shape) || !sourceId(shape)) return;
+    if (isModelShape(shape) && isPrimary(shape)) {
+      const source = editor.getShape(sourceId(shape));
+      if (!source || !isModelShape(source)) return;
+      const meta = appearanceMeta(source.meta, shape.meta);
+      if (shape.type === "lexicon-connection" && source.type === "lexicon-connection") {
+        internalWrite(editor, () => editor.store.put([{ ...source, meta }]));
+        return;
+      }
+      if (shape.type !== "lexicon-object" || source.type !== "lexicon-object") return;
+      const offset = source.parentId === flatPageIds[owner(shape)] ? combinedOffset(editor, owner(shape)) : { x: 0, y: 0 };
+      internalWrite(editor, () => editor.store.put([{ ...source, meta,
+        x: shape.x - offset.x, y: shape.y - offset.y,
+        props: { ...shape.props, graphId: source.props.graphId } }]));
+      return;
+    }
     const dimension = owner(shape);
     const parent = editor.getShape(shape.parentId);
     const parentId = parent && owner(parent) === dimension ? sourceId(parent) : flatPageIds[dimension];
     const offset = parentId === flatPageIds[dimension] ? combinedOffset(editor, dimension) : { x: 0, y: 0 };
     internalWrite(editor, () => editor.store.put([{ ...shape, id: sourceId(shape), parentId,
       x: shape.x - offset.x, y: shape.y - offset.y,
-      meta: { ...cleanMeta(shape.meta), combinedMirrorId: shape.id } }]));
+      meta: { ...cleanMeta(shape.meta), ...(isModelShape(shape) ? { lexiconProjection: projectionScope(dimension) } : {}), combinedMirrorId: shape.id } }]));
   };
   const saveBinding = (binding: TLBinding) => {
     if (!isUserEdit()) return;
@@ -48,10 +71,11 @@ export function enableCombinedDrawing(editor: Editor, activePlane: () => CanvasP
   };
   const stops = [
     editor.sideEffects.registerBeforeCreateHandler("shape", shape => {
-      if (!isUserEdit() || isModelShape(shape)) return shape;
+      if (!isUserEdit() || isPrimary(shape)) return shape;
       const parent = editor.getShape(shape.parentId);
       if (shape.parentId !== combinedPage && (!parent || !onCombined(parent))) return shape;
-      const dimension = activePlane();
+      // Native copies inherit metadata, but must never retain the original source identity.
+      const dimension = isModelShape(shape) && owner(shape) ? owner(shape) : activePlane();
       const foreignParent = parent && owner(parent) !== dimension;
       const position = foreignParent ? editor.getShapePageTransform(parent).applyToPoint(shape) : shape;
       return { ...shape, x: position.x, y: position.y,
@@ -67,7 +91,11 @@ export function enableCombinedDrawing(editor: Editor, activePlane: () => CanvasP
     }),
     editor.sideEffects.registerBeforeChangeHandler("shape", (before, after) => {
       if (!isUserEdit() || !onCombined(before)) return after;
-      if (isModelShape(before)) return before;
+      if (isModelShape(before)) {
+        if (!sourceId(before)) return { ...before, meta: appearanceMeta(before.meta, after.meta) };
+        if (after.parentId !== before.parentId) return before;
+        return { ...after, rotation: before.rotation, meta: appearanceMeta(before.meta, after.meta) };
+      }
       const parent = editor.getShape(after.parentId);
       // Reparenting changes local coordinates and rotation together with parentId.
       // Reject the whole update so geometry cannot leak from the rejected parent.
@@ -76,12 +104,12 @@ export function enableCombinedDrawing(editor: Editor, activePlane: () => CanvasP
         meta: { ...after.meta, combinedSourceId: before.meta.combinedSourceId, combinedDimension: before.meta.combinedDimension } };
     }),
     editor.sideEffects.registerBeforeDeleteHandler("shape", shape => {
-      if (isUserEdit() && onCombined(shape) && isModelShape(shape)) return false;
+      if (isUserEdit() && onCombined(shape) && isPrimary(shape)) return false;
     }),
     editor.sideEffects.registerAfterCreateHandler("shape", saveShape),
     editor.sideEffects.registerAfterChangeHandler("shape", (_, shape) => saveShape(shape)),
     editor.sideEffects.registerAfterDeleteHandler("shape", shape => {
-      if (isUserEdit() && !isModelShape(shape) && sourceId(shape)) internalWrite(editor, () => editor.store.remove([sourceId(shape)]));
+      if (isUserEdit() && !isPrimary(shape) && sourceId(shape)) internalWrite(editor, () => editor.store.remove([sourceId(shape)]));
     }),
     editor.sideEffects.registerAfterCreateHandler("binding", saveBinding),
     editor.sideEffects.registerAfterChangeHandler("binding", (_, binding) => saveBinding(binding)),
