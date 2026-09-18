@@ -2,9 +2,9 @@ import type { ConnectionShape } from '../../../shared/canvas-schema';
 import { atom, type Editor } from 'tldraw';
 import { isPrimary } from './references';
 import { morphDuration } from './route-morph';
-import { routeMorph, type RouteFrame } from './useRouteMorph';
+import { prepareCenterline, routeMorph, type RouteFrame } from './useRouteMorph';
 
-/** Animate centerlines together before computing crossings from their displayed positions. */
+/** Interpolate given samples together so hops follow the visible path. */
 export function createSceneMorph(editor: Editor) {
   const revision = atom('Displayed connection frame', 0);
   const routes = new Map<string, { target: RouteFrame; shown: RouteFrame; start: number; interpolate?: (t: number) => RouteFrame }>();
@@ -28,7 +28,7 @@ export function createSceneMorph(editor: Editor) {
         state = { target, shown: target, start: now };
         routes.set(shape.id, state);
       } else if (!routeMorph.same(state.target, target)) {
-        state.interpolate = routeMorph.prepare(state.shown, target);
+        state.interpolate = prepareCenterline(state.shown, target);
         state.target = target; state.start = now;
       }
       if (state.interpolate) {

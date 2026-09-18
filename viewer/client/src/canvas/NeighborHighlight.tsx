@@ -24,9 +24,12 @@ function labelHover(editor: Editor) {
 }
 // Native selection handles can suppress tldraw's hovered shape on a selected label.
 export function hoverNeighborLabel(editor: Editor, id?: TLShapeId) { labelHover(editor).set(id); }
+export function hoveredCanvasShapeId(editor: Editor) {
+  return labelHover(editor).get() ?? editor.getHoveredShapeId();
+}
 function highlightAnchors(editor: Editor, includeHeld = true): (ObjectShape | ConnectionShape)[] {
   const shapes = highlightSelectedNeighbors.get() ? editor.getSelectedShapes() : [];
-  const hoveredId = labelHover(editor).get() ?? editor.getHoveredShapeId();
+  const hoveredId = hoveredCanvasShapeId(editor);
   const hovered = hoveredId && editor.getShape(hoveredId);
   const heldId = heldAnchor(editor).get(), held = heldId && editor.getShape(heldId);
   return [...new Map([...(hovered ? [hovered] : []), ...(includeHeld && held ? [held] : []), ...shapes]

@@ -4,7 +4,7 @@ import { memo, useId, useMemo } from "react";
 import { useGeometryMorph } from "../useRouteMorph";
 import { roadFrame, roadMorph } from "./road-morph";
 import { useEditor, useValue } from "tldraw";
-import { isNeighborConnection } from "../NeighborHighlight";
+import { hoveredCanvasShapeId, isNeighborConnection } from "../NeighborHighlight";
 import { canvasPresentation, isCrossDimensionConnection } from "../presentation";
 import { VillageBuilding } from "./VillageSprites";
 import { VillageLandscape } from "./VillageLandscape";
@@ -67,7 +67,13 @@ function RoadDrawing({ road, detail, opacity, dragging }: { road: MapScene["road
   const editor = useEditor();
   const flowIds = useContext(FlowHighlight);
   const sequenceHover = useContext(SequenceHover);
-  const hovered = useValue("Sequence hovered road", () => !!sequenceHover && canvasPresentation(editor).get().connections.get(road.id)?.relationships.includes(sequenceHover), [editor, road.id, sequenceHover]);
+  const hovered = useValue("Hovered road", () => {
+    const connection = canvasPresentation(editor).get().connections.get(road.id);
+    if (sequenceHover && connection?.relationships.includes(sequenceHover)) return true;
+    const id = hoveredCanvasShapeId(editor);
+    const shape = id && editor.getShape(id);
+    return shape?.type === "lexicon-connection" && shape.props.graphId === road.id;
+  }, [editor, road.id, sequenceHover]);
   const flow = useValue("Flow road", () => canvasPresentation(editor).get().connections.get(road.id)?.relationships.some(id => flowIds.has(id)), [editor, road.id, flowIds]);
   const neighbor = useValue("Highlighted neighbor road", () => isNeighborConnection(editor, canvasPresentation(editor).get().connections.get(road.id)), [editor, road.id]);
   const crossDimension = useValue("Cross-dimension road", () => {

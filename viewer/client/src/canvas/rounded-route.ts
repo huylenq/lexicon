@@ -6,7 +6,7 @@ import type { Box, Point } from "../graph/layout";
 import { canvasPresentation, type CanvasPresentation } from "./presentation";
 import { isPrimary } from "./references";
 import { createSceneMorph } from "./scene-morph";
-import { choice, paths } from "./terrain/generate";
+import { choice, pathFor, paths } from "./terrain/generate";
 
 /** Matches the Standard path hidden by Atlas's road renderer. */
 export function isAtlasRoad(shape: ConnectionShape, view: CanvasPresentation) {
@@ -44,9 +44,10 @@ export function roundedRoute(points: Point[], radius: number, obstacles: Box[] =
     const a = points[i - 1], b = points[i], c = points[i + 1];
     const incoming = { x: b.x - a.x, y: b.y - a.y }, outgoing = { x: c.x - b.x, y: c.y - b.y };
     const before = Math.hypot(incoming.x, incoming.y), after = Math.hypot(outgoing.x, outgoing.y);
-    const rightAngle = (incoming.x === 0 || incoming.y === 0) && (outgoing.x === 0 || outgoing.y === 0)
-      && incoming.x * outgoing.x + incoming.y * outgoing.y === 0;
-    // Each end owns at most half a segment, so adjacent bends never overlap.
+    const axis = (dx: number, dy: number) => Math.abs(dx) < 0.01 || Math.abs(dy) < 0.01;
+    const rightAngle = before > 0.01 && after > 0.01 && axis(incoming.x, incoming.y) && axis(outgoing.x, outgoing.y)
+      && Math.abs(incoming.x * outgoing.x + incoming.y * outgoing.y)
+        <= Math.abs(incoming.x * outgoing.y - incoming.y * outgoing.x);
     let r = rightAngle ? Math.min(cornerRadius(radius), before / 2, after / 2) : 0;
     if (r) {
       // The quadratic stays inside this corner square. Shrink the square until
@@ -94,8 +95,22 @@ function baseDrawing(shape: ConnectionShape, radius: number, obstacles: Box[] = 
     ? roundedRoute(shape.props.points, radius, obstacles) : { path: shape.props.path, points: shape.props.points };
 }
 
+function pageBox(points: Point[]): Box {
+  const x = Math.min(...points.map(p => p.x)), y = Math.min(...points.map(p => p.y));
+  return { x, y, width: Math.max(...points.map(p => p.x)) - x, height: Math.max(...points.map(p => p.y)) - y };
+}
+
+function pageLabel(transform: { applyToPoint(p: Point): Point }, x: number, y: number, width: number) {
+  const box = labelBox({ x, y }, width);
+  const corners = [[box.x, box.y], [box.x + box.width, box.y], [box.x, box.y + box.height], [box.x + box.width, box.y + box.height]]
+    .map(([lx, ly]) => transform.applyToPoint({ x: lx, y: ly }));
+  return { corners, box: pageBox(corners) };
+}
+
 function createDrawingScene(editor: Editor, exportedShapes?: () => ConnectionShape[]) {
   let previousKey = "", previous = new Map<string, EdgeDrawing>();
+  let previousSettledKey = "";
+  let previousTargets: { shape: ConnectionShape; transform: ReturnType<Editor["getShapePageTransform"]>; origin: Point; unrotated: boolean; drawing: EdgeDrawing }[] = [];
   const animate = exportedShapes || typeof window === "undefined" ? undefined : createSceneMorph(editor);
   return computed("Diagram crossing drawings", () => {
     const radius = edgeCornerRadius.get(), hops = edgeCrossingHops.get();
@@ -103,43 +118,56 @@ function createDrawingScene(editor: Editor, exportedShapes?: () => ConnectionSha
     const view = canvasPresentation(editor).get();
     const shapes = (exportedShapes ? exportedShapes() : editor.getCurrentPageShapes()).filter((s): s is ConnectionShape =>
       s.type === "lexicon-connection" && !editor.isShapeHidden(s) && (!!exportedShapes || !isAtlasRoad(s, view)));
-    const displayed = animate ? animate(shapes) : shapes.map(shape => ({ shape, animating: false }));
-    const entries = displayed.map(({ shape, animating }) => ({ shape, animating, transform: editor.getShapePageTransform(shape) }));
-    // Camera, selection, hover, and unrelated document changes reuse the scene.
-    const key = JSON.stringify([radius, hops, entries.map(({ shape, transform, animating }) => [shape.id, shape.props, transform, animating])]);
-    if (key === previousKey) return previous;
-    const labels = entries.map(({ shape, transform }) => {
-      const box = labelBox({ x: shape.props.labelX, y: shape.props.labelY }, shape.props.labelWidth);
-      return [[box.x, box.y], [box.x + box.width, box.y], [box.x, box.y + box.height], [box.x + box.width, box.y + box.height]]
-        .map(([x, y]) => transform.applyToPoint({ x, y }));
-    });
-    const boxFor = (corners: Point[]): Box => {
-      const x = Math.min(...corners.map(p => p.x)), y = Math.min(...corners.map(p => p.y));
-      return { x, y, width: Math.max(...corners.map(p => p.x)) - x, height: Math.max(...corners.map(p => p.y)) - y };
-    };
-    const labelIndex = new EdgeSpatialGrid<{ corners: Point[]; box: Box }>();
-    const pageLabels = labels.map(corners => ({ corners, box: boxFor(corners) }));
-    for (const label of pageLabels) labelIndex.add(label.box, label);
-    const result = new Map<string, EdgeDrawing>(), routes: HopRoute[] = [];
-    for (const { shape, transform } of entries) {
+    const prepared = shapes.map(shape => {
+      const transform = editor.getShapePageTransform(shape);
       const origin = transform.applyToPoint({ x: 0, y: 0 });
       const unrotated = Math.abs(transform.rotation()) < .000001;
-      const routeBounds = boxFor(shape.props.points.map(p => transform.applyToPoint(p)));
-      const obstacles = radius && shape.props.points.length > 2 ? [...labelIndex.query(routeBounds)].map(({ corners, box }) => unrotated
-        ? { ...box, x: box.x - origin.x, y: box.y - origin.y }
-        : boxFor(corners.map(p => editor.getPointInShapeSpace(shape, p)))) : [];
-      const drawing = baseDrawing(shape, radius, obstacles);
-      result.set(shape.id, drawing);
-      // Standard model routes are axis-aligned. Rotated copies retain their drawing.
-      if (hops && unrotated) {
-        routes.push({ id: shape.id, x: origin.x, y: origin.y, drawing });
-      }
+      return { shape, transform, origin, unrotated };
+    });
+    const settledKey = JSON.stringify([radius, prepared.map(({ shape, transform }) => [shape.id, shape.props, transform])]);
+    let targets = previousTargets;
+    if (settledKey !== previousSettledKey) {
+      const settledLabels = prepared.map(({ shape, transform }) =>
+        pageLabel(transform, shape.props.labelX, shape.props.labelY, shape.props.labelWidth));
+      const labelIndex = new EdgeSpatialGrid<(typeof settledLabels)[number]>();
+      for (const label of settledLabels) labelIndex.add(label.box, label);
+      targets = prepared.map(entry => {
+        const { shape, transform, origin, unrotated } = entry;
+        const routeBounds = pageBox(shape.props.points.map(p => transform.applyToPoint(p)));
+        const obstacles = radius && shape.props.points.length > 2 ? [...labelIndex.query(routeBounds)].map(({ corners, box }) => unrotated
+          ? { ...box, x: box.x - origin.x, y: box.y - origin.y }
+          : pageBox(corners.map(p => editor.getPointInShapeSpace(shape, p)))) : [];
+        return { ...entry, drawing: baseDrawing(shape, radius, obstacles) };
+      });
+      previousSettledKey = settledKey;
+      previousTargets = targets;
+    }
+    // Morph interpolates already-rounded samples; do not round the mixed polyline.
+    const roundedShapes = targets.map(({ shape, drawing }) => ({
+      ...shape, props: { ...shape.props, points: drawing.points, path: drawing.path },
+    }));
+    const displayed = animate ? animate(roundedShapes) : roundedShapes.map(shape => ({ shape, animating: false }));
+    const entries = displayed.map(({ shape, animating }, i) => ({ ...targets[i], shown: shape, animating }));
+    // Camera, selection, hover, and unrelated document changes reuse the scene.
+    const key = JSON.stringify([radius, hops, entries.map(({ shown, transform, animating, drawing }) =>
+      [shown.id, shown.props, transform, animating, drawing.path])]);
+    if (key === previousKey) return previous;
+    const pageLabels = entries.map(({ shown, transform }) =>
+      pageLabel(transform, shown.props.labelX, shown.props.labelY, shown.props.labelWidth));
+    const result = new Map<string, EdgeDrawing>(), routes: HopRoute[] = [];
+    for (const { shown, origin, unrotated, drawing, animating } of entries) {
+      const displayedDrawing = animating
+        ? { path: pathFor(shown.props.points), points: shown.props.points, animating: true,
+          label: { x: shown.props.labelX, y: shown.props.labelY } }
+        : drawing;
+      result.set(shown.id, displayedDrawing);
+      if (hops && unrotated) routes.push({ id: shown.id, x: origin.x, y: origin.y, drawing: displayedDrawing });
     }
     if (hops) for (const [id, drawing] of crossingDrawings(routes, pageLabels.map(label => label.box))) result.set(id, drawing);
-    for (const { shape, animating } of entries) {
+    for (const { shown, animating } of entries) {
       if (!animating) continue;
-      const drawing = result.get(shape.id)!;
-      result.set(shape.id, { ...drawing, animating, label: { x: shape.props.labelX, y: shape.props.labelY } });
+      const drawing = result.get(shown.id)!;
+      result.set(shown.id, { ...drawing, animating: true, label: { x: shown.props.labelX, y: shown.props.labelY } });
     }
     // Unchanged paths keep their identity, so moving one edge does not repaint the page.
     for (const [id, drawing] of result) {

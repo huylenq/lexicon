@@ -65,6 +65,15 @@ export const routeMorph: Morph<RouteFrame> = {
     };
   },
 };
+
+/** Mix samples without densifying corners — that drops the configured radius. */
+export function prepareCenterline(from: RouteFrame, to: RouteFrame) {
+  const [a, b] = matchRoutePoints(from.points, to.points);
+  return (t: number): RouteFrame => t === 0 ? from : t === 1 ? to : {
+    points: a.map((p, i) => mixPoint(p, b[i], t)),
+    label: mixPoint(from.label, to.label, t),
+  };
+}
 const zero = { x: 0, y: 0 };
 export function useRouteMorph(points: Point[], label = zero, origin = zero, dragging = false, enabled = true) {
   const world = { points: points.map(p => offsetPoint(p, origin)), label: offsetPoint(label, origin) };

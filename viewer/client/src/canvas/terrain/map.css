@@ -66,7 +66,7 @@
 .canvas-map [data-map-road][data-neighbor="true"] :is(.map-road-bank, .map-road-rut, .map-road-grain, .map-road-direction) { stroke: currentColor; stroke-opacity: 1; }
 .canvas-map [data-map-road][data-neighbor="true"] .map-road-ground { fill: color-mix(in srgb, var(--accent) 12%, var(--map-road)); }
 .canvas-connection[data-atlas-road="true"][data-neighbor="true"] .canvas-connection-label { border-color: color-mix(in srgb, var(--accent) 45%, var(--paper)); }
-.canvas-connection[data-atlas-road="true"] .canvas-connection-label { background: transparent; border-color: transparent; border-radius: 2px; color: var(--map-ink); font-style: italic; text-shadow: -2px 0 var(--map-ground), 2px 0 var(--map-ground), 0 -2px var(--map-ground), 0 2px var(--map-ground); }
+.canvas-connection[data-atlas-road="true"] .canvas-connection-label { background: transparent; border-color: transparent; border-radius: 2px; color: var(--map-ink); font-style: italic; -webkit-text-stroke: 0; paint-order: normal; text-shadow: -2px 0 var(--map-ground), 2px 0 var(--map-ground), 0 -2px var(--map-ground), 0 2px var(--map-ground); }
 .map-bridge { fill: var(--map-roof); }
 .canvas-pane[data-map="true"] .canvas-object.canvas-group { background: transparent; border-color: color-mix(in srgb, var(--map-ink) 18%, transparent); }
 .canvas-pane[data-map="true"] .canvas-object[data-context-boundary="territory"] { border-color: transparent; }

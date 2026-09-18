@@ -41,7 +41,13 @@ import { roadCoveredAt, roadInput, shapeRoad, visibleObjectFrame } from "./terra
 import { canvasPresentation, useCanvasPresentation, isCrossDimensionConnection } from "./presentation";
 import { contextControlTerritory, contextNameCurve, contextLabelFrame, contextPreferences, contextTerritory, isContext } from "./contexts";
 import { moveBorderVertex, territoryEdit } from "./territory";
-import { neighborAnchors, neighborEdges, isNeighborConnection, hoverNeighborLabel } from "./NeighborHighlight";
+import { neighborAnchors, neighborEdges, isNeighborConnection, hoverNeighborLabel, hoveredCanvasShapeId } from "./NeighborHighlight";
+
+/** Punch the stroke behind the letters. Hug the 11px italic, not the 30px hit box. */
+function labelStrokeGap(x: number, y: number, width: number) {
+  const w = Math.max(8, width - 12);
+  return { x: x - w / 2, y: y - 8, width: w, height: 16 };
+}
 
 function ObjectCard({ shape }: { shape: ObjectShape }) {
   const namePathId = `land-name-${useId().replace(/:/g, "")}`;
@@ -320,7 +326,7 @@ export class LexiconObjectUtil extends BaseBoxShapeUtil<ObjectShape> {
 
 function ConnectionCard({ shape }: { shape: ConnectionShape }) {
   const editor = useEditor();
-  const hovered = useValue("Hovered relationship", () => editor.getHoveredShapeId() === shape.id, [editor, shape.id]);
+  const hovered = useValue("Hovered relationship", () => hoveredCanvasShapeId(editor) === shape.id, [editor, shape.id]);
   const selected = useValue("Selected relationship", () => editor.getSelectedShapeIds().includes(shape.id), [editor, shape.id]);
   const model = useCanvasPresentation(editor);
   const connection = model.connections.get(shape.props.graphId);
@@ -334,9 +340,10 @@ function ConnectionCard({ shape }: { shape: ConnectionShape }) {
   const drawing = useValue("Rounded relationship drawing", () => connectionDrawing(shape, editor), [editor, shape]);
   const label = road || (drawing.label ? { labelX: drawing.label.x, labelY: drawing.label.y } : p);
   const dragging = useValue("Dragging relationship endpoints", () => editor.inputs.getIsDragging(), [editor]);
-  // Standard centerlines morph together before the scene adds crossing bridges/gaps.
   const morph = useRouteMorph(road?.points || drawing.points, { x: label.labelX, y: label.labelY }, { x: shape.x, y: shape.y }, dragging, isPrimary(shape) && !!road);
   const marker = `arrow-${encodeURIComponent(shape.id)}`;
+  const gap = `label-gap-${useId().replace(/:/g, "")}`;
+  const gapBox = labelStrokeGap(morph.label.x, morph.label.y, p.labelWidth);
   const end = morph.points.at(-1) || { x: 0, y: 0 };
   const before = morph.points.at(-2) || end;
   const angle =
@@ -351,6 +358,12 @@ function ConnectionCard({ shape }: { shape: ConnectionShape }) {
       data-flow-highlight={flow || undefined}
       data-atlas-road={isAtlasRoad(shape, model) || undefined}
     >
+      <defs>
+        <mask id={gap} maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse">
+          <rect x={-100000} y={-100000} width={200000} height={200000} fill="white" />
+          <rect x={gapBox.x} y={gapBox.y} width={gapBox.width} height={gapBox.height} fill="black" />
+        </mask>
+      </defs>
       <g data-route-current="true" data-route-morphing={morph.animating || drawing.animating || undefined}>
       <path
         d={morph.animating ? pathFor(morph.points) : drawing.path}
@@ -358,6 +371,7 @@ function ConnectionCard({ shape }: { shape: ConnectionShape }) {
         stroke="currentColor"
         strokeWidth={1.8}
         strokeDasharray={connection?.kind === "mapping" || isCrossDimensionConnection(model, connection) ? "6 5" : undefined}
+        mask={`url(#${gap})`}
       />
       <path
         id={marker}
@@ -488,9 +502,17 @@ export class LexiconConnectionUtil extends ShapeUtil<ConnectionShape> {
       (Math.atan2(end.y - before.y, end.x - before.x) * 180) / Math.PI;
     const ink = ctx.isDarkMode ? "#566573" : "#7a8997",
       paper = ctx.isDarkMode ? "#252b39" : "#fafbff";
+    const gap = `export-label-gap-${shape.id.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
+    const gapBox = labelStrokeGap(drawing.label?.x ?? p.labelX, drawing.label?.y ?? p.labelY, p.labelWidth);
     return (
       <g>
-        <path d={drawing.path} fill="none" stroke={ink} strokeWidth={1.8} />
+        <defs>
+          <mask id={gap} maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse">
+            <rect x={-100000} y={-100000} width={200000} height={200000} fill="white" />
+            <rect x={gapBox.x} y={gapBox.y} width={gapBox.width} height={gapBox.height} fill="black" />
+          </mask>
+        </defs>
+        <path d={drawing.path} fill="none" stroke={ink} strokeWidth={1.8} mask={`url(#${gap})`} />
         <path
           d="M -9 -4 L 0 0 L -9 4"
           fill="none"
@@ -498,22 +520,17 @@ export class LexiconConnectionUtil extends ShapeUtil<ConnectionShape> {
           strokeWidth={1.8}
           transform={`translate(${end.x}, ${end.y}) rotate(${angle})`}
         />
-        <rect
-          x={p.labelX - p.labelWidth / 2}
-          y={p.labelY - 14}
-          width={p.labelWidth}
-          height={28}
-          rx={5}
-          fill={paper}
-          stroke={ink}
-        />
         <text
           x={p.labelX}
           y={p.labelY + 4}
           textAnchor="middle"
-          fill={ctx.isDarkMode ? "#edeef4" : "#242b3d"}
+          fill={ink}
+          stroke={paper}
+          strokeWidth={4}
+          paintOrder="stroke"
           fontFamily="sans-serif"
           fontSize={11}
+          fontStyle="italic"
         >
           {this.getText(shape)}
         </text>
@@ -525,7 +542,8 @@ export class LexiconConnectionUtil extends ShapeUtil<ConnectionShape> {
   }
   getIndicatorPath(shape: ConnectionShape) {
     const road = shapeRoad(this.editor, shape);
-    const label = road || shape.props;
+    const drawing = road ? undefined : connectionDrawing(shape, this.editor);
+    const label = road || (drawing?.label ? { labelX: drawing.label.x, labelY: drawing.label.y } : shape.props);
     const bounds = this.getGeometry(shape).bounds;
     // Indicators render above shape content. Exclude the label so hover and
     // selection highlights cannot strike through its text.
@@ -533,7 +551,7 @@ export class LexiconConnectionUtil extends ShapeUtil<ConnectionShape> {
     clipPath.rect(bounds.minX - 100, bounds.minY - 100, bounds.width + 200, bounds.height + 200);
     clipPath.rect(label.labelX - shape.props.labelWidth / 2, label.labelY - 15, shape.props.labelWidth, 30);
     return {
-      path: new Path2D(road ? pathFor(road.outline, true) : connectionDrawing(shape, this.editor).path),
+      path: new Path2D(road ? pathFor(road.outline, true) : drawing!.path),
       clipPath,
     };
   }

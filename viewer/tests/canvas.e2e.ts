@@ -67,6 +67,15 @@ test("hover accents direct neighbors and clears them when the pointer leaves", a
   await page.getByRole("radio", { name: "Standard", exact: true }).check();
   const contains = page.locator('.canvas-connection').filter({ has: page.locator('[data-connection-id="relation:contains"]') });
   const calculates = page.locator('.canvas-connection').filter({ has: page.locator('[data-connection-id="relation:calculates"]') });
+  const containsLabel = contains.locator('.canvas-connection-label');
+  const fillAlpha = async () => containsLabel.evaluate(el => {
+    const color = getComputedStyle(el).backgroundColor;
+    const parts = color.match(/[\d.]+/g)?.map(Number) || [];
+    return parts.length === 4 ? parts[3] : 1;
+  });
+  expect(await fillAlpha()).toBeLessThan(0.05);
+  await expect(containsLabel).toHaveCSS("border-top-color", "rgba(0, 0, 0, 0)");
+  await expect(containsLabel).toHaveCSS("font-style", "italic");
   const hover = async (name: string) => {
     const button = page.getByRole("button", { name: `concept: ${name}`, exact: true });
     await button.hover();
@@ -82,7 +91,9 @@ test("hover accents direct neighbors and clears them when the pointer leaves", a
   await expect(calculates).not.toHaveAttribute("data-neighbor", "true");
   const neighborColor = await card(page, "order-line").evaluate(el => getComputedStyle(el).outlineColor);
   await expect(contains.locator('[data-route-current] > path').first()).toHaveCSS("stroke", neighborColor);
-  await expect(contains.locator('.canvas-connection-label')).toHaveCSS("border-top-color", neighborColor);
+  await expect(containsLabel).toHaveCSS("color", neighborColor);
+  expect(await fillAlpha()).toBeLessThan(0.05);
+  await expect(containsLabel).toHaveCSS("border-top-color", "rgba(0, 0, 0, 0)");
   await hover("Order Line");
   await expect(card(page, "order")).toHaveAttribute("data-neighbor", "true");
   await expect(card(page, "order-total")).toHaveAttribute("data-neighbor", "true");
@@ -141,6 +152,13 @@ test("edges highlight only their endpoints on hover and optional selection", asy
   await edge.click();
   await page.mouse.move(700, 850);
   await expect(endpoints).toHaveCount(0);
+  const selectedLabel = page.locator(".canvas-connection").filter({ has: edge }).locator(".canvas-connection-label");
+  const selectedPaint = await selectedLabel.evaluate(el => {
+    const style = getComputedStyle(el);
+    return { background: style.backgroundColor, border: style.borderTopColor };
+  });
+  expect(selectedPaint.background).not.toBe("rgba(0, 0, 0, 0)");
+  expect(selectedPaint.border).not.toBe("rgba(0, 0, 0, 0)");
   const toggle = page.getByRole("button", { name: "Highlight neighbors on selection", exact: true });
   await toggle.click();
   await expectEndpoints();
@@ -346,7 +364,7 @@ for (const skin of ["Atlas · Ink", "Atlas · Village", "Planes"]) test(`radial 
   expect(await readFile(join(root, "lexicon/model.xml"), "utf8")).toBe(original);
 });
 
-test("relationship hover and selection highlight the label border and preserve its text", async ({ page }) => {
+test("relationship hover and selection highlight the edge and its label", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await open(page);
   await page.getByRole("radio", { name: "Domain", exact: true }).check();
@@ -354,19 +372,16 @@ test("relationship hover and selection highlight the label border and preserve i
   await page.getByRole("button", { name: "Fit model", exact: true }).click();
   const label = page.getByRole("button", { name: "Read relationship: contains", exact: true });
   const box = (await label.boundingBox())!;
-  const clip = { x: box.x + 6, y: box.y + 6, width: box.width - 12, height: box.height - 12 };
   await page.mouse.move(0, 0);
   const normalColor = await label.evaluate(el => getComputedStyle(el).color);
   const normalBorder = await label.evaluate(el => getComputedStyle(el).borderColor);
-  const before = await page.screenshot({ clip });
   await label.hover();
+  await expect(page.locator(".canvas-connection").filter({ has: label })).toHaveAttribute("data-hovered", "true");
   await expect.poll(() => label.evaluate(el => getComputedStyle(el).borderColor)).not.toBe(normalBorder);
-  const highlighted = await page.screenshot({ clip });
-  expect(highlighted.equals(before)).toBe(true);
-  // Moving onto the route keeps the label's highlight and unobscured text.
+  await expect.poll(() => label.evaluate(el => getComputedStyle(el).color)).not.toBe(normalColor);
+  // Moving onto the route keeps the edge hovered.
   await page.mouse.move(box.x + box.width / 2, box.y - 10);
   await expect(page.locator(".canvas-connection").filter({ has: label })).toHaveAttribute("data-hovered", "true");
-  expect((await page.screenshot({ clip })).equals(highlighted)).toBe(true);
   await page.mouse.move(0, 0);
   await expect.poll(() => label.evaluate(el => getComputedStyle(el).color)).toBe(normalColor);
   await expect.poll(() => label.evaluate(el => getComputedStyle(el).borderColor)).toBe(normalBorder);
@@ -376,7 +391,7 @@ test("relationship hover and selection highlight the label border and preserve i
   await page.mouse.move(0, 0);
   await expect(page.locator(".canvas-connection").filter({ has: label })).toHaveAttribute("data-selected", "true");
   await expect.poll(() => label.evaluate(el => getComputedStyle(el).borderColor)).not.toBe(normalBorder);
-  await expect.poll(() => label.evaluate(el => getComputedStyle(el).color)).toBe(normalColor);
+  await expect.poll(() => label.evaluate(el => getComputedStyle(el).color)).not.toBe(normalColor);
   await page.keyboard.press("Escape");
   await expect.poll(() => label.evaluate(el => getComputedStyle(el).borderColor)).toBe(normalBorder);
 });

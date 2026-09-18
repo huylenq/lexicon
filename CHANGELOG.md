@@ -34,6 +34,8 @@
 
 ## Unreleased — Project canvas
 
+- Draw Standard relationship labels as italic knockout captions in the edge color, so they recede behind nodes. Source-link roles stay a size smaller. The bordered chip appears only on selection; Atlas roads keep their map captions. After a reroute, Standard morphs already-rounded drawings so the corner-radius preference stays on through the transition.
+
 - Integrate macOS traffic lights into the desktop header with draggable space and room for controls at narrow widths.
 
 - Keep the desktop server available when unsaved edits cancel quitting, and reopen copied view links through macOS.

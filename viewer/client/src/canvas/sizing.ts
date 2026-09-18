@@ -84,7 +84,7 @@ export function objectFrame(editor: Editor, shape: ObjectShape, vertex: GraphVer
   return { x: (shape.props.w - size.w) / 2, y: (shape.props.h - size.h) / 2, ...size };
 }
 
-/** Match the connection button's 11px font, 7px side padding and 1px border. */
+/** Match the connection button's italic 11px font, 7px side padding and 1px border. */
 export function connectionLabelWidth(editor: Editor, title: string) {
   const key = `connection:${title}`;
   let cache = measurements.get(editor);
@@ -92,7 +92,7 @@ export function connectionLabelWidth(editor: Editor, title: string) {
   let size = cache.get(key);
   if (!size) {
     const measured = editor.textMeasure.measureText(title, {
-      fontFamily: "system-ui, sans-serif", fontSize: 11, fontWeight: "normal", fontStyle: "normal",
+      fontFamily: "system-ui, sans-serif", fontSize: 11, fontWeight: "normal", fontStyle: "italic",
       lineHeight: 1.4, maxWidth: null, padding: "0px",
     });
     size = { w: Math.min(320, Math.ceil(measured.w) + 16), h: measured.h };

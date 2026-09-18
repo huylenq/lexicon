@@ -1,7 +1,23 @@
 import { expect, test } from "bun:test";
 import { roundedRoute, cornerRadius, connectionDrawing, edgeCornerRadius, setEdgeCornerRadius } from "../client/src/canvas/rounded-route";
 import { relationshipRoute } from "../client/src/canvas/routes";
+import { matchRoutePoints, mixPoint } from "../client/src/canvas/route-morph";
 import type { ConnectionShape } from "../shared/canvas-schema";
+
+test("round settled routes, then interpolate those samples — not the reverse", () => {
+  const fromPts = [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 80 }];
+  const toPts = [{ x: 0, y: 0 }, { x: 40, y: 0 }, { x: 40, y: 80 }];
+  const t = 0.5, elbow = mixPoint(fromPts[1], toPts[1], t);
+  const [oa, ob] = matchRoutePoints(fromPts, toPts);
+  const mixedSquare = oa.map((p, i) => mixPoint(p, ob[i], t));
+  expect(roundedRoute(mixedSquare, 24).path).not.toContain("Q");
+  const from = roundedRoute(fromPts, 24), to = roundedRoute(toPts, 24);
+  expect(from.path).toContain("Q");
+  const [ra, rb] = matchRoutePoints(from.points, to.points);
+  const mixedRounded = ra.map((p, i) => mixPoint(p, rb[i], t));
+  expect(mixedRounded.some(p => Math.hypot(p.x - elbow.x, p.y - elbow.y) < 2)).toBe(false);
+  expect(roundedRoute([{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 200, y: 0 }], 24).path).not.toContain("Q");
+});
 
 test("rounding retains endpoints and clamps neighboring bends on short segments", () => {
   const points = [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 10 }, { x: 200, y: 10 }];
