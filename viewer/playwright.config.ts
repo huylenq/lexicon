@@ -18,6 +18,7 @@ export default defineConfig({
     env: {
       LEXICON_VIEWER_API_PORT: port,
       LEXICON_VIEWER_DB: ":memory:",
+      LEXICON_LOG: "silent",
     },
     url: `${baseURL}/api/health`,
     reuseExistingServer: false,

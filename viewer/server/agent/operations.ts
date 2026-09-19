@@ -9,6 +9,7 @@ import { agentSessions } from "../agent-sessions";
 import { agentWork, workReceipt } from "../agents/work";
 import { agentTools } from "./tools";
 import { agentDrafts } from "../agents/drafts";
+import * as log from "../log";
 
 /** The sole operation dispatcher, used only through MCP for agents and internally by the application. */
 export function createAgentOperations(chat: ModelService, resolveProject: (id: string) => Promise<AgentProject>, listProjects: () => Project[], sessions = new AgentSessions()) {
@@ -19,7 +20,7 @@ export function createAgentOperations(chat: ModelService, resolveProject: (id: s
     agentWork.observe(project.id, document.model, revision);
     return { ...document, revision, sourceRoot: project.root, artifactRoot: project.artifactRoot };
   }
-  async function execute(name: string, raw: unknown, lease?: { signal?: AbortSignal; taskId?: string; messageId?: string; scope?: "model" | "code" }): Promise<Record<string, unknown>> {
+  async function dispatch(name: string, raw: unknown, lease?: { signal?: AbortSignal; taskId?: string; messageId?: string; scope?: "model" | "code" }): Promise<Record<string, unknown>> {
     const tool = agentTools.find(t => t.name === name);
     if (!tool) throw new Error("Unknown Lexicon tool.");
     const input = record(raw);
@@ -108,6 +109,24 @@ export function createAgentOperations(chat: ModelService, resolveProject: (id: s
       return { session };
     }
     throw new Error("Unsupported Lexicon tool.");
+  }
+  async function execute(name: string, raw: unknown, lease?: { signal?: AbortSignal; taskId?: string; messageId?: string; scope?: "model" | "code" }): Promise<Record<string, unknown>> {
+    const started = performance.now();
+    const projectId = raw && typeof raw === "object" && typeof (raw as { projectId?: unknown }).projectId === "string"
+      ? (raw as { projectId: string }).projectId : undefined;
+    try {
+      const result = await dispatch(name, raw, lease);
+      log.finish("info", "mcp", {
+        msg: "tool", name, projectId, taskId: lease?.taskId, messageId: lease?.messageId,
+        ...(typeof result.status === "string" ? { status: result.status } : {}),
+        ...(typeof result.revision === "string" ? { revision: result.revision } : {}),
+        ...(typeof result.changeId === "string" ? { changeId: result.changeId } : {}),
+      }, started);
+      return result;
+    } catch (error) {
+      log.error("mcp", { msg: "tool", name, projectId, taskId: lease?.taskId, messageId: lease?.messageId, error: (error as Error).message, ms: Math.round(performance.now() - started) });
+      throw error;
+    }
   }
   return { sessions, snapshot, execute };
 }

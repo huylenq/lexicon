@@ -9,6 +9,7 @@ import type { AgentProject } from "../model-service";
 import { agentDrafts } from "./drafts";
 import type { AgentState } from "../../shared/agent-runtime";
 import { turnStartFailed } from "./lifecycle";
+import * as log from "../log";
 
 type Receipt = AgentState["receipts"][number];
 const bindings = ["projectId", "sessionId", "revision", "changeId", "taskId"];
@@ -35,6 +36,7 @@ export class AgentDelivery {
     const token = randomBytes(32).toString("base64url");
     this.leases.set(token, { token, messageId, threadId, project, revision: scope === "model" ? agentDrafts.candidateRevision(project, revision) : revision, savedRevision: revision, scope, viewer, previousTurnId, controller: new AbortController(), executing: false });
     db.run("INSERT INTO task_mcp_turns (message_id, thread_id) VALUES (?, ?)", [messageId, threadId]);
+    log.info("agent", { msg: "turn", projectId: project.id, taskId: project.conversationId, messageId, scope, threadId });
     return token;
   }
   accepts(token: string) { return this.leases.has(token); }
@@ -54,11 +56,14 @@ export class AgentDelivery {
     this.receiptCache.delete(lease.threadId);
   }
   cancel(threadId: string) {
+    let cancelled = false;
     for (const [token, lease] of this.leases) if (lease.threadId === threadId) {
       lease.controller.abort(new Error("This Lexicon turn is no longer active."));
       this.leases.delete(token);
+      cancelled = true;
     }
     this.threads.delete(threadId);
+    if (cancelled) log.info("agent", { msg: "cancelled", threadId });
   }
   cancelAll() { for (const lease of this.leases.values()) this.cancel(lease.threadId); this.threads.clear(); this.receiptCache.clear(); }
   busy(threadId: string) { return [...this.leases.values()].some(lease => lease.threadId === threadId); }

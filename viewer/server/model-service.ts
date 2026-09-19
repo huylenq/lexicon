@@ -9,6 +9,7 @@ import type { ModelChange, ModelPatch } from "../shared/model-edit";
 import { agentWork } from "./agents/work";
 import { modelDeltas } from "./model-delta";
 import { migrationGuide } from "./model-migrations";
+import * as log from "./log";
 
 export interface AgentProject { id: string; root: string; artifactRoot: string; example: boolean; conversationId?: string; messageId?: string }
 export const conversationKey = (project: AgentProject) => project.conversationId || project.id;
@@ -75,13 +76,17 @@ export class ModelService {
     return { changeId: id, revision: fingerprint(after), affectedIds: modelDeltas(model.items, next.items).map(change => change.itemId), warnings, undoAvailable: true };
   }
   private async commit(project: AgentProject, root: string, before: string | null, model: Model, next: Model, text: string, id: string = crypto.randomUUID(), signal?: AbortSignal) {
+    const started = performance.now();
     const warnings = await validateChangedLinks(model, next, project.root);
     signal?.throwIfAborted();
     const after = serializeModel(next);
     await saveXml(root, before, after, signal);
     agentWork.observe(project.id, next, fingerprint(after));
     db.transaction(() => this.recordCommit(project, root, before, after, model, next, text, id))();
-    return this.receipt(model, next, after, id, warnings);
+    const receipt = this.receipt(model, next, after, id, warnings);
+    log.finish("info", "model", { msg: "saved", projectId: project.id, taskId: project.conversationId, changeId: id, revision: receipt.revision, affected: receipt.affectedIds.length, warnings: warnings.length }, started);
+    if (warnings.length) log.warn("model", { msg: "validation", projectId: project.id, warnings: warnings.length });
+    return receipt;
   }
   async canvasCommand(project: AgentProject, input: unknown) {
     const { revision, command } = readCanvasCommand(input);
@@ -122,7 +127,10 @@ export class ModelService {
       if (approval && (approval.projectId !== project.id || approval.taskId !== project.conversationId || approval.root !== root || approval.sourceRoot !== sourceRoot || approval.beforeRevision !== beforeRevision || approval.candidateRevision !== candidateRevision)) throw new Error("This approval does not match the reviewed model delta.");
       if (approval?.receipt) return approval.receipt;
       const saved = await readXml(root);
-      if (saved !== before && !(approval && saved === candidate)) throw new Error("The saved model changed. Discard this stale delta and ask the agent to reconcile it.");
+      if (saved !== before && !(approval && saved === candidate)) {
+        log.warn("model", { msg: "stale", projectId: project.id, taskId: project.conversationId });
+        throw new Error("The saved model changed. Discard this stale delta and ask the agent to reconcile it.");
+      }
       const document = await readModelDocument(root, before);
       const model = document.model || emptyModel("Migration");
       const next = parseModel(candidate);
@@ -146,6 +154,7 @@ export class ModelService {
       } catch (error) {
         throw new Error(`The model was saved, but its approval record could not be completed. Retry finalization; the model will not be written again. ${(error as Error).message}`);
       }
+      log.info("model", { msg: "approved", projectId: project.id, taskId: project.conversationId, changeId: id, revision: candidateRevision, affected: receipt.affectedIds.length, warnings: receipt.warnings.length });
       return receipt;
     });
   }
@@ -162,7 +171,9 @@ export class ModelService {
       const message = history.changes.find(m => m.id === entry.messageId);
       if (message?.change) message.change.undone = true;
       this.save(project.id, history);
-      agentWork.observe(project.id, (await readModelDocument(root, entry.before)).model, fingerprint(entry.before));
+      const revision = fingerprint(entry.before);
+      agentWork.observe(project.id, (await readModelDocument(root, entry.before)).model, revision);
+      log.info("model", { msg: "undone", projectId: project.id, taskId: project.conversationId, changeId: entry.messageId, revision });
     });
   }
 }

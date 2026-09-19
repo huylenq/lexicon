@@ -10,13 +10,15 @@ test("desktop backend authenticates API access and stops when its parent closes"
   const token = "test-desktop-session";
   const child = Bun.spawn([process.execPath, "run", "server/desktop.ts"], {
     cwd: join(import.meta.dir, ".."), stdin: "pipe", stdout: "pipe", stderr: "pipe",
-    env: { ...process.env, LEXICON_DESKTOP_TOKEN: token, LEXICON_VIEWER_DB: join(temp, "registry.db") },
+    env: { ...process.env, LEXICON_DESKTOP_TOKEN: token, LEXICON_VIEWER_DB: join(temp, "registry.db"), LEXICON_LOG: "info", LEXICON_LOG_FILE: join(temp, "desktop.log") },
   });
   try {
     const reader = child.stdout.getReader();
     const first = await reader.read();
     const ready = JSON.parse(new TextDecoder().decode(first.value).trim());
     expect(ready.type).toBe("lexicon-ready");
+    const logged = (await readFile(join(temp, "desktop.log"), "utf8")).trim().split("\n").map(line => JSON.parse(line));
+    expect(logged.some(line => line.scope === "desktop" && line.msg === "ready" && line.port === ready.port)).toBe(true);
     const connectionFile = join(temp, "agent-connection.json");
     const connection = JSON.parse(await readFile(connectionFile, "utf8"));
     expect(connection.token).toBe(token);

@@ -1,5 +1,6 @@
 import type { AgentEvent, NavigationCommand, ViewerMessage, ViewerSession, ViewerState } from "../../shared/agent";
 import { only, record, text } from "./edit";
+import * as log from "../log";
 
 export function readViewerState(raw: unknown): ViewerState {
   const state = record(raw);
@@ -63,6 +64,7 @@ export class AgentSessions {
     const session: Session = { state: { ...state, id: crypto.randomUUID(), projectId, updatedAt: Date.now(), connected: false } };
     this.sessions.set(session.state.id, session);
     this.emit({ type: "session.changed", projectId, session: { ...session.state } });
+    log.debug("agent", { msg: "session", projectId, sessionId: session.state.id });
     return session.state;
   }
   update(projectId: string, id: string, state: ViewerState) {
@@ -135,6 +137,7 @@ export class AgentSessions {
     pending.cleanup();
     session.pending = undefined;
     this.emit({ type: "operation.completed", projectId, session: { ...session.state }, operationId });
+    log.debug("agent", { msg: "ack", projectId, sessionId: id, operationId });
     pending.resolve({ ...session.state });
   }
   modelChanged(projectId: string, revision: string) {

@@ -1,4 +1,8 @@
 [tasks.viewer]
-description = "Start lexicon viewer with client HMR — Vite on :5373 (proxies /api to the server on :5374)"
+description = "Start lexicon viewer with client HMR — Vite on :5373 (proxies /api to the server on :5374). API logs: ~/Library/Logs/Lexicon/dev.log"
 dir = "viewer"
 run = "bun run --watch server/index.ts & server=$!; trap 'kill $server 2>/dev/null; wait $server 2>/dev/null' INT TERM EXIT; bun run dev:client"
+
+[tasks."viewer:logs"]
+description = "Follow the local viewer API log"
+run = "tail -F \"$HOME/Library/Logs/Lexicon/dev.log\""

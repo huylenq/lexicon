@@ -1,11 +1,11 @@
 import { Database } from "bun:sqlite";
 import { resolve } from "node:path";
 
-const DB_PATH =
+export const dbPath =
   process.env.LEXICON_VIEWER_DB ||
   resolve(import.meta.dir, "..", "lexicon-viewer.db");
 
-export const db = new Database(DB_PATH);
+export const db = new Database(dbPath);
 db.exec("PRAGMA journal_mode = WAL;");
 
 db.exec(`

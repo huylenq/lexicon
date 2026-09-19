@@ -10,6 +10,7 @@ import type { Model } from "../../shared/model";
 import { agentWork } from "./work";
 import { modelDeltas } from "../model-delta";
 import { readSource } from "../source";
+import * as log from "../log";
 
 interface StoredDraft {
   id: string; projectId: string; taskId: string; root: string; sourceRoot: string;
@@ -117,7 +118,10 @@ export class AgentDrafts {
       const saved = await readXml(root), old = this.read(project.id, taskId);
       if (old && modelEdits.hasApproval(project.id, taskId, old.id, fingerprint(old.candidate))) throw new Error("Finish the pending approval or discard the unsaved draft before making further edits.");
       if (old && (old.root !== root || old.sourceRoot !== sourceRoot)) throw new Error("This delta belongs to a different checkout or artifact root.");
-      if (old && saved !== old.before) throw new Error("The saved model changed. Discard this stale delta and ask the agent to reconcile it.");
+      if (old && saved !== old.before) {
+        log.warn("model", { msg: "stale", projectId: project.id, taskId });
+        throw new Error("The saved model changed. Discard this stale delta and ask the agent to reconcile it.");
+      }
       const xml = old ? old.candidate : saved;
       if (fingerprint(xml) !== revision) throw new Error("The model delta changed. Inspect it before editing again.");
       const document = await readModelDocument(root, xml);
@@ -129,7 +133,10 @@ export class AgentDrafts {
       const next = edit?.next || (operation.migration !== undefined ? migrationModel(operation.migration, document.problem!) : applyPatch(current, operation.patch));
       const warnings = await validateChangedLinks(current, next, sourceRoot);
       signal?.throwIfAborted();
-      if (await readXml(root) !== saved) throw new Error("The saved model changed while validating the delta. No changes were saved.");
+      if (await readXml(root) !== saved) {
+        log.warn("model", { msg: "stale", projectId: project.id, taskId });
+        throw new Error("The saved model changed while validating the delta. No changes were saved.");
+      }
       const draft: StoredDraft = { id: crypto.randomUUID(), projectId: project.id, taskId, root, sourceRoot, before: old ? old.before : saved, candidate: serializeModel(next), base: old?.base || current, next,
         summary: edit?.text || (operation.migration !== undefined ? "Model migration" : "Model changes"), createdAt: old?.createdAt || new Date().toISOString(), migration: !!old?.migration || operation.migration !== undefined };
       const changes = modelDeltas(draft.base.items, next.items);
@@ -137,7 +144,9 @@ export class AgentDrafts {
       if (hasChanges) db.run("INSERT OR REPLACE INTO agent_model_drafts (task_id, project_id, state, state_id) VALUES (?, ?, ?, ?)", [taskId, project.id, JSON.stringify(draft), draft.id]);
       else db.run("DELETE FROM agent_model_drafts WHERE task_id = ? AND project_id = ?", [taskId, project.id]);
       agentWork.focus(project, taskId, modelDeltas(current.items, next.items).map(change => change.itemId), "edit");
-      return { status: "draft" as const, draftId: hasChanges ? draft.id : null, revision: hasChanges ? fingerprint(draft.candidate) : fingerprint(saved), savedRevision: fingerprint(saved), affectedIds: changes.map(change => change.itemId), warnings,
+      const candidateRevision = hasChanges ? fingerprint(draft.candidate) : fingerprint(saved);
+      log.info("model", { msg: hasChanges ? "staged" : "cleared", projectId: project.id, taskId, draftId: hasChanges ? draft.id : undefined, revision: candidateRevision, warnings: warnings.length });
+      return { status: "draft" as const, draftId: hasChanges ? draft.id : null, revision: candidateRevision, savedRevision: fingerprint(saved), affectedIds: changes.map(change => change.itemId), warnings,
         message: hasChanges ? "Model delta staged for user review. model.xml has not changed." : "The staged delta is empty. model.xml has not changed." };
     });
   }
@@ -162,6 +171,7 @@ export class AgentDrafts {
       if (!draft || draft.id !== draftId) throw new Error("This model delta changed or is no longer available. Review the current overlay before discarding.");
       if (modelEdits.hasApproval(project.id, taskId, draft.id, fingerprint(draft.candidate)) && await readXml(project.artifactRoot) === draft.candidate) throw new Error("This model was already saved. Retry finalization instead of discarding its approval.");
       db.run("DELETE FROM agent_model_drafts WHERE task_id = ? AND project_id = ?", [taskId, project.id]);
+      log.info("model", { msg: "discarded", projectId: project.id, taskId, draftId: draft.id });
     });
   }
   /** Reads may finish already-saved approvals, but never write an unsaved candidate automatically. */

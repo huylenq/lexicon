@@ -3,7 +3,8 @@ import { dirname, join } from "node:path";
 // The desktop parent supplies data paths and a per-launch API secret before imports run.
 import config from "./index";
 import { agents } from "./agents/service";
-import { db } from "./db";
+import { db, dbPath } from "./db";
+import * as log from "./log";
 
 if (!process.env.LEXICON_DESKTOP_TOKEN || !process.env.LEXICON_VIEWER_DB)
   throw new Error("Desktop backend requires its launcher.");
@@ -14,11 +15,13 @@ const connection = JSON.stringify({ version: 1, origin: `http://127.0.0.1:${serv
 const temporary = `${connectionFile}.${process.pid}.tmp`;
 await writeFile(temporary, connection, { mode: 0o600, flag: "wx" });
 await rename(temporary, connectionFile);
+log.info("desktop", { msg: "ready", port: server.port, db: dbPath });
 console.log(JSON.stringify({ type: "lexicon-ready", port: server.port }));
 let stopping = false;
 async function stop() {
   if (stopping) return;
   stopping = true;
+  log.info("desktop", { msg: "stop" });
   server.stop(true);
   await agents.dispose();
   try { if (await readFile(connectionFile, "utf8") === connection) await unlink(connectionFile); } catch {}

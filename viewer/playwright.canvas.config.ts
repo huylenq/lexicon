@@ -16,7 +16,7 @@ export default defineConfig({
   },
   webServer: {
     command: "bun run build:client && bun run start",
-    env: { LEXICON_VIEWER_API_PORT: "5395", LEXICON_VIEWER_DB: ":memory:" },
+    env: { LEXICON_VIEWER_API_PORT: "5395", LEXICON_VIEWER_DB: ":memory:", LEXICON_LOG: "silent" },
     url: "http://127.0.0.1:5395/api/health",
     reuseExistingServer: false,
     timeout: 60_000,

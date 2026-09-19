@@ -23,6 +23,7 @@ import { threadLifecycle, lifecycleBusy } from "./lifecycle";
 import { AgentProjection } from "./projection";
 import { AgentCodeReview } from "./code-review";
 import { agentStateEqual } from "../../shared/agent-state-stream";
+import * as log from "../log";
 
 db.exec("CREATE TABLE IF NOT EXISTS t3_threads (project_id TEXT NOT NULL, environment TEXT NOT NULL, thread_id TEXT PRIMARY KEY, root TEXT NOT NULL, title TEXT NOT NULL, contexts TEXT NOT NULL DEFAULT '{}', active INTEGER NOT NULL DEFAULT 1)");
 export type AgentRuntime = Pick<T3Runtime, "config" | "shell" | "dispatch" | "watch" | "diff" | "close"> & Partial<Pick<T3Runtime, "mcpCapabilities" | "registerMcpServer" | "grantMcp" | "revokeMcp">>;
@@ -140,7 +141,11 @@ export class AgentService {
         ...(!supported ? { error: MCP_UPDATE_REQUIRED } : {}),
         models: config.providers.filter(provider => supported?.providerInstanceIds.includes(provider.instanceId) && provider.enabled && provider.installed && provider.status !== "error" && provider.availability !== "unavailable")
           .flatMap(provider => provider.models.map(model => ({ instanceId: provider.instanceId, provider: provider.displayName || provider.driver, id: model.slug, name: model.name, modelOnly: provider.driver === "codex" && supported!.readOnlyProviderInstanceIds.includes(provider.instanceId) }))) };
-    } catch { if (this.runtime === runtime) await this.dropRuntime(); return { configured: true, connected: false, url: connection.url, models: [], error: "Could not connect to T3. Check the server and its version, or pair Lexicon again." }; }
+    } catch (error) {
+      log.error("agent", { msg: "t3 connect failed", error: (error as Error).message, url: connection.url });
+      if (this.runtime === runtime) await this.dropRuntime();
+      return { configured: true, connected: false, url: connection.url, models: [], error: "Could not connect to T3. Check the server and its version, or pair Lexicon again." };
+    }
   }
   async pair(input: { url: string; credential: string }) {
     this.canChangeConnection();
@@ -163,10 +168,12 @@ export class AgentService {
         this.runtime = Promise.resolve(runtime);
       });
     } catch (error) { await runtime.close(); throw error; }
+    log.info("agent", { msg: "paired", url });
     return this.connectionState();
   }
   async disconnect(remove = true) {
     await this.changeConnection(() => this.clearConnection(remove));
+    log.info("agent", { msg: "disconnected" });
   }
   /** Server shutdown preserves pairing and must not wait for an action to finish. */
   async dispose() {

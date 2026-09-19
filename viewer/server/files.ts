@@ -6,6 +6,7 @@ import { readSource } from "./source";
 import { measureFiles, type FileMetricCache } from "./fileMetrics";
 import { readProjectSettings, fileFilter } from "./settings";
 import { inventory } from "./projectFiles";
+import * as log from "./log";
 
 const cache = new Map<string, { expires: number; result: Promise<FileInventory>; metrics: FileMetricCache }>();
 
@@ -15,12 +16,17 @@ export async function readProjectFiles(root: string, refresh = false, artifactRo
   const key = JSON.stringify([base, artifactRoot, settings]);
   const previous = cache.get(key);
   if (!refresh && previous && previous.expires > Date.now()) return previous.result;
+  const started = performance.now();
   const metrics = previous?.metrics || new Map();
   const result = inventory(base, fileFilter(settings)).then(async inventory => ({ ...inventory,
     metrics: await measureFiles(base, inventory.files, metrics) }));
   cache.set(key, { expires: Date.now() + 30_000, result, metrics });
   if (cache.size > 20) cache.delete(cache.keys().next().value!);
-  try { return await result; }
+  try {
+    const files = await result;
+    log.debug("server", { msg: "inventory", files: files.files.length, ms: Math.round(performance.now() - started) });
+    return files;
+  }
   catch (error) { if (cache.get(key)?.result === result) cache.delete(key); throw error; }
 }
 

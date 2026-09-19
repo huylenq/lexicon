@@ -1,8 +1,7 @@
 const { app, BrowserWindow, Menu, dialog, ipcMain, session, shell, protocol, net } = require('electron');
 const { spawn, execFile } = require('node:child_process');
-const { createInterface } = require('node:readline');
 const { randomBytes } = require('node:crypto');
-const { readFileSync, writeFileSync } = require('node:fs');
+const { readFileSync, writeFileSync, createWriteStream, mkdirSync, statSync, renameSync, unlinkSync } = require('node:fs');
 const { mkdir, copyFile, access, cp } = require('node:fs/promises');
 const { join, resolve } = require('node:path');
 const { homedir } = require('node:os');
@@ -11,7 +10,11 @@ const { checkRelease, RELEASES_URL } = require('./updates.cjs');
 protocol.registerSchemesAsPrivileged([{ scheme: 'lexicon', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } }]);
 app.setName('Lexicon');
 // Explicit override is useful for isolated QA; production uses Electron's app-data folder.
-if (process.env.LEXICON_DESKTOP_DATA) app.setPath('userData', resolve(process.env.LEXICON_DESKTOP_DATA));
+if (process.env.LEXICON_DESKTOP_DATA) {
+  const data = resolve(process.env.LEXICON_DESKTOP_DATA);
+  app.setPath('userData', data);
+  app.setPath('logs', join(data, 'logs'));
+}
 let window, backend, origin, notice = null, checking, quitting = false, stopped = false;
 let backendError = '';
 let pendingURL = process.argv.find(validLink);
@@ -76,15 +79,37 @@ async function startBackend() {
     }
   }
   await cp(join(root, 'examples/shop/src'), join(examples, 'shop/src'), { recursive: true, force: false });
+  const logs = app.getPath('logs');
+  mkdirSync(logs, { recursive: true });
+  const logFile = join(logs, 'desktop.log');
+  try {
+    if (statSync(logFile).size >= 2 * 1024 * 1024) {
+      try { unlinkSync(`${logFile}.2`); } catch {}
+      try { renameSync(`${logFile}.1`, `${logFile}.2`); } catch {}
+      try { renameSync(logFile, `${logFile}.1`); } catch {}
+    }
+  } catch {}
+  const logStream = createWriteStream(logFile, { flags: 'a' });
   backend = spawn(bun, ['run', join(viewer, 'server/desktop.ts')], {
     cwd: viewer,
     env: { ...process.env, PATH: await launchPath(), LEXICON_VIEWER_DB: join(data, 'lexicon-viewer.db'),
       LEXICON_DESKTOP_TOKEN: token, LEXICON_EXAMPLES_ROOT: examples },
     stdio: ['pipe', 'pipe', 'pipe'],
   });
-  backend.stderr.on('data', (chunk) => { backendError = (backendError + chunk).slice(-6000); });
+  let stdout = '';
+  const capture = (stream) => {
+    stream.on('data', (chunk) => {
+      const text = chunk.toString();
+      backendError = (backendError + text).slice(-6000);
+      try { logStream.write(text); } catch {}
+      if (stream === backend.stdout) stdout += text;
+    });
+  };
+  capture(backend.stdout);
+  capture(backend.stderr);
   backend.stdin.on('error', () => {});
   backend.once('exit', () => {
+    try { logStream.end(); } catch {}
     if (origin && !quitting) {
       dialog.showErrorBox('Lexicon stopped', `The local server stopped. Reopen Lexicon to continue.\n\n${backendError}`);
       app.quit();
@@ -92,21 +117,24 @@ async function startBackend() {
   });
   const port = await new Promise((resolvePort, reject) => {
     const timeout = setTimeout(() => finish(new Error(`Server startup timed out.\n${backendError}`)), 20000);
-    const lines = createInterface({ input: backend.stdout });
     const fail = (error) => finish(error);
     const exited = (code) => finish(new Error(`Server exited (${code}).\n${backendError}`));
     function finish(error, port) {
-      clearTimeout(timeout); lines.close(); backend.off('error', fail); backend.off('exit', exited);
+      clearTimeout(timeout); backend.off('error', fail); backend.off('exit', exited); backend.stdout.off('data', onReady);
       error ? reject(error) : resolvePort(port);
     }
+    function onReady() {
+      for (const line of stdout.split('\n')) {
+        try {
+          const ready = JSON.parse(line);
+          if (ready.type === 'lexicon-ready' && Number.isInteger(ready.port) && ready.port > 0 && ready.port < 65536)
+            return finish(null, ready.port);
+        } catch {}
+      }
+    }
     backend.once('error', fail); backend.once('exit', exited);
-    lines.on('line', (line) => {
-      try {
-        const ready = JSON.parse(line);
-        if (ready.type === 'lexicon-ready' && Number.isInteger(ready.port) && ready.port > 0 && ready.port < 65536)
-          finish(null, ready.port);
-      } catch {}
-    });
+    backend.stdout.on('data', onReady);
+    onReady();
   });
   origin = `http://127.0.0.1:${port}`;
   const health = await fetch(`${origin}/api/health`, { headers: { 'x-lexicon-desktop-token': token }, signal: AbortSignal.timeout(5000) });

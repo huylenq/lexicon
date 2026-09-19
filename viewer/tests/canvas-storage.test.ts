@@ -1,4 +1,4 @@
-import { afterEach, expect, test } from "bun:test";
+import { afterEach, expect, spyOn, test } from "bun:test";
 import { chmod, lstat, cp, mkdtemp, mkdir, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -6,6 +6,7 @@ import { canvasSchema } from "../shared/canvas-schema";
 import { canonicalJson, mergeCanvas } from "../shared/canvas-merge";
 import type { CanvasDocument } from "../shared/canvas";
 import { readCanvas, saveCanvas, recoverCanvas, validateCanvas, saveCanvasAsset, readCanvasAsset } from "../server/canvas";
+import * as log from "../server/log";
 
 const roots: string[] = [];
 const root = async () => { const path = await mkdtemp(join(tmpdir(), "lexicon-canvas-storage-")); roots.push(path); return path; };
@@ -43,8 +44,11 @@ test("simultaneous writers cannot overwrite each other, and an abandoned lock re
   const before = await readCanvas(path, "test");
   await writeFile(join(path, "lexicon/.canvas.lock"), "99999999");
   await writeFile(join(path, "lexicon/canvas.json.interrupted.tmp"), "partial");
+  const warnings = spyOn(log, "warn");
   const saved = await saveCanvas(path, "test", before.revision, shift(before.document!, 200));
   expect(saved.document).toEqual(validateCanvas(shift(before.document!, 200), "test"));
+  expect(warnings.mock.calls.some(call => call[0] === "canvas" && (call[1] as { msg: string }).msg === "recovered lock")).toBe(true);
+  warnings.mockRestore();
 });
 
 test("corrupt and future files are preserved; recovery checks revisions and archives the replaced bytes", async () => {

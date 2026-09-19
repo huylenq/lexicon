@@ -10,7 +10,8 @@ import { readFile, realpath, stat } from "node:fs/promises";
 import { resolve, relative, isAbsolute, join, basename } from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { projects } from "./db";
+import { dbPath, projects } from "./db";
+import * as log from "./log";
 import { loadModel, readModelDocument } from "./model";
 import { readSource, readSourceMetadata } from "./source";
 import { readProjectFiles, readProjectFile } from "./files";
@@ -99,7 +100,18 @@ app.use("/api/*", async (c, next) => {
     return c.json({ error: "Local requests only." }, 403);
   await next();
 });
-app.onError((error, c) => c.json({ error: error.message }, error instanceof CanvasError ? error.status : 400));
+app.use("/api/*", async (c, next) => {
+  const started = performance.now();
+  await next();
+  if (c.req.path === "/api/health" || c.req.path.includes("/events")) return;
+  const ms = Math.round(performance.now() - started);
+  log.debug("http", { msg: "request", method: c.req.method, path: c.req.path, status: c.res.status, ms });
+  if (ms > 500) log.warn("http", { msg: "slow", method: c.req.method, path: c.req.path, ms });
+});
+app.onError((error, c) => {
+  log.error("http", { msg: "failed", method: c.req.method, path: c.req.path, error: error.message, status: error instanceof CanvasError ? error.status : 400 });
+  return c.json({ error: error.message }, error instanceof CanvasError ? error.status : 400);
+});
 installUserSettingsRoutes(app, agents);
 app.get("/api/health", (c) => c.json({ ok: true, model: MODEL_SCHEMA }));
 app.get("/api/projects", (c) =>
@@ -316,7 +328,9 @@ app.get("*", async (c) => {
 });
 const port = Number(process.env.LEXICON_VIEWER_API_PORT || 5374);
 if (import.meta.main) {
+  log.info("server", { msg: "listen", port, db: dbPath });
   const shutdown = async () => {
+    log.info("server", { msg: "stop" });
     await agents.dispose();
     process.exit(0);
   };

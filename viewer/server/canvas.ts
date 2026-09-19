@@ -21,6 +21,7 @@ import {
   type CanvasDocument,
   type CanvasState,
 } from "../shared/canvas";
+import * as log from "./log";
 
 export class CanvasError extends Error {
   constructor(
@@ -234,6 +235,7 @@ async function withLock<T>(
           423,
         );
       await unlink(lock);
+      log.warn("canvas", { msg: "recovered lock", pid: Number.isSafeInteger(owner) ? owner : undefined });
     }
   }
   if (!handle)
@@ -311,9 +313,10 @@ export async function saveCanvas(
 ) {
   if (typeof expectedRevision !== "string")
     throw new CanvasError("A canvas revision is required.");
+  const started = performance.now();
   const document = validateCanvas(raw, modelId);
   const { path } = await folder(root, true);
-  return withLock(path, async () => {
+  const state = await withLock(path, async () => {
     const file = join(path, "canvas.json"),
       previous = await safeRead(file);
     if (canvasRevision(previous) !== expectedRevision)
@@ -343,14 +346,17 @@ export async function saveCanvas(
     });
     return readCanvas(root, modelId);
   });
+  log.finish("info", "canvas", { msg: "saved", revision: state.revision }, started);
+  return state;
 }
 export async function recoverCanvas(
   root: string,
   modelId: string,
   expectedRevision: unknown,
 ) {
+  const started = performance.now();
   const { path } = await folder(root, true);
-  return withLock(path, async () => {
+  const state = await withLock(path, async () => {
     const file = join(path, "canvas.json"),
       current = await safeRead(file);
     if (canvasRevision(current) !== expectedRevision)
@@ -372,6 +378,8 @@ export async function recoverCanvas(
     });
     return readCanvas(root, modelId);
   });
+  log.finish("info", "canvas", { msg: "recovered", revision: state.revision }, started);
+  return state;
 }
 
 const media: Record<string, string> = {

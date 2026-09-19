@@ -80,9 +80,12 @@ test("schema-valid migration above 20k reaches MCP operations in model and code 
   // Isolate the SQLite singleton from the API test suite and the user's running registry.
   const scratch = await mkdtemp("/tmp/lexicon-mcp-contracts-");
   try {
+    const env: Record<string, string | undefined> = { ...process.env, LEXICON_VIEWER_DB: join(scratch, "registry.db"), LEXICON_MCP_CONTRACT_ROOT: scratch, LEXICON_LOG: "silent" };
+    delete env.FORCE_COLOR;
+    delete env.NO_COLOR;
     const child = Bun.spawn([process.execPath, "run", new URL("./fixtures/mcp-contracts.ts", import.meta.url).pathname], {
       cwd: new URL("..", import.meta.url).pathname,
-      env: { ...process.env, LEXICON_VIEWER_DB: join(scratch, "registry.db"), LEXICON_MCP_CONTRACT_ROOT: scratch }, stdout: "pipe", stderr: "pipe",
+      env, stdout: "pipe", stderr: "pipe",
     });
     const [code, stdout, stderr] = await Promise.all([child.exited, new Response(child.stdout).text(), new Response(child.stderr).text()]);
     expect({ code, stderr }).toEqual({ code: 0, stderr: "" });
