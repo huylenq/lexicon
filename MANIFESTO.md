@@ -28,6 +28,8 @@ Lexicon is progressive. A team develops one shared model through use and convers
 
 Modeling starts from a human question, optionally supported by a small overview. Users should be able to ask for explanations and refine the model through conversation inside the viewer, using an authenticated local coding agent. Interactive refinement is essential to Lexicon.
 
+One conversation can move between understanding, model refinement, and implementation. In Model only, the agent drafts refinements on the canvas and the person chooses whether to save them. In Code + model, the agent performs ordinary coding work, verifies the result, and can refine the shared explanation through validated model edits. It surfaces conflicts with intended rules instead of changing those rules merely to fit the implementation. Editing scope can change without requiring a new conversation; an unsaved model draft is resolved first.
+
 Each refinement builds on the current model. Its shape carries the team's judgment forward and guides subsequent changes. Concepts and relationships may be added, split, merged, renamed, or removed as understanding develops. The workflow is incremental, without full regeneration or a separate log of modeling decisions.
 
 Human judgment guides the abstractions. Implementation evidence grounds their explanations and source links. The agent should surface concrete conflicts between the two before applying a misleading change and must never invent supporting source links. A domain concept need not correspond to a class or file.

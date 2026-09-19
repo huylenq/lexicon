@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { readSource } from '../server/source';
 import { parseModel, serializeModel } from '../server/model';
-import { applyPatch } from '../server/chat/model-edit';
+import { applyPatch } from '../server/model-edit';
 import { indexModel } from '../client/src/graph/model';
 import { normalizeNavigation } from '../client/src/sourceNavigation';
 import { sourceTargetId, legacySourceTargetId, legacySourceLinkKey, type CodeLink, type DocumentLink } from '../shared/model';

@@ -108,7 +108,7 @@ Connect an explanation to implementation and assess its support.
 
 Resolution establishes that a target can be found. Assessment evaluates its relevance to a claim. Neither structural validation nor finding both endpoints proves a runtime interaction. Trace and assess are agent workflows built from source access and model inspection; they are not assertions a transport adapter can certify.
 
-Results should keep intended consistency, observed behavior, and enforced checks distinct. Unsupported symbols and incomplete scenario coverage remain visible qualifications. Source code editing remains outside the embedded modeling agent's scope.
+Results should keep intended consistency, observed behavior, and enforced checks distinct. Unsupported symbols and incomplete scenario coverage remain visible qualifications. Model only excludes source writes and stages model changes as a draft for user approval. Code + model authorizes ordinary implementation through the coding provider while model interaction uses MCP and saves directly.
 
 ### Review
 
@@ -122,7 +122,7 @@ Make changes inspectable and recoverable.
 | Apply | Save a change against the exact revision the caller inspected |
 | Undo | Restore the previous exact contents when the current file still matches |
 
-Application and navigation have different completion boundaries. A saved semantic edit can succeed with no viewer open. A navigation action requires a live viewer acknowledgment. Receipts must distinguish these outcomes.
+Application and navigation have different completion boundaries. Model-only agents return an unsaved draft receipt; only the viewer user can approve the current draft for saving. Code-capable and standalone external agents can save a semantic edit with no viewer open. A navigation action requires a live viewer acknowledgment. Receipts must distinguish these outcomes. The Undo capability above applies to standalone/manual model operations; embedded agents expose draft approval/discard instead, and coding checkpoint restore stays in T3 Code.
 
 Edits share the existing artifact-root lock with embedded chat and canvas commands. A stale revision or active writer causes an explicit refusal. Undo must not overwrite intervening external edits. Validation success reports the checks actually performed; semantic correctness remains a separate assessment.
 
@@ -200,11 +200,11 @@ Unit and integration tests can establish contract behavior and write protections
 
 ## Implemented surface
 
-The first slice is exposed through eight tools: `lexicon_projects`, `lexicon_inspect`, `lexicon_search`, `lexicon_sessions`, `lexicon_navigate`, `lexicon_edit`, `lexicon_undo`, and `lexicon_events`. Their input schemas and descriptions live in `viewer/server/agent/tools.ts`. Creation and partial update share one edit tool; creating an item with type `relationship` implements relate.
+The shared surface is exposed through ten tools: `lexicon_projects`, `lexicon_inspect`, `lexicon_search`, `lexicon_sessions`, `lexicon_navigate`, `lexicon_edit`, `lexicon_patch`, `lexicon_migrate`, `lexicon_undo`, and `lexicon_events`. Their input schemas and descriptions live in `viewer/server/agent/tools.ts`. Creation and partial update share one edit tool; creating an item with type `relationship` implements relate.
 
-Embedded chat submits create/update, select/focus/fit, and exact undo to the same server dispatcher, with its originating project/viewer and revision bound by the server. Its operation schemas are derived from the catalog rather than maintained separately. Complex patches retain the shared model save primitive.
+Embedded tasks call the same MCP tools with originating project/viewer, revision, and undo bound by a revocable turn credential. External callers supply those arguments explicitly. Atomic patches handle initialization and dependent edits; migration uses a full current-schema candidate only for an unavailable document. Reply prose never executes.
 
-The MCP adapter uses the official TypeScript SDK and stdio transport. It forwards tool calls to one running viewer. The underlying local routes are also available to other application clients. See [integration setup](viewer/AGENT-INTEGRATION.md).
+The MCP adapter uses the official TypeScript SDK with stdio for external hosts and Streamable HTTP behind T3's MCP gateway for embedded tasks. T3 discovers and invokes Lexicon tools using a grant for the originating turn; Lexicon owns validation and saves. It forwards tool calls to one running viewer. The underlying local routes are also available to other application clients. See [integration setup](viewer/AGENT-INTEGRATION.md).
 
 A session represents a mounted project reader, with its current semantic/code selection and primary pane. It does not expose arbitrary freeform canvas selections. Focus opens the canvas and reveals the requested item through the existing projection; select also supports flows in the reader. Flows do not have canvas shapes, so focus returns an explicit error for them. Fit frames the current visible model content.
 

@@ -4,8 +4,9 @@ import { fileSelectionPath, fileSourceLink } from "../../shared/files";
 import type { ReaderSetParams } from "./readerNavigation";
 import type { ReaderOpenMode } from "./readerState";
 import { mappingId, readSelection, type GraphIndex } from "./graph/model";
+import { parseDraftSource, type DraftSourceReference } from "./draftSource";
 
-export type SourceLocation = { target: string; mapping?: string };
+export type SourceLocation = { target: string; mapping?: string; draft?: DraftSourceReference };
 
 /** Upgrade shared URLs from either earlier navigation path without losing the reader. */
 export function normalizeNavigation(
@@ -62,6 +63,7 @@ export function normalizeNavigation(
 export function codeParams(params: URLSearchParams, location: SourceLocation) {
   const p = new URLSearchParams(params);
   p.set("code", location.target);
+  location.draft ? p.set("codeDraft", JSON.stringify(location.draft)) : p.delete("codeDraft");
   location.mapping
     ? p.set("codeMapping", location.mapping)
     : p.delete("codeMapping");
@@ -72,7 +74,7 @@ export function codeParams(params: URLSearchParams, location: SourceLocation) {
 }
 
 const same = (a?: SourceLocation, b?: SourceLocation) =>
-  a?.target === b?.target && a?.mapping === b?.mapping;
+  a?.target === b?.target && a?.mapping === b?.mapping && JSON.stringify(a?.draft) === JSON.stringify(b?.draft);
 
 export function useSourceNavigation(
   params: URLSearchParams,
@@ -88,8 +90,10 @@ export function useSourceNavigation(
 
   const targetId = normalized.get("code");
   const mappingId = normalized.get("codeMapping");
+  const draftParam = normalized.get("codeDraft");
+  const draft = useMemo(() => parseDraftSource(draftParam), [draftParam]);
   const location = targetId
-    ? { target: targetId, mapping: mappingId || undefined }
+    ? { target: targetId, mapping: mappingId || undefined, draft }
     : undefined;
   const open =
     normalized.get("codePane") !== "closed" &&
@@ -119,7 +123,7 @@ export function useSourceNavigation(
             cursor: h.cursor + 1,
           };
     });
-  }, [targetId, mappingId, index]);
+  }, [targetId, mappingId, draftParam, index]);
 
   const navigate = (next: SourceLocation, readMapping = false, mode: ReaderOpenMode = "preview") => {
     const p = codeParams(normalized, next);
@@ -154,6 +158,7 @@ export function useSourceNavigation(
     targetId,
     target,
     mapping,
+    draft,
     navigate,
     visibility,
     back: () => move(-1),

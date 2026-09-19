@@ -15,7 +15,7 @@
 }
 
 .reader > .chat-pane,
-.reader > .assistant-launcher.agent-toggle,
+.reader > .agent-session-button.agent-toggle,
 .reader .canvas-overlay,
 .reader .reader-card::before,
 .reader .toolbar,
@@ -36,14 +36,14 @@
 }
 
 .reader > .chat-pane,
-.reader > .assistant-launcher.agent-toggle,
+.reader > .agent-session-button.agent-toggle,
 .reader .canvas-overlay,
 .reader .toolbar {
   box-shadow: var(--glass-shadow);
 }
 
 .reader-card-header,
-.assistant-launcher {
+.agent-session-button {
   --glass-illumination: radial-gradient(
     ellipse 90% 120% at 30% 0%,
     color-mix(in srgb, var(--reader-card-color, var(--accent)) 10%, transparent),
@@ -51,7 +51,7 @@
     transparent 78%
   );
 }
-.reader > .assistant-launcher.agent-toggle {
+.reader > .agent-session-button.agent-toggle {
   background: var(--glass-illumination), var(--glass-background);
 }
 

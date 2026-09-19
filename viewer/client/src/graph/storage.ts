@@ -8,7 +8,6 @@ export type Workspace = GraphOptions & {
   sidebar: boolean;
   width: number;
   codeWidth: number;
-  chatWidth: number;
   map?: boolean;
   crossDimensionRelationships?: boolean;
   drawingPlane?: "domain" | "architecture" | "source";
@@ -20,7 +19,6 @@ export const defaults = (): Workspace => ({
   sidebar: true,
   width: 52,
   codeWidth: 38,
-  chatWidth: 400,
   view: "domain",
   map: false,
   atlasSkin: "ink",
@@ -46,8 +44,6 @@ export function readWorkspace(key: string): Workspace {
       result.width = Math.max(25, Math.min(75, value.width));
     if (Number.isFinite(value.codeWidth))
       result.codeWidth = Math.max(25, Math.min(60, value.codeWidth));
-    if (Number.isFinite(value.chatWidth))
-      result.chatWidth = Math.max(280, Math.min(720, value.chatWidth));
     if (value.positions && typeof value.positions === "object")
       for (const [id, p] of Object.entries(value.positions)) {
         const point = p as { x: number; y: number } | null;

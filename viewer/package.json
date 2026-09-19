@@ -13,6 +13,7 @@
     "test": "bun test tests",
     "check": "bun server/cli.ts check",
     "test:browser": "playwright test",
+    "test:agent:live": "bun scripts/agent-smoke.ts",
     "dev:canvas": "bun scripts/canvas-dev.ts",
     "dev:model": "bun scripts/model-dev.ts",
     "dev:planes": "bun scripts/planes-dev.ts",
@@ -39,7 +40,11 @@
     "tree-sitter-python": "0.21.0",
     "tree-sitter-typescript": "^0.23.2",
     "unified": "11.0.5",
-    "xast-util-from-xml": "^4.0.0"
+    "xast-util-from-xml": "^4.0.0",
+    "@t3tools/client-runtime": "file:vendor/t3/client-runtime-0.0.0-lexicon.b88efda397d7.local.db55705ccc92349a.tgz",
+    "@t3tools/contracts": "file:vendor/t3/contracts-0.0.0-lexicon.b88efda397d7.local.db55705ccc92349a.tgz",
+    "@t3tools/shared": "file:vendor/t3/shared-0.0.0-lexicon.b88efda397d7.local.db55705ccc92349a.tgz",
+    "effect": "4.0.0-rc.112"
   },
   "devDependencies": {
     "@jridgewell/trace-mapping": "0.3.31",
@@ -57,5 +62,13 @@
     "tree-sitter",
     "tree-sitter-python",
     "tree-sitter-typescript"
-  ]
+  ],
+  "overrides": {
+    "@t3tools/client-runtime": "file:vendor/t3/client-runtime-0.0.0-lexicon.b88efda397d7.local.db55705ccc92349a.tgz",
+    "@t3tools/contracts": "file:vendor/t3/contracts-0.0.0-lexicon.b88efda397d7.local.db55705ccc92349a.tgz",
+    "@t3tools/shared": "file:vendor/t3/shared-0.0.0-lexicon.b88efda397d7.local.db55705ccc92349a.tgz"
+  },
+  "patchedDependencies": {
+    "effect@4.0.0-rc.112": "vendor/t3/effect.patch"
+  }
 }

@@ -1,3 +1,4 @@
+import { UserSettingsButton } from "./UserSettings";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import type { Project } from "../../shared/model";
@@ -29,6 +30,7 @@ export default function Library() {
         </Link>
         <div className="header-actions">
           <InstallApp />
+          <UserSettingsButton />
           <Theme />
         </div>
       </header>

@@ -19,7 +19,7 @@ await mkdir(join(stage, "viewer/client"), { recursive: true });
 await mkdir(join(stage, "bin"), { recursive: true });
 await cp(process.execPath, join(stage, "bin/bun"));
 await chmod(join(stage, "bin/bun"), 0o755);
-for (const name of ["server", "shared", "package.json", "bun.lock"])
+for (const name of ["server", "shared", "vendor", "package.json", "bun.lock"])
   await cp(join(viewer, name), join(stage, "viewer", name), { recursive: true });
 await cp(join(viewer, "client/dist"), join(stage, "viewer/client/dist"), { recursive: true });
 await mkdir(join(stagedExamples, "shop/lexicon"), { recursive: true });

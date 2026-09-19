@@ -10,6 +10,6 @@ Author the same explanations, annotations, source links, and ordinary relationsh
 
 Use `schema="3.3"` for XML containing architecture. Nest container inside system and component inside container. Existing context/concept nesting stays unchanged. Nesting supplies the single structural parent; do not also author a containment edge for it. A named relationship such as an Order containing Order Lines describes domain meaning and does not change their owning context.
 
-Embedded patches use `parent` for concepts, containers, and components. Roots have no parent. The server checks parent types, cycles, endpoints, and source links. Reparenting does not prove the code was moved.
+Atomic MCP patches use `parent` for concepts, containers, and components. Roots have no parent. The server checks parent types, cycles, endpoints, and source links. Reparenting does not prove the code was moved.
 
 Keep the existing Explain / Initialize / Refine workflow. Add only the objects needed to answer the question. The viewer derives its filters and canvas references; agents need no viewpoint definitions or canvas generation step.

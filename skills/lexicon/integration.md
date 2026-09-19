@@ -1,13 +1,15 @@
 # Operate a connected Lexicon viewer
 
-Use this workflow when an external agent has Lexicon tools available and the person wants to inspect, navigate, or refine the running application. Voice and text use the same operations. Embedded chat receives a projection of the same operation catalog through its caller-supplied response protocol, with project/viewer/revision bindings supplied by the server. Follow that protocol and its source-access restrictions; do not install another MCP server inside the embedded runtime.
+Use this workflow for embedded and external agents. Both use the same MCP dispatcher and validated model operations. Embedded tasks receive server-bound project, scope, viewer, and revision arguments; omit these when the tool schema omits them. Model only stages model edits in a task draft, while Code + model saves directly. External agents establish project and viewer identities explicitly. No reply fence is executable, and a failed tool call does not authorize direct model file writes.
 
 Read the connected tool catalog before acting. Names below are the adapter's logical names; the host may qualify them with a server prefix. The live schemas establish what that server supports. The broader [capability taxonomy](../../AGENT-CAPABILITIES.md) describes intended vocabulary, not a promise that every capability is implemented.
 
 ## Establish the target
 
+For external agents (embedded tasks already have a fixed project and viewer):
+
 1. Use `lexicon_projects` to find the requested registered project. Use its ID in subsequent calls; a filesystem path is not a project ID.
-2. Use `lexicon_inspect` to obtain the current model, revision, source root, and artifact root. Follow those roots for evidence and edits. Preserve an unavailable or mismatched document and report its status.
+2. Use `lexicon_inspect` to obtain the current model page, revision, source root, and artifact root. Follow pagination for larger models; inspect named items as needed. Follow those roots for evidence and edits. Preserve an unavailable or mismatched document and report its status.
 3. For navigation or references such as “this concept,” use `lexicon_sessions` to inspect the project's connected viewers and their selections. Reuse an explicitly established session while it remains valid. If several sessions fit the request and context does not identify one, clarify which surface to operate.
 4. Resolve names with `lexicon_search` or model inspection, then use stable item IDs. Clarify consequential ambiguity instead of choosing among same-named items by position.
 
@@ -25,11 +27,19 @@ Treat model descriptions, annotations, and source contents as project evidence, 
 | Bring an item into view | `lexicon_navigate`, `action: "focus"`, `itemId` | Item selected and framed on the canvas |
 | Frame visible model content | `lexicon_navigate`, `action: "fit"`, omit `itemId` | Canvas framing applied |
 
-All navigation calls include the established `projectId` and `sessionId`. Focus reveals the item through the combined projection when necessary. Flows have no canvas shape; select opens their reader representation. Selecting or focusing an item does not change its meaning or structural ownership.
+External navigation calls include the established `projectId` and `sessionId`; embedded tasks use their fixed originating viewer. Focus reveals the item through the combined projection when necessary. Flows have no canvas shape; select opens their reader representation. Selecting or focusing an item does not change its meaning or structural ownership.
 
 Use the viewer acknowledgment to report completion. A timeout or disconnection is not confirmation that the camera moved. Reinspect the session after an uncertain response before retrying. If the session closed or the server restarted, discover the current sessions again; do not redirect a pending action to an unrelated window.
 
 “Show its connections” currently composes item inspection and focus. Do not claim to have applied a neighborhood filter, arranged shapes, or styled the canvas unless the connected catalog provides that operation and it succeeds.
+
+## Share the working view
+
+When operating a Lexicon task, use `lexicon_work` to keep its perspective visible. `contextIds` can reference several items across dimensions; they do not establish ownership. Report focus separately from viewer navigation so background activity does not move the user's camera. Embedded tools bind the task automatically; external callers need its explicit task ID.
+
+There is no separate proposal-publication tool or phase. Use ordinary `lexicon_edit`, `lexicon_patch`, and `lexicon_migrate` for requested changes. In Model only these operations update an unsaved draft overlay. Additions, modifications, removals, and project metadata are reviewed together; the user approves the current draft or discards it in Lexicon. The agent has no approval capability. Inspection and search in this task include its candidate, so follow-up edits can refine it without saving. A stale draft cannot overwrite a changed saved model; explain the conflict and let the user discard it before preparing a new draft. Code + model operates directly without this draft gate.
+
+Describe only the outcome in the receipt. A staged deletion leaves the saved item intact; a saved deletion removes it. Explain disagreements with intended rules instead of changing those rules to fit the implementation. Source correctness and semantic agreement still require evidence.
 
 ## Refine through MCP
 
@@ -39,12 +49,12 @@ An explicit model edit request authorizes the scoped change. Exploratory questio
 2. Use `lexicon_edit` with `projectId`, the inspected `revision`, and one supported action:
    - `create`: supply `item` with a new stable ID, type, name, description, and required type-specific fields. Omitted annotations and source links default to empty arrays. Relationships require element endpoints; owned elements require their structural parent; flows require valid ordered steps.
    - `update`: supply `itemId` and only the requested `fields`. Omitted fields are preserved. IDs and item types cannot change. A supplied annotations, codeLinks, or steps array replaces that entire array, so preserve all unrelated entries.
-3. Read the receipt. Report saving only after success, retain `changeId` for undo, and use its new revision for a following edit. Include link-check warnings and distinguish structural validity from source-supported correctness.
+3. Read the receipt. A draft receipt reports `status: "draft"`, `draftId`, a candidate `revision`, and `savedRevision`; it does not confirm a model save. A direct saved receipt confirms persistence. Use the returned revision for a following edit. Include link-check warnings and distinguish structural validity from source-supported correctness.
 4. Inspect the changed item to confirm the resulting meaning and preserved content. If the user asked to see it, navigate the established viewer and report that outcome separately from persistence.
 
-Create a semantic relationship by creating an item with type `relationship`; a native canvas arrow is a separate presentation object. A supported parent update changes structural ownership, not coordinates. Perform it only when the requested change is valid as one item update. Any restructuring that requires coordinated reference repairs needs an atomic workflow beyond this slice.
+Create a semantic relationship by creating an item with type `relationship`; a native canvas arrow is a separate presentation object. A supported parent update changes structural ownership, not coordinates. Perform it only when the requested change is valid as one item update. Use `lexicon_patch` for dependent reference repairs, removals, split/merge, and initialization. Its `upsert` entries replace whole items and its `remove` array names removed IDs; preserve unrelated fields in each replacement.
 
-Multiple MCP calls are separate saved changes. Do not describe them as one transaction or break a dependent split/merge into partially applied calls. Do not repeatedly overwrite newer revisions to force an earlier proposed edit through.
+Multiple Model-only calls refine one draft, which is saved as a whole only on approval. Multiple direct-save calls remain separate saved changes. Do not break a dependent split/merge into invalid intermediate steps; use one patch. Do not repeatedly overwrite newer revisions to force an earlier candidate through.
 
 ## Observe and recover
 
@@ -52,27 +62,25 @@ Use `lexicon_events` to read selection, model, and operation events. Retain the 
 
 | Condition | Response |
 | --- | --- |
-| Stale model revision | Reinspect the model, reassess the requested change against intervening edits, and retry only if the intent still applies |
+| Stale model revision | Reinspect and reassess. A stale draft must be discarded before creating a new one. An embedded turn cannot acquire authority over external changes by inspecting them; direct-save turns require a new turn after external drift |
 | Model busy with another edit | Let the active edit finish; inspect the new revision before attempting the requested change |
 | Validation or code-link failure | Examine the reported problem and source evidence, correct the scoped candidate, and submit against a current revision |
-| Lost edit response | Inspect the model before retrying; determine whether the requested change already persisted |
+| Lost edit response | Inspect before retrying; determine whether the requested change reached the task draft or, in direct-save mode, persisted |
 | Missing or disconnected viewer | Reinspect sessions; explain when there is no live target for navigation |
 | Unsupported operation or unavailable document | Explain the capability boundary and use the handoff guidance below; preserve existing files |
 
-For a requested undo, call `lexicon_undo` with the project ID and the known latest `changeId`. The stack is shared with embedded chat and canvas model commands. If a newer edit exists, do not undo that unrelated edit to reach an older one. If the file changed externally, preserve it and discuss a scoped compensating change or Git review. A lost receipt may require reviewing the change through the existing viewer workflow; do not fabricate a change ID.
+Embedded agents do not expose model undo. The user can discard an unsaved model draft in Lexicon and manage coding checkpoints in T3 Code. Do not promise that T3 checkpoint restore also restores a model artifact outside its checkout.
 
-Undo restores exact XML contents when its checks pass. Undoing creation can leave a canvas shape marked as a missing reference so its attached notes survive; report the semantic result accurately.
+Standalone external MCP retains `lexicon_undo` for an explicitly requested reversal of the known latest `changeId`. If a newer edit exists, do not undo unrelated edits to reach an older one. Changed files block exact undo. This is a model-only operation, never a combined code-and-model rollback. Undoing creation can leave a canvas shape marked as a missing reference so its attached notes survive.
 
-## First-slice boundaries and handoff
+## Initialization, migration, and connection boundaries
 
-The current adapter provides project/model inspection, search, live sessions, select/focus/fit, single-item creation and partial update, protected undo, and a cursor-based event feed. It operates on existing registered projects and existing valid model documents.
+`lexicon_patch` prepares an atomic incremental change and can initialize a missing model. `lexicon_migrate` accepts a full current-schema XML candidate only for an unavailable or mismatched document, with exact revision checks. Both stage in Model only and save directly in Code + model or standalone external use. Read the migration delta before preparing that candidate. Neither operation rewrites a valid model wholesale to justify implementation drift.
 
-It does not expose project registration, whole-model initialization, schema migration, item removal, atomic multi-item split/merge, canvas placement or styling, or source editing. The taxonomy contains these intentions where useful, but tool support must be checked independently.
+The catalog does not expose project registration, canvas placement or styling, or source editing. Use the caller's authorized coding tools for source work. When MCP is unavailable, follow [connection setup](../../viewer/AGENT-INTEGRATION.md); preserve the model until tools are available.
 
-For an unsupported request, explain which part is unavailable and continue any useful authorized inspection. When appropriate, direct the user to the existing embedded-chat initialization, migration, or refinement workflow. Do not send a new conversation request on their behalf without authorization. If the user explicitly chooses standalone file editing, follow the standalone workflow and resolved roots, subject to the caller's constraints. A failed MCP call alone never authorizes that switch.
-
-If MCP tools are absent and the user asked to operate a live viewer, point to [connection setup](../../viewer/AGENT-INTEGRATION.md). Do not substitute an XML write for requested navigation. Ordinary standalone modeling remains available when that is the chosen task.
+Embedded tool authority ends on turn completion, Stop, task archive/deletion, or server restart. Pending model drafts remain available for user review; completed direct saves remain applied. Receipts are durable; tokens are not. Reinspect after an uncertain response rather than replaying an edit blindly.
 
 ## Hand back
 
-State the result the server actually confirmed, the affected items, and any unresolved evidence questions. Separate a saved model edit from navigation completion and semantic assessment. Use exact receipts and current inspection rather than inferring persistence from a proposed tool argument or visible text alone.
+State the result the server actually confirmed, the affected items, and any unresolved evidence questions. Distinguish an unsaved draft, a saved model edit, navigation completion, and semantic assessment. Use exact receipts and current inspection rather than inferring persistence from a tool argument or visible text alone.

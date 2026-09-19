@@ -1,4 +1,4 @@
-/** Optional live smoke test. Uses the running model workshop and local Codex login. */
+/** Optional live smoke test. Uses a running Lexicon viewer paired with a local T3 Codex provider. */
 import { cp, mkdtemp, readFile, rm, mkdir, readdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve, join } from "node:path";
@@ -9,6 +9,8 @@ const flowTrial = process.argv.includes("--flow");
 const trialModel = process.env.LEXICON_TRIAL_MODEL;
 const root = await mkdtemp(join(tmpdir(), "lexicon-model-agent-"));
 let id: string | undefined;
+let agentId: string | undefined;
+const endpoint = (action: string) => `/api/projects/${id}/agent/${action}?agent=${agentId}`;
 const request = async (path: string, data?: unknown, method = data === undefined ? "GET" : "POST") => {
   const response = await fetch(api + path, { method, headers: { "Content-Type": "application/json" },
     ...(data === undefined ? {} : { body: JSON.stringify(data) }) });
@@ -28,9 +30,12 @@ try {
   const sources = await Promise.all(files.map(file => readFile(join(root, "src", file), "utf8")));
   id = (await request("/api/projects", { root })).id;
   const loaded = await request(`/api/projects/${id}/model`);
-  await request(`/api/projects/${id}/chat/send`, {
-    provider: "codex", contextId: flowTrial ? "api" : "checkout", modelRevision: loaded.modelRevision,
-    ...(trialModel ? { model: trialModel } : {}),
+  agentId = (await request(`/api/projects/${id}/agents`, {})).id;
+  const connection = (await request("/api/settings")).connections.t3;
+  const choice = connection.models.find((model: any) => model.modelOnly && (!trialModel || model.id === trialModel));
+  if (!choice) throw new Error("Pair Lexicon with T3 and enable a Codex model before running this trial.");
+  await request(endpoint("send"), {
+    instanceId: choice.instanceId, model: choice.id, contextId: flowTrial ? "api" : "checkout", modelRevision: loaded.modelRevision,
     text: flowTrial
       ? "Explicit model edit: add a flow named Place an Order with ID place-order for the successful POST /orders path through saving the accepted order. Reuse customer-orders, handles-order, and saves-order in that order with step IDs submit, create, and save. Inspect the source, explain the path and its conditions, and attach code links supporting the sequence. Preserve all existing objects. Add only this one flow."
       : "Explicit model edit: rename the component with ID checkout to Order Processing. Preserve its ID, parent, description, annotations, code links, and all relationships. This is only a display-name refinement.",
@@ -38,13 +43,14 @@ try {
   console.log(`Live Codex ${flowTrial ? "flow authoring" : "architecture refinement"} started.`);
   let state;
   for (let attempt = 0; attempt < 180; attempt++) {
-    state = await request(`/api/projects/${id}/chat`);
-    if (!state.running) break;
+    state = await request(endpoint("state"));
+    if (!state.running && state.thread && state.messages.at(-1)?.role === "assistant") break;
     await Bun.sleep(1000);
   }
-  if (state.running || state.pending) throw new Error("Live refinement did not finish without further input.");
+  if (state.running || state.questions.length || state.approvals.length) throw new Error("Live refinement did not finish without further input.");
   const message = state.messages.at(-1);
-  if (message?.status !== "complete" || !message.change) throw new Error(JSON.stringify(message));
+  const receipt = state.receipts.find((receipt: any) => receipt.changeId);
+  if (!receipt) throw new Error(JSON.stringify({ message, receipts: state.receipts }));
   const updated = await request(`/api/projects/${id}/model`);
   const originalComponent = loaded.model.items.find((item: any) => item.id === "checkout");
   const component = updated.model.items.find((item: any) => item.id === "checkout");
@@ -58,12 +64,12 @@ try {
       throw new Error("The live authoring changed existing objects.");
   } else if (JSON.stringify(component) !== JSON.stringify({ ...originalComponent, name: "Order Processing" }))
     throw new Error("The live edit changed more than the component's name.");
-  await request(`/api/projects/${id}/chat/undo`, { changeId: message.id });
+  await request(endpoint("undo"), { changeId: receipt.changeId });
   if (await readFile(join(root, "lexicon/model.xml"), "utf8") !== original) throw new Error("Undo was not byte exact.");
   for (let i = 0; i < files.length; i++)
     if (await readFile(join(root, "src", files[i]), "utf8") !== sources[i]) throw new Error("Source changed.");
-  const result = { provider: "codex", status: "passed", change: message.change, parent: component.parent,
-    model: trialModel || "configured default",
+  const result = { provider: "codex", status: "passed", change: receipt, parent: component.parent,
+    model: choice.id,
     ...(flowTrial ? { flow } : {}),
     exactUndo: true, sourceUnchanged: true, elapsedSeconds: (Date.now() - started) / 1000 };
   const output = resolve(import.meta.dir, "../../output");
@@ -72,7 +78,7 @@ try {
   console.log(JSON.stringify(result));
 } finally {
   if (id) {
-    await request(`/api/projects/${id}/chat/stop`, {}).catch(() => {});
+    await request(endpoint("stop"), {}).catch(() => {});
     await request(`/api/projects/${id}`, undefined, "DELETE").catch(() => {});
   }
   await rm(root, { recursive: true, force: true });

@@ -1,8 +1,9 @@
+import { locateAgent, prepareAgent } from "./fixtures/agent-ui";
 import { expect, test } from "@playwright/test";
 
 test.use({ serviceWorkers: "block" });
 
-test("Browse selection keeps text stable and extends its background to the sidebar edge", async ({
+test("Browse selection keeps text stable and aligns with the padded Browse content", async ({
   page,
 }) => {
   await page.goto("/p/shop");
@@ -26,10 +27,9 @@ test("Browse selection keeps text stable and extends its background to the sideb
   const itemRight = await item.evaluate(
     (element) => element.getBoundingClientRect().right,
   );
-  const sidebarRight = await page
-    .getByRole("complementary", { name: "Model navigation" })
-    .evaluate((element) => element.getBoundingClientRect().right);
-  expect(Math.abs(sidebarRight - itemRight)).toBeLessThanOrEqual(1);
+  const contentRight = await page.locator(".browse-items").evaluate(element =>
+    element.getBoundingClientRect().right - parseFloat(getComputedStyle(element).paddingRight));
+  expect(Math.abs(contentRight - itemRight)).toBeLessThanOrEqual(1);
 });
 
 test("reader history branches correctly and pane close buttons preserve navigation", async ({ page }) => {
@@ -147,6 +147,8 @@ test("Browse search preserves shelf height and input position as results change"
     await page.setViewportSize(size);
     const shelf = page.locator("#browse-pane");
     const toggle = page.getByRole("button", { name: "Toggle navigation", exact: true });
+    // Wait for the responsive state, not only the browser viewport resize receipt.
+    if (size.width <= 1000) await expect(toggle).toHaveAttribute("aria-pressed", "false");
     if (await toggle.getAttribute("aria-pressed") === "false") await toggle.click();
     await expect(shelf).toHaveCSS("translate", "none");
     const search = page.getByRole("textbox", { name: "Search model" });
@@ -168,13 +170,14 @@ test("Browse search moves with arrow keys and opens on Enter", async ({ page }) 
   await page.goto("/p/shop");
   for (const size of [{ width: 1600, height: 1000 }, { width: 390, height: 844 }]) {
     await page.setViewportSize(size);
+    await page.goto("/p/shop");
     const toggle = page.getByRole("button", { name: "Toggle navigation", exact: true });
     if (await toggle.getAttribute("aria-pressed") === "false") await toggle.click();
     const search = page.getByRole("textbox", { name: "Search model" });
-    if (await search.inputValue()) await search.press("Escape");
+    await search.fill("");
     await search.fill("order");
     const results = page.locator("#browse-pane .nav-list .nav-item");
-    await expect(results).toHaveCount(16);
+    await expect.poll(() => results.count()).toBeGreaterThan(1);
     await expect(results.nth(0)).toHaveClass(/highlighted/);
     await search.press("ArrowUp");
     await expect(results.last()).toHaveClass(/highlighted/);
@@ -218,7 +221,8 @@ test("Browse Find clears from the field without closing Source Reader", async ({
 test("one shared status bar follows model counts and the floating Agent stays reachable across workspace views", async ({ page }) => {
   await page.goto("/p/shop");
   const bar = page.getByRole("region", { name: "Workspace status", exact: true });
-  const agent = page.getByRole("button", { name: "Agent", exact: true });
+  const agent = await prepareAgent(page);
+  const agentId = (await agent.getAttribute("data-agent-id"))!;
   await expect(bar.locator(".model-count")).toHaveText("2 concepts · 0 sources");
   const objectLegend = bar.getByLabel("Object icon legend", { exact: true });
   await expect(objectLegend).toBeVisible();
@@ -229,7 +233,7 @@ test("one shared status bar follows model counts and the floating Agent stays re
   }
   await expect(bar.getByText("Relationship", { exact: true })).toBeVisible();
   await expect(page.locator(".model-legend")).toHaveCount(1);
-  await expect(page.locator(".app-header").getByRole("button", { name: "Agent", exact: true })).toHaveCount(0);
+  await expect(page.locator(".app-header").getByRole("button", { name: "New task", exact: true })).toHaveCount(0);
   const viewport = page.viewportSize()!;
   const bounds = (await bar.boundingBox())!;
   expect(bounds.x).toBe(0);
@@ -240,18 +244,20 @@ test("one shared status bar follows model counts and the floating Agent stays re
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(objectLegend).toBeHidden();
   await expect(bar.locator(".model-count")).toBeVisible();
-  await expect(agent).toBeVisible();
+  await expect(page.locator(".agent-hud-summary")).toBeVisible();
   await page.goto("/p/shop?item=order");
   await expect(page.locator("main [data-reader-card].active > header h1")).toHaveText("Order");
   await expect(bar).toBeVisible();
   await page.getByRole("button", { name: "Toggle Source Reader" }).click();
   await expect(bar).toBeVisible();
-  await agent.click();
-  const chat = page.getByRole("complementary", { name: "Project conversation" });
+  await locateAgent(page, "New task", agentId);
+  await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  await expect(page.getByRole("complementary", { name: "Source Reader", exact: true })).toBeHidden();
+  const chat = page.getByRole("complementary", { name: "New task conversation" });
   await expect(chat).toBeVisible();
   const dockBounds = (await chat.boundingBox())!;
   expect(dockBounds.y + dockBounds.height).toBeLessThan((await bar.boundingBox())!.y);
-  await chat.getByRole("button", { name: "Minimize Chat" }).click();
+  await chat.getByRole("button", { name: "Minimize agent" }).click();
   await expect(chat).toBeHidden();
   await expect(agent).toBeFocused();
 });

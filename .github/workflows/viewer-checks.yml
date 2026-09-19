@@ -1,0 +1,36 @@
+name: Viewer checks
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  viewer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: viewer
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.14
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: bun install --frozen-lockfile
+      - run: bun run test
+      - run: bun run typecheck
+      - run: bunx playwright install --with-deps chromium
+      - name: Exercise viewer and agent interactions
+        run: bun run test:browser
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: viewer-browser-failures
+          path: viewer/test-results
+          if-no-files-found: ignore

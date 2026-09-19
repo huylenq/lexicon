@@ -1,3 +1,4 @@
+import { ItemAgentWork } from "./AgentWork";
 import { sourceLabel } from "../../shared/source";
 import { Link } from "react-router-dom";
 import { flowsFor, parentOf, isArchitecture, typeNames, type Model } from "../../shared/model";
@@ -54,6 +55,7 @@ export default function ReaderCardBody({ card, model, graphIndex, params, loadin
       )}
       {model && (
         <article>
+          {item && <ItemAgentWork item={item} />}
           {model.items.length === 0 && <div className="empty-model-start">
             <h2>Start with a question.</h2>
             <p>This project has no modeled concepts yet. Ask about an area of the implementation, then shape the model together.</p>

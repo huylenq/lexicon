@@ -1,0 +1,154 @@
+diff --git a/packages/contracts/src/environmentHttp.ts b/packages/contracts/src/environmentHttp.ts
+index ae63a40..65c8a83 100644
+--- a/packages/contracts/src/environmentHttp.ts
++++ b/packages/contracts/src/environmentHttp.ts
+@@ -28,6 +28,7 @@ import {
+   DpopFailureReason,
+   AuthSessionId,
+   ThreadId,
++  MessageId,
+   TrimmedNonEmptyString,
+ } from "./baseSchemas.ts";
+ import { ExecutionEnvironmentDescriptor } from "./environment.ts";
+@@ -67,6 +68,10 @@ export const EnvironmentRequestInvalidReason = Schema.Literals([
+   "invalid_scope",
+   "scope_not_granted",
+   "invalid_command",
++  "invalid_mcp_endpoint",
++  "mcp_thread_unavailable",
++  "mcp_integration_unavailable",
++  "mcp_grant_conflict",
+ ]);
+ export type EnvironmentRequestInvalidReason = typeof EnvironmentRequestInvalidReason.Type;
+ 
+@@ -505,7 +510,80 @@ const EnvironmentOrchestrationThreadSnapshotQuery = {
+   beforeCursor: Schema.optional(TrimmedNonEmptyString),
+ };
+ 
++/** Registration is environment-local; only explicit turn grants carry authority. */
++export const McpIntegrationRegistration = Schema.Struct({
++  name: Schema.String.check(Schema.isPattern(/^[a-z][a-z0-9_-]{0,39}$/)),
++  url: Schema.String.check(Schema.isMaxLength(2048)),
++});
++export type McpIntegrationRegistration = typeof McpIntegrationRegistration.Type;
++export const McpIntegrationGrant = Schema.Struct({
++  name: McpIntegrationRegistration.fields.name,
++  threadId: ThreadId,
++  messageId: MessageId,
++  bearerToken: Schema.String.check(
++    Schema.isMinLength(16),
++    Schema.isMaxLength(4096),
++    Schema.isPattern(/^[^\s]+$/),
++  ),
++});
++export type McpIntegrationGrant = typeof McpIntegrationGrant.Type;
++export const McpIntegrationRevocation = Schema.Struct({
++  name: McpIntegrationRegistration.fields.name,
++  threadId: ThreadId,
++  messageId: MessageId,
++});
++export type McpIntegrationRevocation = typeof McpIntegrationRevocation.Type;
++const McpIntegrationResult = Schema.Struct({ name: Schema.String });
++export const McpIntegrationCapabilities = Schema.Struct({
++  version: Schema.Literal(2),
++  discovery: Schema.Literal("gateway-tools"),
++  gatewayApprovalPolicy: Schema.Literal("active-turn-grant"),
++  executionContext: Schema.Literal(true),
++  providers: Schema.Array(Schema.String),
++  providerInstanceIds: Schema.Array(Schema.String),
++  readOnlyProviderInstanceIds: Schema.Array(Schema.String),
++});
++
+ export class EnvironmentOrchestrationHttpApi extends HttpApiGroup.make("orchestration")
++  .add(
++    HttpApiEndpoint.get("mcpCapabilities", "/api/integrations/mcp", {
++      headers: OptionalBearerHeaders,
++      success: McpIntegrationCapabilities,
++      error: EnvironmentOrchestrationSnapshotErrors,
++    }).middleware(EnvironmentAuthenticatedAuth),
++  )
++  .add(
++    HttpApiEndpoint.put("registerMcpIntegration", "/api/integrations/mcp/server", {
++      headers: OptionalBearerHeaders,
++      payload: McpIntegrationRegistration,
++      success: McpIntegrationResult,
++      error: EnvironmentOrchestrationDispatchErrors,
++    }).middleware(EnvironmentAuthenticatedAuth),
++  )
++  .add(
++    HttpApiEndpoint.delete("removeMcpIntegration", "/api/integrations/mcp/server", {
++      headers: OptionalBearerHeaders,
++      payload: Schema.Struct({ name: McpIntegrationRegistration.fields.name }),
++      success: McpIntegrationResult,
++      error: EnvironmentOrchestrationDispatchErrors,
++    }).middleware(EnvironmentAuthenticatedAuth),
++  )
++  .add(
++    HttpApiEndpoint.post("grantMcpIntegration", "/api/integrations/mcp/grant", {
++      headers: OptionalBearerHeaders,
++      payload: McpIntegrationGrant,
++      success: McpIntegrationResult,
++      error: EnvironmentOrchestrationDispatchErrors,
++    }).middleware(EnvironmentAuthenticatedAuth),
++  )
++  .add(
++    HttpApiEndpoint.delete("revokeMcpIntegration", "/api/integrations/mcp/grant", {
++      headers: OptionalBearerHeaders,
++      payload: McpIntegrationRevocation,
++      success: McpIntegrationResult,
++      error: EnvironmentOrchestrationDispatchErrors,
++    }).middleware(EnvironmentAuthenticatedAuth),
++  )
+   .add(
+     HttpApiEndpoint.get("snapshot", "/api/orchestration/snapshot", {
+       headers: OptionalBearerHeaders,
+diff --git a/packages/contracts/src/orchestration.ts b/packages/contracts/src/orchestration.ts
+index 6971292..f80ba7e 100644
+--- a/packages/contracts/src/orchestration.ts
++++ b/packages/contracts/src/orchestration.ts
+@@ -126,6 +126,7 @@ export const ModelSelection = ModelSelectionSource.pipe(
+ export type ModelSelection = typeof ModelSelection.Type;
+ 
+ export const RuntimeMode = Schema.Literals([
++  "read-only",
+   "approval-required",
+   "auto-accept-edits",
+   "auto",
+@@ -1281,6 +1282,13 @@ const ThreadTurnStartBootstrap = Schema.Struct({
+ 
+ export type ThreadTurnStartBootstrap = typeof ThreadTurnStartBootstrap.Type;
+ 
++/** Client-supplied context for one execution, separate from the user's authored message.
++ * Persisted on the turn request for queued delivery, never elevated to system instructions. */
++export const TurnExecutionContext = Schema.String.check(
++  Schema.isMaxLength(20_000),
++  Schema.isPattern(/\S/),
++);
++
+ export const ThreadTurnStartCommand = Schema.Struct({
+   type: Schema.Literal("thread.turn.start"),
+   commandId: CommandId,
+@@ -1292,6 +1300,7 @@ export const ThreadTurnStartCommand = Schema.Struct({
+     attachments: Schema.Array(ChatAttachment),
+     context: Schema.optional(OrchestrationMessageContext),
+   }),
++  executionContext: Schema.optional(TurnExecutionContext),
+   modelSelection: Schema.optional(ModelSelection),
+   titleSeed: Schema.optional(TrimmedNonEmptyString),
+   runtimeMode: RuntimeMode.pipe(Schema.withDecodingDefault(Effect.succeed(DEFAULT_RUNTIME_MODE))),
+@@ -1314,6 +1323,7 @@ const ClientThreadTurnStartCommand = Schema.Struct({
+     attachments: Schema.Array(Schema.Union([UploadChatAttachment, ChatAttachment])),
+     context: Schema.optional(OrchestrationMessageContext),
+   }),
++  executionContext: Schema.optional(TurnExecutionContext),
+   modelSelection: Schema.optional(ModelSelection),
+   titleSeed: Schema.optional(TrimmedNonEmptyString),
+   runtimeMode: RuntimeMode,
+@@ -1909,6 +1919,7 @@ export const ThreadTurnStartRequestedPayload = Schema.Struct({
+   threadId: ThreadId,
+   externalSource: Schema.optional(ExternalTurnSource),
+   messageId: MessageId,
++  executionContext: Schema.optional(TurnExecutionContext),
+   modelSelection: Schema.optional(ModelSelection),
+   titleSeed: Schema.optional(TrimmedNonEmptyString),
+   runtimeMode: RuntimeMode.pipe(Schema.withDecodingDefault(Effect.succeed(DEFAULT_RUNTIME_MODE))),

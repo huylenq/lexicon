@@ -98,7 +98,7 @@ The parser and validator enforce legal syntax, identity, containment, endpoint t
 
 ## Containment and relationships
 
-An element has at most one structural parent: Concept → Context, Container → System, Component → Container. XML nesting supplies `parent` in memory and in embedded patches. Root elements have no parent. Parentage implies grouping, without aggregate consistency, lifecycle ownership, or cascading deletion. Moving an element preserves its ID; removing its parent requires explicitly handling the children and dependent relationships.
+An element has at most one structural parent: Concept → Context, Container → System, Component → Container. XML nesting supplies `parent` in memory and in MCP patches. Root elements have no parent. Parentage implies grouping, without aggregate consistency, lifecycle ownership, or cascading deletion. Moving an element preserves its ID; removing its parent requires explicitly handling the children and dependent relationships.
 
 Relationships may connect any Context, Concept, Person, System, Container, or Component, including across containment boundaries. Flows and relationships are not endpoints. A relationship named “contains” expresses a domain claim without changing structural parentage. For example, Order and Order Line belong to Ordering while an ordinary relationship describes membership. Do not author a second relationship merely to restate structural nesting.
 
@@ -183,7 +183,7 @@ Steps optionally identify precise participating code through `caller`, `callee`,
 <step id="create" relationship="handles-order" caller="handler" callee="place" call-site="dispatch">Create and validate the order</step>
 ```
 
-Embedded patches use `steps: [{id, relationship, label, caller?, callee?, callSite?}]` and replace the whole Flow atomically. References are Flow-local, so deleting or renaming a used code-link ID requires updating its steps in the same edit. Links use the ordinary source checker, source navigation, and Linked Sources projection.
+Atomic MCP patches use `steps: [{id, relationship, label, caller?, callee?, callSite?}]` and replace the whole Flow atomically. References are Flow-local, so deleting or renaming a used code-link ID requires updating its steps in the same edit. Links use the ordinary source checker, source navigation, and Linked Sources projection.
 
 The sequence defaults to one lifeline per Architecture participant and one message per step. **Show code** expands referenced code targets into lifelines grouped under those participants. Unspecified code remains an explicitly unspecified lane; a human participant remains a user role. Repeated references to the same target under one participant share a lifeline. Different code targets under one Component can exchange messages without creating extra Components. These lifelines identify code locations, not runtime instances. Select a target or call site to open Source Reader.
 
@@ -199,7 +199,7 @@ Pages hold presentation content; their names and positions do not determine sema
 
 Selection, focus, connection visibility, and navigation remain viewing state. Views and Beyond guides choosing and reviewing views; it introduces no persisted viewpoint records, framework registry, or configurable type system. Rendering, gestures, skins, and the experimental Files / File Map view are documented in the [canvas guide](viewer/CANVAS.md) and [Planes guide](PLANES.md).
 
-`lexicon/canvas.json` is a separate authored presentation document containing positions, notes, drawings, and asset references. It refers to semantic identities and does not define model meaning. Changing a view or drawing does not change XML. Conversation history and project registrations live in the local database; browser preferences, navigation, and recovery drafts have their own lifetimes. Schema migration preserves these artifacts and the model identity they reference.
+`lexicon/canvas.json` is a separate authored presentation document containing positions, notes, drawings, and asset references. It refers to semantic identities and does not define model meaning. Changing a view or drawing does not change XML. Agent threads live in T3 Code. Model-only agents keep unsaved candidates in task-local database drafts; their canvas overlays are temporary and enter model.xml only on user approval. Project registrations, task bindings, context attachments, model-operation receipts, and internal model undo snapshots also live in the local database; browser preferences, navigation, and canvas recovery drafts have their own lifetimes. Schema migration preserves these artifacts and the model identity they reference.
 
 ## Minimal example
 

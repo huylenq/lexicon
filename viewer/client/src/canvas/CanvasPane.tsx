@@ -66,6 +66,7 @@ import { EdgeAppearance } from "./EdgeAppearance";
 import { NeighborHighlight } from "./NeighborHighlight";
 import { CombinedBackground, CombinedHandles, CombinedDrawingPlane } from "./CombinedBackground";
 import { RadialNeighbors } from "./RadialNeighbors";
+import { AgentMarkers, AgentCanvasReady } from "./AgentMarkers";
 import { MinimapGroups } from "./MinimapGroups";
 import { useSyncCanvasPresentation } from "./presentation";
 import "tldraw/tldraw.css";
@@ -97,7 +98,7 @@ function CanvasStylePanel() {
   );
   return readonly ? null : shown ? <DefaultStylePanel /> : <MapStylePanel />;
 }
-function CanvasForeground() { return <><RadialNeighbors /><CombinedHandles /></>; }
+function CanvasForeground() { return <><RadialNeighbors /><CombinedHandles /><AgentMarkers /></>; }
 const components = {
   Toolbar: DockedToolbar,
   PageMenu: null,
@@ -869,7 +870,6 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onPlanes: (
           <FilesButton beforeOpen={storage.retry} />
           {workspace.view === "source" && <SourceSearch links projectFiles={linkedSearch} value={sourceQuery} onChange={setSourceQuery}
             onLocate={() => {}} onLocateSelection={reveal} onSelect={props.onSelect} />}
-          <div className="assistant-toolbar-slot" ref={props.assistantHost} />
           {focus && (
             <CanvasButton
               icon="arrow-left"
@@ -1160,7 +1160,7 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onPlanes: (
             />
           )}
           {storage.boot && (
-            <Tldraw
+            <AgentCanvasReady.Provider value={!loading}><Tldraw
               snapshot={storage.boot.snapshot}
               assets={storage.assets}
               assetUrls={assetUrls}
@@ -1177,7 +1177,7 @@ function FlatCanvasPane(props: CanvasPaneProps & { view: CanvasView; onPlanes: (
                 (import.meta as ImportMeta & { env: Record<string, string> })
                   .env.VITE_TLDRAW_LICENSE_KEY
               }
-            />
+            /></AgentCanvasReady.Provider>
           )}
           {loading && (
             <div className="canvas-loading" role="status">

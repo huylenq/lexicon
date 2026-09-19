@@ -33,7 +33,7 @@ A Flow has ordinary item fields and one or more ordered steps. This fragment bel
 
 Flow IDs are project-wide. Step IDs and code-link IDs are local to the Flow and survive reordering. A relationship can occur repeatedly with distinct step IDs and labels. Preserve participant containment. A label may specialize a relationship's broader claim; author a separate relationship when the interaction makes a different claim.
 
-Embedded patches upsert a complete `type: "flow"` item with `steps: [{id, relationship, label, caller?, callee?, callSite?}]`. Preserve unchanged fields and source links. The server validates and saves the whole Flow atomically. Removing or renaming a referenced relationship or code-link ID requires repairing dependent steps in the same edit. MCP updates preserve omitted fields but replace supplied arrays completely.
+Atomic MCP patches upsert a complete `type: "flow"` item with `steps: [{id, relationship, label, caller?, callee?, callSite?}]`. Preserve unchanged fields and source links. The server validates and saves the whole Flow atomically. Removing or renaming a referenced relationship or code-link ID requires repairing dependent steps in the same edit. MCP updates preserve omitted fields but replace supplied arrays completely.
 
 Order means interaction order. Replies, branches, loops, concurrency, timing, and runtime instance aliases remain outside the model. Code lifelines identify source targets, not individual runtime instances. Use another named scenario for an important alternate path.
 

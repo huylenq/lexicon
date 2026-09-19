@@ -60,7 +60,7 @@ export function canvasApi(projectId: string) {
       ),
     undo: (changeId: string) =>
       request<unknown>(
-        `/api/projects/${encodeURIComponent(projectId)}/chat/undo`,
+        `/api/projects/${encodeURIComponent(projectId)}/model/undo`,
         json("POST", { changeId }),
       ),
     upload: (file: File, signal?: AbortSignal) =>

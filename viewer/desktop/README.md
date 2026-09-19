@@ -48,7 +48,7 @@ bun run package
 
 Output is in `viewer/desktop/dist/`: a DMG, ZIP, and unpacked app. `bun run package:dir` builds only the unpacked app. Packaging copies the build machine's Bun executable and installs locked production dependencies, so each architecture must be built on a matching runner. Native Python, TypeScript, and TSX parsers are checked before packaging.
 
-`LEXICON_BUN_BIN` overrides Bun for development. Packaged apps always use bundled Bun. `LEXICON_DESKTOP_DATA` chooses an isolated desktop data directory for testing. Existing `LEXICON_*_BIN` agent overrides are inherited; the launcher also resolves the login shell's PATH for Finder launches.
+`LEXICON_BUN_BIN` overrides Bun for development. Packaged apps always use bundled Bun. `LEXICON_DESKTOP_DATA` chooses an isolated desktop data directory for testing. Agents connect to T3 through the viewer's Connection settings. The launcher resolves the login shell's PATH for Finder launches. Live smoke tests require `LEXICON_DESKTOP_LIVE_CODEX=1`, `LEXICON_DESKTOP_T3_URL`, and `LEXICON_DESKTOP_T3_TOKEN` for an isolated T3 server.
 
 ## Verify
 

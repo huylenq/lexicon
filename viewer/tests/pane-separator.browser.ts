@@ -5,16 +5,13 @@ test.use({ reducedMotion: "reduce", serviceWorkers: "block" });
 for (const pane of [
   { label: "Resize canvas and reader", container: ".reader-workspace", edge: "left", min: 25, max: 75, step: 2 },
   { label: "Resize Source Reader", container: ".pane-area", edge: "right", min: 25, max: 60, step: 2 },
-  { label: "Resize Agent and reader", container: ".reader", edge: "right", min: 280, max: 720, step: 16 },
 ] as const) {
   test(`${pane.label} preserves pointer limits and keyboard direction`, async ({ page }) => {
     await page.goto("/p/shop?item=order");
     await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
     if (pane.label === "Resize Source Reader") {
       await page.locator("[data-reader-card].active .source-links button").first().click();
-    } else if (pane.label === "Resize Agent and reader") {
-      await page.getByRole("button", { name: "Agent", exact: true }).click();
-      await page.getByRole("button", { name: "Attach Agent to right side", exact: true }).click();
+
     }
     const divider = page.getByRole("separator", { name: pane.label, exact: true });
     const drag = async (grow: boolean) => {

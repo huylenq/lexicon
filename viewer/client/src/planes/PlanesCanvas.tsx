@@ -1,3 +1,4 @@
+import { PlaneAgentMarkers } from "../canvas/AgentMarkers";
 import { isWholeFileSource } from "../../../shared/source";
 import { linkedSourcesGraph, sourceSelectionId } from "../source/view";
 import { FilesButton } from "../source/FilesButton";
@@ -326,7 +327,6 @@ export default function PlanesCanvas(props: CanvasPaneProps & { onFlat: () => vo
       <Toolbar
         controls={<CanvasViewControls presentation="planes"
           onPresentation={async presentation => { if (presentation === "flat") { await storage.retry(); onFlat(); } }} />}>
-        <div className="assistant-toolbar-slot" ref={props.assistantHost} />
         <button className="quiet planes-camera-toggle" aria-label={`Camera: ${cameraMode === "isometric" ? "Isometric" : "Perspective"}`}
           title={`Switch to ${cameraMode === "isometric" ? "Perspective" : "Isometric"} camera`}
           onClick={() => {
@@ -447,6 +447,7 @@ export default function PlanesCanvas(props: CanvasPaneProps & { onFlat: () => vo
             onSelect={props.onSelect} endpoints={sourceEndpoints} revision={`${gap}:${renderScale}:${revision}`} />}
         </div>
         </div>
+        <PlaneAgentMarkers handles={handles} camera={cameraView} pan={(dx, dy) => setCameraView(view => ({ ...view, x: view.x + dx, y: view.y + dy }))} />
         {!ready && <div className="planes-arranging" role="status">Arranging planes…</div>}
 
       </section>

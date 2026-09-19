@@ -67,7 +67,6 @@ export default function FilesPane(props: CanvasPaneProps) {
       <CanvasButton icon="arrow-left" label="Back to canvas" onClick={() => setParams(previous => { const next = new URLSearchParams(previous); next.delete("repository"); next.delete("files"); return next; })} />
       <span>Files</span>
     </>}>
-      <div className="assistant-toolbar-slot" ref={props.assistantHost} />
       <SourceSearch projectFiles={projectFiles} value={search} onChange={setSearch} onLocate={fit} onSelect={props.onSelect} />
       <CanvasButton icon="fit" label="Fit File Map" onClick={() => fit()} />
       <CanvasButton icon="locate" label="Locate" disabled={!selectedFile} onClick={() => { const node = projectFiles.layout.nodes.get(selectedFile!); if (node) fit(node); }} />

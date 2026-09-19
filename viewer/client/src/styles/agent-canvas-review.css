@@ -1,0 +1,109 @@
+/* Agent controls and object-local review remain disposable canvas presentation. */
+.agent-canvas-review, .agent-canvas-inspector { position: absolute; pointer-events: auto; box-sizing: border-box; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 11px; box-shadow: 0 5px 22px #0002; font: 11px/1.45 system-ui, sans-serif; overflow: auto; overscroll-behavior: contain; }
+.agent-canvas-review { z-index: 10; width: 350px; padding: 6px; }
+.agent-canvas-review[hidden] { display: none; }
+.agent-canvas-review button, .agent-canvas-inspector button { font-size: 11px; cursor: pointer; }
+.agent-canvas-review button:disabled, .agent-canvas-inspector button:disabled { opacity: .45; cursor: default; }
+.agent-canvas-review button:focus-visible, .agent-canvas-inspector button:focus-visible, .agent-canvas-review summary:focus-visible, .agent-canvas-inspector summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.agent-review-owner { display: flex; gap: 7px; align-items: center; padding: 3px 5px 7px; min-width: 0; }
+.agent-review-owner strong { font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.agent-review-owner small { color: var(--muted); margin-left: auto; white-space: nowrap; font-size: 10px; }
+.agent-review-primary { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.agent-review-conversation { padding: 6px 8px; white-space: nowrap; }
+.agent-review-secondary { display: flex; gap: 6px; align-items: center; padding: 4px 4px 0; flex-wrap: wrap; }
+.agent-review-secondary button { padding: 3px 4px; color: var(--muted); font-size: 10px; }
+.agent-review-secondary button[aria-expanded="true"] { background: var(--soft); color: var(--ink); }
+.agent-review-secondary small { font-size: inherit; opacity: .75; }
+.agent-review-secondary .agent-review-settle { margin-left: auto; }
+.agent-review-summary { margin: 5px 6px 2px; color: var(--muted); font-size: 10px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.agent-review-expanded { border-top: 1px solid var(--line); margin: 6px 2px 0; padding: 8px 4px 3px; max-height: 260px; overflow: auto; }
+.agent-review-expanded > p { font-size: 10px; color: var(--muted); margin: 0 0 7px; }
+.agent-review-context-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 10px; }
+.agent-review-context-actions button { padding: 5px 7px; background: var(--soft); border-radius: 5px; font-size: 10px; }
+.agent-review-context-items { display: flex; flex-wrap: wrap; gap: 5px; }
+.agent-review-context-items > span { display: flex; align-items: center; border: 1px solid var(--line); border-radius: 6px; max-width: 100%; }
+.agent-review-context-items button { padding: 4px 6px; min-width: 0; overflow-wrap: anywhere; text-align: left; font-size: 10px; }
+.agent-review-context-items button:last-child { color: var(--muted); }
+.agent-review-file { display: flex; width: 100%; align-items: flex-start; justify-content: space-between; gap: 10px; padding: 7px 0; text-align: left; }
+.agent-review-file > span { min-width: 0; overflow-wrap: anywhere; }
+.agent-review-file small { display: block; color: var(--muted); font-size: 10px; margin-top: 2px; }
+.agent-review-file > small { white-space: nowrap; flex-shrink: 0; }
+.agent-canvas-inspector { width: 420px; z-index: 12; border-radius: 10px; }
+.agent-canvas-inspector { border-color: color-mix(in srgb, var(--accent) 60%, var(--line)); box-shadow: 0 6px 24px #0003; }
+.agent-canvas-inspector > header > div:focus { outline: none; }
+.agent-canvas-inspector > header { position: sticky; top: 0; display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; padding: 12px 13px 10px; border-bottom: 1px solid var(--line); background: var(--paper); z-index: 1; }
+.agent-canvas-inspector > header > div { min-width: 0; overflow-wrap: anywhere; }
+.agent-canvas-inspector > header .object-name { font-size: 12px; }
+.agent-canvas-inspector > header strong { font-weight: 550; font-size: 12px; }
+.agent-canvas-inspector > header small { display: block; color: var(--muted); font-size: 10px; margin-top: 4px; }
+.agent-canvas-inspector > header > button { flex-shrink: 0; color: var(--muted); font-size: 19px; width: 22px; line-height: 22px; margin: -3px -4px 0 0; }
+.agent-review-inspector-body, .agent-review-code { padding: 0 13px 12px; }
+.agent-review-caption { font-size: 10px; color: var(--muted); margin: 10px 0; line-height: 1.5; }
+.agent-review-location { padding: 0 13px; display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.agent-review-location button { font-size: 10px; text-decoration: underline; }
+.agent-review-notice { padding: 7px 8px; background: var(--soft); border-left: 2px solid #b87723; color: var(--muted); font-size: 10px; line-height: 1.5; margin: 7px 0; overflow-wrap: anywhere; }
+.agent-canvas-review > .agent-review-notice { margin: 6px; }
+.agent-review-field { margin: 0; padding: 9px 0; border-bottom: 1px solid var(--line); }
+.agent-review-field:last-child { border: 0; }
+.agent-review-field h4 { margin: 0 0 7px; font-size: 10px; font-weight: 600; }
+.agent-review-values { display: grid; grid-template-columns: repeat(var(--review-columns), minmax(0, 1fr)); gap: 12px; }
+.agent-review-values small { font-size: 9px; color: var(--muted); }
+.agent-review-values p { margin: 3px 0 0; font-size: 11px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
+.agent-review-values > div:has(+ div) p { color: var(--muted); }
+.agent-review-description { font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.agent-review-source-links, .agent-review-linked-code { border-top: 1px solid var(--line); padding-top: 10px; margin-top: 10px; }
+.agent-review-source-links button { display: block; text-align: left; width: 100%; overflow-wrap: anywhere; padding: 7px 0; }
+.agent-review-source-links button small { display: block; font-size: 10px; color: var(--muted); margin-top: 3px; }
+.agent-review-source-links h4 { font-size: 11px; color: var(--muted); margin: 12px 0 2px; font-weight: 500; }
+.agent-review-source-links summary { cursor: pointer; }
+.agent-review-linked-code > strong { font-weight: 500; font-size: 10px; color: var(--muted); }
+.agent-review-code-heading { display: flex; gap: 10px; justify-content: space-between; align-items: baseline; }
+.agent-review-code-heading p { color: var(--muted); font-size: 10px; }
+.agent-review-code-heading button { flex-shrink: 0; font-size: 10px; }
+.agent-review-code pre { overflow: auto; max-height: 50vh; font: 10px/1.65 ui-monospace, SFMono-Regular, monospace; padding: 10px; background: var(--soft); border: 1px solid var(--line); border-radius: 5px; tab-size: 2; }
+@media (max-width: 500px) { .agent-review-primary { gap: 3px; } .agent-perspective-switch button { padding: 6px; font-size: 10px; } .agent-review-conversation { padding: 6px; font-size: 10px !important; } .agent-review-values { gap: 9px; } }
+.agent-review-hide { color: var(--muted); width: 20px; height: 24px; font-size: 17px !important; flex-shrink: 0; padding: 0; }
+.agent-review-context-search { margin: 6px 0 10px; }
+.agent-review-context-search summary { color: var(--muted); cursor: pointer; font-size: 10px; }
+.agent-review-context-search > input { box-sizing: border-box; margin: 8px 0; width: 100%; padding: 6px 8px; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 5px; font-size: 11px; }
+.agent-review-context-search > div { max-height: 160px; overflow: auto; }
+.agent-review-context-search label { display: flex; align-items: center; gap: 7px; padding: 5px 0; cursor: pointer; }
+.agent-review-context-search label input { accent-color: var(--accent); }
+.agent-review-context-search label span { min-width: 0; flex: 1; overflow-wrap: anywhere; }
+.agent-review-context-search label small { font-size: 9px; color: var(--muted); }
+.agent-review-elsewhere > button { display: block; width: 100%; text-align: left; padding: 6px 0; overflow-wrap: anywhere; }
+.agent-code-mark { position: absolute; z-index: 9; pointer-events: auto; display: inline-flex; gap: 6px; align-items: center; border: 1px solid #368d82; border-radius: 5px; background: var(--paper); color: var(--ink); padding: 3px 7px; font: 10px/1.4 system-ui, sans-serif; cursor: pointer; }
+.agent-code-mark small { font-size: 9px; color: var(--muted); }
+.agent-code-mark:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.agent-draft-heading { display: flex; align-items: center; gap: 7px; padding: 4px 6px; margin-right: auto; }
+.agent-draft-heading strong { font-size: 11px; font-weight: 550; }
+.agent-draft-heading small, .agent-chat-draft strong small { color: var(--muted); font-size: 10px; font-weight: 400; }
+.agent-draft-actions { display: flex; align-items: center; gap: 9px; padding: 6px; }
+.agent-draft-actions button { font-size: 11px; border-radius: 5px; padding: 5px 8px; }
+.agent-draft-actions .agent-draft-approve { border: 1px solid var(--line); background: var(--soft); color: var(--ink); }
+.agent-draft-actions + .agent-review-caption { margin: 2px 6px 6px; }
+.agent-chat-draft { margin: 0 12px 8px; padding: 10px 12px; border: 1px dashed #ba9137; border-radius: 8px; font-size: 11px; max-height: 45%; overflow: auto; }
+.agent-chat-draft > div { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.agent-chat-draft > p { margin: 6px 0 0; color: var(--muted); }
+.agent-chat-draft summary { cursor: pointer; padding: 8px 0; }
+.agent-chat-draft button { font-size: 11px; }
+.agent-composer-scope-note { font-size: 10px; color: var(--muted); line-height: 1.45; margin: 6px 0 0; }
+
+/* On a narrow canvas, the inspected object occupies the agent's single review surface. */
+.compact-review { font-size: 13px; }
+.compact-review button, .compact-review summary { font-size: 12px !important; min-height: 36px; }
+.compact-review .agent-review-primary { gap: 8px; }
+.compact-review .agent-review-owner { flex-wrap: wrap; font-size: 13px; }
+.compact-review .agent-review-owner small { font-size: 11px; white-space: normal; }
+.compact-review .agent-review-secondary { gap: 4px 10px; }
+.compact-review .agent-review-summary { font-size: 12px; }
+.compact-review .agent-review-values { grid-template-columns: 1fr; gap: 9px; }
+.compact-review .agent-review-values > div + div { padding-left: 10px; border-left: 2px solid var(--line); }
+.compact-review .agent-review-values p, .compact-review .agent-review-description { font-size: 13px; }
+.compact-review .agent-review-field h4, .compact-review .agent-review-values small, .compact-review .agent-review-caption, .compact-review .agent-review-notice { font-size: 11px; }
+.compact-review.agent-canvas-inspector > header .object-name { font-size: 14px; }
+.compact-review.agent-canvas-inspector > header > button { min-width: 36px; font-size: 22px !important; }
+.compact-review .agent-review-expanded { max-height: none; }
+.agent-review-footer { position: sticky; bottom: 0; border-top: 1px solid var(--line); background: var(--paper); padding: 8px 10px; }
+.agent-review-footer > p { margin: 0 6px 4px; font-size: 11px; color: var(--muted); overflow-wrap: anywhere; }
+.agent-review-footer .agent-draft-actions { flex-wrap: wrap; padding: 2px 6px; }

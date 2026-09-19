@@ -13,11 +13,10 @@ import { tmpdir } from "node:os";
 import { parseModel } from "../server/model";
 import {
   applyPatch,
-  extractPatch,
   modelOrEmpty,
   saveXml,
   validateChangedLinks,
-} from "../server/chat/model-edit";
+} from "../server/model-edit";
 
 const root = await mkdtemp(join(tmpdir(), "lexicon-chat-model-"));
 afterAll(() => rm(root, { recursive: true, force: true }));
@@ -49,20 +48,6 @@ test("incremental renaming preserves unrelated objects and stable relationship e
       ],
     }),
   ).toThrow("Invalid annotation");
-});
-test("conversation text never becomes a write without one complete explicit patch", () => {
-  expect(extractPatch("Should we split Order?")).toEqual({
-    text: "Should we split Order?",
-  });
-  expect(
-    extractPatch('Renamed.\n```lexicon-patch\n{"remove":[]}\n```'),
-  ).toEqual({ text: "Renamed.", patch: { remove: [] } });
-  expect(() => extractPatch('```lexicon-patch\n{"remove":[]')).toThrow(
-    "incomplete",
-  );
-  expect(() => applyPatch(parseModel(xml), { source: "malicious" })).toThrow(
-    "Unknown field",
-  );
 });
 test("new source links must resolve, including symbols, before a model can be saved", async () => {
   await writeFile(
@@ -122,15 +107,4 @@ test("save and undo refuse external edits and linked destinations", async () => 
   await mkdir(escape);
   await symlink(folder, join(escape, "lexicon"));
   await expect(saveXml(escape, null, xml)).rejects.toThrow("outside");
-});
-
-test("migration fences stay hidden while streaming and reject mixed or incomplete edits", async () => {
-  const { visibleReply } = await import("../server/chat/model-edit");
-  const migration = `Ready.\n\`\`\`lexicon-migration\n${xml}\n\`\`\``;
-  expect(extractPatch(migration)).toEqual({ text: "Ready.", migration: xml });
-  expect(visibleReply(migration)).toBe("Ready.");
-  expect(visibleReply("Ready.\n```lexicon-mig")).toBe("Ready.");
-  expect(() => extractPatch(migration + '\n```lexicon-patch\n{}\n```')).toThrow("one model change");
-  expect(() => extractPatch(migration + '\n```lexicon-patch\n{}')).toThrow("incomplete");
-  expect(() => extractPatch('```lexicon-migration\n<lexicon>')).toThrow("incomplete");
 });

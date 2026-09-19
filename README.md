@@ -14,7 +14,7 @@ Lexicon connects domain meaning, software architecture, and code in one shared m
 
 Browse concepts by context, follow relationships, and inspect the source behind each explanation. Search finds model names and source locators; source links open the relevant code or document. You can share an address to return to the same item and source link.
 
-The canvas holds the model alongside notes, drawings, and media. Switch between Diagram and Atlas, focus on a neighborhood, or follow cross-dimension radials to another plane. Linked Sources projects authored source links as shared file and target nodes; these stay off the individual Domain and Architecture planes. Combined brings Domain, Architecture, and Linked Sources into one 2D canvas. The experimental Files / File Map view is available through Project settings → Development options; its standalone LOC-weighted map returns to the previous canvas. Planes places Domain, Architecture, and Linked Sources on separate planes so you can follow their connections. Canvas layout stays separate from model meaning.
+The canvas holds the model alongside notes, drawings, and media. Switch between Diagram and Atlas, focus on a neighborhood, or follow cross-dimension radials to another plane. Linked Sources projects authored source links as shared file and target nodes; these stay off the individual Domain and Architecture planes. Combined brings Domain, Architecture, and Linked Sources into one 2D canvas. The experimental Files / File Map view is available through Lexicon settings → Development; its standalone LOC-weighted map returns to the previous canvas. Planes places Domain, Architecture, and Linked Sources on separate planes so you can follow their connections. Canvas layout stays separate from model meaning.
 
 Domain concepts draw on DDD, software structure uses C4, and flows show the order of interactions in a scenario. The [viewer guide](viewer/README.md#canvas) covers navigation and saved layouts; [Planes](PLANES.md) describes that view's current limits.
 
@@ -50,7 +50,7 @@ project/
 
 Start with one useful question about your codebase and [a minimal model](MODEL.md#minimal-example). Use the names people use when discussing the domain, and explain how those names map to implementation symbols in the source links.
 
-You can also add a project folder without a model and open Agent. Ask about the implementation, then request model changes when you're ready. Codex, Grok, and Claude use your local login. Changes are validated and can be undone. See the [conversation guide](viewer/README.md#chat) for details.
+You can also add a project folder without a model and start an agent. Ask about the implementation, then request model changes when you're ready. Lexicon connects to local agents through T3 Code. Model-only agents prepare a canvas draft for your approval; Code + model agents can edit the checkout directly. Code checkpoints remain in T3 Code. See the [conversation guide](viewer/README.md#chat) for details.
 
 Check the structure and linked source:
 

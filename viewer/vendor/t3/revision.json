@@ -1,0 +1,14 @@
+{
+  "version": "0.0.0-lexicon.b88efda397d7.local.db55705ccc92349a",
+  "effect": "4.0.0-rc.112",
+  "sourceSha256": "db55705ccc92349aebf20fe7426e5550a5e4f76d632ea5ba3c11548c4950d63b",
+  "archives": {
+    "contracts": "contracts-0.0.0-lexicon.b88efda397d7.local.db55705ccc92349a.tgz",
+    "shared": "shared-0.0.0-lexicon.b88efda397d7.local.db55705ccc92349a.tgz",
+    "client-runtime": "client-runtime-0.0.0-lexicon.b88efda397d7.local.db55705ccc92349a.tgz"
+  },
+  "source": "working-tree",
+  "baseCommit": "b88efda397d72f5e001aebca85b1ffe08920f96a",
+  "patch": "working-tree.patch",
+  "patchSha256": "bcd413f2c686012b0a063f2c7119222f599269e4ad9f28bf5d543275ff318a7a"
+}

@@ -1,5 +1,6 @@
 import { Link, Navigate, Route, Routes, useParams, useSearchParams } from "react-router-dom";
 import DesktopUpdate from "./DesktopUpdate";
+import { UserSettingsProvider } from "./UserSettings";
 import Library from "./Library";
 import Reader from "./Reader";
 function PlanesRedirect() {
@@ -10,7 +11,7 @@ function PlanesRedirect() {
 }
 export default function App() {
   return (
-    <>
+    <UserSettingsProvider>
       <DesktopUpdate />
       <Routes>
         <Route path="/layers/:projectId?" element={<PlanesRedirect />} />
@@ -27,6 +28,6 @@ export default function App() {
           }
         />
       </Routes>
-    </>
+    </UserSettingsProvider>
   );
 }

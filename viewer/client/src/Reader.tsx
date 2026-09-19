@@ -1,3 +1,4 @@
+import { UserSettingsButton } from "./UserSettings";
 import { useSequenceDrag } from "./useSequenceDrag";
 import { SourceMetadataProvider } from "./source/SourceMetadata";
 import ProjectSettings from "./ProjectSettings";
@@ -11,20 +12,21 @@ import {
   useState,
   type CSSProperties,
 } from "react";
-import { createPortal } from "react-dom";
 import { Link, useLocation, useNavigate, useNavigationType, useParams } from "react-router-dom";
 import type { ModelItem, ProjectModel } from "../../shared/model";
-import { parentOf, isArchitecture } from "../../shared/model";
+import { parentOf, isArchitecture, sourceTargetId, sourceLinkKey } from "../../shared/model";
 import { request, Theme, ErrorNotice } from "./ui";
 import SourceReader from "./SourceReader";
+import { fileSelectionId } from "../../shared/files";
 import { codeParams, useSourceNavigation, type SourceLocation } from "./sourceNavigation";
+import { useDraftSource } from "./draftSource";
 import InstallApp from "./InstallApp";
 import Icon from "./Icon";
 import ObjectName from "./ObjectName";
-import ChatPane from "./ChatPane";
+import AgentWorkspace from "./AgentWorkspace";
+import { AgentWorkProvider } from "./AgentWork";
 import { useAgentSession } from "./useAgentSession";
 import type { NavigationCommand } from "../../shared/agent";
-import useAssistantWindow from "./useAssistantWindow";
 import ReaderCardBody from "./ReaderCardBody";
 import FlowSequence from "./FlowSequence";
 import { ReaderHover } from "./ReaderHover";
@@ -56,18 +58,7 @@ export default function Reader() {
 function ReaderProject({ projectId }: { projectId: string }) {
   const [chatOpen, setChatOpen] = useState(false);
   const [chatFocusRequest, setChatFocusRequest] = useState(0);
-  const [assistantHost, setAssistantHost] = useState<HTMLDivElement | null>(null);
-  const [agentAttached, setAgentAttached] = useState(() => {
-    try { return localStorage.getItem(`lexicon.chat.attached.${projectId}`) === "true"; }
-    catch { return false; }
-  });
-  useEffect(() => {
-    try { localStorage.setItem(`lexicon.chat.attached.${projectId}`, String(agentAttached)); }
-    catch {}
-  }, [agentAttached, projectId]);
-  const [agentRunning, setAgentRunning] = useState(false);
   const [canvasStatusHost, setCanvasStatusHost] = useState<HTMLDivElement | null>(null);
-  const chatToggle = useRef<HTMLButtonElement>(null);
   const reading = useReaderStack(projectId);
   const { params, setParams } = reading;
   const routeLocation = useLocation();
@@ -79,7 +70,6 @@ function ReaderProject({ projectId }: { projectId: string }) {
     setFurthestHistory((last) => navigationType === "PUSH" ? historyIndex : Math.max(last, historyIndex));
   }, [routeLocation.key, navigationType, historyIndex]);
   const [compact, setCompact] = useState(() => window.matchMedia("(max-width: 1000px)").matches);
-  const assistantWindow = useAssistantWindow(() => setChatOpen(open => !open), chatOpen, compact ? null : assistantHost);
   useEffect(() => {
     const media = window.matchMedia("(max-width: 1000px)");
     const update = () => setCompact(window.innerWidth <= 1000);
@@ -95,6 +85,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
   const [workspace, setWorkspace] = useWorkspace(projectId);
   const [mobileSource, setMobileSource] = useState(!!params.get("code"));
   const sourceReaderToggle = useRef<HTMLButtonElement>(null);
+  const sourceReturnFocus = useRef<HTMLElement>();
   const paneArea = useRef<HTMLDivElement>(null);
   const readerSurface = useRef<HTMLDivElement>(null);
   const [mobileRead, setMobileRead] = useState(
@@ -109,14 +100,23 @@ function ReaderProject({ projectId }: { projectId: string }) {
     [model],
   );
   const sourceNavigation = useSourceNavigation(params, setParams, graphIndex);
+  const draftSource = useDraftSource(projectId, sourceNavigation.draft);
+  const sourceTarget = useMemo(() => draftSource ? draftSource.link ? { id: sourceNavigation.targetId!, link: draftSource.link, mappings: [] } : undefined : sourceNavigation.target,
+    [draftSource, sourceNavigation.targetId, sourceNavigation.target]);
   useEffect(() => {
     if (sourceNavigation.open) setMobileSource(true);
   }, [sourceNavigation.targetId, sourceNavigation.open]);
-  const closeSourceReader = () => {
+  const closeSourceReader = (returnTo = sourceReturnFocus.current) => {
     sourceNavigation.visibility(false);
     setMobileSource(false);
+    requestAnimationFrame(() => {
+      const target = returnTo;
+      if (target?.isConnected && target.getClientRects().length) target.focus({ preventScroll: true });
+      else sourceReaderToggle.current?.focus({ preventScroll: true });
+    });
   };
   const openSourceReader = (location: SourceLocation, readMapping = false, mode: ReaderOpenMode = "preview") => {
+    if (document.activeElement instanceof HTMLElement && !document.activeElement.closest("#source-reader")) sourceReturnFocus.current = document.activeElement;
     sourceNavigation.navigate(location, readMapping, mode);
     setMobileSource(true);
     setMenu(false);
@@ -131,7 +131,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
   const [menu, setMenu] = useState(false);
   const [copied, setCopied] = useState("");
   const browseVisible = compact ? menu : workspace.sidebar;
-  const dockedChat = chatOpen && agentAttached && !compact;
+
   const travel = (direction: number) => {
     navigate(direction);
     setMobileRead(true);
@@ -168,7 +168,10 @@ function ReaderProject({ projectId }: { projectId: string }) {
     setMobileSource(false);
   };
   const toggleSourceReader = () => {
-    if (sourceNavigation.open && (mobileSource || !compact)) closeSourceReader();
+    if (sourceNavigation.open && (mobileSource || !compact)) {
+      const origin = document.activeElement;
+      closeSourceReader(origin instanceof HTMLElement && !origin.closest("#source-reader") ? origin : sourceReturnFocus.current);
+    }
     else {
       sourceNavigation.visibility(true);
       setMobileSource(true);
@@ -191,6 +194,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
       if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && e.code === "Backslash") {
         e.preventDefault();
         e.stopPropagation();
+        if (!chatOpen) { setMobileRead(false); setMobileSource(false); }
         setChatOpen(open => !open);
         return;
       }
@@ -202,6 +206,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
         if (e.key === "w") toggleReader();
         else if (e.key === "s") toggleSourceReader();
         else {
+          setMobileRead(false); setMobileSource(false);
           setChatOpen(true);
           setChatFocusRequest(request => request + 1);
         }
@@ -225,6 +230,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
         search.current?.focus();
       }
       if (e.key === "Escape") {
+        if (e.target instanceof Element && e.target.closest(".agent-canvas-inspector, .agent-canvas-review")) return;
         if (search.current && e.target === search.current && search.current.value) {
           e.preventDefault();
           e.stopPropagation();
@@ -236,14 +242,13 @@ function ReaderProject({ projectId }: { projectId: string }) {
           // Close Source Reader before a focused canvas handles Escape as deselection.
           e.preventDefault();
           e.stopPropagation();
-          closeSourceReader();
-          sourceReaderToggle.current?.focus();
+          closeSourceReader(e.target instanceof Element && e.target.closest("#source-reader") ? sourceReturnFocus.current : sourceReaderToggle.current || undefined);
         }
       }
     };
     window.addEventListener("keydown", key, true);
     return () => window.removeEventListener("keydown", key, true);
-  }, [compact, params, setParams, setWorkspace, sourceNavigation.open, mobileRead, mobileSource, reading]);
+  }, [compact, params, setParams, setWorkspace, sourceNavigation.open, mobileRead, mobileSource, reading, chatOpen]);
   const select = (id?: string, mode: ReaderOpenMode = "preview") => {
     reading.open(id ? { kind: "item", id } : { kind: "overview" }, { mode });
     setMobileSource(false);
@@ -478,18 +483,9 @@ function ReaderProject({ projectId }: { projectId: string }) {
       onSelect={select} onSelectGraph={selectGraph} onCode={code}
       onOpenChat={() => setChatOpen(true)} />])),
     [reading.stack, routeLocation, model, loading]);
-  const launcher = (
-    <button ref={chatToggle} className={`quiet agent-toggle assistant-launcher${assistantWindow.docked ? " assistant-docked" : ""}${assistantWindow.dragging ? " dragging" : ""}`} style={assistantWindow.launcherStyle} {...assistantWindow.handlers("launcher")} aria-label="Agent" aria-controls="chat-pane" aria-pressed={chatOpen}
-          title={`${chatOpen ? "Minimize Agent" : agentRunning ? "Open Agent · Working" : "Open Agent"} (${chatOpen ? "⌘\\" : "\\"})`}
-          disabled={!data} onClick={event => { if (event.detail === 0) setChatOpen(open => !open); }}>
-          <svg className="icon" width={19} height={19} viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
-            <path d="M5.8 3.9 19.4 9c1.4.5 1.4 2.3-.1 2.7l-5.6 1.6c-.5.1-.9.5-1.1 1l-2.7 5.8c-.6 1.3-2.4 1.1-2.7-.3L3.8 6c-.4-1.5.5-2.7 2-2.1Z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          {agentRunning && <span className="agent-working" role="status" aria-label="Agent is working" />}
-        </button>
-  );
   return (
     <SourceMetadataProvider projectId={projectId} model={model}>
+    <AgentWorkProvider items={model?.items} modelRevision={data?.modelRevision || ""} projectId={projectId} onDocument={setData} onLocateItem={id => graphAction("locate", { kind: "item", id })} selectedId={graphSelection?.kind === "item" ? graphSelection.id : undefined}>
     <ReaderHover.Provider value={(selection, dismiss) => selection.kind === "code" ? null : <>
       <ReaderCardHeader card={selection} item={selection.kind === "item" ? graphIndex?.items.get(selection.id) : undefined}
         title={titleForCard(selection)} preview collapsed={false} copied={copied === cardKey(selection)}
@@ -506,8 +502,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
     </>}>
     <div
       ref={readerSurface}
-      className={`reader ${assistantWindow.dockTarget ? "assistant-dock-target" : ""} ${chatOpen && agentAttached && !compact ? "agent-attached" : ""} ${model && sourceNavigation.open ? "with-source-reader" : ""} with-canvas ${!workspace.sidebar ? "without-sidebar" : ""} ${mobileRead && reading.stack.visible ? "mobile-reading" : "mobile-canvas"} ${model && mobileSource ? "mobile-source" : ""}`}
-      style={{ "--chat-width": `${workspace.chatWidth}px` } as CSSProperties}
+      className={`reader ${model && sourceNavigation.open ? "with-source-reader" : ""} with-canvas ${!workspace.sidebar ? "without-sidebar" : ""} ${mobileRead && reading.stack.visible ? "mobile-reading" : "mobile-canvas"} ${model && mobileSource ? "mobile-source" : ""}`}
     >
       <a className="skip-link" href="#main-content">
         Skip to the model
@@ -568,6 +563,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
           <button className="quiet icon-button" title="Refresh model" aria-label={loading ? "Loading model" : "Refresh"} disabled={loading} onClick={refresh}>
             <Icon name="refresh" />
           </button>
+          <UserSettingsButton />
           <Theme />
           </div>
         </div>
@@ -716,7 +712,6 @@ function ReaderProject({ projectId }: { projectId: string }) {
                   onModelChanged={refresh}
                   projectKey={data?.project.root || projectId}
                   statusHost={canvasStatusHost}
-                  assistantHost={setAssistantHost}
                   visible={!compact || !((mobileRead && reading.stack.visible) || (mobileSource && sourceNavigation.open))}
                   workspace={workspace}
                   setWorkspace={setWorkspace}
@@ -741,7 +736,7 @@ function ReaderProject({ projectId }: { projectId: string }) {
             <div>
               <h1>{data.problem.kind === "schema-mismatch" ? "This model needs migration" : "The model needs repair"}</h1>
               <p>{data.problem.message}</p>
-              <p>Your document is preserved. You can ask the project agent about it or request an update. Applied changes can be undone.</p>
+              <p>Your document is preserved. Ask the project agent about it or request an update. Model-only changes stay in a draft until you approve them.</p>
               <button className="primary" onClick={() => setChatOpen(true)}>Open Agent</button>
               <button className="quiet" onClick={() => void refresh()}>Check again</button>
             </div>
@@ -776,17 +771,26 @@ function ReaderProject({ projectId }: { projectId: string }) {
         {model && (
           <SourceReader
             projectId={projectId}
-            target={sourceNavigation.target}
+            target={sourceTarget}
+            draftSource={draftSource}
             targetId={sourceNavigation.targetId}
             mapping={sourceNavigation.mapping}
             open={sourceNavigation.open}
-            onClose={() => { closeSourceReader(); sourceReaderToggle.current?.focus(); }}
+            onClose={() => closeSourceReader()}
             onOwner={select}
             onMapping={(m, mode) =>
               openSourceReader({ target: m.target, mapping: m.id }, true, mode)
             }
-            onLocate={() => sourceSelection && graphAction("locate", sourceSelection)}
-            onReveal={() => sourceSelection && graphAction("reveal-file", sourceSelection)}
+            onLocate={() => {
+              if (!sourceSelection) return;
+              // This control names a destination; generic canvas Locate keeps Combined intact.
+              setWorkspace(current => ({ ...current, source: true }));
+              graphAction("locate", sourceSelection);
+            }}
+            onReveal={() => {
+              const selection = draftSource?.link ? { kind: "code" as const, id: fileSelectionId(draftSource.link.file) } : sourceSelection;
+              if (selection) graphAction("reveal-file", selection);
+            }}
             onBackToReader={() => {
               setMobileSource(false);
               setMobileRead(true);
@@ -799,22 +803,19 @@ function ReaderProject({ projectId }: { projectId: string }) {
         )}
 
       </div>
-      {dockedChat && (
-        <PaneSeparator className="chat-divider" label="Resize Agent and reader"
-          container={readerSurface} edge="right" unit="px" min={280} max={720} step={16}
-          value={workspace.chatWidth} onChange={update => setWorkspace(w => ({ ...w, chatWidth: update(w.chatWidth) }))} />
-      )}
       <div className="workspace-status-bar" role="region" aria-label="Workspace status">
         <div className="workspace-canvas-status" ref={setCanvasStatusHost} />
       </div>
-      {assistantWindow.docked && assistantHost ? createPortal(launcher, assistantHost) : launcher}
-      {data && <ChatPane viewerSessionId={viewerSessionId} projectId={projectId} open={chatOpen} focusRequest={chatFocusRequest} window={assistantWindow} selected={item} modelRevision={data.modelRevision}
-        attached={agentAttached && !compact} onToggleAttachment={() => setAgentAttached(value => !value)}
-        onRunningChange={setAgentRunning}
+      {data && <AgentWorkspace key={projectId} onOpen={() => { setChatOpen(true); setMobileRead(false); setMobileSource(false); }} onRevealCanvas={() => { setMobileRead(false); setMobileSource(false); setMenu(false); }} projectRoot={data.project.root} onOpenFile={file => openSourceReader({ target: fileSelectionId(file) })}
+        onOpenSource={(link, ownerId, draft) => {
+          const mapping = !draft ? [...(graphIndex?.mappings.values() || [])].find(entry => entry.owner.id === ownerId && sourceLinkKey(entry.link) === sourceLinkKey(link)) : undefined;
+          openSourceReader({ target: sourceTargetId(link), mapping: mapping?.id, draft });
+        }} viewerSessionId={viewerSessionId} projectId={projectId} open={chatOpen} focusRequest={chatFocusRequest} selected={item} modelRevision={data.modelRevision}
         empty={data.model?.items.length === 0} problem={data.problem} example={data.project.example}
-        onClose={() => { setChatOpen(false); chatToggle.current?.focus(); }} onModelChanged={refresh} onSelect={select} />}
+        onClose={() => setChatOpen(false)} onModelChanged={refresh} onSelect={select} />}
     </div>
     </ReaderHover.Provider>
+    </AgentWorkProvider>
     </SourceMetadataProvider>
   );
 }

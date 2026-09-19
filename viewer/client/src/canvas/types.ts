@@ -20,7 +20,6 @@ export type CanvasPaneProps = {
   modelRevision: string;
   onModelChanged: () => void;
   statusHost: HTMLDivElement | null;
-  assistantHost?: (element: HTMLDivElement | null) => void;
   visible: boolean;
   workspace: Workspace;
   setWorkspace: Dispatch<SetStateAction<Workspace>>;

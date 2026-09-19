@@ -1,4 +1,5 @@
-import { test, expect } from "@playwright/test";
+import { openAgentConversation, prepareAgent } from "./fixtures/agent-ui";
+import { test, expect, type APIRequestContext } from "@playwright/test";
 import { mkdtemp, mkdir, writeFile, readFile, rm } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
@@ -7,6 +8,19 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 import type { ViewerSession } from "../shared/agent";
 
 test.use({ serviceWorkers: "block" });
+
+async function mcpCall(request: APIRequestContext, name: string, args: Record<string, unknown>) {
+  const response = await request.post("/api/agent/mcp", {
+    headers: { Accept: "application/json, text/event-stream" },
+    data: { jsonrpc: "2.0", id: crypto.randomUUID(), method: "tools/call", params: { name, arguments: args } },
+  });
+  expect(response.ok()).toBe(true);
+  const body = await response.json();
+  expect(body.error).toBeUndefined();
+  expect(body.result.isError, JSON.stringify(body.result.content)).not.toBe(true);
+  return body.result.structuredContent;
+}
+
 const xml = '<lexicon schema="3.3" id="voice"><name>Voice Trial</name><description>Agent integration trial.</description><context id="scope"><name>Ordering</name><description>Order management.</description><concept id="order"><name>Order</name><description>A purchase.</description><code-link kind="code" file="order.ts" symbol="Order" role="representation">Stores a purchase.</code-link></concept></context></lexicon>';
 
 test("MCP creates and updates visible items, targets one viewer, observes selection, and undoes exact XML", async ({ page, context, request, baseURL }, testInfo) => {
@@ -97,7 +111,7 @@ test("MCP creates and updates visible items, targets one viewer, observes select
 });
 
 
-test("embedded chat targets its originating tab and shares exact undo with MCP", async ({ page, context, request, baseURL }) => {
+test("code-capable chat targets its originating tab while standalone MCP retains exact undo", async ({ page, context, request, baseURL }) => {
   const root = await mkdtemp(join(tmpdir(), "lexicon-embedded-browser-"));
   const client = new Client({ name: "lexicon-embedded-acceptance", version: "1" });
   let projectId = "";
@@ -110,35 +124,37 @@ test("embedded chat targets its originating tab and shares exact undo with MCP",
     await page.goto(`/p/${projectId}?item=order`);
     const other = await context.newPage();
     await other.goto(`/p/${projectId}?item=scope`);
-    await page.getByRole("button", { name: "Agent", exact: true }).click();
-    const chat = page.getByRole("complementary", { name: "Project conversation" });
-    await expect(chat.getByRole("button", { name: "Choose provider and model" })).toBeEnabled();
+    await (await prepareAgent(page)).click();
+    await openAgentConversation(page);
+    const chat = page.locator("#chat-pane");
+    await expect(chat.getByRole("combobox", { name: "Agent model" })).toBeEnabled();
+    await chat.getByLabel("Editing scope").selectOption("code");
     const send = async (calls: unknown) => {
-      await chat.getByRole("textbox", { name: "Message the coding agent" }).fill("APPLICATION TRIAL " + JSON.stringify(calls));
+      await chat.getByRole("textbox", { name: "Message the agent" }).fill("APPLICATION TRIAL " + JSON.stringify(calls));
       await chat.getByRole("button", { name: "Send", exact: true }).click();
       await expect(chat.getByRole("button", { name: "Stop", exact: true })).toHaveCount(0);
     };
     await expect.poll(async () => {
-      const response = await request.post("/api/agent/tools/lexicon_sessions", { data: { projectId } });
-      return (await response.json()).sessions.filter((s: ViewerSession) => s.connected).length;
+      return (await mcpCall(request, "lexicon_sessions", { projectId })).sessions.filter((s: ViewerSession) => s.connected).length;
     }).toBe(2);
-    await send([{ name: "lexicon_edit", arguments: { action: "create", item: { type: "concept", id: "marker", parent: "scope", name: "Marker", description: "Temporary trial." } } }, { name: "lexicon_navigate", arguments: { action: "focus", itemId: "marker" } }]);
+    await send([{ tool: "lexicon_edit", arguments: { action: "create", item: { type: "concept", id: "marker", parent: "scope", name: "Marker", description: "Temporary trial." } } }, { tool: "lexicon_navigate", arguments: { action: "focus", itemId: "marker" } }]);
     await expect(chat.getByText("Viewer confirmed: focus", { exact: true })).toBeVisible();
     await expect(page.locator("main [data-reader-card].active h1")).toHaveText("Marker");
     await expect(other.locator("main [data-reader-card].active h1")).toHaveText("Ordering");
     const afterCreate = await readFile(join(root, "lexicon/model.xml"), "utf8");
     await writeFile(join(root, "main.rs"), "fn main() {}");
-    await send([{ name: "lexicon_edit", arguments: { action: "update", itemId: "marker", fields: { name: "Updated Marker", codeLinks: [{ kind: "code", file: "main.rs", symbol: "main", role: "implementation", description: "Rust entry" }] } } }, { name: "lexicon_navigate", arguments: { action: "select", itemId: "marker" } }, { name: "lexicon_navigate", arguments: { action: "fit" } }]);
+    await send([{ tool: "lexicon_edit", arguments: { action: "update", itemId: "marker", fields: { name: "Updated Marker", codeLinks: [{ kind: "code", file: "main.rs", symbol: "main", role: "implementation", description: "Rust entry" }] } } }, { tool: "lexicon_navigate", arguments: { action: "select", itemId: "marker" } }, { tool: "lexicon_navigate", arguments: { action: "fit" } }]);
     await expect(chat.getByText("Viewer confirmed: fit", { exact: true })).toBeVisible();
-    await expect(chat.getByText("Symbol not checked: main.rs#main.", { exact: true })).toBeVisible();
+    await expect(chat.getByText(/Symbol not checked: main\.rs#main\./)).toBeVisible();
     await expect(page.locator("main [data-reader-card].active h1")).toHaveText("Updated Marker");
-    await send([{ name: "lexicon_undo", arguments: {} }]);
-    await expect(chat.getByText("Model change undone — exact file restored", { exact: true })).toBeVisible();
-    expect(await readFile(join(root, "lexicon/model.xml"), "utf8")).toBe(afterCreate);
-    const state = await (await request.get(`/api/projects/${projectId}/chat`)).json();
-    const created = state.messages.find((message: { change?: { added: string[] } }) => message.change?.added.includes("Marker"));
-    const undone = await client.callTool({ name: "lexicon_undo", arguments: { projectId, changeId: created.id } });
-    expect(undone.isError).not.toBe(true);
+    await expect(chat.getByRole("button", { name: /Undo/ })).toHaveCount(0);
+    const state = await (await request.get(`/api/projects/${projectId}/model/history`)).json();
+    // Standalone MCP still serves explicit model tooling outside the agent UI.
+    for (const change of [...state.changes].reverse()) {
+      if (!change.change) continue;
+      const undone = await client.callTool({ name: "lexicon_undo", arguments: { projectId, changeId: change.id } });
+      expect(undone.isError).not.toBe(true);
+    }
     expect(await readFile(join(root, "lexicon/model.xml"), "utf8")).toBe(xml);
     await other.close();
   } finally {
@@ -160,10 +176,11 @@ test("Stop cancels navigation waiting for the viewer refresh", async ({ page, re
     projectId = (await (await request.post("/api/projects", { data: { root } })).json()).id;
     await page.goto(`/p/${projectId}?item=scope`);
     await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
-    await expect.poll(async () => (await (await request.post("/api/agent/tools/lexicon_sessions", { data: { projectId } })).json()).sessions.some((s: ViewerSession) => s.connected)).toBe(true);
-    await page.getByRole("button", { name: "Agent", exact: true }).click();
-    const chat = page.getByRole("complementary", { name: "Project conversation" });
-    await expect(chat.getByRole("button", { name: "Choose provider and model" })).toBeEnabled();
+    await expect.poll(async () => (await mcpCall(request, "lexicon_sessions", { projectId })).sessions.some((s: ViewerSession) => s.connected)).toBe(true);
+    await (await prepareAgent(page)).click();
+    await openAgentConversation(page);
+    const chat = page.locator("#chat-pane");
+    await expect(chat.getByRole("combobox", { name: "Agent model" })).toBeEnabled();
     let blocked!: () => void;
     const reached = new Promise<void>(resolve => { blocked = resolve; });
     const gate = new Promise<void>(resolve => { release = resolve; });
@@ -172,17 +189,17 @@ test("Stop cancels navigation waiting for the viewer refresh", async ({ page, re
       await gate;
       await route.continue();
     });
-    await chat.getByRole("textbox", { name: "Message the coding agent" }).fill('APPLICATION TRIAL [{"name":"lexicon_navigate","arguments":{"action":"focus","itemId":"order"}}]');
+    await chat.getByRole("textbox", { name: "Message the agent" }).fill('APPLICATION TRIAL [{"tool":"lexicon_navigate","arguments":{"action":"focus","itemId":"order"}}]');
     await chat.getByRole("button", { name: "Send", exact: true }).click();
     await reached;
     await chat.getByRole("button", { name: "Stop", exact: true }).click();
-    await expect(chat.getByText(/Navigation cancelled/)).toBeVisible();
+    await expect(chat.locator(".chat-error")).toContainText("Navigation cancelled");
     release();
     await page.unrouteAll({ behavior: "wait" });
     await expect(page.locator("main [data-reader-card].active h1")).toHaveText("Ordering");
     await expect(chat.getByText("Viewer confirmed: focus", { exact: true })).toHaveCount(0);
-    const state = await (await request.get(`/api/projects/${projectId}/chat`)).json();
-    expect(state.messages.at(-1).status).toBe("interrupted");
+    const state = await (await request.get(`/api/projects/${projectId}/model/history`)).json();
+    await expect(chat.getByRole("button", { name: "Stop", exact: true })).toHaveCount(0);
     expect(await readFile(join(root, "lexicon/model.xml"), "utf8")).toBe(xml);
   } finally {
     release();

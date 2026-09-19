@@ -2,13 +2,13 @@ import { writeFile, rename, unlink, readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 // The desktop parent supplies data paths and a per-launch API secret before imports run.
 import config from "./index";
-import { chat } from "./chat/service";
-import { stopOwnedAgents } from "./chat/process";
+import { agents } from "./agents/service";
 import { db } from "./db";
 
 if (!process.env.LEXICON_DESKTOP_TOKEN || !process.env.LEXICON_VIEWER_DB)
   throw new Error("Desktop backend requires its launcher.");
 const server = Bun.serve({ ...config, port: 0 });
+agents.setMcpOrigin(`http://127.0.0.1:${server.port}`);
 const connectionFile = join(dirname(process.env.LEXICON_VIEWER_DB), "agent-connection.json");
 const connection = JSON.stringify({ version: 1, origin: `http://127.0.0.1:${server.port}`, token: process.env.LEXICON_DESKTOP_TOKEN });
 const temporary = `${connectionFile}.${process.pid}.tmp`;
@@ -20,8 +20,7 @@ async function stop() {
   if (stopping) return;
   stopping = true;
   server.stop(true);
-  chat.stopAll();
-  await stopOwnedAgents();
+  await agents.dispose();
   try { if (await readFile(connectionFile, "utf8") === connection) await unlink(connectionFile); } catch {}
   db.close();
   process.exit(0);

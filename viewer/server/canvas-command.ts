@@ -1,6 +1,6 @@
 import type { CanvasModelCommand } from "../shared/canvas";
 import type { Annotation, Model } from "../shared/model";
-import { applyPatch } from "./chat/model-edit";
+import { applyPatch } from "./model-edit";
 
 const object = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === "object" && !Array.isArray(value);

@@ -20,13 +20,11 @@ Read [flows.md](flows.md) when the question needs an ordered runtime scenario or
 - **Initialize:** when asked to create a first model, read [initialize.md](initialize.md), then apply [review.md](review.md). A general initialization asks “What is this system, and how should I think about it?” Establish its essential ideas before selecting detailed traces. Respect an explicitly narrower scope.
 - **Refine:** read the current model and relevant source, then make the requested incremental changes. Preserve stable IDs and established judgment. Add, split, move, merge, or remove objects as needed; keep dependent relationships consistent. Apply [review.md](review.md) to the changed scope and its connections. Do not broaden a focused request into a fresh system survey or regenerate the model.
 
-## Choose the execution path
+## Use MCP
 
-- **Embedded chat:** follow the caller's server-applied operation, patch, or migration protocol. When the caller supplies application operations, use them for create/update, viewer navigation, and exact undo. The server binds the originating project, viewer, revision, and undo identity; never supply or override these bindings. Read-only source access and server-owned saves govern delivery, even if other integration tools are available.
-- **Connected MCP:** for external agent use with Lexicon tools available, read [integration.md](integration.md). Inspect the chosen project and viewer session, use supported operations, and report their actual receipts. Resolve the current tool names and schemas from the connected catalog.
-- **Standalone:** when operating directly on a codebase without a connected Lexicon integration, edit the model file and run the checker below. An explicit request to work directly on the file also selects this path when the caller's execution constraints allow it.
+Use Lexicon MCP tools for all agent interaction with the model and viewer. Read [integration.md](integration.md) and inspect the live tool catalog. Embedded tasks receive a connection bound to their project, editing scope, viewer, and starting revision. Model-only edits stage a draft for user approval; Code + model edits save directly. External agents select explicit project and viewer IDs. Neither path executes reply code fences or uses a separate model-writing CLI.
 
-Do not switch to filesystem writes merely because an MCP operation failed or is unsupported. Explain the limitation and follow the recovery or handoff guidance in [integration.md](integration.md).
+If tools are missing or a call fails, explain the connection or validation issue and preserve the model. Do not switch to filesystem writes. Source inspection and the read-only checker below remain available within the caller's execution constraints.
 
 ## Roots and editing
 
@@ -36,7 +34,7 @@ Read the bundle's `MODEL.md` and [contract.md](contract.md) before authoring; it
 
 For document-backed modeling, inspect the relevant source documents and preserve their version, provenance, and scope. Give documentary links `kind="document"` and implementation links `kind="code"`; kind is independent of role and is never inferred by the viewer. Code links own tree-sitter/symbol capabilities; document links own heading and document-reading capabilities. Use source links with roles such as `specification`, `rationale`, or `reference`; Markdown supports file, line, or `heading` targets as defined in `MODEL.md`. A document establishes what is specified, not what code implements or enforces. When the user asks for a document-only model, do not inspect code or invent implementation links. For a PDF transcription, preserve page markers and distinguish faithful source text from synthesis.
 
-For standalone skill use, write scoped edits to `<artifact-root>/lexicon/model.xml`. Connected MCP operations use the inspected project's server-owned artifact root and revision. Embedded chat delivers its structured patch for the server to apply. Project prose stays where it is. Do not introduce personal models or a separate modeling-decision log.
+MCP operations use the inspected project's server-owned artifact root and revision. Use `lexicon_patch` for initialization and atomic changes, `lexicon_edit` for a single create/update, and `lexicon_migrate` for explicitly requested migration or repair of an unavailable document. Project prose stays where it is. Do not introduce personal models or a separate modeling-decision log.
 
 ## Check and hand back
 
@@ -49,9 +47,9 @@ bun <skill-directory>/scripts/lexicon.ts check <artifact-root> --code-root <code
 
 Install dependencies with `bun install --frozen-lockfile` in `<bundle>/viewer/` when needed. The launcher runs source without a build or global CLI installation. When iterating on Lexicon, reread this skill and its referenced workflow files from disk.
 
-After standalone edits, run the checker and inspect the result through the reader when available. For MCP edits, use the server receipt for save and validation status, inspect the resulting model, and check the visible result when requested. For embedded chat, report the proposed patch until the server confirms application. Pure inspection and navigation require no model checker. Report coverage and correctness separately, including important unresolved questions, broken or unchecked links, and reviews not performed. Check whether Git ignores the artifact and report that without changing ignore rules. Counts and resolving links do not establish semantic quality.
+Use the MCP server receipt for draft/save and validation status, inspect the resulting model, and check the visible result when requested. A Model-only receipt with `status: "draft"` confirms an unsaved candidate: explain what is ready for review and leave approval to the user in Lexicon. Later inspection and edits in that task include the draft; follow-ups can refine it. Code + model and standalone external calls save directly. Report persistence only after a saved receipt. Interrupted draft work remains available for review; completed direct saves remain applied. Pure inspection and navigation require no model checker. Report coverage and correctness separately, including important unresolved questions, broken or unchecked links, and reviews not performed. Check whether Git ignores the artifact and report that without changing ignore rules. Counts and resolving links do not establish semantic quality.
 
-For any schema mismatch, keep the document intact and read [migrations/README.md](migrations/README.md). Explain questions without changes; an explicit migration uses the matching delta and current-schema validation. Embedded Chat keeps migration and ordinary incremental patches distinct. Initialization creates a starting point that the team refines through use and existing Git review.
+For any schema mismatch, keep the document intact and read [migrations/README.md](migrations/README.md). Explain questions without changes; an explicit migration uses the matching delta and current-schema validation. MCP keeps migration and ordinary incremental patches distinct. Initialization creates a starting point that the team refines through use and existing Git review.
 
 ## Project file scope
 

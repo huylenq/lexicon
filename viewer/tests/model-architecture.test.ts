@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { readFile } from "node:fs/promises";
 import { parseModel, serializeModel, validateModel } from "../server/model";
-import { applyPatch, validateChangedLinks } from "../server/chat/model-edit";
+import { applyPatch, validateChangedLinks } from "../server/model-edit";
 import { indexModel, projectGraph, neighborhood, itemNodeId } from "../client/src/graph/model";
 import { parentOf, dimensionOf, type Model } from "../shared/model";
 import { handle } from "../../examples/shop/src/api";

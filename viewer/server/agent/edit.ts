@@ -1,5 +1,6 @@
 import type { Model } from "../../shared/model";
-import { applyPatch } from "../chat/model-edit";
+import { applyPatch } from "../model-edit";
+import { MAX_MIGRATION_XML_CHARS } from "./limits";
 
 export function record(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Expected an object.");
@@ -10,6 +11,12 @@ export function only(value: Record<string, unknown>, fields: string[]) {
 }
 export function text(value: unknown, name: string): string {
   if (typeof value !== "string" || !value.trim() || value.length > 20_000) throw new Error(`A valid ${name} is required.`);
+  return value;
+}
+/** JSON Schema maxLength counts Unicode code points rather than UTF-16 code units. */
+export function xmlCandidate(value: unknown): string {
+  if (typeof value !== "string" || !value.trim()) throw new Error("A valid XML candidate is required.");
+  if (Array.from(value).length > MAX_MIGRATION_XML_CHARS) throw new Error(`XML candidate must contain at most ${MAX_MIGRATION_XML_CHARS.toLocaleString("en-US")} Unicode characters.`);
   return value;
 }
 export function agentModelEdit(model: Model, raw: unknown) {

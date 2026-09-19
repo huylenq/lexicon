@@ -6,7 +6,7 @@ import { spawnSync } from "node:child_process";
 import { readSource } from "../server/source";
 import { markdownHeadings } from "../server/markdown";
 import { parseModel, serializeModel } from "../server/model";
-import { applyPatch, validateChangedLinks } from "../server/chat/model-edit";
+import { applyPatch, validateChangedLinks } from "../server/model-edit";
 import { codeTargetId, codeLinkKey } from "../shared/model";
 
 const xml = (attrs = 'heading="approval"') => `<lexicon schema="3.3" id="docs"><name>Docs</name><description>Requirements.</description><context id="orders"><name>Orders</name><description>Ordering.</description><code-link kind="document" id="requirement" file="spec.md" role="specification" ${attrs}>Defines approval.</code-link></context></lexicon>`;

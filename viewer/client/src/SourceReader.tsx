@@ -10,6 +10,7 @@ import type { ReaderOpenMode } from "./readerState";
 import DocumentSource from "./DocumentSource";
 import { sourceKind, sourceLabel, sourceLines } from "../../shared/source";
 import { fileSelectionPath } from "../../shared/files";
+import type { DraftSourceResult } from "./draftSource";
 export default function SourceReader({
   projectId,
   target,
@@ -26,6 +27,7 @@ export default function SourceReader({
   onForward,
   canBack,
   canForward,
+  draftSource,
 }: {
   projectId: string;
   target?: Target;
@@ -42,6 +44,7 @@ export default function SourceReader({
   onForward: () => void;
   canBack: boolean;
   canForward: boolean;
+  draftSource?: DraftSourceResult;
 }) {
   const experimentalFiles = useExperimentalFiles();
   const [result, setResult] = useState<SourceExcerpt>();
@@ -50,15 +53,17 @@ export default function SourceReader({
   const heading = useRef<HTMLDivElement>(null);
   const scroll = useRef<HTMLDivElement>(null);
   const link = target?.link;
+  const draftLocation = JSON.stringify(draftSource?.reference);
   useEffect(() => {
     if (open) heading.current?.focus({ preventScroll: true });
-  }, [open, targetId]);
+  }, [open, targetId, draftLocation]);
   useEffect(() => {
     let active = true;
     setResult(undefined);
     setError("");
     setWhole(false);
     scroll.current?.scrollTo(0, 0);
+    if (draftSource) { setResult(draftSource.excerpt); setError(draftSource.error || ""); return; }
     if (!target) return;
     request<SourceExcerpt>(
       fileSelectionPath(target.id)
@@ -74,7 +79,7 @@ export default function SourceReader({
     return () => {
       active = false;
     };
-  }, [projectId, target]);
+  }, [projectId, target, draftSource]);
   const lines = result ? sourceLines(result.text) : [];
   const start =
     whole || !result?.startLine ? 0 : Math.max(0, result.startLine - 5);
@@ -116,7 +121,7 @@ export default function SourceReader({
       <button className="quiet source-back-to-reader" onClick={onBackToReader}>
         <Icon name="arrow-left" /> Back to reader
       </button>
-      {!link ? (
+      {!link && draftSource ? <div className="source-empty">{draftSource.error ? <ErrorNotice message={draftSource.error} /> : <p role="status">Opening draft source…</p>}</div> : !link ? (
         <div className="source-empty">
           <h2>
             {targetId
@@ -138,6 +143,7 @@ export default function SourceReader({
               <ObjectName type={link.kind} name={sourceLabel(link)} />
             </h2>
           </nav>
+          {draftSource && <p className="source-explanation">{draftSource.reference.side === "before" ? "Source linked in the draft’s saved baseline." : "Source linked in this draft candidate."} This reads the current checkout.</p>}
           <div className="source-target-actions">
             {!!target.mappings.length && <button className="quiet" onClick={onLocate}>
               Locate in Linked Sources

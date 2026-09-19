@@ -1,3 +1,4 @@
+import { openAgentConversation, prepareAgent } from "./fixtures/agent-ui";
 import { expect, test } from "@playwright/test";
 import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -118,6 +119,9 @@ for (const skin of ["Atlas · Ink", "Atlas · Village"]) test(`Combined ${skin} 
 test("Combined mirrors plane drawings and current placements while protecting model nodes", async ({ page, request }) => {
   await page.goto(`/p/${id}`);
   await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  // Canvas gestures must reach the drawing rather than an open overlay.
+  await page.getByRole("button", { name: "Toggle navigation", exact: true }).click();
+  if (await page.locator("main").isVisible()) await page.getByRole("button", { name: "Toggle reader", exact: true }).click();
   await page.getByRole("button", { name: "Add note", exact: true }).click();
   const note = page.locator('.tl-container [contenteditable="true"]');
   await note.fill("Domain drawing stays with its plane");
@@ -155,6 +159,7 @@ test("Combined mirrors plane drawings and current placements while protecting mo
   // Edit the source after Combined has already been created.
   await page.getByRole("radio", { name: "Domain", exact: true }).check();
   await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
+  await page.getByRole("button", { name: "Fit model", exact: true }).click();
   const order = page.locator('[data-model-id="item:order"]');
   const box = (await order.boundingBox())!;
   await page.mouse.move(box.x + 8, box.y + box.height - 5); await page.mouse.down();
@@ -295,6 +300,7 @@ test("nested boundaries and shared canvas survive filters, a drawing move, and r
   await page.getByRole("radio", { name: "Standard", exact: true }).check();
   await page.getByRole("radio", { name: "Architecture", exact: true }).check();
   await page.getByRole("button", { name: "Toggle navigation", exact: true }).click();
+  if (await page.locator("main").isVisible()) await page.getByRole("button", { name: "Toggle reader", exact: true }).click();
   await page.getByRole("button", { name: "Fit model", exact: true }).click();
   const card = (item: string) => page.locator(`[data-model-id="item:${item}"]`);
   await expect(card("checkout")).toBeVisible();
@@ -310,6 +316,10 @@ test("nested boundaries and shared canvas survive filters, a drawing move, and r
   const note = page.locator('.tl-container [contenteditable="true"]');
   await note.fill("Modeling trial: same identities in both views.");
   await note.press("Escape");
+  // Note editing focuses its own camera. Frame the model before testing that
+  // visiting another dimension restores this view without rewriting placements.
+  await page.getByRole("button", { name: "Fit model", exact: true }).click();
+  await expect(card("checkout")).toBeVisible();
   const canvas = async () => (await (await request.get(`/api/projects/${id}/canvas`)).json()).document;
   await expect.poll(canvas).not.toBeNull();
   const before = await canvas();
@@ -486,7 +496,7 @@ test("repeated, reverse, and self interactions keep separate arrows and long lab
   );
   await writeFile(join(root, "lexicon/model.xml"), serializeModel(model));
   await page.goto(`/p/${id}?item=place-order`);
-  const sequence = page.locator("main [data-reader-card].active .flow-sequence");
+  const sequence = page.getByRole("region", { name: "Sequence diagram: Place an Order", exact: true });
   await expect(sequence.locator(".flow-steps > li")).toHaveCount(6);
   await expect(sequence.locator(".flow-participant")).toHaveCount(4);
   const repeated = sequence.locator('[data-step-id="again"] a');
@@ -504,34 +514,38 @@ test("broken flow references produce a readable notice and retain the unresolved
   await writeFile(join(root, "lexicon/model.xml"), xml.replace('relationship="saves-order"', 'relationship="missing"'));
   await page.goto(`/p/${id}?item=place-order`);
   const active = page.locator("main [data-reader-card].active");
-  await expect(active.locator(".flow-missing")).toContainText("Unavailable relationship or Architecture participant: missing");
+  const sequence = page.getByRole("region", { name: "Sequence diagram: Place an Order", exact: true });
+  await expect(sequence.locator(".flow-missing")).toContainText("Unavailable relationship or Architecture participant: missing");
   await active.locator(".issues summary").click();
   await expect(active.locator(".issues")).toContainText("Step save must reference a relationship: missing");
   expect(errors).toEqual([]);
 });
 
-test("chat refines one flow step, rejects a dangling reference, and restores exact XML with undo", async ({ page }) => {
+test("chat stages a flow refinement, rejects a dangling draft reference, and saves only with approval", async ({ page }) => {
   await page.goto(`/p/${id}?item=place-order`);
-  await page.getByRole("button", { name: "Agent", exact: true }).click();
-  const chat = page.getByRole("complementary", { name: "Project conversation" });
+  await (await prepareAgent(page)).click();
+  await openAgentConversation(page);
+  const chat = page.locator("#chat-pane");
   await expect(chat.locator(".chat-attachment")).toContainText("Place an Order");
-  const input = chat.getByRole("textbox", { name: "Message the coding agent" });
+  const input = chat.getByRole("textbox", { name: "Message the agent" });
   await input.fill("Refine flow step save to Store the validated order.");
   await chat.getByRole("button", { name: "Send", exact: true }).click();
-  await expect(chat.getByText("Model updated", { exact: true })).toBeVisible();
-  const active = page.locator("main [data-reader-card].active");
+  await expect(chat.getByText("Model delta staged · not saved", { exact: true })).toBeVisible();
+  const active = page.locator(".flow-sequence");
+  await expect(active.locator('[data-step-id="save"]')).toContainText("Save the accepted order");
+  expect(await readFile(join(root, "lexicon/model.xml"), "utf8")).toBe(xml);
+  await input.fill("Break flow reference in step save.");
+  await chat.getByRole("button", { name: "Send", exact: true }).click();
+  await expect(chat.locator(".chat-error")).toContainText("must reference a relationship");
+  expect(await readFile(join(root, "lexicon/model.xml"), "utf8")).toBe(xml);
+  await expect(chat.getByRole("button", { name: /Undo/ })).toHaveCount(0);
+  await chat.getByRole("button", { name: "Minimize agent", exact: true }).click();
+  await page.getByRole("group", { name: "Agent perspective", exact: true }).getByRole("button", { name: "Approve changes", exact: true }).click();
   await expect(active.locator('[data-step-id="save"]')).toContainText("Store the validated order");
   const changed = await readFile(join(root, "lexicon/model.xml"), "utf8");
   const before = parseModel(xml), after = parseModel(changed);
   expect(after.items.filter(i => i.type !== "flow")).toEqual(before.items.filter(i => i.type !== "flow"));
   expect(after.items.find(i => i.type === "flow")?.steps.map(step => step.id)).toEqual(["submit", "create", "save"]);
-  await input.fill("Break flow reference in step save.");
-  await chat.getByRole("button", { name: "Send", exact: true }).click();
-  await expect(chat.locator(".chat-error")).toContainText("must reference a relationship");
-  expect(await readFile(join(root, "lexicon/model.xml"), "utf8")).toBe(changed);
-  await chat.getByRole("button", { name: "Undo edit" }).click();
-  await expect(active.locator('[data-step-id="save"]')).toContainText("Save the accepted order");
-  expect(await readFile(join(root, "lexicon/model.xml"), "utf8")).toBe(xml);
 });
 
 test("Planes keeps the canvas shell and shared reader controls", async ({ page }) => {
@@ -651,17 +665,21 @@ test("3D view gestures rotate, separate, and reset without changing the model", 
     expect(Math.abs(angle % 15)).toBe(0);
   }
   const orbit = await scene.getAttribute('style');
-  const surface = page.locator('[data-plane="domain"] .plane-surface');
-  const beforePan = await surface.getAttribute('style');
+  const camera = page.locator('.planes-camera');
+  const cameraPosition = () => camera.evaluate(el => {
+    const transform = new DOMMatrix(getComputedStyle(el).transform);
+    return { x: transform.m41, y: transform.m42 };
+  });
+  const beforePan = await cameraPosition();
   await gesture('right');
   await expect(scene).toHaveAttribute('style', orbit!);
-  await expect(surface).not.toHaveAttribute('style', beforePan!);
-  const afterRightPan = await surface.getAttribute('style');
+  await expect.poll(cameraPosition).toEqual({ x: beforePan.x - 160, y: beforePan.y + 70 });
+  const afterRightPan = await cameraPosition();
   await page.keyboard.down('Shift');
   await gesture();
   await page.keyboard.up('Shift');
   await expect(scene).toHaveAttribute('style', orbit!);
-  await expect(surface).not.toHaveAttribute('style', afterRightPan!);
+  await expect.poll(cameraPosition).toEqual({ x: afterRightPan.x - 160, y: afterRightPan.y + 70 });
   const plane = page.locator('[data-plane="domain"]');
   const separation = await plane.getAttribute('style');
   await page.keyboard.down('Control');
@@ -766,7 +784,7 @@ test("moving a Planes node does not open the reader, but a following click does"
   await page.mouse.wheel(0, -400);
   await expect.poll(async () => Number(await page.locator('.plane-editor').first().getAttribute('data-render-scale'))).toBeGreaterThan(1);
   await page.getByRole('button', { name: 'Locate in canvas', exact: true }).click();
-  await expect(page.locator('.planes-camera')).toHaveAttribute('style', 'transform: translate(0px, 0px) scale(1);');
+  await expect.poll(() => page.locator('.planes-camera').evaluate(el => (el as HTMLElement).style.transform)).toBe('translate(0px, 0px) scale(1)');
   await expect(page.locator('.planes-stage')).toHaveAttribute('data-view', 'both');
   const locatedNode = (await node.boundingBox())!;
   const stageBounds = (await page.locator('.planes-stage').boundingBox())!;

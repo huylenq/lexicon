@@ -1,0 +1,16 @@
+.user-settings { color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 12px; width: min(600px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); overflow: auto; padding: 24px; box-sizing: border-box; }
+.user-settings::backdrop { background: #0007; }
+.user-settings header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.user-settings h2 { margin: 0; font-size: 22px; }
+.user-settings h3 { margin: 24px 0 8px; }
+.user-settings p { font-size: 13px; line-height: 1.5; color: var(--muted); }
+.user-settings nav { display: flex; gap: 8px; flex-wrap: wrap; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.user-settings nav [aria-current=page] { background: var(--soft); color: var(--ink); box-shadow: inset 0 -2px var(--ink); }
+.user-settings label { display: block; margin: 16px 0 0; font-size: 14px; }
+.user-settings label input:not([type=checkbox]) { display: block; width: 100%; min-width: 0; box-sizing: border-box; margin-top: 8px; padding: 10px; color: inherit; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; }
+.user-settings .settings-checkbox { display: flex; align-items: center; gap: 8px; }
+.user-settings .settings-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+.user-settings .settings-address { overflow-wrap: anywhere; }
+.user-settings [role=alert] { color: #d34d4d; }
+.user-settings footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 24px; border-top: 1px solid var(--line); padding-top: 12px; }
+@media (max-width: 480px) { .user-settings { padding: 16px; } .user-settings nav { gap: 2px; } }

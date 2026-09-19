@@ -1,11 +1,9 @@
-import { useExperimentalFiles, setExperimentalFiles } from "./developmentOptions";
 import { useEffect, useRef, useState } from "react";
 import { defaultProjectSettings, type ProjectSettings as Settings } from "../../shared/settings";
 import { request } from "./ui";
 import "./styles/project-settings.css";
 
 export default function ProjectSettings({ projectId, readOnly }: { projectId: string; readOnly?: boolean }) {
-  const experimentalFiles = useExperimentalFiles();
   const dialog = useRef<HTMLDialogElement>(null);
   const [open, setOpen] = useState(false), [ready, setReady] = useState(false);
   const [include, setInclude] = useState(""), [exclude, setExclude] = useState("");
@@ -53,11 +51,6 @@ export default function ProjectSettings({ projectId, readOnly }: { projectId: st
             setReady(true); setError("");
           }}>Load default filters</button>
         </div>}
-        <details className="development-options">
-          <summary>Development options</summary>
-          <label><input type="checkbox" checked={experimentalFiles} onChange={event => setExperimentalFiles(event.target.checked)} /> Files / File Map</label>
-          <p>Enable the experimental filesystem view. Applies immediately in this browser only.</p>
-        </details>
         <footer><button type="button" className="quiet" onClick={close}>Cancel</button><button type="submit" disabled={!ready || readOnly || saving}>{saving ? "Saving…" : "Save settings"}</button></footer>
       </form>
     </dialog>}

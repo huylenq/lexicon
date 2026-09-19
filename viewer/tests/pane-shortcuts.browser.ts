@@ -1,3 +1,4 @@
+import { prepareAgent } from "./fixtures/agent-ui";
 import { expect, test } from "@playwright/test";
 
 for (const width of [1600, 800]) {
@@ -6,7 +7,10 @@ for (const width of [1600, 800]) {
     await page.goto('/p/shop?item=order');
     const reader = page.getByRole('button', { name: 'Toggle reader', exact: true });
     const sources = page.getByRole('button', { name: 'Toggle Source Reader', exact: true });
-    const agent = page.getByRole('button', { name: 'Agent', exact: true });
+    const agent = await prepareAgent(page);
+    // Explicit HUD navigation reveals the canvas on compact screens. Restore
+    // this test's reader-open starting state before exercising pane toggles.
+    if (await reader.getAttribute('aria-pressed') !== 'true') await reader.click();
     await expect(reader).toHaveAttribute('aria-pressed', 'true');
     await expect(reader).toHaveAttribute('title', 'Toggle reader (w)');
     await agent.focus();
@@ -20,20 +24,24 @@ for (const width of [1600, 800]) {
     await expect(page.locator('main [data-reader-card].active > header h1')).toHaveText('Order');
     await page.keyboard.press('s');
     await expect(sources).toHaveAttribute('aria-pressed', 'true');
-    await agent.focus();
+    // Source Reader replaces the canvas on compact screens; use its visible
+    // header control as the shortcut origin while the pill is hidden.
+    const sourceShortcutOrigin = width <= 1000 ? sources : agent;
+    await sourceShortcutOrigin.focus();
     await page.keyboard.press('s');
     await expect(sources).toHaveAttribute('aria-pressed', 'false');
-    await expect(agent).toBeFocused();
+    await expect(sourceShortcutOrigin).toBeFocused();
     await page.keyboard.press('Backslash');
     await expect(agent).toHaveAttribute('aria-pressed', 'true');
-    const input = page.getByRole('textbox', { name: 'Message the coding agent' });
+    const input = page.getByRole('textbox', { name: 'Message the agent' });
     await expect(input).toBeFocused();
     await input.fill('draft ');
     await input.pressSequentially('wis\\/');
     await expect(input).toHaveValue('draft wis\\/');
     await expect(agent).toHaveAttribute('aria-pressed', 'true');
     await page.keyboard.press('Meta+Backslash');
-    await expect(agent).toHaveAttribute('aria-pressed', 'false');
+    await expect(page.locator('#chat-pane')).toBeHidden();
+    await expect(agent).toHaveAttribute('aria-pressed', 'true');
     await agent.focus();
     await page.keyboard.press('Backslash');
     await expect(input).toHaveValue('draft wis\\/');
@@ -46,7 +54,8 @@ for (const width of [1600, 800]) {
     await agent.dispatchEvent('keydown', { key: '\\', code: 'Backslash', repeat: true });
     await expect(agent).toHaveAttribute('aria-pressed', 'true');
     await page.keyboard.press('Control+Backslash');
-    await expect(agent).toHaveAttribute('aria-pressed', 'false');
+    await expect(page.locator('#chat-pane')).toBeHidden();
+    await expect(agent).toHaveAttribute('aria-pressed', 'true');
     await reader.focus();
     await page.keyboard.press('/');
     const search = page.getByRole('textbox', { name: 'Search model' });
@@ -58,6 +67,7 @@ for (const width of [1600, 800]) {
 
 test('pane shortcuts work from the canvas without taking drawing shortcuts', async ({ page }) => {
   await page.goto('/p/shop?item=order');
+  await prepareAgent(page);
   const draw = page.getByTestId('tools.draw').filter({ visible: true });
   await draw.click();
   await page.keyboard.press('v');
@@ -67,5 +77,5 @@ test('pane shortcuts work from the canvas without taking drawing shortcuts', asy
   await page.keyboard.press('d');
   await expect(draw).toHaveAttribute('aria-pressed', 'true');
   await page.keyboard.press('Backslash');
-  await expect(page.getByRole('button', { name: 'Agent', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.agent-canvas-card').first()).toHaveAttribute('aria-pressed', 'true');
 });

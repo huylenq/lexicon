@@ -1,4 +1,4 @@
-import { useLayoutEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import Icon from "./Icon";
 export async function request<T>(
   path: string,
@@ -21,6 +21,16 @@ export function Theme() {
   const [dark, setDark] = useState(
     document.documentElement.dataset.theme === "dark",
   );
+  useEffect(() => {
+    const sync = () => {
+      let theme = document.documentElement.dataset.theme;
+      try { theme = localStorage.getItem("lexicon.theme") || theme; } catch {}
+      document.documentElement.dataset.theme = theme;
+      setDark(theme === "dark");
+    };
+    window.addEventListener("lexicon-theme", sync); window.addEventListener("storage", sync);
+    return () => { window.removeEventListener("lexicon-theme", sync); window.removeEventListener("storage", sync); };
+  }, []);
   useLayoutEffect(() => {
     // Older installed shells have separate light/dark tags. Chrome may select
     // either by the OS theme, so replace them with one explicit app theme.
@@ -45,6 +55,7 @@ export function Theme() {
         try {
           localStorage.setItem("lexicon.theme", next ? "dark" : "light");
         } catch {}
+        window.dispatchEvent(new Event("lexicon-theme"));
       }}
     >
       <Icon name={dark ? "sun" : "moon"} />{" "}

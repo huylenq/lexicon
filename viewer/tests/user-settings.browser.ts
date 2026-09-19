@@ -1,0 +1,35 @@
+import { test, expect } from "@playwright/test";
+
+test.use({ serviceWorkers: "block" });
+test("personal settings are available in the library and read-only examples, with distinct project scope", async ({ page }) => {
+  await page.goto("/");
+  const settingsButton = page.getByRole("button", { name: "Lexicon settings", exact: true });
+  await settingsButton.click();
+  const dialog = page.getByRole("dialog", { name: "Lexicon settings" });
+  await expect(dialog.getByLabel("T3 server")).toBeEnabled();
+  await dialog.getByRole("button", { name: "Appearance", exact: true }).click();
+  const wasDark = await page.evaluate(() => document.documentElement.dataset.theme === "dark");
+  await dialog.getByRole("button", { name: wasDark ? "Use light theme" : "Use dark theme" }).click();
+  await expect(page.locator(".library-header").getByRole("button", { name: wasDark ? "Use dark theme" : "Use light theme" })).toBeAttached();
+  await dialog.press("Escape");
+  await expect(settingsButton).toBeFocused();
+  await page.goto("/p/shop?item=order");
+  await page.getByRole("button", { name: "Project settings", exact: true }).click();
+  const project = page.getByRole("dialog", { name: "Project settings", exact: true });
+  await expect(project.getByLabel("Include globs")).toBeDisabled();
+  await expect(project.getByLabel("Pairing token")).toHaveCount(0);
+  await expect(project.getByRole("checkbox", { name: "Files / File Map" })).toHaveCount(0);
+  await project.getByRole("button", { name: "Cancel" }).click();
+  await settingsButton.click();
+  await expect(dialog.getByLabel("T3 server")).toBeEnabled();
+  await dialog.getByRole("button", { name: "Development", exact: true }).click();
+  await dialog.getByRole("checkbox", { name: "Files / File Map" }).check();
+  await dialog.getByRole("button", { name: "Done" }).click();
+  await page.reload();
+  await settingsButton.click();
+  await dialog.getByRole("button", { name: "Development", exact: true }).click();
+  await expect(dialog.getByRole("checkbox", { name: "Files / File Map" })).toBeChecked();
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+  await dialog.getByRole("button", { name: "Done" }).click();
+});

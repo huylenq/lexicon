@@ -1,3 +1,8 @@
+import { agentSessions } from "./agent-sessions";
+import { modelDocuments } from "./model-documents";
+import { modelEdits } from "./model-service";
+import { agents } from "./agents/service";
+import { installUserSettingsRoutes } from "./user-settings-routes";
 import { readProjectSettings, writeProjectSettings } from "./settings";
 import { Hono } from "hono";
 import { serveStatic } from "hono/bun";
@@ -11,14 +16,10 @@ import { readSource, readSourceMetadata } from "./source";
 import { readProjectFiles, readProjectFile } from "./files";
 import type { Project } from "../shared/model";
 import { MODEL_SCHEMA, codeTargetId } from "../shared/model";
-import { streamSSE } from "hono/streaming";
-import { chat } from "./chat/service";
-import { modelOrEmpty, readXml, fingerprint } from "./chat/model-edit";
-import { probeProvider, probeProviders, listModels } from "./chat/providers";
-import { providers, type Provider } from "../shared/chat";
-import { stopOwnedAgents } from "./chat/process";
+import { modelOrEmpty, readXml, fingerprint } from "./model-edit";
 import { CanvasError, validateCanvas, readCanvas, saveCanvas, recoverCanvas, saveCanvasAsset, readCanvasAsset } from "./canvas";
 import { MAX_CANVAS_BYTES, MAX_ASSET_BYTES } from "../shared/canvas";
+import { installAgentRuntimeRoutes } from "./agents/routes";
 import { installAgentRoutes } from "./agent/routes";
 
 const exec = promisify(execFile);
@@ -87,7 +88,7 @@ function project(id: string) {
 export const app = new Hono();
 app.use("/api/*", async (c, next) => {
   const desktopToken = process.env.LEXICON_DESKTOP_TOKEN;
-  if (desktopToken && c.req.header("x-lexicon-desktop-token") !== desktopToken)
+  if (desktopToken && c.req.header("x-lexicon-desktop-token") !== desktopToken && !(c.req.path === "/api/agent/mcp/turn" && agents.delivery.accepts(c.req.header("authorization")?.replace(/^Bearer /, "") || "")))
     return c.json({ error: "Desktop session required." }, 403);
   const local = (host: string) =>
     ["localhost", "127.0.0.1", "[::1]"].includes(host);
@@ -99,6 +100,7 @@ app.use("/api/*", async (c, next) => {
   await next();
 });
 app.onError((error, c) => c.json({ error: error.message }, error instanceof CanvasError ? error.status : 400));
+installUserSettingsRoutes(app, agents);
 app.get("/api/health", (c) => c.json({ ok: true, model: MODEL_SCHEMA }));
 app.get("/api/projects", (c) =>
   c.json([
@@ -126,25 +128,31 @@ app.post("/api/projects", async (c) => {
   const p = projects.add(document.model?.name || basename(root), root);
   return c.json({ id: String(p.id), name: p.name, root: p.root_path });
 });
-app.delete("/api/projects/:id", (c) => {
+app.delete("/api/projects/:id", async (c) => {
   const p = project(c.req.param("id"));
   if (!p) return c.json({ error: "Project not found." }, 404);
   if (p.example)
     return c.json({ error: "Built-in examples stay in the library." }, 400);
-  if (chat.state(p.id).running)
+  if (modelEdits.workingOn(await realpath(await artifactRoot(p.root))) || await agents.workingOn({ ...p, artifactRoot: await artifactRoot(p.root), example: !!p.example }))
     return c.json(
-      { error: "Stop the project conversation before removing it." },
+      { error: "Stop the project’s agents before removing it." },
       409,
     );
   projects.remove(Number(p.id));
   return c.json({ ok: true });
 });
+app.get("/api/projects/:id/model/revision", async c => {
+  const p = project(c.req.param("id"));
+  if (!p) return c.json({ error: "Project not found." }, 404);
+  c.header("Cache-Control", "no-store");
+  const root = p.artifactRoot || await artifactRoot(p.root);
+  return c.json({ modelRevision: await modelDocuments.revision(root) });
+});
 app.get("/api/projects/:id/model", async (c) => {
   const p = project(c.req.param("id"));
   if (!p) return c.json({ error: "Project not found." }, 404);
   const root = p.artifactRoot || (await artifactRoot(p.root));
-  const xml = await readXml(root);
-  const document = await readModelDocument(root, xml);
+  const { document, revision } = await modelDocuments.read(root);
   const name = document.model?.name || p.name;
   if (!p.example) {
     projects.touch(Number(p.id));
@@ -153,15 +161,9 @@ app.get("/api/projects/:id/model", async (c) => {
   return c.json({
     project: { id: p.id, name, root: p.root, example: p.example },
     ...document,
-    modelRevision: fingerprint(xml),
+    modelRevision: revision,
     artifactRoot: root,
   });
-});
-app.get("/api/providers", async (c) => c.json(await probeProviders()));
-app.get("/api/providers/:id/status", async (c) => {
-  const id = c.req.param("id") as Provider;
-  if (!providers.includes(id)) return c.json({ error: "Unknown coding agent." }, 404);
-  return c.json(await probeProvider(id));
 });
 async function canvasProject(id: string) {
   const p = project(id);
@@ -207,13 +209,7 @@ app.get("/api/projects/:id/canvas/assets/:name", async (c) => {
       "Content-Security-Policy": "sandbox; default-src 'none'", "Cache-Control": "private, max-age=31536000, immutable" } });
   } catch (e) { return c.json({ error: `Canvas media unavailable: ${(e as Error).message}` }, 404); }
 });
-app.get("/api/providers/:id/models", async (c) => {
-  const id = c.req.param("id") as Provider;
-  if (!providers.includes(id)) return c.json({ error: "Unknown coding agent." }, 404);
-  try { return c.json(await listModels(id)); }
-  catch (error) { return c.json({ error: (error as Error).message }, 503); }
-});
-async function chatProject(id: string) {
+async function agentProject(id: string) {
   const p = project(id);
   if (!p) throw new Error("Project not found.");
   const artifacts = p.artifactRoot || (await artifactRoot(p.root));
@@ -224,56 +220,28 @@ async function chatProject(id: string) {
     example: p.example,
   };
 }
-app.get("/api/projects/:id/chat", (c) => {
-  if (!project(c.req.param("id")))
-    return c.json({ error: "Project not found." }, 404);
-  return c.json(chat.state(c.req.param("id")));
+installAgentRuntimeRoutes(app, agentProject);
+app.get("/api/projects/:id/agents", async c => {
+  const p = await agentProject(c.req.param("id"));
+  return c.json(await agents.listTasks(p));
 });
-app.post("/api/projects/:id/canvas/model-command", async (c) => {
+app.post("/api/projects/:id/agents", async c => {
+  if (!c.req.header("content-type")?.startsWith("application/json")) return c.json({ error: "JSON required." }, 415);
+  const p = await agentProject(c.req.param("id"));
+  return c.json(await agentSessions.assign(p, await c.req.json()), 201);
+});
+app.get("/api/projects/:id/model/history", async c => {
+  const p = await agentProject(c.req.param("id"));
+  return c.json(modelEdits.state(p.id));
+});
+app.post("/api/projects/:id/canvas/model-command", async c => {
   if (!c.req.header("content-type")?.startsWith("application/json")) return c.json({ error: "JSON request required." }, 415);
-  return c.json(await chat.canvasCommand(await chatProject(c.req.param("id")), await c.req.json()));
+  return c.json(await modelEdits.canvasCommand(await agentProject(c.req.param("id")), await c.req.json()));
 });
-app.get("/api/projects/:id/chat/events", (c) => {
-  const id = c.req.param("id");
-  if (!project(id)) return c.json({ error: "Project not found." }, 404);
-  return streamSSE(c, async (stream) => {
-    let ended = false;
-    let finish!: () => void;
-    const done = new Promise<void>((resolve) => {
-      finish = resolve;
-    });
-    const unsubscribe = chat.subscribe(id, (state) => {
-      if (!ended)
-        void stream
-          .writeSSE({ event: "state", data: JSON.stringify(state) })
-          .catch(() => finish());
-    });
-    const heartbeat = setInterval(() => {
-      if (!ended)
-        void stream
-          .writeSSE({ event: "ping", data: "{}" })
-          .catch(() => finish());
-    }, 5000);
-    stream.onAbort(finish);
-    await done;
-    ended = true;
-    clearInterval(heartbeat);
-    unsubscribe();
-  });
-});
-app.post("/api/projects/:id/chat/:action", async (c) => {
-  if (!c.req.header("content-type")?.startsWith("application/json"))
-    return c.json({ error: "JSON request required." }, 415);
-  const p = await chatProject(c.req.param("id"));
-  const action = c.req.param("action");
-  const body = await c.req.json();
-  if (action === "send") return c.json(await chat.start(p, body));
-  if (action === "stop") chat.stop(p.id);
-  else if (action === "undo") await chat.undo(p, typeof body.changeId === "string" ? body.changeId : undefined);
-  else if (action === "reset") chat.reset(p.id);
-  else if (action === "answer") chat.answer(p.id, body.requestId, body.answers);
-  else return c.json({ error: "Unknown conversation action." }, 404);
-  return c.json(chat.state(p.id));
+app.post("/api/projects/:id/model/undo", async c => {
+  const p = await agentProject(c.req.param("id")), body = await c.req.json();
+  await modelEdits.undo(p, body.changeId);
+  return c.json(modelEdits.state(p.id));
 });
 app.get("/api/projects/:id/settings", async (c) => {
   const p = project(c.req.param("id"));
@@ -290,12 +258,12 @@ app.put("/api/projects/:id/settings", async (c) => {
 });
 for (const path of ["/api/projects/:id/files", "/api/projects/:id/repository"] as const) app.get(path, async (c) => {
   if (!project(c.req.param("id"))) return c.json({ error: "Project not found." }, 404);
-  const p = await chatProject(c.req.param("id"));
+  const p = await agentProject(c.req.param("id"));
   return c.json(await readProjectFiles(p.root, c.req.query("refresh") === "1", p.artifactRoot));
 });
 for (const path of ["/api/projects/:id/files/file", "/api/projects/:id/repository/file"] as const) app.get(path, async (c) => {
   if (!project(c.req.param("id"))) return c.json({ error: "Project not found." }, 404);
-  const p = await chatProject(c.req.param("id"));
+  const p = await agentProject(c.req.param("id"));
   try { return c.json(await readProjectFile(p.root, c.req.query("file") || "", p.artifactRoot)); }
   catch (error) { return c.json({ error: (error as Error).message }, 400); }
 });
@@ -329,10 +297,10 @@ app.get("/api/projects/:id/code", async (c) => {
     ),
   );
 });
-installAgentRoutes(app, chatProject, () => [
+agents.connectOperations(installAgentRoutes(app, agentProject, () => [
   ...examples.map(({ artifactRoot, ...p }) => p),
   ...projects.list().map(p => ({ id: String(p.id), name: p.name, root: p.root_path })),
-]);
+], agents.delivery));
 app.all("/api/*", (c) => c.json({ error: "Endpoint not found." }, 404));
 const dist = resolve(import.meta.dir, "../client/dist");
 app.get("*", serveStatic({ root: relative(process.cwd(), dist) || "." }));
@@ -349,8 +317,7 @@ app.get("*", async (c) => {
 const port = Number(process.env.LEXICON_VIEWER_API_PORT || 5374);
 if (import.meta.main) {
   const shutdown = async () => {
-    chat.stopAll();
-    await stopOwnedAgents();
+    await agents.dispose();
     process.exit(0);
   };
   process.once("SIGINT", shutdown);

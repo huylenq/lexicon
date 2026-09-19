@@ -1,9 +1,9 @@
-.project-settings { color: var(--text); background: var(--panel); border: 1px solid var(--border); border-radius: 12px; width: min(520px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: auto; padding: 24px; box-sizing: border-box; }
+.project-settings { color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 12px; width: min(520px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: auto; padding: 24px; box-sizing: border-box; }
 .project-settings::backdrop { background: #0007; }
 .project-settings h2 { margin: 0 0 24px; }
 .project-settings h3 { margin-bottom: 8px; }
 .project-settings p { font-size: 13px; line-height: 1.5; opacity: .8; }
 .project-settings label { display: block; margin-top: 18px; font-size: 14px; }
-.project-settings textarea { display: block; box-sizing: border-box; width: 100%; margin-top: 8px; resize: vertical; font-family: monospace; padding: 10px; color: inherit; background: var(--panel); border: 1px solid var(--border); border-radius: 6px; }
+.project-settings textarea { display: block; box-sizing: border-box; width: 100%; margin-top: 8px; resize: vertical; font-family: monospace; padding: 10px; color: inherit; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; }
 .project-settings footer { display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px; }
 .project-settings [role=alert] { color: #d34d4d; opacity: 1; }

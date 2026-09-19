@@ -1,3 +1,4 @@
+import { prepareAgent } from "./fixtures/agent-ui";
 import { expect, test, type Page } from "@playwright/test";
 
 const cards = (page: Page) => page.locator("[data-reader-card]");
@@ -14,11 +15,9 @@ const openPinned = async (page: Page, id: string) => {
 };
 const scroll = (page: Page) => page.locator("main").evaluate(el => el.scrollTop);
 
-test("bottom tiles use the available workspace height with the Agent launcher docked", async ({ page }) => {
+test("bottom tiles use the reader height while clearing the floating New agent control", async ({ page }) => {
   await openPinned(page, "order");
-  await page.getByRole("button", { name: "Agent", exact: true }).click();
-  await page.getByRole("button", { name: "Dock launcher in toolbar", exact: true }).click();
-  await page.getByRole("button", { name: "Agent", exact: true }).click();
+  await prepareAgent(page);
   for (const name of ["Order Line", "Customer", "Shop"]) await browse(page, name);
   for (const size of [{ width: 1600, height: 700 }, { width: 1200, height: 900 }]) {
     await page.setViewportSize(size);
@@ -26,10 +25,12 @@ test("bottom tiles use the available workspace height with the Agent launcher do
     const bottom = page.getByRole("group", { name: "Collapsed cards below" });
     await expect(bottom).toBeVisible();
     await expect.poll(() => bottom.evaluate(el => {
-      const workspace = el.closest(".reader-workspace")!;
-      const innerBottom = workspace.getBoundingClientRect().top + workspace.clientTop + workspace.clientHeight;
+      const scroller = el.closest("main")!;
+      const innerBottom = scroller.getBoundingClientRect().top + scroller.clientTop + scroller.clientHeight;
       return innerBottom - el.getBoundingClientRect().bottom;
-    })).toBeCloseTo(15, 0);
+    })).toBeCloseTo(12, 0);
+    expect((await bottom.boundingBox())!.y + (await bottom.boundingBox())!.height)
+      .toBeLessThan((await page.getByRole("button", { name: "New agent", exact: true }).boundingBox())!.y);
   }
 });
 
@@ -230,8 +231,8 @@ test("bottom morph follows reverse scrolling and hands off to the bottom tile", 
     const main = el.closest("main")!;
     main.scrollTop = (el as HTMLElement).offsetTop - main.clientHeight + pixels;
   }, pixels);
-  // Use a shorter viewport so the second card can be entirely below it.
-  await page.setViewportSize({ width: 1600, height: 700 });
+  // Leave enough scroll range to put the second card entirely below the reader.
+  await page.setViewportSize({ width: 1600, height: 600 });
   const morph = page.locator('[data-bottom-morph-card="item:order-line"]');
   await show(120);
   await expect(morph).toBeVisible();
@@ -589,7 +590,7 @@ test("tall cards and sticky headers blur their backdrop while the bottom fades",
   await page.evaluate(stripes => {
     (document.querySelector(".canvas-stage") as HTMLElement).style.background = stripes;
   }, stripes);
-  await page.addStyleTag({ content: ".canvas-stage > *, .sidebar > *, .reader-card-body > * { visibility: hidden !important; }" });
+  await page.addStyleTag({ content: ".canvas-stage > *, .toolbar > *, .sidebar > *, .reader-card-body > * { visibility: hidden !important; }" });
   const samples = async (selector: string, nearTop = false) => {
     const box = (await page.locator(selector).first().boundingBox())!;
     // Capture the viewport before sampling: a tightly cropped screenshot can

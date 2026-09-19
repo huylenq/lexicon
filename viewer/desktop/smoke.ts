@@ -7,13 +7,12 @@ const temp = await mkdtemp(join(tmpdir(), 'lexicon-desktop-test-'));
 const project = join(temp, 'project');
 const desktop = import.meta.dirname;
 const live = process.env.LEXICON_DESKTOP_LIVE_CODEX === '1';
-const fixture = join(desktop, '../tests/fixtures/agent.ts');
 await mkdir(join(project, 'lexicon'), { recursive: true });
 await writeFile(join(project, 'order.ts'), 'export class Order { total = 42; }\n');
 await writeFile(join(project, 'lexicon/model.xml'), `<lexicon schema="3.3" id="desktop-test"><name>Desktop test</name><description>Packaged source navigation.</description><context id="sales"><name>Sales</name><description>Order handling.</description><concept id="order"><name>Order</name><description>A purchase.</description><code-link kind="code" file="order.ts" symbol="Order" role="definition">The order implementation.</code-link></concept><concept id="line"><name>Line</name><description>A purchased item.</description></concept></context><relationship id="contains" from="order" to="line"><name>contains</name><description>An order contains lines.</description></relationship></lexicon>`);
 const executablePath = process.env.LEXICON_DESKTOP_EXECUTABLE || join(desktop, 'node_modules/electron/dist/Electron.app/Contents/MacOS/Electron');
 const launch = () => electron.launch({ executablePath, args: process.env.LEXICON_DESKTOP_EXECUTABLE ? [] : [desktop],
-  env: { ...process.env, LEXICON_DESKTOP_DATA: join(temp, 'data'), ...(live ? {} : { LEXICON_CODEX_BIN: fixture, LEXICON_GROK_BIN: fixture, LEXICON_CLAUDE_BIN: fixture }) }, timeout: 30000 });
+  env: { ...process.env, LEXICON_DESKTOP_DATA: join(temp, 'data') }, timeout: 30000 });
 let instance = await launch();
 try {
   const page = await instance.firstWindow();
@@ -65,14 +64,22 @@ try {
     await page.getByRole('button', { name: 'Copy link', exact: true }).click();
     await expect.poll(() => instance.evaluate(({ clipboard }) => clipboard.readText())).toContain('lexicon://app/p/');
   } finally { await instance.evaluate(({ clipboard }, text) => clipboard.writeText(text), oldClipboard); }
-  await page.getByRole('button', { name: 'Agent', exact: true }).click();
-  const chat = page.getByRole('complementary', { name: 'Project conversation' });
-  await chat.getByRole('textbox', { name: 'Message the coding agent' }).fill(live
-    ? 'Read order.ts. What is the initial total of Order? Reply with the number and one brief sentence. Do not edit anything.'
-    : 'Explain the order.');
-  await chat.getByRole('button', { name: 'Send', exact: true }).click();
-  await expect(chat.locator('.chat-markdown').last()).toContainText(live ? '42' : 'An order records a purchase', { timeout: 120000 });
-  await expect(chat.getByRole('button', { name: 'Send', exact: true })).toBeVisible({ timeout: 30000 });
+  await page.getByRole('button', { name: 'New task', exact: true }).click();
+  const chat = page.locator('#chat-pane');
+  await expect(chat.getByRole('combobox', { name: 'Editing scope' })).toHaveValue('model');
+  await expect(chat.getByRole('button', { name: 'Send', exact: true })).toBeDisabled();
+  if (live) {
+    const url = process.env.LEXICON_DESKTOP_T3_URL, token = process.env.LEXICON_DESKTOP_T3_TOKEN;
+    if (!url || !token) throw new Error('Live desktop testing requires an isolated T3 URL and pairing token.');
+    await chat.getByLabel('T3 server').fill(url);
+    await chat.getByLabel('Pairing token').fill(token);
+    await chat.getByRole('button', { name: 'Connect', exact: true }).click();
+    await expect(chat.getByRole('combobox', { name: 'Agent model' })).not.toHaveValue('');
+    await chat.getByRole('textbox', { name: 'Message the agent' }).fill('Read order.ts. What is the initial total of Order? Reply with the number and one brief sentence. Do not edit anything.');
+    await chat.getByRole('button', { name: 'Send', exact: true }).click();
+    await expect(chat.locator('.chat-message-body').last()).toContainText('42', { timeout: 120000 });
+    await expect(chat.getByRole('button', { name: 'Send', exact: true })).toBeVisible({ timeout: 30000 });
+  }
   expect(await readFile(join(project, 'order.ts'), 'utf8')).toBe('export class Order { total = 42; }\n');
   await page.evaluate(() => localStorage.setItem('desktop-smoke', 'persists'));
   await page.screenshot({ path: join(desktop, 'dist/qa/desktop-reader.png') });
@@ -84,10 +91,11 @@ try {
   await expect(reopened.getByRole('link', { name: /Desktop test/ })).toBeVisible();
   expect(await reopened.evaluate(() => localStorage.getItem('desktop-smoke'))).toBe('persists');
   await reopened.getByRole('link', { name: /Desktop test/ }).click();
-  await reopened.getByRole('button', { name: 'Agent', exact: true }).click();
-  await expect(reopened.locator('.chat-markdown').last()).toContainText(live ? '42' : 'An order records a purchase');
+  await reopened.locator('.agent-session-button').first().click();
+  if (live) await expect(reopened.locator('.chat-message-body').last()).toContainText('42');
+  else await expect(reopened.getByLabel('Pairing token')).toBeVisible();
   await expect(reopened.locator('[data-save-status]')).toHaveAttribute('data-save-status', 'saved');
-  console.log('Desktop smoke passed: update click/dismiss, narrow layout, folder picker, source navigation, clipboard, chat streaming, registry and viewing-state persistence.');
+  console.log('Desktop smoke passed: update click/dismiss, narrow layout, folder picker, source navigation, clipboard, agent connection UI (streaming when live), registry and viewing-state persistence.');
 } finally {
   await instance.close();
   await rm(temp, { recursive: true, force: true });

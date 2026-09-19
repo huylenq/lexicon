@@ -611,17 +611,17 @@ test("Files is default-off and can be enabled in Development options", async ({ 
   await expect(page.getByRole("button", { name: "Browse Files", exact: true })).toHaveCount(0);
   await expect(page.getByRole("tree", { name: "File Map" })).toHaveCount(0);
   expect(scans).toBe(0);
-  await page.getByRole("button", { name: "Project settings", exact: true }).click();
-  await page.getByText("Development options", { exact: true }).click();
+  await page.getByRole("button", { name: "Lexicon settings", exact: true }).click();
+  await page.getByRole("button", { name: "Development", exact: true }).click();
   await page.getByRole("checkbox", { name: "Files / File Map", exact: true }).check();
-  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await page.getByRole("button", { name: "Done", exact: true }).click();
   await expect(page.getByRole("tree", { name: "File Map" })).toBeVisible();
   await expect(page.getByRole("application", { name: "tldraw", exact: true })).toHaveCount(0);
   expect(scans).toBeGreaterThan(0);
-  await page.getByRole("button", { name: "Project settings", exact: true }).click();
-  await page.getByText("Development options", { exact: true }).click();
+  await page.getByRole("button", { name: "Lexicon settings", exact: true }).click();
+  await page.getByRole("button", { name: "Development", exact: true }).click();
   await page.getByRole("checkbox", { name: "Files / File Map", exact: true }).uncheck();
-  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await page.getByRole("button", { name: "Done", exact: true }).click();
   await expect(page.locator('.canvas-stage[data-ready="true"]')).toBeVisible();
   await expect(page.getByRole("tree", { name: "File Map" })).toHaveCount(0);
 });
@@ -853,13 +853,20 @@ test("compact linked lists retain directory nesting and upgrade saved file layou
   const records = async (): Promise<any[]> => Object.values((await state()).document?.snapshot.store || {});
   const source = (all: any[]) => all.filter(r => r.type === "lexicon-object" && r.meta.lexiconProjection === "layers-source");
   await expect.poll(async () => source(await records()).filter(r => r.props.graphId.startsWith("directory:")).length).toBe(3);
+  // Directory projection can save before the complete file rows are measured.
+  await expect.poll(async () => {
+    const projected = source(await records());
+    const file = projected.find(r => r.props.graphId === "file:docs/design/agent.md");
+    return projected.filter(r => file && r.parentId === file.id).length;
+  }).toBe(18);
   const before = source(await records());
   const file = before.find(r => r.props.graphId === "file:docs/design/agent.md");
   const rows = before.filter(r => r.parentId === file.id).sort((a, b) => a.y - b.y);
   expect(rows).toHaveLength(18);
   expect(rows[1].y - rows[0].y).toBe(30);
   expect(rows.every(r => r.props.h === 28)).toBe(true);
-  expect(file.props.h).toBeLessThan(600);
+  // Eighteen 28px rows with 2px gaps, plus the shared container header/padding.
+  expect(file.props.h).toBe(630);
   const service = before.find(r => r.props.graphId === "file:src/runtime/chat/service.ts");
   const chat = before.find(r => r.props.graphId === "directory:src/runtime/chat");
   const src = before.find(r => r.props.graphId === "directory:src");

@@ -1,26 +1,26 @@
+import { handleMcp } from "./http-mcp";
+import type { AgentDelivery } from "../agents/delivery";
 import { createAgentOperations } from "./operations";
 import type { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import type { Project } from "../../shared/model";
-import { chat, type ChatProject } from "../chat/service";
-import { fingerprint, readXml } from "../chat/model-edit";
+import { modelEdits, type AgentProject } from "../model-service";
+import { fingerprint, readXml } from "../model-edit";
 import { only, record, text } from "./edit";
 import { readViewerState } from "./sessions";
-import { agentTools } from "./tools";
 
-export function installAgentRoutes(app: Hono, resolveProject: (id: string) => Promise<ChatProject>, listProjects: () => Project[]) {
-  const operations = createAgentOperations(chat, resolveProject, listProjects);
+export function installAgentRoutes(app: Hono, resolveProject: (id: string) => Promise<AgentProject>, listProjects: () => Project[], delivery?: AgentDelivery) {
+  const operations = createAgentOperations(modelEdits, resolveProject, listProjects);
   const { sessions } = operations;
-  chat.connectOperations(operations);
   app.use("/api/agent/*", async (c, next) => {
     if (["POST", "PUT"].includes(c.req.method)) {
       if (!c.req.header("content-type")?.startsWith("application/json")) return c.json({ error: "JSON request required." }, 415);
-      if ((await c.req.text()).length > 128_000) return c.json({ error: "Agent request is too large." }, 413);
+      if ((await c.req.raw.clone().text()).length > 2_000_000) return c.json({ error: "Agent request is too large." }, 413);
     }
     await next();
   });
-  app.get("/api/agent/tools", c => c.json(agentTools));
-  app.post("/api/agent/tools/:name", async c => c.json(await operations.execute(c.req.param("name"), await c.req.json())));
+  app.all("/api/agent/mcp", c => handleMcp(c.req.raw, operations));
+  app.all("/api/agent/mcp/turn", c => handleMcp(c.req.raw, operations, delivery, true));
   app.post("/api/agent/projects/:id/sessions", async c => {
     const project = await resolveProject(c.req.param("id"));
     return c.json(sessions.create(project.id, readViewerState(await c.req.json())));
@@ -63,5 +63,5 @@ export function installAgentRoutes(app: Hono, resolveProject: (id: string) => Pr
       stop();
     });
   });
-  return sessions;
+  return operations;
 }

@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { readFile } from "node:fs/promises";
 import { parseModel, serializeModel } from "../server/model";
-import { applyPatch } from "../server/chat/model-edit";
+import { applyPatch } from "../server/model-edit";
 import { flowsFor, type Flow } from "../shared/model";
 import { projectSequence } from "../client/src/graph/flow";
 import { indexModel, projectGraph, neighborhood } from "../client/src/graph/model";
